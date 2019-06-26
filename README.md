@@ -27,15 +27,15 @@ Using the sample data, the output of the sample command above should look someth
 
 ```
 Node for 'Small boats in Havana Harbour' created at http://localhost:8000/node/52.
--File media for IMG_1410.tif created.
++File media for IMG_1410.tif created.
 Node for 'Manhatten Island' created at http://localhost:8000/node/53.
--File media for IMG_2549.jp2 created.
++File media for IMG_2549.jp2 created.
 Node for 'Looking across Burrard Inlet' created at http://localhost:8000/node/54.
--Image media for IMG_2940.JPG created.
++Image media for IMG_2940.JPG created.
 Node for 'Amsterdam waterfront' created at http://localhost:8000/node/55.
--Image media for IMG_2958.JPG created.
++Image media for IMG_2958.JPG created.
 Node for 'Alcatraz Island' created at http://localhost:8000/node/56.
--Image media for IMG_5083.JPG created.
++Image media for IMG_5083.JPG created.
 ```
 
 ## Input data

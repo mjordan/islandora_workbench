@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 
-# Usage: ./workbench --hostname http://localhost:8000 --username admin --password islandora --input_dir /tmp --csv_filename metadata.csv --media_use_tid 16 --model_tid 24 --drupal_filesystem fedora://
+# Usage: ./workbench --hostname http://localhost:8000 \
+#    --username admin \
+#    --password islandora
+#    --input_dir /tmp
+#    --csv_filename metadata.csv
+#    --media_use_tid 16
+#    --model_tid 24
+#    --drupal_filesystem fedora://
+#    --table_output
 
 import os
 import sys
@@ -11,14 +19,31 @@ import mimetypes
 import requests
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--hostname", help="Islandora hostname, including port number")
-parser.add_argument("--username", help="Islandora username")
-parser.add_argument("--password", help="Islandora username's password")
-parser.add_argument("--input_dir", help="Full path to directory containing images and metadata CSV")
-parser.add_argument("--csv_filename", help="Filename of the metadata CSV file, which must be in the directory named in --input_dir")
-parser.add_argument("--media_use_tid", help="Media Use term ID")
-parser.add_argument("--model_tid", help="Model term ID")
-parser.add_argument("--drupal_filesystem", help="Drupal filesystem to use")
+parser.add_argument(
+    "--hostname",
+    help="Islandora hostname, including port number")
+parser.add_argument(
+    "--username",
+    help="Islandora username")
+parser.add_argument(
+    "--password",
+    help="Islandora username's password")
+parser.add_argument(
+    "--input_dir",
+    help="Full path to directory containing images and metadata CSV")
+parser.add_argument(
+    "--csv_filename",
+    help="Filename of the metadata CSV file, which must be in the " +
+    "directory named in --input_dir")
+parser.add_argument(
+    "--media_use_tid",
+    help="Media Use term ID")
+parser.add_argument(
+    "--model_tid",
+    help="Model term ID")
+parser.add_argument(
+    "--drupal_filesystem",
+    help="Drupal filesystem to use")
 args = parser.parse_args()
 
 host = args.hostname
@@ -45,31 +70,60 @@ if os.path.exists(input_csv):
     with open(input_csv) as csvfile:
         csv_data = csv.DictReader(csvfile, delimiter=',')
         for row in csv_data:
-            node = {'type': [{'target_id': 'islandora_object', 'target_type': 'node_type'}],
-                'title': [{'value': row['title']}],
-                'field_model': [{'target_id': str(model), 'target_type': 'taxonomy_term'}]}
-            node_headers = {'Content-Type': 'application/json'}
-            node_response = requests.post(node_endpoint, auth=(username, password), json=node, headers=node_headers)
+
+            node = {
+                'type': [
+                    {'target_id': 'islandora_object',
+                     'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': row['title']}
+                ],
+                'field_model': [
+                    {'target_id': str(model),
+                     'target_type': 'taxonomy_term'}
+                ]
+            }
+
+            node_headers = {
+                'Content-Type': 'application/json'
+            }
+            node_response = requests.post(
+                node_endpoint,
+                auth=(username, password),
+                json=node, headers=node_headers)
             node_uri = node_response.headers['location']
             if node_response.status_code == 201:
-                print ("Node for '" + row['title'] + "' created at " + node_uri + ".")
+                print("Node for '" + row['title'] +
+                    "' created at " + node_uri + ".")
 
             file_path = os.path.join(input_dir, row['file'])
             mimetype = mimetypes.guess_type(file_path)
             media_type = 'file'
             # TIFFs and JP2s are 'file'.
             if mimetype[0] in image_mimetypes:
-            	media_type = 'image'
+                media_type = 'image'
             if mimetype[0] in audio_mimetypes:
-            	media_type = 'audio'
+                media_type = 'audio'
             if mimetype[0] in video_mimetypes:
-            	media_type = 'video'
+                media_type = 'video'
 
             if node_response.status_code == 201:
-            	media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tid)
-            	media_endpoint =  node_uri + media_endpoint_path
-            	media_headers = {'Content-Type': mimetype[0], 'Content-Location': drupal_filesystem + os.path.basename(row['file'])}
-            	binary_data = open(os.path.join(input_dir, row['file']), 'rb')
-            	media_response = requests.put(media_endpoint, auth=(username, password), data=binary_data, headers=media_headers)
-            	if media_response.status_code == 201:
-            		print('-' + media_type.title() + " media for " + row['file'] + " created.")
+                media_endpoint_path = ('/media/' +
+                    media_type + '/' + str(media_use_tid))
+                media_endpoint = node_uri + media_endpoint_path
+                location = drupal_filesystem + os.path.basename(row['file'])
+                media_headers = {
+                    'Content-Type': mimetype[0],
+                    'Content-Location': location
+                }
+                binary_data = open(os.path.join(input_dir, row['file']), 'rb')
+                media_response = requests.put(
+                    media_endpoint,
+                    auth=(username, password),
+                    data=binary_data,
+                    headers=media_headers)
+                allowed_binary_response_codes = 201, 204
+                if media_response.status_code in allowed_binary_response_codes:
+                    print('+' + media_type.title() + " media for " +
+                          row['file'] + " created.")
