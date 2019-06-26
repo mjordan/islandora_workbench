@@ -10,7 +10,7 @@ A Python port of https://github.com/mjordan/claw_rest_ingester.
 
 ## Usage
 
-`./workbench --hostname http://localhost:8000 --username admin --password islandora --input_dir /tmp --csv_filename metadata.csv --media_use_tid 16 --model_tid 24 --drupal_filesystem fedora://`
+`./workbench --hostname http://localhost:8000 --username admin --password islandora --input_dir input_data --csv_filename metadata.csv --media_use_tid 16 --model_tid 24 --drupal_filesystem fedora://`
 
 where
 
@@ -22,6 +22,21 @@ where
 * `--media_use_tid` is the term ID for the Media Use term you want to apply to the media.
 * `--model_tid` is the term ID for the Model you want your nodes to be.
 * `--drupal_filesystem` is either 'fedora://' or 'public://'.
+
+Using the sample data, the output of the sample command above should look something like:
+
+```
+Node for 'Small boats in Havana Harbour' created at http://localhost:8000/node/52.
+-File media for IMG_1410.tif created.
+Node for 'Manhatten Island' created at http://localhost:8000/node/53.
+-File media for IMG_2549.jp2 created.
+Node for 'Looking across Burrard Inlet' created at http://localhost:8000/node/54.
+-Image media for IMG_2940.JPG created.
+Node for 'Amsterdam waterfront' created at http://localhost:8000/node/55.
+-Image media for IMG_2958.JPG created.
+Node for 'Alcatraz Island' created at http://localhost:8000/node/56.
+-Image media for IMG_5083.JPG created.
+```
 
 ## Input data
 
@@ -39,7 +54,7 @@ your_folder/
 
 The names of the images can take any form you want since they are included in the CSV file (which can also be named whatever you want). That file must contain three columns, `file`, `title`, and `description`. The `file` column contains the full filename of the image file, and the `title` and `description` columns contain values that will be applied to the nodes.
 
-Currently only .jpg and .png files are allowed.
+Files of any extension are allowed.
 
 ## Code style
 

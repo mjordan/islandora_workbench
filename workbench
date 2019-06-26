@@ -35,6 +35,9 @@ drupal_filesystem = args.drupal_filesystem
 model = args.model_tid
 
 node_endpoint = host + '/node?_format=json'
+image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
+audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
+video_mimetypes = ['video/mp4']
 
 mimetypes.init()
 
@@ -47,14 +50,26 @@ if os.path.exists(input_csv):
                 'field_model': [{'target_id': str(model), 'target_type': 'taxonomy_term'}]}
             node_headers = {'Content-Type': 'application/json'}
             node_response = requests.post(node_endpoint, auth=(username, password), json=node, headers=node_headers)
-            print (node_response.status_code)
+            node_uri = node_response.headers['location']
+            if node_response.status_code == 201:
+                print ("Node for '" + row['title'] + "' created at " + node_uri + ".")
+
+            file_path = os.path.join(input_dir, row['file'])
+            mimetype = mimetypes.guess_type(file_path)
+            media_type = 'file'
+            # TIFFs and JP2s are 'file'.
+            if mimetype[0] in image_mimetypes:
+            	media_type = 'image'
+            if mimetype[0] in audio_mimetypes:
+            	media_type = 'audio'
+            if mimetype[0] in video_mimetypes:
+            	media_type = 'video'
 
             if node_response.status_code == 201:
-            	node_uri = node_response.headers['location']
-            	file_path = os.path.join(input_dir, row['file'])
-            	mimetype = mimetypes.guess_type(file_path)
-            	media_endpoint_path = '/media/image/' + str(media_use_tid)
+            	media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tid)
             	media_endpoint =  node_uri + media_endpoint_path
             	media_headers = {'Content-Type': mimetype[0], 'Content-Location': drupal_filesystem + os.path.basename(row['file'])}
             	binary_data = open(os.path.join(input_dir, row['file']), 'rb')
             	media_response = requests.put(media_endpoint, auth=(username, password), data=binary_data, headers=media_headers)
+            	if media_response.status_code == 201:
+            		print('-' + media_type.title() + " media for " + row['file'] + " created.")
