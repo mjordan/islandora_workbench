@@ -5,23 +5,35 @@ A Python port of https://github.com/mjordan/claw_rest_ingester.
 ## Requirements
 
 * Python 3 or higher
+* The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
 * The [Requests](https://2.python-requests.org/en/master/) library
 * An Islandora 8 repository
 
 ## Usage
 
-`./workbench --hostname http://localhost:8000 --username admin --password islandora --input_dir input_data --csv_filename metadata.csv --media_use_tid 16 --model_tid 24 --drupal_filesystem fedora://`
+`./workbench --config config.yml`
 
-where
+where `--config` is the path to a YAML file like this:
 
-* `--hostname` is the hostname, including port number if not 80, of your Islandora repository.
-* `--username` is the username used to authenticate the requests.
-* `--password` is the user's password.
-* `--input_dir` is the full or relative path to the directory containing the images and metadata CSV file.
-* `--csv_filename` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
-* `--media_use_tid` is the term ID for the Media Use term you want to apply to the media.
-* `--model_tid` is the term ID for the Model you want your nodes to be.
-* `--drupal_filesystem` is either 'fedora://' or 'public://'.
+```yaml
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: input_data
+input_csv: metadata.csv
+media_use_tid: 16
+drupal_filesystem: "fedora://"
+model_tid: 24
+```
+
+* `hostname` is the hostname, including port number if not 80, of your Islandora repository.
+* `username` is the username used to authenticate the requests.
+* `password` is the user's password.
+* `input_dir` is the full or relative path to the directory containing the images and metadata CSV file.
+* `input_csv` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
+* `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
+* `model_tid` is the term ID for the Model you want your nodes to be.
+* `drupal_filesystem` is either 'fedora://' or 'public://'.
 
 Using the sample data, the output of the sample command above should look something like:
 

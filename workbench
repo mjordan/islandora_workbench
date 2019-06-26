@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 
-# Usage: ./workbench --hostname http://localhost:8000 \
-#    --username admin \
-#    --password islandora \
-#    --input_dir /tmp \
-#    --csv_filename metadata.csv \
-#    --media_use_tid 16 \
-#    --model_tid 24 \
-#    --drupal_filesystem fedora:// \
+# Usage: ./workbench --config config.yml
 
 import os
 import sys
@@ -16,47 +9,30 @@ import argparse
 import csv
 import mimetypes
 import requests
+from ruamel.yaml import YAML
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--hostname",
-    help="Islandora hostname, including port number")
-parser.add_argument(
-    "--username",
-    help="Islandora username")
-parser.add_argument(
-    "--password",
-    help="Islandora username's password")
-parser.add_argument(
-    "--input_dir",
-    help="Full path to directory containing images and metadata CSV")
-parser.add_argument(
-    "--csv_filename",
-    help="Filename of the metadata CSV file, which must be in the " +
-    "directory named in --input_dir")
-parser.add_argument(
-    "--media_use_tid",
-    help="Media Use term ID")
-parser.add_argument(
-    "--model_tid",
-    help="Model term ID")
-parser.add_argument(
-    "--drupal_filesystem",
+    "--config",
     help="Drupal filesystem to use")
 args = parser.parse_args()
 
-host = args.hostname
-username = args.username
-password = args.password
-input_dir = args.input_dir
-input_csv = os.path.join(input_dir, 'metadata.csv')
+yaml=YAML()
+config_file_contents = open(args.config).read()
+config = yaml.load(config_file_contents)
+
+host = config['host']
+username = config['username']
+password = config['password']
+input_dir = config['input_dir']
+input_csv = os.path.join(input_dir, config['input_csv'])
 # The term ID from Media Use taxonomy that you want to assign to media.
-media_use_tid = args.media_use_tid
+media_use_tid = config['media_use_tid']
 # The Drupal filesystem where you want the files to be saved.
 # drupal_filesystem = 'public://'
-drupal_filesystem = args.drupal_filesystem
+drupal_filesystem = config['drupal_filesystem']
 # Term ID from the Islandora Models taxonomy.
-model = args.model_tid
+model = config['model_tid']
 
 node_endpoint = host + '/node?_format=json'
 # TIFFs and JP2s are 'file'.
