@@ -40,7 +40,7 @@ Node for 'Alcatraz Island' created at http://localhost:8000/node/56.
 
 ## Input data
 
-The directory that contains the data to be ingested is arranged like this:
+The directory that contains the data to be ingested (identified by the `--input_dir` argument) needs to be arranged like this:
 
 ```
 your_folder/
@@ -52,7 +52,7 @@ your_folder/
 └── metadata.csv
 ```
 
-The names of the images can take any form you want since they are included in the CSV file (which can also be named whatever you want). That file must contain three columns, `file`, `title`, and `description`. The `file` column contains the full filename of the image file, and the `title` and `description` columns contain values that will be applied to the nodes.
+The names of the files can take any form you want since they are included in the CSV file (which can also be named whatever you want). That file must contain three columns, `file`, `title`, and `description`. The `file` column contains the full filename of the file, and the `title` and `description` columns contain values that will be applied to the nodes.
 
 Files of any extension are allowed.
 
