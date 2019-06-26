@@ -2,13 +2,12 @@
 
 # Usage: ./workbench --hostname http://localhost:8000 \
 #    --username admin \
-#    --password islandora
-#    --input_dir /tmp
-#    --csv_filename metadata.csv
-#    --media_use_tid 16
-#    --model_tid 24
-#    --drupal_filesystem fedora://
-#    --table_output
+#    --password islandora \
+#    --input_dir /tmp \
+#    --csv_filename metadata.csv \
+#    --media_use_tid 16 \
+#    --model_tid 24 \
+#    --drupal_filesystem fedora:// \
 
 import os
 import sys
@@ -60,6 +59,7 @@ drupal_filesystem = args.drupal_filesystem
 model = args.model_tid
 
 node_endpoint = host + '/node?_format=json'
+# TIFFs and JP2s are 'file'.
 image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
 audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
 video_mimetypes = ['video/mp4']
@@ -70,7 +70,6 @@ if os.path.exists(input_csv):
     with open(input_csv) as csvfile:
         csv_data = csv.DictReader(csvfile, delimiter=',')
         for row in csv_data:
-
             node = {
                 'type': [
                     {'target_id': 'islandora_object',
@@ -100,7 +99,6 @@ if os.path.exists(input_csv):
             file_path = os.path.join(input_dir, row['file'])
             mimetype = mimetypes.guess_type(file_path)
             media_type = 'file'
-            # TIFFs and JP2s are 'file'.
             if mimetype[0] in image_mimetypes:
                 media_type = 'image'
             if mimetype[0] in audio_mimetypes:
