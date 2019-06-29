@@ -45,7 +45,10 @@ mimetypes.init()
 if os.path.exists(input_csv):
     with open(input_csv) as csvfile:
         csv_data = csv.DictReader(csvfile, delimiter=',')
+        csv_column_headers = csv_data.fieldnames
+
         for row in csv_data:
+            # Add required fields.
             node = {
                 'type': [
                     {'target_id': 'islandora_object',
@@ -59,6 +62,12 @@ if os.path.exists(input_csv):
                      'target_type': 'taxonomy_term'}
                 ]
             }
+
+            # Add custom (non-required) fields.
+            required_fields = ['file', 'title', 'field_model']
+            custom_fields = list(set(csv_column_headers)-set(required_fields))
+            for custom_field in custom_fields:
+                node[custom_field] = {'value': row[custom_field]}
 
             node_headers = {
                 'Content-Type': 'application/json'

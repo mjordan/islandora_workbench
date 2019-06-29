@@ -52,6 +52,8 @@ Node for 'Alcatraz Island' created at http://localhost:8000/node/56.
 
 ## Input data
 
+### The files
+
 The directory that contains the data to be ingested (identified by the `--input_dir` argument) needs to be arranged like this:
 
 ```
@@ -64,9 +66,18 @@ your_folder/
 └── metadata.csv
 ```
 
-The names of the files can take any form you want since they are included in the CSV file (which can also be named whatever you want). That file must contain three columns, `file`, `title`, and `description`. The `file` column contains the full filename of the file, and the `title` and `description` columns contain values that will be applied to the nodes.
+The names of the image/PDF/video/etc. files can take any form you want since they are included in the `file` column of the CSV file. Files of any extension are allowed.
 
-Files of any extension are allowed.
+### The CSV file
+
+Metadata that is added to the nodes is contained in the CSV file. Two required fields are `file` (as mentioned above) and `title`. All fields must be wrapped in double quotation marks.
+
+You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text fields can be added, that is, taxonomy terms or referenced entities cannont. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
+
+```csv
+file,title,field_description,field_rights,field_extent
+"myfile.jpg","My nice image","It's a fine image!","Do whatever you want with it.","There's only one image."
+```
 
 ## Code style
 
