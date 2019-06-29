@@ -34,6 +34,11 @@ drupal_filesystem = config['drupal_filesystem']
 # Term ID from the Islandora Models taxonomy.
 model = config['model_tid']
 
+if 'delimiter' in config:
+    field_delimiter = config['delimiter']
+else:
+    field_delimiter = ','
+
 node_endpoint = host + '/node?_format=json'
 # TIFFs and JP2s are 'file'.
 image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
@@ -106,7 +111,7 @@ if os.path.exists(input_csv):
                     auth=(username, password),
                     data=binary_data,
                     headers=media_headers)
-                allowed_binary_response_codes = 201, 204
+                allowed_binary_response_codes = [201, 204]
                 if media_response.status_code in allowed_binary_response_codes:
                     print('+' + media_type.title() + " media for " +
                           row['file'] + " created.")

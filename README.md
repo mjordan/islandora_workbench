@@ -70,7 +70,7 @@ The names of the image/PDF/video/etc. files can take any form you want since the
 
 ### The CSV file
 
-Metadata that is added to the nodes is contained in the CSV file. Two required fields are `file` (as mentioned above) and `title`. All fields must be wrapped in double quotation marks.
+Metadata that is added to the nodes is contained in the CSV file. Two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks, unless they contain an instance of the delimiter character.
 
 You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text fields can be added, that is, taxonomy terms or referenced entities cannont. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
