@@ -24,6 +24,7 @@ input_csv: metadata.csv
 media_use_tid: 16
 drupal_filesystem: "fedora://"
 model_tid: 24
+delimiter: ","
 ```
 
 * `hostname` is the hostname, including port number if not 80, of your Islandora repository.
@@ -34,8 +35,13 @@ model_tid: 24
 * `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
 * `model_tid` is the term ID for the Model you want your nodes to be.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
+* `delimiter` is the delimiter used in the CSV file, for example, "," or "\t"
 
-Using the sample data, the output of the sample command above should look something like:
+All configuration options are required.
+
+## Sample data
+
+Using the sample data and configuration file, the output of `./workbench --config config.yml` should look something like:
 
 ```
 Node for 'Small boats in Havana Harbour' created at http://localhost:8000/node/52.
@@ -70,16 +76,20 @@ The names of the image/PDF/video/etc. files can take any form you want since the
 
 ### The CSV file
 
-Metadata that is added to the nodes is contained in the CSV file. Two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks, unless they contain an instance of the delimiter character.
+Metadata that is added to the nodes is contained in the CSV file. Two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character.
 
 You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text fields can be added, that is, taxonomy terms or referenced entities cannont. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
 ```csv
 file,title,field_description,field_rights,field_extent
-"myfile.jpg","My nice image","It's a fine image!","Do whatever you want with it.","There's only one image."
+myfile.jpg,My nice image,"A fine image, yes?",Do whatever you want with it.,There's only one image.
 ```
 
-## Code style
+## Contributing
+
+Bug reports, improvements, feature requests, and PRs welcome. Before you open a pull request, please open an issue.
+
+If you open a PR, please check your code with pycodestyle:
 
 `pycodestyle --show-source --show-pep8 workbench`
 
