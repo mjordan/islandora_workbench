@@ -1,6 +1,6 @@
 # Islandora Workbench
 
-A Python port of https://github.com/mjordan/claw_rest_ingester.
+A command-line tool that allows management of Islandora content via its REST interface. Started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has additional functionality.
 
 ## Requirements
 
