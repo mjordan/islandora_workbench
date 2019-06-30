@@ -7,7 +7,7 @@ A Python port of https://github.com/mjordan/claw_rest_ingester.
 * Python 3 or higher
 * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
 * The [Requests](https://2.python-requests.org/en/master/) library
-* An Islandora 8 repository
+* An [Islandora 8](https://islandora.ca/) repository
 
 ## Usage
 
@@ -21,10 +21,10 @@ username: admin
 password: islandora
 input_dir: input_data
 input_csv: metadata.csv
+delimiter: ","
 media_use_tid: 16
 drupal_filesystem: "fedora://"
 model_tid: 24
-delimiter: ","
 ```
 
 * `hostname` is the hostname, including port number if not 80, of your Islandora repository.
@@ -32,12 +32,12 @@ delimiter: ","
 * `password` is the user's password.
 * `input_dir` is the full or relative path to the directory containing the images and metadata CSV file.
 * `input_csv` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
+* `delimiter` is the delimiter used in the CSV file, for example, "," or "\t".
 * `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
 * `model_tid` is the term ID for the Model you want your nodes to be.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
-* `delimiter` is the delimiter used in the CSV file, for example, "," or "\t"
 
-All configuration options are required.
+All of these configuration options are required.
 
 ## Sample data
 
@@ -76,7 +76,7 @@ The names of the image/PDF/video/etc. files can take any form you want since the
 
 ### The CSV file
 
-Metadata that is added to the nodes is contained in the CSV file. Two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character.
+Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character.
 
 You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text fields can be added, that is, taxonomy terms or referenced entities cannont. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 

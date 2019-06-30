@@ -17,7 +17,7 @@ parser.add_argument(
     help="Drupal filesystem to use")
 args = parser.parse_args()
 
-yaml=YAML()
+yaml = YAML()
 config_file_contents = open(args.config).read()
 config = yaml.load(config_file_contents)
 
@@ -80,7 +80,7 @@ if os.path.exists(input_csv):
             node_uri = node_response.headers['location']
             if node_response.status_code == 201:
                 print("Node for '" + row['title'] +
-                    "' created at " + node_uri + ".")
+                      "' created at " + node_uri + ".")
 
             file_path = os.path.join(input_dir, row['file'])
             mimetype = mimetypes.guess_type(file_path)
