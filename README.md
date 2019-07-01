@@ -39,7 +39,7 @@ model_tid: 24
 * `model_tid` is the term ID for the Model you want your nodes to be.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 
-All of these configuration options are required.
+All of these configuration options are required for the "create" task. The "update" and "delete" tasks do not require all of the options, as illustrated below.
 
 ## Creating nodes from the sample data
 
@@ -108,10 +108,6 @@ input_csv: update.csv
 delimiter: ','
 ```
 
-Running this command will update your nodes:
-
-`./workbench --config config.yml`
-
 ## Deleting nodes
 
 You can delete nodes by providing a CSV file that contains a single column, `node_id`, like this:
@@ -133,11 +129,6 @@ password: islandora
 input_dir: input_data
 input_csv: delete.csv
 ```
-
-Running the following command will delete those nodes:
-
-`./workbench --config config.yml`
-
 
 ## Contributing
 
