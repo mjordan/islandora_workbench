@@ -1,8 +1,6 @@
 # Islandora Workbench
 
-A command-line tool for adding, updating, and deleting Islandora objects.
-
-Originally, a Python port of https://github.com/mjordan/claw_rest_ingester, but this tool now has more functionality than the original tool.
+A command-line tool that allows management of Islandora content via its REST interface. Started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has additional functionality.
 
 ## Requirements
 
