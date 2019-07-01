@@ -1,0 +1,9 @@
+task: add_media
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: input_data
+input_csv: add_media.csv
+media_use_tid: 14
+drupal_filesystem: "fedora://"
+delimiter: ","
