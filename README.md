@@ -28,7 +28,7 @@ drupal_filesystem: "fedora://"
 model_tid: 24
 ```
 
-* `task` is one of 'create' or 'delete'.
+* `task` is one of 'create', 'update', delete', or 'add_media'.
 * `host` is the hostname, including port number if not 80, of your Islandora repository.
 * `username` is the username used to authenticate the requests.
 * `password` is the user's password.
@@ -89,7 +89,9 @@ myfile.jpg,My nice image,"A fine image, yes?",Do whatever you want with it.,Ther
 
 ## Updating nodes
 
-You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text fields can be added, that is, taxonomy terms or referenced entities cannont. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
+You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text fields can be added, that is, taxonomy terms or referenced entities cannont.
+
+	For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
 ```csv
 node_id,field_description,field_rights
