@@ -1,3 +1,4 @@
+task: create
 host: "http://localhost:8000"
 username: admin
 password: islandora

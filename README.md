@@ -1,6 +1,8 @@
 # Islandora Workbench
 
-A Python port of https://github.com/mjordan/claw_rest_ingester.
+A command-line tool for adding, updating, and deleting Islandora objects.
+
+Originally, a Python port of https://github.com/mjordan/claw_rest_ingester, but this tool now has more functionality than the original tool.
 
 ## Requirements
 
@@ -16,6 +18,7 @@ A Python port of https://github.com/mjordan/claw_rest_ingester.
 where `--config` is the path to a YAML file like this:
 
 ```yaml
+task: create
 host: "http://localhost:8000"
 username: admin
 password: islandora
@@ -27,7 +30,8 @@ drupal_filesystem: "fedora://"
 model_tid: 24
 ```
 
-* `hostname` is the hostname, including port number if not 80, of your Islandora repository.
+* `task` is one of 'create' or 'delete'.
+* `host` is the hostname, including port number if not 80, of your Islandora repository.
 * `username` is the username used to authenticate the requests.
 * `password` is the user's password.
 * `input_dir` is the full or relative path to the directory containing the images and metadata CSV file.
@@ -39,9 +43,9 @@ model_tid: 24
 
 All of these configuration options are required.
 
-## Sample data
+## Creating nodes from the sample data
 
-Using the sample data and configuration file, the output of `./workbench --config config.yml` should look something like:
+Using the sample data and configuration file, the output of `./workbench --config create.yml` should look something like:
 
 ```
 Node for 'Small boats in Havana Harbour' created at http://localhost:8000/node/52.
@@ -56,11 +60,11 @@ Node for 'Alcatraz Island' created at http://localhost:8000/node/56.
 +Image media for IMG_5083.JPG created.
 ```
 
-## Input data
+## Using your own input data
 
 ### The files
 
-The directory that contains the data to be ingested (identified by the `--input_dir` argument) needs to be arranged like this:
+The directory that contains the data to be ingested (identified by the `input_dir` config option) needs to be arranged like this:
 
 ```
 your_folder/
@@ -84,6 +88,58 @@ You can include additional fields that will be added to the nodes. The column he
 file,title,field_description,field_rights,field_extent
 myfile.jpg,My nice image,"A fine image, yes?",Do whatever you want with it.,There's only one image.
 ```
+
+## Updating nodes
+
+You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text fields can be added, that is, taxonomy terms or referenced entities cannont. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
+
+```csv
+node_id,field_description,field_rights
+100,This is my new title,I have changed my mind. This item is yours to keep.
+```
+
+The config file for update operations looks like this (note the `task` option is 'update'):
+
+```yaml
+task: update
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: input_data
+input_csv: update.csv
+delimiter: ','
+```
+
+Running this command will update your nodes:
+
+`./workbench --config config.yml`
+
+## Deleting nodes
+
+You can delete nodes by providing a CSV file that contains a single column, `node_id`, like this:
+
+```csv
+node_id
+95
+96
+200
+```
+
+The config file for update operations looks like this (note the `task` option is 'delete'):
+
+```yaml
+task: delete
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: input_data
+input_csv: delete.csv
+```
+
+Running the following command will delete those nodes:
+
+`./workbench --config config.yml`
+
 
 ## Contributing
 

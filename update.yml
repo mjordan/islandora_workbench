@@ -1,0 +1,7 @@
+task: update
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: input_data
+input_csv: update.csv
+delimiter: ','
