@@ -16,6 +16,7 @@ parser.add_argument(
     "--config",
     help="Drupal filesystem to use")
 
+
 def set_config_defaults():
     args = parser.parse_args()
     yaml = YAML()
@@ -28,7 +29,9 @@ def set_config_defaults():
 
     return config
 
+
 config = set_config_defaults()
+
 
 def create():
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
@@ -64,7 +67,8 @@ def create():
 
                 # Add custom (non-required) fields.
                 required_fields = ['file', 'title', 'field_model']
-                custom_fields = list(set(csv_column_headers)-set(required_fields))
+                custom_fields = list(
+                    set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
                     node[custom_field] = {'value': row[custom_field]}
 
@@ -92,14 +96,17 @@ def create():
 
                 if node_response.status_code == 201:
                     media_endpoint_path = ('/media/' +
-                        media_type + '/' + str(config['media_use_tid']))
+                                           media_type +
+                                           '/' + str(config['media_use_tid']))
                     media_endpoint = node_uri + media_endpoint_path
-                    location = config['drupal_filesystem'] + os.path.basename(row['file'])
+                    location = config['drupal_filesystem'] +
+                    os.path.basename(row['file'])
                     media_headers = {
                         'Content-Type': mimetype[0],
                         'Content-Location': location
                     }
-                    binary_data = open(os.path.join(config['input_dir'], row['file']), 'rb')
+                    binary_data = open(os.path.join(
+                        config['input_dir'], row['file']), 'rb')
                     media_response = requests.put(
                         media_endpoint,
                         auth=(config['username'], config['password']),
@@ -109,6 +116,7 @@ def create():
                     if media_response.status_code in allowed_binary_response_codes:
                         print('+' + media_type.title() + " media for " +
                               row['file'] + " created.")
+
 
 def update():
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
@@ -128,11 +136,13 @@ def update():
 
                 # Add custom (non-required) fields.
                 required_fields = ['node_id']
-                custom_fields = list(set(csv_column_headers)-set(required_fields))
+                custom_fields = list(
+                    set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
                     node[custom_field] = [{'value': row[custom_field]}]
 
-                node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
+                node_endpoint = config['host'] + '/node/' + row['node_id'] +
+                '?_format=json'
                 node_headers = {
                     'Content-Type': 'application/json'
                 }
@@ -142,7 +152,9 @@ def update():
                     json=node, headers=node_headers)
 
                 if node_response.status_code == 200:
-                    print("Node for " + config['host'] + '/node/' + row['node_id'] + " updated.")
+                    print("Node for " + config['host'] + '/node/' +
+                          row['node_id'] + " updated.")
+
 
 def delete():
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
@@ -152,12 +164,15 @@ def delete():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
-                node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
+                node_endpoint = config['host'] + '/node/' +
+                str(row['node_id']) + '?_format=json'
                 node_response = requests.delete(
                     node_endpoint,
                     auth=(config['username'], config['password']))
                 if node_response.status_code == 204:
-                    print("Node " + config['host'] + '/node/' + str(row['node_id']) + " deleted.")
+                    print("Node " + config['host'] + '/node/' +
+                          str(row['node_id']) + " deleted.")
+
 
 def add_media():
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
@@ -184,21 +199,25 @@ def add_media():
                 if mimetype[0] in video_mimetypes:
                     media_type = 'video'
 
-                node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
+                node_json_url = config['host'] + '/node/' + row['node_id'] +
+                '?_format=json'
                 node_uri = config['host'] + '/node/' + row['node_id']
                 node_response = requests.get(
                     node_json_url,
-                    auth=(config['username'], config['password']))                
+                    auth=(config['username'], config['password']))
                 if node_response.status_code == 200:
                     media_endpoint_path = ('/media/' +
-                        media_type + '/' + str(config['media_use_tid']))
+                                           media_type + '/' +
+                                           str(config['media_use_tid']))
                     media_endpoint = node_uri + media_endpoint_path
-                    location = config['drupal_filesystem'] + os.path.basename(row['file'])
+                    location = config['drupal_filesystem'] +
+                    os.path.basename(row['file'])
                     media_headers = {
                         'Content-Type': mimetype[0],
                         'Content-Location': location
                     }
-                    binary_data = open(os.path.join(config['input_dir'], row['file']), 'rb')
+                    binary_data = open(
+                        os.path.join(config['input_dir'], row['file']), 'rb')
                     media_response = requests.put(
                         media_endpoint,
                         auth=(config['username'], config['password']),
@@ -207,7 +226,8 @@ def add_media():
                     allowed_binary_response_codes = [201, 204]
                     if media_response.status_code in allowed_binary_response_codes:
                         print(media_type.title() + " media for " +
-                              row['file'] + " created and added to " + node_uri)
+                              row['file'] + " created and added to " +
+                              node_uri)
 
 
 if config['task'] == 'create':
@@ -217,4 +237,4 @@ if config['task'] == 'update':
 if config['task'] == 'delete':
     delete()
 if config['task'] == 'add_media':
-    add_media()    
+    add_media()

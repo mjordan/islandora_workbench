@@ -39,7 +39,7 @@ model_tid: 24
 * `model_tid` is the term ID for the Model you want your nodes to be.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 
-All of these configuration options are required for the "create" task. The "update" and "delete" tasks do not require all of the options, as illustrated below.
+All of these configuration options are required for the "create" task. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below.
 
 ## Creating nodes from the sample data
 
