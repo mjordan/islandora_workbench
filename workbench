@@ -70,7 +70,11 @@ def create():
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
-                    node[custom_field] = {'value': row[custom_field]}
+                    if field_definitions[custom_field]['field_type'] != 'entity_reference':
+                        node[custom_field] = [{'value': row[custom_field]}]
+                    # For taxonomy terms. @todo: what about refrences to other nodes, like in field_model?
+                    else:
+                        node[custom_field] = [{'target_id': row[custom_field], 'target_type': 'taxonomy_term'}]
 
                 node_headers = {
                     'Content-Type': 'application/json'
@@ -145,13 +149,24 @@ def update():
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
-                    # If cardinality is 1, replace field value. If it's not,
-                    # get the field's current value and append the new value.
-                    if field_definitions[custom_field]['cardinality'] == 1:
-                        node[custom_field] = [{'value': row[custom_field]}]
+                    # Non entity reference fields (text/integer, etc.)
+                    # If the field's cardinality is 1, replace field value.
+                    # If it's not, get the field's current value and append
+                    # the new value.
+                    if field_definitions[custom_field]['field_type'] != 'entity_reference':
+                        if field_definitions[custom_field]['cardinality'] == 1:
+                            node[custom_field] = [{'value': row[custom_field]}]
+                        else:
+                            # Append to existing values.
+                            node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
+                    # For taxonomy terms. @todo: what about refrences to other nodes, like in field_model?
                     else:
-                        # Append to existing values.
-                        node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
+                        if field_definitions[custom_field]['cardinality'] == 1:
+                            node[custom_field] = [{'target_id': row[custom_field], 'target_type': 'taxonomy_term'}]
+                        else:
+                            # Append to existing values.
+                            node[custom_field] = node_field_values[custom_field] + [{'target_id': row[custom_field], 'target_type': 'taxonomy_term'}]                        
+                        
                 node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_headers = {
                     'Content-Type': 'application/json'
