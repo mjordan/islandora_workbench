@@ -118,6 +118,10 @@ def create():
 
 
 def update():
+    """Note that PATCHing replaces the target field, so if we are adding
+       a second value to a multivalued field, we need to include the
+       existing value in our PATCH.
+    """
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
 
     if os.path.exists(input_csv):
@@ -134,13 +138,20 @@ def update():
                     ]
                 }
 
+                node_field_values = get_node_field_values(row['node_id'])
+
                 # Add custom (non-required) fields.
                 required_fields = ['node_id']
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
-                    node[custom_field] = [{'value': row[custom_field]}]
-
+                    # If cardinality is 1, replace field value. If it's not,
+                    # get the field's current value and append the new value.
+                    if field_definitions[custom_field]['cardinality'] == 1:
+                        node[custom_field] = [{'value': row[custom_field]}]
+                    else:
+                        # Append to existing values.
+                        node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
                 node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_headers = {
                     'Content-Type': 'application/json'
@@ -225,17 +236,24 @@ def add_media():
                               row['file'] + " created and added to " + node_uri)
 
 def get_field_definitions():
-    field_config_url = config['host'] + '/jsonapi/field_config/field_config'
-    headers = {'Content-Type': 'application/json'}
-    response = requests.get(field_config_url, auth=('admin', 'islandora'), headers=headers)
+    field_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
+    headers = {'Accept': 'Application/vnd.api+json'}
+    response = requests.get(field_config_url, auth=(config['username'], config['password']), headers=headers)
 
     if response.status_code == 200:
         field_config = json.loads(response.text)
         field_definitions = {}
         for item in field_config['data']:
             field_name = item['attributes']['field_name']
-            field_definitions[field_name] = item['attributes']['field_type']
+            field_definitions[field_name] = {'field_type': item['attributes']['field_storage_config_type'], 'cardinality': item['attributes']['cardinality']}
         return field_definitions
+
+def get_node_field_values(nid):
+    node_url = config['host'] + '/node/' + nid + '?_format=json'
+    response = requests.get(node_url, auth=(config['username'], config['password']))
+    node_fields = json.loads(response.text)
+    return node_fields
+
 
 
 if config['task'] == 'create':
