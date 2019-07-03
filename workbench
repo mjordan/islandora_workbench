@@ -178,7 +178,6 @@ def validate_input():
     print("Configuration and input data appear to be valid.")
     sys.exit(0)
 
-    sys.exit(1)
 
 config = set_config_defaults()
 if config['check']:
