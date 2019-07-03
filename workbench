@@ -14,10 +14,18 @@ from ruamel.yaml import YAML
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--config",
-    help="Drupal filesystem to use")
+    help="Configuration file to use")
+
+mimetypes.init()
+# TIFFs and JP2s are 'file'.
+image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
+audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
+video_mimetypes = ['video/mp4']
 
 
 def set_config_defaults():
+    """Convert the YAML configuration data into an array for easy use.
+    """    
     args = parser.parse_args()
     yaml = YAML()
     config_file_contents = open(args.config).read()
@@ -32,15 +40,11 @@ def set_config_defaults():
 
 config = set_config_defaults()
 
+
 def create():
+    """Create new nodes via POST.
+    """
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
-
-    mimetypes.init()
-    # TIFFs and JP2s are 'file'.
-    image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
-    audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
-    video_mimetypes = ['video/mp4']
-
     if os.path.exists(input_csv):
         field_definitions = get_field_definitions()
         with open(input_csv) as csvfile:
@@ -72,9 +76,15 @@ def create():
                 for custom_field in custom_fields:
                     if field_definitions[custom_field]['field_type'] != 'entity_reference':
                         node[custom_field] = [{'value': row[custom_field]}]
-                    # For taxonomy terms. @todo: what about refrences to other nodes, like in field_model?
+                    # For taxonomy terms, target_type is 'taxonomy_term'; for nodes, it's 'node_type'.
                     else:
-                        node[custom_field] = [{'target_id': row[custom_field], 'target_type': 'taxonomy_term'}]
+                        if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
+                            target_type = 'taxonomy_term'
+                        if field_definitions[custom_field]['target_type'] == 'node':
+                            target_type = 'node_type'
+                        node[custom_field] = [
+                        {'target_id': row[custom_field],
+                        'target_type': target_type}]
 
                 node_headers = {
                     'Content-Type': 'application/json'
@@ -103,7 +113,8 @@ def create():
                                            media_type +
                                            '/' + str(config['media_use_tid']))
                     media_endpoint = node_uri + media_endpoint_path
-                    location = config['drupal_filesystem'] + os.path.basename(row['file'])
+                    location = config['drupal_filesystem'] +
+                    os.path.basename(row['file'])
                     media_headers = {
                         'Content-Type': mimetype[0],
                         'Content-Location': location
@@ -123,11 +134,10 @@ def create():
 
 def update():
     """Note that PATCHing replaces the target field, so if we are adding
-       a second value to a multivalued field, we need to include the
-       existing value in our PATCH.
+       an additional value to a multivalued field, we need to include
+       the existing value in our PATCH.
     """
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
-
     if os.path.exists(input_csv):
         field_definitions = get_field_definitions()
         with open(input_csv) as csvfile:
@@ -159,15 +169,26 @@ def update():
                         else:
                             # Append to existing values.
                             node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
-                    # For taxonomy terms. @todo: what about refrences to other nodes, like in field_model?
+                    # For taxonomy terms, target_type is 'taxonomy_term';
+                    # for nodes, it's 'node_type'.
                     else:
+                        if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
+                            target_type = 'taxonomy_term'
+                        if field_definitions[custom_field]['target_type'] == 'node':
+                            target_type = 'node_type'
+
                         if field_definitions[custom_field]['cardinality'] == 1:
-                            node[custom_field] = [{'target_id': row[custom_field], 'target_type': 'taxonomy_term'}]
+                            node[custom_field] = [
+                            {'target_id': row[custom_field],
+                            'target_type': target_type}]
                         else:
                             # Append to existing values.
-                            node[custom_field] = node_field_values[custom_field] + [{'target_id': row[custom_field], 'target_type': 'taxonomy_term'}]                        
-                        
-                node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
+                            node[custom_field] = node_field_values[custom_field] +
+                            [{'target_id': row[custom_field],
+                             'target_type': 'taxonomy_term'}]
+
+                node_endpoint = config['host'] + '/node/' + row['node_id'] +
+                '?_format=json'
                 node_headers = {
                     'Content-Type': 'application/json'
                 }
@@ -182,6 +203,8 @@ def update():
 
 
 def delete():
+    """Delete nodes.
+    """    
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
         with open(input_csv) as csvfile:
@@ -189,7 +212,8 @@ def delete():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
-                node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
+                node_endpoint = config['host'] + '/node/' +
+                str(row['node_id']) + '?_format=json'
                 node_response = requests.delete(
                     node_endpoint,
                     auth=(config['username'], config['password']))
@@ -199,14 +223,9 @@ def delete():
 
 
 def add_media():
+    """Add media to existing nodes using PUT.
+    """    
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
-
-    mimetypes.init()
-    # TIFFs and JP2s are 'file'.
-    image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
-    audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
-    video_mimetypes = ['video/mp4']
-
     if os.path.exists(input_csv):
         with open(input_csv) as csvfile:
             csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
@@ -223,7 +242,8 @@ def add_media():
                 if mimetype[0] in video_mimetypes:
                     media_type = 'video'
 
-                node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
+                node_json_url = config['host'] + '/node/' +
+                row['node_id'] + '?_format=json'
                 node_uri = config['host'] + '/node/' + row['node_id']
                 node_response = requests.get(
                     node_json_url,
@@ -233,7 +253,8 @@ def add_media():
                                            media_type + '/' +
                                            str(config['media_use_tid']))
                     media_endpoint = node_uri + media_endpoint_path
-                    location = config['drupal_filesystem'] + os.path.basename(row['file'])
+                    location = config['drupal_filesystem'] +
+                    os.path.basename(row['file'])
                     media_headers = {
                         'Content-Type': mimetype[0],
                         'Content-Location': location
@@ -246,29 +267,51 @@ def add_media():
                         data=binary_data,
                         headers=media_headers)
                     allowed_binary_response_codes = [201, 204]
-                    if media_response.status_code in allowed_binary_response_codes:
+                    if media_response.status_code in
+                    allowed_binary_response_codes:
                         print(media_type.title() + " media for " +
-                              row['file'] + " created and added to " + node_uri)
+                        row['file'] +
+                        " created and added to " +
+                        node_uri)
+
 
 def get_field_definitions():
-    field_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
+    """Query Drupal to get fields definitions.
+    """    
+    field_config_url = config['host'] +
+    '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
-    response = requests.get(field_config_url, auth=(config['username'], config['password']), headers=headers)
+    response = requests.get(
+        field_config_url,
+        auth=(config['username'], config['password']),
+        headers=headers
+    )
 
     if response.status_code == 200:
         field_config = json.loads(response.text)
         field_definitions = {}
         for item in field_config['data']:
             field_name = item['attributes']['field_name']
-            field_definitions[field_name] = {'field_type': item['attributes']['field_storage_config_type'], 'cardinality': item['attributes']['cardinality']}
+            if 'target_type' in item['attributes']['settings']:
+                target_type = item['attributes']['settings']['target_type']
+            else:
+                target_type = None
+            field_definitions[field_name] = {
+                'field_type': item['attributes']['field_storage_config_type'],
+                'cardinality': item['attributes']['cardinality'],
+                'target_type': target_type}
         return field_definitions
 
+
 def get_node_field_values(nid):
+    """Get a node's field data so we can use it during PATCH updates.
+    """    
     node_url = config['host'] + '/node/' + nid + '?_format=json'
-    response = requests.get(node_url, auth=(config['username'], config['password']))
+    response = requests.get(
+        node_url, auth=(config['username'], config['password'])
+    )
     node_fields = json.loads(response.text)
     return node_fields
-
 
 
 if config['task'] == 'create':

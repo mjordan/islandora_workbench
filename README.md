@@ -7,7 +7,7 @@ A command-line tool that allows management of Islandora content via its REST int
 * Python 3 or higher
 * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
 * The [Requests](https://2.python-requests.org/en/master/) library
-* An [Islandora 8](https://islandora.ca/) repository
+* An [Islandora 8](https://islandora.ca/) repository with the [JSON:API](https://www.drupal.org/project/jsonapi) module installed and enabled (included with Drupal 8.7)
 
 ## Usage
 
@@ -78,26 +78,26 @@ The names of the image/PDF/video/etc. files can take any form you want since the
 
 ### The CSV file
 
-Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character.
+Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields) or IDs (for taxonomy terms or collections).
 
-You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text and taxonomy fields can be added, that is, referenced entities cannont. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
+You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, and linked node fields (e.g. "Member of" for collection nodes) can be added. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
 ```csv
-file,title,field_description,field_rights,field_extent,field_access_terms
-myfile.jpg,My nice image,"A fine image, yes?",Do whatever you want with it.,There's only one image.,27
+file,title,field_description,field_rights,field_extent,field_access_terms,field_member_of
+myfile.jpg,My nice image,"A fine image, yes?",Do whatever you want with it.,There's only one image.,27,45
 ```
 
-Note that the value for the taxonomy term field `field_access_terms` is the term ID you want to add.
+In this example, the term ID for the tag you want to assign in `field_access_terms` is 27, and the node ID of the collection you want to add the object to (in `field_member_of`) is 45.
 
 ## Updating nodes
 
-You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, only text fields and taxonomy fields can be added, that is, referenced entities cannont.
+You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, and linked node fields (e.g. "Member of" for collection nodes) can be added.
 
-	For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
+For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
 ```csv
-node_id,field_description,field_rights,field_access_terms
-100,This is my new title,I have changed my mind. This item is yours to keep.,27
+node_id,field_description,field_rights,field_access_terms,field_member_of
+100,This is my new title,I have changed my mind. This item is yours to keep.,27,45
 ```
 
 The config file for update operations looks like this (note the `task` option is 'update'):
@@ -164,6 +164,8 @@ Bug reports, improvements, feature requests, and PRs welcome. Before you open a 
 If you open a PR, please check your code with pycodestyle:
 
 `pycodestyle --show-source --show-pep8 workbench`
+
+Do what you can, pycodestyle checks don't make a lot of sense sometimes.
 
 ## License
 
