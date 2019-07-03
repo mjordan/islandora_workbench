@@ -95,23 +95,29 @@ def validate_input():
     config_keys = list(config.keys())
     config_keys.remove('check')
     if config['task'] == 'create':
-        create_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'media_use_tid', 'drupal_filesystem', 'model_tid', 'delimiter']
+        create_options = ['task', 'host', 'username', 'password',
+        'input_dir', 'input_csv', 'media_use_tid',
+        'drupal_filesystem', 'model_tid', 'delimiter']
         if not set(config_keys) == set(create_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(create_options))
     if config['task'] == 'update':
-        update_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'delimiter']
+        update_options = ['task', 'host', 'username', 'password',
+        'input_dir', 'input_csv', 'delimiter']
         if not set(config_keys) == set(update_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(update_options))
     if config['task'] == 'delete':
-        delete_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv']
+        delete_options = ['task', 'host', 'username', 'password',
+        'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(delete_options))   
     if config['task'] == 'add_media':
-        add_media_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'media_use_tid', 'drupal_filesystem', 'delimiter']
+        add_media_options = ['task', 'host', 'username', 'password',
+        'input_dir', 'input_csv', 'media_use_tid',
+        'drupal_filesystem', 'delimiter']
         if not set(config_keys) == set(add_media_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(add_media_options))
 
-    # Test host, credentials.
+    # Test host and credentials.
     jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
     response = requests.get(
@@ -301,9 +307,9 @@ def update():
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
-                    # Non entity reference fields (text/integer, etc.)
-                    # If the field's cardinality is 1, replace field value.
-                    # If it's not, get the field's current value and append
+                    # Non entity reference fields (text/integer, etc.):
+                    # if the field's cardinality is 1, replace field value;
+                    # if it's not, get the field's current value and append
                     # the new value.
                     if field_definitions[custom_field]['field_type'] != 'entity_reference':
                         if field_definitions[custom_field]['cardinality'] == 1:
@@ -409,7 +415,8 @@ def add_media():
 
 
 def get_node_field_values(nid):
-    """Get a node's field data so we can use it during PATCH updates.
+    """Get a node's field data so we can use it during PATCH updates,
+       which replace a field's values.
     """    
     node_url = config['host'] + '/node/' + nid + '?_format=json'
     response = requests.get(
