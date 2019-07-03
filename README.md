@@ -46,9 +46,10 @@ All of these configuration options are required for the "create" task. The "upda
 If you include the optional `--check` option, workbench will check the following:
 
 * Whether the `host` you provided will accept the `username` and `password` you provided.
-* Whether your CSV file contains required columns names.
+* Whether your CSV file contains required columns headers.
+* Whether your CSV column headers correspond to existing Drupal field machine names.
 
-You should always validate your configuration and input prior to creating, updating, or deleting content:
+You should always check your configuration and input prior to creating, updating, or deleting content:
 
 `./workbench --config config.yml --check`
 
