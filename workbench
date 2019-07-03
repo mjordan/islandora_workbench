@@ -86,6 +86,44 @@ def validate_input():
     else:
         sys.exit('Error: CSV file ' + input_csv +  'not found.')
 
+    # Check the config file.
+    tasks = ['create', 'update', 'delete', 'add_media']
+    joiner = ', '
+    if config['task'] not in tasks:
+        sys.exit('Error: "task" in your configuration file must be one of "create", "update", "delete", "add_media".')
+    
+    config_keys = list(config.keys())
+    config_keys.remove('check')
+    if config['task'] == 'create':
+        create_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'media_use_tid', 'drupal_filesystem', 'model_tid', 'delimiter']
+        if not set(config_keys) == set(create_options):
+            sys.exit('Error: Please check your config file for required values: ' + joiner.join(create_options))
+    if config['task'] == 'update':
+        update_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'delimiter']
+        if not set(config_keys) == set(update_options):
+            sys.exit('Error: Please check your config file for required values: ' + joiner.join(update_options))
+    if config['task'] == 'delete':
+        delete_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv']
+        if not set(config_keys) == set(delete_options):
+            sys.exit('Error: Please check your config file for required values: ' + joiner.join(delete_options))   
+    if config['task'] == 'add_media':
+        add_media_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'media_use_tid', 'drupal_filesystem', 'delimiter']
+        if not set(config_keys) == set(add_media_options):
+            sys.exit('Error: Please check your config file for required values: ' + joiner.join(add_media_options))
+
+    # Test host, credentials.
+    jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
+    headers = {'Accept': 'Application/vnd.api+json'}
+    response = requests.get(
+        jsonapi_url,
+        auth=(config['username'], config['password']),
+        headers=headers
+    )
+    if response.status_code == 200:
+        print('OK, ' + config['host'] + ' is accessible.')
+    else:
+        sys.exit('Error: ' + config['host'] + ' is returning the following HTTP response code: ' + response.status_code)        
+
     with open(input_csv) as csvfile:
         csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
         csv_column_headers = csv_data.fieldnames
@@ -136,25 +174,11 @@ def validate_input():
             if 'file' not in csv_column_headers:
                 sys.exit('Error: For "add_media" tasks, your CSV file must contain a "file" column.')
 
-    sys.exit(1)
-
-    # Test host, credentials.
-    jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
-    headers = {'Accept': 'Application/vnd.api+json'}
-    response = requests.get(
-        jsonapi_url,
-        auth=(config['username'], config['password']),
-        headers=headers
-    )
-    if response.status_code == 200:
-        print('OK, ' + config['host'] + ' is accessible.')
-    else:
-        sys.exit('Error: ' + config['host'] + ' is returning the following HTTP response code: ' + response.status_code)
-
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
     sys.exit(0)
 
+    sys.exit(1)
 
 config = set_config_defaults()
 if config['check']:
