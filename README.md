@@ -1,6 +1,6 @@
 # Islandora Workbench
 
-A command-line tool that allows management of Islandora content via its REST interface. Started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has additional functionality.
+A command-line tool that allows creation, updating, and deletion of Islandora content. Started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has additional functionality.
 
 ## Requirements
 
@@ -8,6 +8,8 @@ A command-line tool that allows management of Islandora content via its REST int
 * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
 * The [Requests](https://2.python-requests.org/en/master/) library
 * An [Islandora 8](https://islandora.ca/) repository with the [JSON:API](https://www.drupal.org/project/jsonapi) module installed and enabled (included starting with Drupal 8.7)
+
+Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
 
 ## Usage
 
@@ -43,16 +45,17 @@ All of these configuration options are required for the "create" task. The "upda
 
 ## Checking configuration and input data
 
-If you include the optional `--check` option, workbench will check the following:
+You should always check your configuration and input prior to creating, updating, or deleting content. You can do this by running Workbench with the `--check` option, e.g.:
+
+`./workbench --config config.yml --check`
+
+If you do this, Workbench will check the following and report any errors that require your attention before proceding:
 
 * Whether your configuration file contains all required values.
 * Whether the `host` you provided will accept the `username` and `password` you provided.
 * Whether your CSV file contains required columns headers.
 * Whether your CSV column headers correspond to existing Drupal field machine names.
-
-You should always check your configuration and input prior to creating, updating, or deleting content:
-
-`./workbench --config config.yml --check`
+* Whether the files named in the CSV file are present.
 
 ## Creating nodes from the sample data
 
@@ -75,7 +78,7 @@ Node for 'Alcatraz Island' created at http://localhost:8000/node/56.
 
 ### The files
 
-The directory that contains the data to be ingested (identified by the `input_dir` config option) needs to be arranged like this:
+The directory that contains the data to be ingested (identified by the `input_dir` config option) needs to contain a CSV file with field content and any accompanying media files you want to add to the newly created nodes:
 
 ```
 your_folder/
