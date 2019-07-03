@@ -7,7 +7,7 @@ A command-line tool that allows management of Islandora content via its REST int
 * Python 3 or higher
 * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
 * The [Requests](https://2.python-requests.org/en/master/) library
-* An [Islandora 8](https://islandora.ca/) repository with the [JSON:API](https://www.drupal.org/project/jsonapi) module installed and enabled (included with Drupal 8.7)
+* An [Islandora 8](https://islandora.ca/) repository with the [JSON:API](https://www.drupal.org/project/jsonapi) module installed and enabled (included starting with Drupal 8.7)
 
 ## Usage
 
@@ -40,6 +40,17 @@ model_tid: 24
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 
 All of these configuration options are required for the "create" task. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below.
+
+## Checking configuration and input data
+
+If you include the optional `--check` option, workbench will check the following:
+
+* Whether the `host` you provided will accept the `username` and `password` you provided.
+* Whether your CSV file contains required columns names.
+
+You should always validate your configuration and input prior to creating, updating, or deleting content:
+
+`./workbench --config config.yml --check`
 
 ## Creating nodes from the sample data
 

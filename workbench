@@ -13,8 +13,11 @@ from ruamel.yaml import YAML
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--config",
-    help="Configuration file to use")
+    '--config',
+    help='Configuration file to use')
+parser.add_argument(
+    '--check',
+    help='Check input data and exit.', action='store_true')
 
 mimetypes.init()
 # TIFFs and JP2s are 'file'.
@@ -25,9 +28,14 @@ video_mimetypes = ['video/mp4']
 
 def set_config_defaults():
     """Convert the YAML configuration data into an array for easy use.
-    """    
+    """
     args = parser.parse_args()
     yaml = YAML()
+
+    # Check existence of configuration file.
+    if not os.path.exists(args.config):
+        sys.exit('Error: Configuration file ' + args.config +  'not found.')
+
     config_file_contents = open(args.config).read()
     config_data = yaml.load(config_file_contents)
 
@@ -35,10 +43,65 @@ def set_config_defaults():
     for k, v in config_data.items():
         config[k] = v
 
+    if args.check:
+        config['check'] = True
+    else:
+        config['check'] = False
+
     return config
+
+def validate_input():
+    # Check existence of metadata file.
+    input_csv = os.path.join(config['input_dir'], config['input_csv'])
+    if os.path.exists(input_csv):
+        print('OK, CSV file ' + input_csv +  ' found.')
+    else:
+        sys.exit('Error: CSV file ' + input_csv +  'not found.')
+
+    with open(input_csv) as csvfile:
+        csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
+        csv_column_headers = csv_data.fieldnames
+        if config['task'] == 'create':
+            if 'file' not in csv_column_headers:
+                sys.exit('Error: For "create" tasks, your CSV file must contain a "file" column.')
+            if 'title' not in csv_column_headers:
+                sys.exit('Error: For "create" tasks, your CSV file must contain a "title" column.')
+            # @todo: check to see that all of the column headings are node field names.
+        if config['task'] == 'update':
+            if 'node_id' not in csv_column_headers:
+                sys.exit('Error: For "update" tasks, your CSV file must contain a "node_id" column.')
+            # @todo: check to see that all of the column headings are node field names.                 
+        if config['task'] == 'delete':
+            if 'node_id' not in csv_column_headers:
+                sys.exit('Error: For "delete" tasks, your CSV file must contain a "node_id" column.')
+        if config['task'] == 'add_media':
+            if 'node_id' not in csv_column_headers:
+                sys.exit('Error: For "add_media" tasks, your CSV file must contain a "node_id" column.')
+            if 'file' not in csv_column_headers:
+                sys.exit('Error: For "add_media" tasks, your CSV file must contain a "file" column.')      
+
+
+    # Test host, credentials.
+    jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
+    headers = {'Accept': 'Application/vnd.api+json'}
+    response = requests.get(
+        jsonapi_url,
+        auth=(config['username'], config['password']),
+        headers=headers
+    )
+    if response.status_code == 200:
+        print('OK, ' + config['host'] + ' is accessible.')
+    else:
+        sys.exit('Error: ' + config['host'] + ' is returning the following HTTP response code: ' + response.status_code)
+
+    # If nothing has failed by now, exit with a positive message.
+    print("Configuration and input data appear to be valid.")
+    sys.exit(0)
 
 
 config = set_config_defaults()
+if config['check']:
+    validate_input()
 
 
 def create():
@@ -113,8 +176,7 @@ def create():
                                            media_type +
                                            '/' + str(config['media_use_tid']))
                     media_endpoint = node_uri + media_endpoint_path
-                    location = config['drupal_filesystem'] +
-                    os.path.basename(row['file'])
+                    location = config['drupal_filesystem'] + os.path.basename(row['file'])
                     media_headers = {
                         'Content-Type': mimetype[0],
                         'Content-Location': location
@@ -183,12 +245,10 @@ def update():
                             'target_type': target_type}]
                         else:
                             # Append to existing values.
-                            node[custom_field] = node_field_values[custom_field] +
-                            [{'target_id': row[custom_field],
+                            node[custom_field] = node_field_values[custom_field] + [{'target_id': row[custom_field],
                              'target_type': 'taxonomy_term'}]
 
-                node_endpoint = config['host'] + '/node/' + row['node_id'] +
-                '?_format=json'
+                node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_headers = {
                     'Content-Type': 'application/json'
                 }
@@ -212,8 +272,7 @@ def delete():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
-                node_endpoint = config['host'] + '/node/' +
-                str(row['node_id']) + '?_format=json'
+                node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
                 node_response = requests.delete(
                     node_endpoint,
                     auth=(config['username'], config['password']))
@@ -242,8 +301,7 @@ def add_media():
                 if mimetype[0] in video_mimetypes:
                     media_type = 'video'
 
-                node_json_url = config['host'] + '/node/' +
-                row['node_id'] + '?_format=json'
+                node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_uri = config['host'] + '/node/' + row['node_id']
                 node_response = requests.get(
                     node_json_url,
@@ -253,8 +311,7 @@ def add_media():
                                            media_type + '/' +
                                            str(config['media_use_tid']))
                     media_endpoint = node_uri + media_endpoint_path
-                    location = config['drupal_filesystem'] +
-                    os.path.basename(row['file'])
+                    location = config['drupal_filesystem'] + os.path.basename(row['file'])
                     media_headers = {
                         'Content-Type': mimetype[0],
                         'Content-Location': location
@@ -267,19 +324,14 @@ def add_media():
                         data=binary_data,
                         headers=media_headers)
                     allowed_binary_response_codes = [201, 204]
-                    if media_response.status_code in
-                    allowed_binary_response_codes:
-                        print(media_type.title() + " media for " +
-                        row['file'] +
-                        " created and added to " +
-                        node_uri)
+                    if media_response.status_code in allowed_binary_response_codes:
+                        print(media_type.title() + " media for " + row['file'] + " created and added to " + node_uri)
 
 
 def get_field_definitions():
     """Query Drupal to get fields definitions.
     """    
-    field_config_url = config['host'] +
-    '/jsonapi/field_storage_config/field_storage_config'
+    field_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
     response = requests.get(
         field_config_url,
