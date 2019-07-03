@@ -34,7 +34,7 @@ def set_config_defaults():
 
     # Check existence of configuration file.
     if not os.path.exists(args.config):
-        sys.exit('Error: Configuration file ' + args.config +  'not found.')
+        sys.exit('Error: Configuration file ' + args.config + 'not found.')
 
     config_file_contents = open(args.config).read()
     config_data = yaml.load(config_file_contents)
@@ -53,7 +53,7 @@ def set_config_defaults():
 
 def get_field_definitions():
     """Query Drupal to get fields definitions.
-    """    
+    """
     field_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
     response = requests.get(
@@ -79,41 +79,42 @@ def get_field_definitions():
 
 
 def validate_input():
-    # Check existence of metadata file.
+    """Check existence of metadata file.
+    """
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
-        print('OK, CSV file ' + input_csv +  ' found.')
+        print('OK, CSV file ' + input_csv + ' found.')
     else:
-        sys.exit('Error: CSV file ' + input_csv +  'not found.')
+        sys.exit('Error: CSV file ' + input_csv + 'not found.')
 
     # Check the config file.
     tasks = ['create', 'update', 'delete', 'add_media']
     joiner = ', '
     if config['task'] not in tasks:
         sys.exit('Error: "task" in your configuration file must be one of "create", "update", "delete", "add_media".')
-    
+
     config_keys = list(config.keys())
     config_keys.remove('check')
     if config['task'] == 'create':
         create_options = ['task', 'host', 'username', 'password',
-        'input_dir', 'input_csv', 'media_use_tid',
-        'drupal_filesystem', 'model_tid', 'delimiter']
+                          'input_dir', 'input_csv', 'media_use_tid',
+                          'drupal_filesystem', 'model_tid', 'delimiter']
         if not set(config_keys) == set(create_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(create_options))
     if config['task'] == 'update':
         update_options = ['task', 'host', 'username', 'password',
-        'input_dir', 'input_csv', 'delimiter']
+                          'input_dir', 'input_csv', 'delimiter']
         if not set(config_keys) == set(update_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(update_options))
     if config['task'] == 'delete':
         delete_options = ['task', 'host', 'username', 'password',
-        'input_dir', 'input_csv']
+                          'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_options):
-            sys.exit('Error: Please check your config file for required values: ' + joiner.join(delete_options))   
+            sys.exit('Error: Please check your config file for required values: ' + joiner.join(delete_options))
     if config['task'] == 'add_media':
         add_media_options = ['task', 'host', 'username', 'password',
-        'input_dir', 'input_csv', 'media_use_tid',
-        'drupal_filesystem', 'delimiter']
+                             'input_dir', 'input_csv', 'media_use_tid',
+                             'drupal_filesystem', 'delimiter']
         if not set(config_keys) == set(add_media_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(add_media_options))
 
@@ -128,7 +129,7 @@ def validate_input():
     if response.status_code == 200:
         print('OK, ' + config['host'] + ' is accessible.')
     else:
-        sys.exit('Error: ' + config['host'] + ' is returning the following HTTP response code: ' + response.status_code)        
+        sys.exit('Error: ' + config['host'] + ' is returning the following HTTP response code: ' + response.status_code)
 
     with open(input_csv) as csvfile:
         csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
@@ -143,7 +144,7 @@ def validate_input():
             for drupal_fieldname in field_definitions:
                 drupal_fieldnames.append(drupal_fieldname)
             if 'title' in csv_column_headers:
-                csv_column_headers.remove('title')            
+                csv_column_headers.remove('title')
             if 'file' in csv_column_headers:
                 csv_column_headers.remove('file')
             if 'node_id' in csv_column_headers:
@@ -161,11 +162,11 @@ def validate_input():
             for drupal_fieldname in field_definitions:
                 drupal_fieldnames.append(drupal_fieldname)
             if 'title' in csv_column_headers:
-                csv_column_headers.remove('title')            
+                csv_column_headers.remove('title')
             if 'file' in csv_column_headers:
                 sys.exit('Error: CSV column header "file" is not allowed in update tasks.')
             if 'node_id' in csv_column_headers:
-                csv_column_headers.remove('node_id')                
+                csv_column_headers.remove('node_id')
             for csv_column_header in csv_column_headers:
                 if csv_column_header not in drupal_fieldnames:
                     sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
@@ -232,8 +233,8 @@ def create():
                         if field_definitions[custom_field]['target_type'] == 'node':
                             target_type = 'node_type'
                         node[custom_field] = [
-                        {'target_id': row[custom_field],
-                        'target_type': target_type}]
+                                              {'target_id': row[custom_field],
+                                               'target_type': target_type}]
 
                 node_headers = {
                     'Content-Type': 'application/json'
@@ -327,12 +328,13 @@ def update():
 
                         if field_definitions[custom_field]['cardinality'] == 1:
                             node[custom_field] = [
-                            {'target_id': row[custom_field],
-                            'target_type': target_type}]
+                                {'target_id': row[custom_field],
+                                 'target_type': target_type}]
                         else:
                             # Append to existing values.
-                            node[custom_field] = node_field_values[custom_field] + [{'target_id': row[custom_field],
-                             'target_type': 'taxonomy_term'}]
+                            node[custom_field] = node_field_values[custom_field] + [
+                                {'target_id': row[custom_field],
+                                 'target_type': 'taxonomy_term'}]
 
                 node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_headers = {
@@ -350,7 +352,7 @@ def update():
 
 def delete():
     """Delete nodes.
-    """    
+    """
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
         with open(input_csv) as csvfile:
@@ -369,7 +371,7 @@ def delete():
 
 def add_media():
     """Add media to existing nodes using PUT.
-    """    
+    """
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
         with open(input_csv) as csvfile:
@@ -417,7 +419,7 @@ def add_media():
 def get_node_field_values(nid):
     """Get a node's field data so we can use it during PATCH updates,
        which replace a field's values.
-    """    
+    """
     node_url = config['host'] + '/node/' + nid + '?_format=json'
     response = requests.get(
         node_url, auth=(config['username'], config['password'])
