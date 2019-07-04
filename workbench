@@ -286,7 +286,7 @@ def create():
                 if mimetype[0] in video_mimetypes:
                     media_type = 'video'
 
-                if node_response.status_code == 201:
+                if node_response.status_code == 201 and len(row['file']) != 0:
                     media_endpoint_path = ('/media/' +
                                            media_type +
                                            '/' + str(config['media_use_tid']))
@@ -307,6 +307,8 @@ def create():
                     if media_response.status_code in allowed_binary_response_codes:
                         print('+' + media_type.title() + " media for " +
                               row['file'] + " created.")
+                if node_response.status_code == 201 and len(row['file']) == 0:
+                    print('+ No file specified in CSV for ' + row['title'])
 
 
 def update():

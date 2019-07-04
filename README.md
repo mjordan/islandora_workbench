@@ -93,6 +93,8 @@ your_folder/
 
 The names of the image/PDF/video/etc. files can take any form you want since they are included in the `file` column of the CSV file. Files of any extension are allowed.
 
+If you want to create a node but not add any media, leave the `file` cell in your CSV for that item empty.
+
 ### The CSV file
 
 Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields) or IDs (for taxonomy terms or collections).
