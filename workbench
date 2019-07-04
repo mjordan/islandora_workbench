@@ -113,13 +113,6 @@ def check_input():
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(add_media_options))
     print('OK, configuration file has all required values.')
 
-    # Check existence of CSV file.
-    input_csv = os.path.join(config['input_dir'], config['input_csv'])
-    if os.path.exists(input_csv):
-        print('OK, CSV file ' + input_csv + ' found.')
-    else:
-        sys.exit('Error: CSV file ' + input_csv + 'not found.')
-
     # Test host and credentials.
     jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
@@ -136,10 +129,21 @@ def check_input():
     except requests.exceptions.RequestException as error:
         print(error)
         sys.exit(1)
+
+    # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
     if response.status_code == 200:
-        print('OK, ' + config['host'] + ' is accessible.')
+        field_config = json.loads(response.text)
+        if field_config['data'] == []:
+            sys.exit('Error: ' + config['host'] + ' does not recognize the username/password combination you have provided.'    )
+        else:
+            print('OK, ' + config['host'] + ' is accessible.')
+
+    # Check existence of CSV file.
+    input_csv = os.path.join(config['input_dir'], config['input_csv'])
+    if os.path.exists(input_csv):
+        print('OK, CSV file ' + input_csv + ' found.')
     else:
-        sys.exit('Error: ' + config['host'] + ' is returning the following HTTP response code: ' + response.status_code)
+        sys.exit('Error: CSV file ' + input_csv + 'not found.')
 
     # Check column headers in CSV file.
     with open(input_csv) as csvfile:
