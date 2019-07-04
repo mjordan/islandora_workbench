@@ -89,6 +89,16 @@ def check_input():
 
     config_keys = list(config.keys())
     config_keys.remove('check')
+
+    # Dealing with optional config keys. If you introduce a new
+    # optional key, add it to this list. Note that optional
+    # keys are not validated.
+    optional_config_keys = ['id_field']
+    for optional_config_key in optional_config_keys:
+        if optional_config_key in config_keys:
+            config_keys.remove(optional_config_key)
+
+    # Check for presence of required config keys.
     if config['task'] == 'create':
         create_options = ['task', 'host', 'username', 'password',
                           'input_dir', 'input_csv', 'media_use_tid',
@@ -198,7 +208,6 @@ def check_input():
                 sys.exit('Error: For "add_media" tasks, your CSV file must contain a "file" column.')
 
         # Check for existence of files listed in the 'files' column.
-
         if config['task'] == 'create' or config['task'] == 'add_media':
             # Opening the CSV again is easier than copying the unmodified csv_data variable. Because Python.
             with open(input_csv) as csvfile:
@@ -224,6 +233,11 @@ def create():
     """
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
+        # Store a dict of id_field: node IDs so we can add linked nodes.
+        # This dict is not currently used but could be for things like
+        # https://github.com/mjordan/islandora_workbench/issues/18.
+        node_ids = dict()
+
         field_definitions = get_field_definitions()
         with open(input_csv) as csvfile:
             csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
@@ -247,7 +261,7 @@ def create():
                     ]
                 }
 
-                # Add custom (non-required) fields.
+                # Add custom (non-required) CSV fields.
                 required_fields = ['file', 'title', 'field_model']
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
@@ -275,6 +289,13 @@ def create():
                 if node_response.status_code == 201:
                     print("Node for '" + row['title'] +
                           "' created at " + node_uri + ".")
+
+                # Get ID of newly created node in case we want to use it
+                # later for linking child nodes, etc.
+                if 'id_field' in config:
+                    id_field = row[config['id_field']]
+                    if node_response.status_code == 201:
+                        node_ids[id_field] = node_uri.rsplit('/', 1)[-1]
 
                 file_path = os.path.join(config['input_dir'], row['file'])
                 mimetype = mimetypes.guess_type(file_path)
