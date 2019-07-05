@@ -268,6 +268,7 @@ def create():
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
+                    # Skip updating field if value is empty.
                     if len(row[custom_field]) == 0:
                         continue
                     # For (non-entity reference (text, etc.) fields.
@@ -392,8 +393,9 @@ def update():
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
+                    # Skip updating field if value is empty.
                     if len(row[custom_field]) == 0:
-                        continue                    
+                        continue                                           
                     # Non entity reference fields (text/integer, etc.):
                     # if the field's cardinality is 1, replace field value;
                     # if it's not, get the field's current value and append
@@ -403,7 +405,14 @@ def update():
                             node[custom_field] = [{'value': row[custom_field]}]
                         else:
                             # Append to existing values.
-                            node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
+                            if config['subdelimiter'] in row[custom_field]:
+                                field_values = []
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                for subvalue in subvalues:
+                                    field_values.append({'value': subvalue})
+                                    node[custom_field] = node_field_values[custom_field] + field_values
+                            else:
+                                node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
                     # For taxonomy terms, target_type is 'taxonomy_term';
                     # for nodes, it's 'node_type'.
                     else:
@@ -418,9 +427,16 @@ def update():
                                  'target_type': target_type}]
                         else:
                             # Append to existing values.
-                            node[custom_field] = node_field_values[custom_field] + [
-                                {'target_id': row[custom_field],
-                                 'target_type': 'taxonomy_term'}]
+                            if config['subdelimiter'] in row[custom_field]:                            
+                                field_values = []
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                for subvalue in subvalues:
+                                    field_values.append({'target_id': subvalue, 'target_type': target_type})
+                                    node[custom_field] = node_field_values[custom_field] + field_values
+                            else:
+                                node[custom_field] = node_field_values[custom_field] + [
+                                    {'target_id': row[custom_field],
+                                     'target_type': 'taxonomy_term'}]
 
                 node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_headers = {
