@@ -43,6 +43,8 @@ def set_config_defaults():
     for k, v in config_data.items():
         config[k] = v
 
+    config['subdelimiter'] = '|'
+
     if args.check:
         config['check'] = True
     else:
@@ -93,7 +95,7 @@ def check_input():
     # Dealing with optional config keys. If you introduce a new
     # optional key, add it to this list. Note that optional
     # keys are not validated.
-    optional_config_keys = ['id_field']
+    optional_config_keys = ['id_field', 'subdelimiter']
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
             config_keys.remove(optional_config_key)
@@ -262,21 +264,52 @@ def create():
                 }
 
                 # Add custom (non-required) CSV fields.
-                required_fields = ['file', 'title', 'field_model']
+                required_fields = ['file', 'title']
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
+                    if len(row[custom_field]) == 0:
+                        continue
+                    # For (non-entity reference (text, etc.) fields.
                     if field_definitions[custom_field]['field_type'] != 'entity_reference':
-                        node[custom_field] = [{'value': row[custom_field]}]
-                    # For taxonomy terms, target_type is 'taxonomy_term'; for nodes, it's 'node_type'.
+                        # Cardinality is unlimited.
+                        if field_definitions[custom_field]['cardinality'] == -1:
+                            if config['subdelimiter'] in row[custom_field]:
+                                field_values = []
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                for subvalue in subvalues:
+                                    field_values.append({'value': subvalue})
+                                    node[custom_field] = field_values
+                            else:
+                                node[custom_field] = [{'value': row[custom_field]}]
+                        # Cardinality is not unlimited (probably 1).
+                        else:
+                            node[custom_field] = [{'value': row[custom_field]}]                            
+
+                    # Entity referernce fields: for taxonomy terms, target_type
+                    # is'taxonomy_term'; for nodes, it's 'node_type'.
                     else:
                         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                             target_type = 'taxonomy_term'
                         if field_definitions[custom_field]['target_type'] == 'node':
                             target_type = 'node_type'
-                        node[custom_field] = [
-                                              {'target_id': row[custom_field],
-                                               'target_type': target_type}]
+                        # Cardinality is unlimited.
+                        if field_definitions[custom_field]['cardinality'] == -1:
+                            if config['subdelimiter'] in row[custom_field]:
+                                field_values = []
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                for subvalue in subvalues:
+                                    field_values.append({'target_id': subvalue, 'target_type': target_type})
+                                    node[custom_field] = field_values
+                            else:
+                                node[custom_field] = [
+                                                      {'target_id': row[custom_field],
+                                                       'target_type': target_type}]                                
+                        # Cardinality is not unlimited (probably 1).                                                        
+                        else:
+                            node[custom_field] = [
+                                                  {'target_id': row[custom_field],
+                                                   'target_type': target_type}]
 
                 node_headers = {
                     'Content-Type': 'application/json'
@@ -359,6 +392,8 @@ def update():
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
+                    if len(row[custom_field]) == 0:
+                        continue                    
                     # Non entity reference fields (text/integer, etc.):
                     # if the field's cardinality is 1, replace field value;
                     # if it's not, get the field's current value and append
