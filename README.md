@@ -97,6 +97,8 @@ If you want to create a node but not add any media, leave the `file` cell in you
 
 ### The CSV file
 
+#### General
+
 Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields) or IDs (for taxonomy terms or collections).
 
 You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, and linked node fields (e.g. "Member of" for collection nodes) can be added. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
@@ -108,6 +110,27 @@ myfile.jpg,My nice image,"A fine image, yes?",Do whatever you want with it.,Ther
 
 In this example, the term ID for the tag you want to assign in `field_access_terms` is 27, and the node ID of the collection you want to add the object to (in `field_member_of`) is 45.
 
+#### Multivalued fields
+
+For multivalues fields, separate the values within a field with a pipe (`|`), like this:
+
+```
+file,title,field_my_multivalued_field
+IMG_1410.tif,Small boats in Havana Harbour,foo|bar
+IMG_2549.jp2,Manhatten Island,bif|bop|burp
+```
+
+This works for string fields as well as reference fields, e.g.:
+
+```
+file,title,field_my_multivalued_taxonomy_field
+IMG_1410.tif,Small boats in Havana Harbour,35|46
+IMG_2549.jp2,Manhatten Island,34|56|28
+```
+
+Drupal strictly enforces the maximum number of values allowed in a field. If the number of values in your CSV file for a field exceed a field's configured maximum number of fields, Workbench will only populate the field to the field's configured limit.
+
+
 ## Updating nodes
 
 You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, and linked node fields (e.g. "Member of" for collection nodes) can be added.
@@ -118,6 +141,8 @@ For example, using the fields defined by the Islandora Defaults module for the "
 node_id,field_description,field_rights,field_access_terms,field_member_of
 100,This is my new title,I have changed my mind. This item is yours to keep.,27,45
 ```
+
+Multivalued fields are also supported in the update task. See details above.
 
 The config file for update operations looks like this (note the `task` option is 'update'):
 
