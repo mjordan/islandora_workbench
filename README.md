@@ -25,7 +25,6 @@ username: admin
 password: islandora
 input_dir: input_data
 input_csv: metadata.csv
-delimiter: ","
 media_use_tid: 16
 drupal_filesystem: "fedora://"
 model_tid: 24
@@ -97,7 +96,7 @@ If you want to create a node but not add any media, leave the `file` cell in you
 
 ### The CSV file
 
-#### General
+#### Single-valued fields
 
 Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields) or IDs (for taxonomy terms or collections).
 
@@ -112,7 +111,7 @@ In this example, the term ID for the tag you want to assign in `field_access_ter
 
 #### Multivalued fields
 
-For multivalues fields, separate the values within a field with a pipe (`|`), like this:
+For multivalued fields, separate the values within a field with a pipe (`|`), like this:
 
 ```
 file,title,field_my_multivalued_field
@@ -155,7 +154,6 @@ username: admin
 password: islandora
 input_dir: input_data
 input_csv: update.csv
-delimiter: ','
 ```
 
 ## Deleting nodes
