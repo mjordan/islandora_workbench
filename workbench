@@ -43,6 +43,9 @@ def set_config_defaults():
     for k, v in config_data.items():
         config[k] = v
 
+    # Set up defaults for some settings.
+    if 'delimiter' not in config:
+        config['delimiter'] = ','
     if 'subdelimiter' not in config:
         config['subdelimiter'] = '|'
 

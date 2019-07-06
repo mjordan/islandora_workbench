@@ -37,12 +37,12 @@ model_tid: 24
 * `password` is the user's password.
 * `input_dir` is the full or relative path to the directory containing the files and metadata CSV file.
 * `input_csv` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
-* `delimiter` is the delimiter used in the CSV file, for example, "," or "\t".
 * `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
 * `model_tid` is the term ID for the Model you want your nodes to be.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
+* `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 
-All of these configuration settings are required for the "create" task. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
+`delimiter` is optional and defaults to "," if omitted. All other configuration settings except are required for the "create" task. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
 ## Checking configuration and input data
 
