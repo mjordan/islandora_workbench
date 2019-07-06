@@ -281,9 +281,20 @@ def create():
                                 for subvalue in subvalues:
                                     field_values.append({'value': subvalue})
                                     node[custom_field] = field_values
+                                else:
+                                    node[custom_field] = [{'value': row[custom_field]}]        
+                        elif field_definitions[custom_field]['cardinality'] > 1:
+                            if config['subdelimiter'] in row[custom_field]:
+                                field_values = []
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                # @todo: log fact that we're slicing off values.
+                                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                                for subvalue in subvalues:
+                                    field_values.append({'value': subvalue})
+                                    node[custom_field] = field_values
                             else:
                                 node[custom_field] = [{'value': row[custom_field]}]
-                        # Cardinality is not unlimited (probably 1).
+                        # Cardinality is 1.
                         else:
                             node[custom_field] = [{'value': row[custom_field]}]                            
 
@@ -299,14 +310,29 @@ def create():
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
                                 subvalues = row[custom_field].split(config['subdelimiter'])
+                                # @todo: log fact that we're slicing off values.
+                                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                                 for subvalue in subvalues:
                                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                                     node[custom_field] = field_values
                             else:
                                 node[custom_field] = [
                                                       {'target_id': row[custom_field],
-                                                       'target_type': target_type}]                                
-                        # Cardinality is not unlimited (probably 1).                                                        
+                                                       'target_type': target_type}]
+                        elif field_definitions[custom_field]['cardinality'] > 1:
+                            if config['subdelimiter'] in row[custom_field]:
+                                field_values = []
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                # @todo: log fact that we're slicing off values.
+                                for subvalue in subvalues:
+                                    field_values.append({'target_id': subvalue, 'target_type': target_type})
+                                    # @todo: log fact that we're slicing off valudes.
+                                    node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]                                    
+                            else:
+                                node[custom_field] = [
+                                                      {'target_id': row[custom_field],
+                                                       'target_type': target_type}]
+                        # Cardinality is 1.
                         else:
                             node[custom_field] = [
                                                   {'target_id': row[custom_field],
@@ -403,6 +429,19 @@ def update():
                     if field_definitions[custom_field]['field_type'] != 'entity_reference':
                         if field_definitions[custom_field]['cardinality'] == 1:
                             node[custom_field] = [{'value': row[custom_field]}]
+                        elif field_definitions[custom_field]['cardinality'] > 1:
+                            # Append to existing values.
+                            if config['subdelimiter'] in row[custom_field]:
+                                field_values = []
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                # @todo: log fact that we're slicing off values.
+                                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                                for subvalue in subvalues:
+                                    field_values.append({'value': subvalue})
+                                    node[custom_field] = node_field_values[custom_field] + field_values
+                            else:
+                                node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
+                        # Cardinatlity is unlimited.
                         else:
                             # Append to existing values.
                             if config['subdelimiter'] in row[custom_field]:
@@ -413,6 +452,7 @@ def update():
                                     node[custom_field] = node_field_values[custom_field] + field_values
                             else:
                                 node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
+
                     # For taxonomy terms, target_type is 'taxonomy_term';
                     # for nodes, it's 'node_type'.
                     else:
@@ -425,6 +465,21 @@ def update():
                             node[custom_field] = [
                                 {'target_id': row[custom_field],
                                  'target_type': target_type}]
+                        elif field_definitions[custom_field]['cardinality'] > 1:
+                            # Append to existing values.
+                            if config['subdelimiter'] in row[custom_field]:                            
+                                field_values = []
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                # @todo: log fact that we're slicing off values.
+                                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                                for subvalue in subvalues:
+                                    field_values.append({'target_id': subvalue, 'target_type': target_type})
+                                    node[custom_field] = node_field_values[custom_field] + field_values
+                            else:
+                                node[custom_field] = node_field_values[custom_field] + [
+                                    {'target_id': row[custom_field],
+                                     'target_type': 'taxonomy_term'}]                            
+                        # Cardinality is unlimited.                                 
                         else:
                             # Append to existing values.
                             if config['subdelimiter'] in row[custom_field]:                            
