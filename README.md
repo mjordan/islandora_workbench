@@ -42,7 +42,7 @@ model_tid: 24
 * `model_tid` is the term ID for the Model you want your nodes to be.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 
-All of these configuration options are required for the "create" task. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below.
+All of these configuration settings are required for the "create" task. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
 ## Checking configuration and input data
 
@@ -129,6 +129,8 @@ IMG_2549.jp2,Manhatten Island,34|56|28
 ```
 
 Drupal strictly enforces the maximum number of values allowed in a field. If the number of values in your CSV file for a field exceed a field's configured maximum number of fields, Workbench will only populate the field to the field's configured limit.
+
+The subdelimiter character defaults to a pipe (`|`) but can be set in your config file using the `subdelimiter: ";"` option.
 
 
 ## Updating nodes

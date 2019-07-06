@@ -43,7 +43,8 @@ def set_config_defaults():
     for k, v in config_data.items():
         config[k] = v
 
-    config['subdelimiter'] = '|'
+    if 'subdelimiter' not in config:
+        config['subdelimiter'] = '|'
 
     if args.check:
         config['check'] = True
@@ -123,7 +124,7 @@ def check_input():
                              'drupal_filesystem', 'delimiter']
         if not set(config_keys) == set(add_media_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(add_media_options))
-    print('OK, configuration file has all required values.')
+    print('OK, configuration file has all required values (did not check for optional values).')
 
     # Test host and credentials.
     jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
