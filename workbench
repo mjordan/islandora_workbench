@@ -106,13 +106,13 @@ def check_input():
 
     # Check for presence of required config keys.
     if config['task'] == 'create':
-        create_options = ['task', 'host', 'username', 'password',
+        create_options = ['task', 'host', 'username', 'password', 'content_type',
                           'input_dir', 'input_csv', 'media_use_tid',
                           'drupal_filesystem', 'delimiter']
         if not set(config_keys) == set(create_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(create_options))
     if config['task'] == 'update':
-        update_options = ['task', 'host', 'username', 'password',
+        update_options = ['task', 'host', 'username', 'password', 'content_type',
                           'input_dir', 'input_csv', 'delimiter']
         if not set(config_keys) == set(update_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(update_options))
@@ -265,7 +265,7 @@ def create():
                 # Add required fields.
                 node = {
                     'type': [
-                        {'target_id': 'islandora_object',
+                        {'target_id': config['content_type'],
                          'target_type': 'node_type'}
                     ],
                     'title': [
@@ -418,7 +418,7 @@ def update():
                 # Add the type/target_id field.
                 node = {
                     'type': [
-                        {'target_id': 'islandora_object'}
+                        {'target_id': config['content_type']}
                     ]
                 }
 

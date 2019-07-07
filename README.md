@@ -23,6 +23,7 @@ task: create
 host: "http://localhost:8000"
 username: admin
 password: islandora
+content_type: islandora_object
 input_dir: input_data
 input_csv: metadata.csv
 media_use_tid: 16
@@ -33,6 +34,7 @@ drupal_filesystem: "fedora://"
 * `host` is the hostname, including port number if not 80, of your Islandora repository.
 * `username` is the username used to authenticate the requests.
 * `password` is the user's password.
+* `content_type` is the machine name of the Drupal node content type you are creating or updating.
 * `input_dir` is the full or relative path to the directory containing the files and metadata CSV file.
 * `input_csv` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
 * `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
@@ -152,6 +154,7 @@ The config file for update operations looks like this (note the `task` option is
 task: update
 host: "http://localhost:8000"
 username: admin
+content_type: islandora_object
 password: islandora
 input_dir: input_data
 input_csv: update.csv

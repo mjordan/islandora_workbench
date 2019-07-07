@@ -2,5 +2,6 @@ task: update
 host: "http://localhost:8000"
 username: admin
 password: islandora
+content_type: islandora_object
 input_dir: input_data
 input_csv: update.csv
