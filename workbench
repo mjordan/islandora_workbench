@@ -56,6 +56,15 @@ def set_config_defaults():
 
     return config
 
+def ping_node(nid):
+    response = requests.head(
+        config['host'] + '/node/' + nid,
+        auth=(config['username'], config['password'])
+    )
+    if response.status_code == 200:
+        return True
+    else:
+        return False
 
 def get_field_definitions():
     """Query Drupal to get fields definitions.
@@ -415,7 +424,11 @@ def update():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
-                # Add the type/target_id field.
+                if not ping_node(row['node_id']):
+                    print("Node " + row['node_id'] + " not found, skipping update.")
+                    continue
+
+                # Add the target_id field.
                 node = {
                     'type': [
                         {'target_id': config['content_type']}
@@ -527,6 +540,10 @@ def delete():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
+                if not ping_node(row['node_id']):
+                    print("Node " + row['node_id'] + " not found, skipping delete.")
+                    continue
+
                 node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
                 node_response = requests.delete(
                     node_endpoint,
@@ -546,6 +563,10 @@ def add_media():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
+                if not ping_node(row['node_id']):
+                    print("Node " + row['node_id'] + " not found, skipping adding media.")
+                    continue
+
                 file_path = os.path.join(config['input_dir'], row['file'])
                 mimetype = mimetypes.guess_type(file_path)
                 media_type = 'file'
