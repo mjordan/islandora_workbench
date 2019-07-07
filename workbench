@@ -7,6 +7,8 @@ import sys
 import json
 import argparse
 import csv
+import logging
+import datetime
 import mimetypes
 import requests
 from ruamel.yaml import YAML
@@ -18,6 +20,7 @@ parser.add_argument(
 parser.add_argument(
     '--check',
     help='Check input data and exit without creating/updating/etc.', action='store_true')
+args = parser.parse_args()
 
 mimetypes.init()
 # TIFFs and JP2s are 'file'.
@@ -29,7 +32,7 @@ video_mimetypes = ['video/mp4']
 def set_config_defaults():
     """Convert the YAML configuration data into an array for easy use.
     """
-    args = parser.parse_args()
+    # args = parser.parse_args()
     yaml = YAML()
 
     # Check existence of configuration file.
@@ -48,6 +51,10 @@ def set_config_defaults():
         config['delimiter'] = ','
     if 'subdelimiter' not in config:
         config['subdelimiter'] = '|'
+    if 'log_file_path' not in config:
+        config['log_file_path'] = 'workbench.log'
+    if 'log_file_mode' not in config:
+        config['log_file_mode'] = 'a'  
 
     if args.check:
         config['check'] = True
@@ -56,15 +63,19 @@ def set_config_defaults():
 
     return config
 
+
 def ping_node(nid):
+    url = config['host'] + '/node/' + nid
     response = requests.head(
-        config['host'] + '/node/' + nid,
+        url,
         auth=(config['username'], config['password'])
     )
     if response.status_code == 200:
         return True
     else:
+        logging.warning("Node ping on %s returned a %s status code", url, response.status_code)
         return False
+
 
 def get_field_definitions():
     """Query Drupal to get fields definitions.
@@ -108,7 +119,8 @@ def check_input():
     # Dealing with optional config keys. If you introduce a new
     # optional key, add it to this list. Note that optional
     # keys are not validated.
-    optional_config_keys = ['id_field', 'subdelimiter']
+    optional_config_keys = ['id_field', 'delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode']
+
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
             config_keys.remove(optional_config_key)
@@ -117,12 +129,12 @@ def check_input():
     if config['task'] == 'create':
         create_options = ['task', 'host', 'username', 'password', 'content_type',
                           'input_dir', 'input_csv', 'media_use_tid',
-                          'drupal_filesystem', 'delimiter']
+                          'drupal_filesystem']
         if not set(config_keys) == set(create_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(create_options))
     if config['task'] == 'update':
         update_options = ['task', 'host', 'username', 'password', 'content_type',
-                          'input_dir', 'input_csv', 'delimiter']
+                          'input_dir', 'input_csv']
         if not set(config_keys) == set(update_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(update_options))
     if config['task'] == 'delete':
@@ -133,7 +145,7 @@ def check_input():
     if config['task'] == 'add_media':
         add_media_options = ['task', 'host', 'username', 'password',
                              'input_dir', 'input_csv', 'media_use_tid',
-                             'drupal_filesystem', 'delimiter']
+                             'drupal_filesystem']
         if not set(config_keys) == set(add_media_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(add_media_options))
     print('OK, configuration file has all required values (did not check for optional values).')
@@ -220,7 +232,8 @@ def check_input():
                 csv_column_headers.remove('node_id')
             for csv_column_header in csv_column_headers:
                 if csv_column_header not in drupal_fieldnames:
-                    sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
+                    sys.exit('Error: CSV column header "' + csv_column_header +
+                        '" does not appear to match any Drupal field names.')
             print('OK, CSV column headers match Drupal field names.')
 
         if config['task'] == 'delete':
@@ -245,12 +258,8 @@ def check_input():
 
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
+    logging.info("Configuration checked for %s task using config file %s, no problems found", config['task'], args.config)
     sys.exit(0)
-
-
-config = set_config_defaults()
-if config['check']:
-    check_input()
 
 
 def create():
@@ -368,6 +377,7 @@ def create():
                 if node_response.status_code == 201:
                     print("Node for '" + row['title'] +
                           "' created at " + node_uri + ".")
+                    logging.info("Node for %s created at %s.", row['title'], node_uri)
 
                 # Get ID of newly created node in case we want to use it
                 # later for linking child nodes, etc.
@@ -407,6 +417,7 @@ def create():
                     if media_response.status_code in allowed_binary_response_codes:
                         print('+' + media_type.title() + " media for " +
                               row['file'] + " created.")
+                        logging.info("%s media for %s created.", media_type.title(), row['file'])
                 if node_response.status_code == 201 and len(row['file']) == 0:
                     print('+ No file specified in CSV for ' + row['title'])
 
@@ -425,7 +436,7 @@ def update():
 
             for row in csv_data:
                 if not ping_node(row['node_id']):
-                    print("Node " + row['node_id'] + " not found, skipping update.")
+                    print("Node " + row['node_id'] + " not found or not accessible, skipping update.")
                     continue
 
                 # Add the target_id field.
@@ -528,6 +539,7 @@ def update():
                 if node_response.status_code == 200:
                     print("Node for " + config['host'] + '/node/' +
                           row['node_id'] + " updated.")
+                    logging.info("Node for %s updated.", config['host'] + '/node/' + row['node_id'])
 
 
 def delete():
@@ -541,7 +553,7 @@ def delete():
 
             for row in csv_data:
                 if not ping_node(row['node_id']):
-                    print("Node " + row['node_id'] + " not found, skipping delete.")
+                    print("Node " + row['node_id'] + " not found or not accessible, skipping delete.")
                     continue
 
                 node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
@@ -551,6 +563,7 @@ def delete():
                 if node_response.status_code == 204:
                     print("Node " + config['host'] + '/node/' +
                           str(row['node_id']) + " deleted.")
+                    logging.info("Node for %s deleted.", config['host'] + '/node/' + row['node_id'])
 
 
 def add_media():
@@ -564,7 +577,7 @@ def add_media():
 
             for row in csv_data:
                 if not ping_node(row['node_id']):
-                    print("Node " + row['node_id'] + " not found, skipping adding media.")
+                    print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
                     continue
 
                 file_path = os.path.join(config['input_dir'], row['file'])
@@ -602,6 +615,7 @@ def add_media():
                     allowed_binary_response_codes = [201, 204]
                     if media_response.status_code in allowed_binary_response_codes:
                         print(media_type.title() + " media for " + row['file'] + " created and added to " + node_uri)
+                        logging.info("%s media for %s created and added to %s.", media_type.title(), row['file'], node_uri)
 
 
 def get_node_field_values(nid):
@@ -615,6 +629,17 @@ def get_node_field_values(nid):
     node_fields = json.loads(response.text)
     return node_fields
 
+
+# Main program logic.
+
+config = set_config_defaults()
+logging.basicConfig(filename=config['log_file_path'],
+    level=logging.INFO, filemode=config['log_file_mode'],
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%d-%b-%y %H:%M:%S')
+
+if config['check']:
+    check_input()
 
 if config['task'] == 'create':
     create()
