@@ -166,6 +166,16 @@ def check_input():
         csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
         csv_column_headers = csv_data.fieldnames
 
+        # Check whether each row contains the same number of columns as there
+        # are headers.
+        for count, row in enumerate(csv_data, start=1):
+            if len(csv_column_headers) != len(row):
+                sys.exit("Error: Row " + str(count) + " of your CSV file " +
+                    "does not have same number of columns (" + str(len(row)) +
+                    ") as there are headers (" + str(len(csv_column_headers)) +
+                    ").")
+
+        # Task-specific CSV checks.
         if config['task'] == 'create':
             if 'file' not in csv_column_headers:
                 sys.exit('Error: For "create" tasks, your CSV file must contain a "file" column.')
