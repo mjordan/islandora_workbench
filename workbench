@@ -104,6 +104,14 @@ def get_field_definitions():
         return field_definitions
 
 
+def clean_csv_values(row):
+    """Strip whitespace, etc. from row values.
+    """
+    for field in row:
+            row[field] = row[field].strip()
+    return row
+
+
 def check_input():
     """Validate the config file and input data.
     """
@@ -280,6 +288,7 @@ def create():
             node_endpoint = config['host'] + '/node?_format=json'
 
             for row in csv_data:
+                row = clean_csv_values(row)
                 # Add required fields.
                 node = {
                     'type': [
@@ -435,6 +444,7 @@ def update():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
+                row = clean_csv_values(row)
                 if not ping_node(row['node_id']):
                     print("Node " + row['node_id'] + " not found or not accessible, skipping update.")
                     continue
@@ -552,6 +562,7 @@ def delete():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
+                row = clean_csv_values(row)
                 if not ping_node(row['node_id']):
                     print("Node " + row['node_id'] + " not found or not accessible, skipping delete.")
                     continue
@@ -576,6 +587,7 @@ def add_media():
             csv_column_headers = csv_data.fieldnames
 
             for row in csv_data:
+                row = clean_csv_values(row)
                 if not ping_node(row['node_id']):
                     print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
                     continue
