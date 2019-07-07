@@ -108,7 +108,7 @@ def check_input():
     if config['task'] == 'create':
         create_options = ['task', 'host', 'username', 'password',
                           'input_dir', 'input_csv', 'media_use_tid',
-                          'drupal_filesystem', 'model_tid', 'delimiter']
+                          'drupal_filesystem', 'delimiter']
         if not set(config_keys) == set(create_options):
             sys.exit('Error: Please check your config file for required values: ' + joiner.join(create_options))
     if config['task'] == 'update':
@@ -260,10 +260,6 @@ def create():
                     ],
                     'title': [
                         {'value': row['title']}
-                    ],
-                    'field_model': [
-                        {'target_id': str(config['model_tid']),
-                         'target_type': 'taxonomy_term'}
                     ]
                 }
 
