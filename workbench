@@ -83,7 +83,7 @@ def issue_request(method, path, headers='', json='', data=''):
             url,
             auth=(config['username'], config['password']),
             headers=headers
-        )        
+        )
     if method == 'POST':
         response = requests.post(
             url,
@@ -123,7 +123,9 @@ def ping_node(nid):
     if response.status_code == 200:
         return True
     else:
-        logging.warning("Node ping (HEAD) on %s returned a %s status code", url, response.status_code)
+        logging.warning("Node ping (HEAD) on %s returned a %s status code",
+            url,
+            response.status_code)
         return False
 
 
@@ -131,7 +133,7 @@ def get_field_definitions():
     """Query Drupal to get field definitions.
     """
     headers = {'Accept': 'Application/vnd.api+json'}
-    field_definitions = {}    
+    field_definitions = {}
 
     # We need to get both the field config and the field storage config.
     field_storage_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
@@ -199,24 +201,29 @@ def check_input():
                           'input_dir', 'input_csv', 'media_use_tid',
                           'drupal_filesystem']
         if not set(config_keys) == set(create_options):
-            sys.exit('Error: Please check your config file for required values: ' + joiner.join(create_options))
+            sys.exit('Error: Please check your config file for required ' +
+                'values: ' + joiner.join(create_options))
     if config['task'] == 'update':
-        update_options = ['task', 'host', 'username', 'password', 'content_type',
-                          'input_dir', 'input_csv']
+        update_options = ['task', 'host', 'username', 'password',
+                          'content_type', 'input_dir', 'input_csv']
         if not set(config_keys) == set(update_options):
-            sys.exit('Error: Please check your config file for required values: ' + joiner.join(update_options))
+            sys.exit('Error: Please check your config file for required ' +
+                'values: ' + joiner.join(update_options))
     if config['task'] == 'delete':
         delete_options = ['task', 'host', 'username', 'password',
                           'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_options):
-            sys.exit('Error: Please check your config file for required values: ' + joiner.join(delete_options))
+            sys.exit('Error: Please check your config file for required ' +
+                'values: ' + joiner.join(delete_options))
     if config['task'] == 'add_media':
         add_media_options = ['task', 'host', 'username', 'password',
                              'input_dir', 'input_csv', 'media_use_tid',
                              'drupal_filesystem']
         if not set(config_keys) == set(add_media_options):
-            sys.exit('Error: Please check your config file for required values: ' + joiner.join(add_media_options))
-    print('OK, configuration file has all required values (did not check for optional values).')
+            sys.exit('Error: Please check your config file for required ' +
+                'values: ' + joiner.join(add_media_options))
+    print('OK, configuration file has all required values (did not check ' +
+        'for optional values).')
 
     # Test host and credentials.
     # jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
@@ -243,9 +250,11 @@ def check_input():
     if response.status_code == 200:
         field_config = json.loads(response.text)
         if field_config['data'] == []:
-            sys.exit('Error: ' + config['host'] + ' does not recognize the username/password combination you have provided.'    )
+            sys.exit('Error: ' + config['host'] + ' does not recognize the ' +
+                'username/password combination you have provided.')
         else:
-            print('OK, ' + config['host'] + ' is accessible using the credentials provided.')
+            print('OK, ' + config['host'] + ' is accessible using the ' +
+                'credentials provided.')
 
     # Check existence of CSV file.
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
@@ -314,7 +323,8 @@ def check_input():
 
         if config['task'] == 'update':
             if 'node_id' not in csv_column_headers:
-                sys.exit('Error: For "update" tasks, your CSV file must contain a "node_id" column.')
+                sys.exit('Error: For "update" tasks, your CSV file must ' +
+                    'contain a "node_id" column.')
             field_definitions = get_field_definitions()
             drupal_fieldnames = []
             for drupal_fieldname in field_definitions:
@@ -322,7 +332,7 @@ def check_input():
             if 'title' in csv_column_headers:
                 csv_column_headers.remove('title')
             if 'file' in csv_column_headers:
-                message = 'Error: CSV column header "file" is not allowed in update tasks.' 
+                message = 'Error: CSV column header "file" is not allowed in update tasks.'
                 sys.exit(message)
                 logging.error(message)
             if 'node_id' in csv_column_headers:
@@ -337,12 +347,15 @@ def check_input():
 
         if config['task'] == 'delete':
             if 'node_id' not in csv_column_headers:
-                sys.exit('Error: For "delete" tasks, your CSV file must contain a "node_id" column.')
+                sys.exit('Error: For "delete" tasks, your CSV file must ' +
+                    'contain a "node_id" column.')
         if config['task'] == 'add_media':
             if 'node_id' not in csv_column_headers:
-                sys.exit('Error: For "add_media" tasks, your CSV file must contain a "node_id" column.')
+                sys.exit('Error: For "add_media" tasks, your CSV file must ' +
+                    'contain a "node_id" column.')
             if 'file' not in csv_column_headers:
-                sys.exit('Error: For "add_media" tasks, your CSV file must contain a "file" column.')
+                sys.exit('Error: For "add_media" tasks, your CSV file must ' +
+                    'contain a "file" column.')
 
         # Check for existence of files listed in the 'files' column.
         if config['task'] == 'create' or config['task'] == 'add_media':
@@ -353,12 +366,15 @@ def check_input():
                     file_path = os.path.join(config['input_dir'], file_check_row['file'])
                     if config['allow_missing_files'] is False:
                         if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                            sys.exit('Error: File ' + file_path + ' identified in CSV "file" column not found.')
-                print('OK, files named in the CSV "file" column are all present.')
+                            sys.exit('Error: File ' + file_path +
+                                ' identified in CSV "file" column not found.')
+                print('OK, files named in the CSV "file" column are ' +
+                    'all present.')
 
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
-    logging.info("Configuration checked for %s task using config file %s, no problems found", config['task'], args.config)
+    logging.info("Configuration checked for %s task using config file " +
+        " %s, no problems found", config['task'], args.config)
     sys.exit(0)
 
 
@@ -412,7 +428,7 @@ def create():
                                     field_values.append({'value': subvalue})
                                     node[custom_field] = field_values
                                 else:
-                                    node[custom_field] = [{'value': row[custom_field]}]        
+                                    node[custom_field] = [{'value': row[custom_field]}]
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
@@ -426,7 +442,7 @@ def create():
                                 node[custom_field] = [{'value': row[custom_field]}]
                         # Cardinality is 1.
                         else:
-                            node[custom_field] = [{'value': row[custom_field]}]                            
+                            node[custom_field] = [{'value': row[custom_field]}]
 
                     # Entity referernce fields: for taxonomy terms, target_type
                     # is'taxonomy_term'; for nodes, it's 'node_type'.
@@ -457,7 +473,7 @@ def create():
                                 for subvalue in subvalues:
                                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                                     # @todo: log fact that we're slicing off valudes.
-                                    node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]                                    
+                                    node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]
                             else:
                                 node[custom_field] = [
                                                       {'target_id': row[custom_field],
@@ -488,8 +504,10 @@ def create():
 
                 # If there is no media file, move on to the next CSV row.
                 if len(row['file']) == 0:
-                    print("+No media for " + node_uri + " created since its 'file' field in the CSV is empty.")
-                    logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
+                    print("+No media for " + node_uri + " created since " +
+                        "its 'file' field in the CSV is empty.")
+                    logging.warning("No media for %s created since its " +
+                        "'file' field in the CSV is empty.", node_uri)
                     continue
 
                 # If there is a media file, add it.
@@ -540,7 +558,8 @@ def update():
             for row in csv_data:
                 row = clean_csv_values(row)
                 if not ping_node(row['node_id']):
-                    print("Node " + row['node_id'] + " not found or not accessible, skipping update.")
+                    print("Node " + row['node_id'] + " not found or not " +
+                        "accessible, skipping update.")
                     continue
 
                 # Add the target_id field.
@@ -559,7 +578,7 @@ def update():
                 for custom_field in custom_fields:
                     # Skip updating field if value is empty.
                     if len(row[custom_field]) == 0:
-                        continue                                           
+                        continue
                     # Non entity reference fields (text/integer, etc.):
                     # if the field's cardinality is 1, replace field value;
                     # if it's not, get the field's current value and append
@@ -605,7 +624,7 @@ def update():
                                  'target_type': target_type}]
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             # Append to existing values.
-                            if config['subdelimiter'] in row[custom_field]:                            
+                            if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
                                 subvalues = row[custom_field].split(config['subdelimiter'])
                                 # @todo: log fact that we're slicing off values.
@@ -616,11 +635,11 @@ def update():
                             else:
                                 node[custom_field] = node_field_values[custom_field] + [
                                     {'target_id': row[custom_field],
-                                     'target_type': 'taxonomy_term'}]                            
-                        # Cardinality is unlimited.                                 
+                                     'target_type': 'taxonomy_term'}]
+                        # Cardinality is unlimited.
                         else:
                             # Append to existing values.
-                            if config['subdelimiter'] in row[custom_field]:                            
+                            if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
                                 subvalues = row[custom_field].split(config['subdelimiter'])
                                 for subvalue in subvalues:
@@ -655,7 +674,8 @@ def delete():
             for row in csv_data:
                 row = clean_csv_values(row)
                 if not ping_node(row['node_id']):
-                    print("Node " + row['node_id'] + " not found or not accessible, skipping delete.")
+                    print("Node " + row['node_id'] + " not found or not " +
+                        "accessible, skipping delete.")
                     continue
 
                 node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
@@ -663,7 +683,8 @@ def delete():
                 if node_response.status_code == 204:
                     print("Node " + config['host'] + '/node/' +
                           str(row['node_id']) + " deleted.")
-                    logging.info("Node %s deleted.", config['host'] + '/node/' + row['node_id'])
+                    logging.info("Node %s deleted.", config['host'] +
+                        '/node/' + row['node_id'])
 
 
 def add_media():
@@ -678,7 +699,8 @@ def add_media():
             for row in csv_data:
                 row = clean_csv_values(row)
                 if not ping_node(row['node_id']):
-                    print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
+                    print("Node " + row['node_id'] + " not found or not " +
+                        "accessible, skipping adding media.")
                     continue
 
                 file_path = os.path.join(config['input_dir'], row['file'])

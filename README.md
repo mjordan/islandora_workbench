@@ -221,9 +221,9 @@ Bug reports, improvements, feature requests, and PRs welcome. Before you open a 
 
 If you open a PR, please check your code with pycodestyle:
 
-`pycodestyle --show-source --show-pep8 workbench`
+`pycodestyle --show-source --show-pep8 --max-line-length=200 workbench`
 
-Do what you can, pycodestyle checks don't make a lot of sense sometimes.
+"Continuation line under-indented for visual indent" warnings are OK.
 
 ## License
 
