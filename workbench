@@ -64,16 +64,64 @@ def set_config_defaults():
     return config
 
 
+def issue_request(method, path, headers='', json='', data=''):
+    if config['host'] in path:
+        url = path
+    else:
+        url = config['host'] + path
+
+    if method == 'GET':
+        response = requests.get(
+            url,
+            auth=(config['username'], config['password']),
+            headers=headers
+        )
+    if method == 'HEAD':
+        response = requests.head(
+            url,
+            auth=(config['username'], config['password']),
+            headers=headers
+        )        
+    if method == 'POST':
+        response = requests.post(
+            url,
+            auth=(config['username'], config['password']),
+            headers=headers,
+            json=json,
+            data=data
+        )
+    if method == 'PUT':
+        response = requests.put(
+            url,
+            auth=(config['username'], config['password']),
+            headers=headers,
+            json=json,
+            data=data
+        )
+    if method == 'PATCH':
+        response = requests.patch(
+            url,
+            auth=(config['username'], config['password']),
+            headers=headers,
+            json=json,
+            data=data
+        )
+    if method == 'DELETE':
+        response = requests.delete(
+            url,
+            auth=(config['username'], config['password']),
+            headers=headers
+        )
+    return response
+
+
 def ping_node(nid):
-    url = config['host'] + '/node/' + nid
-    response = requests.head(
-        url,
-        auth=(config['username'], config['password'])
-    )
+    url = config['host'] + '/node/' + nid + '?_format=json'
+    response = issue_request('GET', url)
     if response.status_code == 200:
         return True
     else:
-        logging.warning("Node ping on %s returned a %s status code", url, response.status_code)
+        logging.warning("Node ping (HEAD) on %s returned a %s status code", url, response.status_code)
         return False
 
 
@@ -82,11 +130,7 @@ def get_field_definitions():
     """
     field_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
-    response = requests.get(
-        field_config_url,
-        auth=(config['username'], config['password']),
-        headers=headers
-    )
+    response = issue_request('GET', field_config_url, headers)
 
     if response.status_code == 200:
         field_config = json.loads(response.text)
@@ -159,8 +203,11 @@ def check_input():
     print('OK, configuration file has all required values (did not check for optional values).')
 
     # Test host and credentials.
-    jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
+    # jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
+    jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
+    response = issue_request('GET', jsonapi_url, headers, None, None)
+    """
     try:
         response = requests.get(
             jsonapi_url,
@@ -174,6 +221,7 @@ def check_input():
     except requests.exceptions.RequestException as error:
         print(error)
         sys.exit(1)
+    """
 
     # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
     if response.status_code == 200:
@@ -378,10 +426,8 @@ def create():
                 node_headers = {
                     'Content-Type': 'application/json'
                 }
-                node_response = requests.post(
-                    node_endpoint,
-                    auth=(config['username'], config['password']),
-                    json=node, headers=node_headers)
+                node_endpoint = '/node?_format=json'
+                node_response = issue_request('POST', node_endpoint, node_headers, node, None)
                 node_uri = node_response.headers['location']
                 if node_response.status_code == 201:
                     print("Node for '" + row['title'] +
@@ -417,11 +463,7 @@ def create():
                     }
                     binary_data = open(os.path.join(
                         config['input_dir'], row['file']), 'rb')
-                    media_response = requests.put(
-                        media_endpoint,
-                        auth=(config['username'], config['password']),
-                        data=binary_data,
-                        headers=media_headers)
+                    media_response = issue_request('PUT', media_endpoint, media_headers, '', binary_data)
                     allowed_binary_response_codes = [201, 204]
                     if media_response.status_code in allowed_binary_response_codes:
                         print('+' + media_type.title() + " media for " +
@@ -541,10 +583,7 @@ def update():
                 node_headers = {
                     'Content-Type': 'application/json'
                 }
-                node_response = requests.patch(
-                    node_endpoint,
-                    auth=(config['username'], config['password']),
-                    json=node, headers=node_headers)
+                node_response = issue_request('PATCH', node_endpoint, node_headers, node)
 
                 if node_response.status_code == 200:
                     print("Node for " + config['host'] + '/node/' +
@@ -568,13 +607,11 @@ def delete():
                     continue
 
                 node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
-                node_response = requests.delete(
-                    node_endpoint,
-                    auth=(config['username'], config['password']))
+                node_response = issue_request('DELETE', node_endpoint)
                 if node_response.status_code == 204:
                     print("Node " + config['host'] + '/node/' +
                           str(row['node_id']) + " deleted.")
-                    logging.info("Node for %s deleted.", config['host'] + '/node/' + row['node_id'])
+                    logging.info("Node %s deleted.", config['host'] + '/node/' + row['node_id'])
 
 
 def add_media():
@@ -604,9 +641,7 @@ def add_media():
 
                 node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_uri = config['host'] + '/node/' + row['node_id']
-                node_response = requests.get(
-                    node_json_url,
-                    auth=(config['username'], config['password']))
+                node_response = issue_request('GET', node_json_url)
                 if node_response.status_code == 200:
                     media_endpoint_path = ('/media/' +
                                            media_type + '/' +
@@ -619,11 +654,7 @@ def add_media():
                     }
                     binary_data = open(
                         os.path.join(config['input_dir'], row['file']), 'rb')
-                    media_response = requests.put(
-                        media_endpoint,
-                        auth=(config['username'], config['password']),
-                        data=binary_data,
-                        headers=media_headers)
+                    media_response = issue_request('PUT', media_endpoint, media_headers, '', binary_data)
                     allowed_binary_response_codes = [201, 204]
                     if media_response.status_code in allowed_binary_response_codes:
                         print(media_type.title() + " media for " + row['file'] + " created and added to " + node_uri)
@@ -635,9 +666,7 @@ def get_node_field_values(nid):
        which replace a field's values.
     """
     node_url = config['host'] + '/node/' + nid + '?_format=json'
-    response = requests.get(
-        node_url, auth=(config['username'], config['password'])
-    )
+    response = issue_request('GET', node_url)
     node_fields = json.loads(response.text)
     return node_fields
 
