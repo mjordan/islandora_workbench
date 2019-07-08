@@ -56,7 +56,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether your CSV file contains required columns headers.
 * Whether your CSV column headers correspond to existing Drupal field machine names.
 * Whether all Drupal fields that are configured to be required are present in the CSV file.
-* Whether the files named in the CSV file are present.
+* Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: True` is present in your config file for "create" tasks).
 * Whether each row contains the same number of columns as there are column headers.
 
 ## Creating nodes from the sample data
