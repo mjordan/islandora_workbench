@@ -1,6 +1,6 @@
 # Islandora Workbench
 
-A command-line tool that allows creation, updating, and deletion of Islandora content. Started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has additional functionality.
+A command-line tool that allows creation, updating, and deletion of Islandora content. Started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has a lot of additional functionality.
 
 Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
 
@@ -10,7 +10,7 @@ Islandora Workbench communicates with Islandora via REST, so it can be run anywh
    * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
    * The [Requests](https://2.python-requests.org/en/master/) library
 * An [Islandora 8](https://islandora.ca/) repository with the [JSON:API](https://www.drupal.org/project/jsonapi) module installed and enabled (included starting with Drupal 8.7).
-   * Drupal's REST API must have "basic" authentication enabled (it appears to be on by default for JSON:API)
+   * Drupal's REST API must have "basic" authentication enabled (it is on by default for JSON:API)
 
 ## Usage
 
@@ -55,6 +55,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether the `host` you provided will accept the `username` and `password` you provided.
 * Whether your CSV file contains required columns headers.
 * Whether your CSV column headers correspond to existing Drupal field machine names.
+* Whether all Drupal fields that are configured to be required are present in the CSV file.
 * Whether the files named in the CSV file are present.
 * Whether each row contains the same number of columns as there are column headers.
 

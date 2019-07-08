@@ -126,16 +126,17 @@ def ping_node(nid):
 
 
 def get_field_definitions():
-    """Query Drupal to get fields definitions.
+    """Query Drupal to get field definitions.
     """
-    field_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
-    response = issue_request('GET', field_config_url, headers)
+    field_definitions = {}    
 
-    if response.status_code == 200:
-        field_config = json.loads(response.text)
-        field_definitions = {}
-        for item in field_config['data']:
+    # We need to get both the field config and the field storage config.
+    field_storage_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
+    field_storage_config_response = issue_request('GET', field_storage_config_url, headers)
+    if field_storage_config_response.status_code == 200:
+        field_storage_config = json.loads(field_storage_config_response.text)
+        for item in field_storage_config['data']:
             field_name = item['attributes']['field_name']
             if 'target_type' in item['attributes']['settings']:
                 target_type = item['attributes']['settings']['target_type']
@@ -145,7 +146,20 @@ def get_field_definitions():
                 'field_type': item['attributes']['field_storage_config_type'],
                 'cardinality': item['attributes']['cardinality'],
                 'target_type': target_type}
-        return field_definitions
+
+    field_config_url = config['host'] + '/jsonapi/field_config/field_config'
+    field_config_response = issue_request('GET', field_config_url, headers)
+    if field_config_response.status_code == 200:
+        field_config = json.loads(field_config_response.text)
+        for item in field_config['data']:
+            field_name = item['attributes']['field_name']
+            required = item['attributes']['required']
+            field_definitions[field_name]['required'] = required
+            # E.g., comment, media, node.
+            entity_type = item['attributes']['entity_type']
+            field_definitions[field_name]['entity_type'] = entity_type
+
+    return field_definitions
 
 
 def clean_csv_values(row):
@@ -272,6 +286,20 @@ def check_input():
                 if csv_column_header not in drupal_fieldnames:
                     sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
             print('OK, CSV column headers match Drupal field names.')
+
+        # Check that Drupal fields that are required are in the CSV file
+        # (create task only)
+        if config['task'] == 'create':
+            required_drupal_fields = []
+            for drupal_fieldname in field_definitions:
+                # In the create task, we only check for required fields that apply to nodes.
+                if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['entity_type'] == 'node':
+                    if 'required' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['required'] is True:
+                        required_drupal_fields.append(drupal_fieldname)
+            for required_drupal_field in required_drupal_fields:
+                if required_drupal_field not in csv_column_headers:
+                    sys.exit('Error: Required Drupal field "' + required_drupal_field + '" is not present in the CSV file.')
+            print('OK, required Drupal fields are present in the CSV file.')
 
         if config['task'] == 'update':
             if 'node_id' not in csv_column_headers:
@@ -434,13 +462,20 @@ def create():
                           "' created at " + node_uri + ".")
                     logging.info("Node for %s created at %s.", row['title'], node_uri)
 
-                # Get ID of newly created node in case we want to use it
-                # later for linking child nodes, etc.
+                # Get ID of newly created node so we can use it for linking
+                # child nodes, etc.
                 if 'id_field' in config:
                     id_field = row[config['id_field']]
                     if node_response.status_code == 201:
                         node_ids[id_field] = node_uri.rsplit('/', 1)[-1]
 
+                # If there is no media file, move on to the next CSV row.
+                if len(row['file']) == 0:
+                    print("+No media for " + node_uri + " created since its 'file' field in the CSV is empty.")
+                    logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
+                    continue
+
+                # If there is a media file, add it.
                 file_path = os.path.join(config['input_dir'], row['file'])
                 mimetype = mimetypes.guess_type(file_path)
                 media_type = 'file'
