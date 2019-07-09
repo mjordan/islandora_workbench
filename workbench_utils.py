@@ -97,7 +97,7 @@ def issue_request(config, method, path, headers='', json='', data=''):
     return response
 
 
-def ping_node(nid):
+def ping_node(config, nid):
     url = config['host'] + '/node/' + nid + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
@@ -356,3 +356,13 @@ def clean_csv_values(row):
     for field in row:
         row[field] = row[field].strip()
     return row
+
+
+def get_node_field_values(config, nid):
+    """Get a node's field data so we can use it during PATCH updates,
+       which replace a field's values.
+    """
+    node_url = config['host'] + '/node/' + nid + '?_format=json'
+    response = issue_request(config, 'GET', node_url)
+    node_fields = json.loads(response.text)
+    return node_fields

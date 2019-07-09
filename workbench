@@ -194,7 +194,7 @@ def update():
 
             for row in csv_data:
                 row = clean_csv_values(row)
-                if not ping_node(row['node_id']):
+                if not ping_node(config, row['node_id']):
                     print("Node " + row['node_id'] + " not found or not " +
                           "accessible, skipping update.")
                     continue
@@ -206,7 +206,7 @@ def update():
                     ]
                 }
 
-                node_field_values = get_node_field_values(row['node_id'])
+                node_field_values = get_node_field_values(config, row['node_id'])
 
                 # Add custom (non-required) fields.
                 required_fields = ['node_id']
@@ -310,7 +310,7 @@ def delete():
 
             for row in csv_data:
                 row = clean_csv_values(row)
-                if not ping_node(row['node_id']):
+                if not ping_node(config, row['node_id']):
                     print("Node " + row['node_id'] + " not found or not " +
                           "accessible, skipping delete.")
                     continue
@@ -335,7 +335,7 @@ def add_media():
 
             for row in csv_data:
                 row = clean_csv_values(row)
-                if not ping_node(row['node_id']):
+                if not ping_node(config, row['node_id']):
                     print("Node " + row['node_id'] + " not found or not " +
                           "accessible, skipping adding media.")
                     continue
@@ -370,16 +370,6 @@ def add_media():
                     if media_response.status_code in allowed_binary_response_codes:
                         print(media_type.title() + " media for " + row['file'] + " created and added to " + node_uri)
                         logging.info("%s media for %s created and added to %s.", media_type.title(), row['file'], node_uri)
-
-
-def get_node_field_values(nid):
-    """Get a node's field data so we can use it during PATCH updates,
-       which replace a field's values.
-    """
-    node_url = config['host'] + '/node/' + nid + '?_format=json'
-    response = issue_request(config, 'GET', node_url)
-    node_fields = json.loads(response.text)
-    return node_fields
 
 
 # Main program logic.
