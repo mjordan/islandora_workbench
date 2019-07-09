@@ -227,7 +227,7 @@ Bug reports, improvements, feature requests, and PRs welcome. Before you open a 
 
 If you open a PR, please check your code with pycodestyle:
 
-`pycodestyle --show-source --show-pep8 --max-line-length=200 workbench`
+`pycodestyle --show-source --show-pep8 --max-line-length=200 .`
 
 ## License
 
