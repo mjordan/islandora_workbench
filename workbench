@@ -429,6 +429,8 @@ def create():
                                     node[custom_field] = field_values
                                 else:
                                     node[custom_field] = [{'value': row[custom_field]}]
+                            else:
+                                node[custom_field] = [{'value': row[custom_field]}]
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
@@ -444,8 +446,8 @@ def create():
                         else:
                             node[custom_field] = [{'value': row[custom_field]}]
 
-                    # Entity referernce fields: for taxonomy terms, target_type
-                    # is'taxonomy_term'; for nodes, it's 'node_type'.
+                    # Entity reference fields: for taxonomy terms, target_type
+                    # it's 'taxonomy_term'; for nodes, it's 'node_type'.
                     else:
                         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                             target_type = 'taxonomy_term'

@@ -98,6 +98,14 @@ By defualt, if the `file` value for a row is empty, Workbench's `--check` option
 
 ### The CSV file
 
+Single-valued and multi-valued fields of the following types can be added:
+
+* text (plain, plain long, etc.) fields
+* EDTF date fields
+* entity reference (taxonomy and linked node) fields
+
+Typed relation fields [are not yet supported but will be](https://github.com/mjordan/islandora_workbench/issues/20).
+
 #### Single-valued fields
 
 Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields) or IDs (for taxonomy terms or collections).
@@ -110,8 +118,6 @@ myfile.jpg,My nice image,24,"A fine image, yes?",Do whatever you want with it.,T
 ```
 
 In this example, the term ID for the tag you want to assign in `field_access_terms` is 27, and the node ID of the collection you want to add the object to (in `field_member_of`) is 45.
-
-> Note that, if you are using the fields defined by the Islandora Defaults module for the "Repository Item" content type, "field_model" is also required, as are any other fields you add to your content type and define as required. Currently, workbench [cannot determine](https://github.com/mjordan/islandora_workbench/issues/29) if a field's definition indicates that it is required. You need to make sure you include any required node fields in your CSV file.
 
 #### Multivalued fields
 
