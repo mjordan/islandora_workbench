@@ -12,6 +12,7 @@ import datetime
 import mimetypes
 import requests
 from ruamel.yaml import YAML
+from workbench_utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -165,14 +166,6 @@ def get_field_definitions():
             field_definitions[field_name]['entity_type'] = entity_type
 
     return field_definitions
-
-
-def clean_csv_values(row):
-    """Strip whitespace, etc. from row values.
-    """
-    for field in row:
-            row[field] = row[field].strip()
-    return row
 
 
 def check_input():
