@@ -229,8 +229,6 @@ If you open a PR, please check your code with pycodestyle:
 
 `pycodestyle --show-source --show-pep8 --max-line-length=200 workbench`
 
-"Continuation line under-indented for visual indent" warnings are OK.
-
 ## License
 
 The Unlicense.
