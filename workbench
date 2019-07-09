@@ -12,21 +12,6 @@ import argparse
 import mimetypes
 from workbench_utils import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    '--config',
-    help='Configuration file to use.')
-parser.add_argument(
-    '--check',
-    help='Check input data and exit without creating/updating/etc.', action='store_true')
-args = parser.parse_args()
-
-# TIFFs and JP2s are 'file', as is everything else not in these lists.
-image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
-audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
-video_mimetypes = ['video/mp4']
-mimetypes.init()
-
 
 def create():
     """Create new nodes via POST.
@@ -398,6 +383,21 @@ def get_node_field_values(nid):
 
 
 # Main program logic.
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    '--config',
+    help='Configuration file to use.')
+parser.add_argument(
+    '--check',
+    help='Check input data and exit without creating/updating/etc.', action='store_true')
+args = parser.parse_args()
+
+# TIFFs and JP2s are 'file', as is everything else not in these lists.
+image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
+audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
+video_mimetypes = ['video/mp4']
+mimetypes.init()
 
 config = set_config_defaults(args)
 logging.basicConfig(
