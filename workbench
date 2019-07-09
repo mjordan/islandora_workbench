@@ -14,7 +14,7 @@ from workbench_utils import *
 
 
 def create():
-    """Create new nodes via POST.
+    """Create new nodes via POST, and add media if there are any.
     """
     logging.info('"Create" task started using config file %s', args.config)
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
@@ -181,9 +181,9 @@ def create():
 
 
 def update():
-    """Note that PATCHing replaces the target field, so if we are adding
-       an additional value to a multivalued field, we need to include
-       the existing value in our PATCH.
+    """Update nodes via PATCH. Note that PATCHing replaces the target field,
+       so if we are adding an additional value to a multivalued field, we need
+       to include the existing value in our PATCH.
     """
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):

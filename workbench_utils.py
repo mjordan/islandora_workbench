@@ -47,6 +47,8 @@ def set_config_defaults(args):
 
 
 def issue_request(config, method, path, headers='', json='', data=''):
+    """Issue the REST request to Drupal.
+    """
     if config['host'] in path:
         url = path
     else:
@@ -98,6 +100,8 @@ def issue_request(config, method, path, headers='', json='', data=''):
 
 
 def ping_node(config, nid):
+    """Ping the node to see if it exists.
+    """
     url = config['host'] + '/node/' + nid + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
@@ -111,7 +115,7 @@ def ping_node(config, nid):
 
 
 def get_field_definitions(config):
-    """Query Drupal to get field definitions.
+    """Get field definitions from Drupal.
     """
     headers = {'Accept': 'Application/vnd.api+json'}
     field_definitions = {}
@@ -199,7 +203,6 @@ def check_input(config, args):
           'for optional values).')
 
     # Test host and credentials.
-    # jsonapi_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
     jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
     response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
