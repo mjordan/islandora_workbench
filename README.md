@@ -1,8 +1,8 @@
 # Islandora Workbench
 
-A command-line tool that allows creation, updating, and deletion of Islandora content. Started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has a lot of additional functionality.
+A command-line tool that allows creation, updating, and deletion of Islandora content. Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
 
-Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
+Islandora Workbench started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has a lot of additional functionality.
 
 ## Requirements
 
@@ -149,11 +149,11 @@ The values for the "linked Agent" field, for example, are comprised of three par
 
 `relators:art:30`
 
-In this example, `relators` is the namespace that the value `art` is from (the MARC Relators vocabulary), and the target taxonomy term ID is `30`. In other words, in the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Mark Jordan":
+In this example, `relators` is the namespace that the value `art` is from (the MARC Relators vocabulary), and the target taxonomy term ID is `30`. In other words, in the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Jordan, Mark":
 
 ![Linked agent example](docs/images/linked_agent.png)
 
-If you want to include multiple typed relation values in a single field (such as "Linked Agent"), separate the three-part values with the same subdelimiter character you use in other fields, e.g. (`|`) (or whatever you have configured as your `subdelimiter`):
+If you want to include multiple typed relation values in a single field of your CSV file (such as in "field_linked_agent"), separate the three-part values with the same subdelimiter character you use in other fields, e.g. (`|`) (or whatever you have configured as your `subdelimiter`):
 
 `relators:art:30|relators:art:45`
 
