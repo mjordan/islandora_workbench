@@ -372,6 +372,12 @@ def get_node_field_values(config, nid):
 
 
 def split_typed_relation_string(config, typed_relation_string):
+    """Fields of type 'typed_relation' are represented in the CSV file
+       using a structured string, specifically namespace:property:tid,
+       e.g., 'relators:pht:5'. This function takes one of those strings
+       (optionally with a multivalue subdelimiter) and returns a list
+       of dictionaries, one per instance.
+       """
     return_list = []
     temp_list = typed_relation_string.split(config['subdelimiter'])
     for item in temp_list:
