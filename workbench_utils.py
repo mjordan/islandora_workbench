@@ -369,3 +369,14 @@ def get_node_field_values(config, nid):
     response = issue_request(config, 'GET', node_url)
     node_fields = json.loads(response.text)
     return node_fields
+
+
+def split_typed_relation_string(config, typed_relation_string):
+    return_list = []
+    temp_list = typed_relation_string.split(config['subdelimiter'])
+    for item in temp_list:
+        item_list = item.split(':')
+        item_dict = {'namespace': item_list[0], 'property': item_list[1], 'tid': item_list[2]}
+        return_list.append(item_dict)
+
+    return return_list
