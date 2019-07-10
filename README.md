@@ -141,7 +141,7 @@ Drupal strictly enforces the maximum number of values allowed in a field. If the
 
 The subdelimiter character defaults to a pipe (`|`) but can be set in your config file using the `subdelimiter: ";"` option.
 
-### Typed Relation fields
+#### Typed Relation fields
 
 Fields that have the "Typed Relation" type take structured values and need to be entered in a specific way in the CSV file. An example of this type of field is the "Linked Agent" field in the Repository Item content type created by the Islandora Defaults module.
 
@@ -149,7 +149,9 @@ The values for the "linked Agent" field, for example, are comprised of three par
 
 `relators:art:30`
 
-In this example, `relators` is the namespace that the value `art` is from (the MARC Relators vocabulary), and the target taxonomy term ID is `30`. In other words, in the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30".
+In this example, `relators` is the namespace that the value `art` is from (the MARC Relators vocabulary), and the target taxonomy term ID is `30`. In other words, in the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Mark Jordan":
+
+![Linked agent example](docs/images/linked_agent.png)
 
 If you want to include multiple typed relation values in a single field (such as "Linked Agent"), separate the three-part values with the same subdelimiter character you use in other fields, e.g. (`|`) (or whatever you have configured as your `subdelimiter`):
 
