@@ -2,7 +2,7 @@ import unittest
 import subprocess
 
 
-class CheckCreateTest(unittest.TestCase):
+class CheckTest(unittest.TestCase):
 
     def setUp(self):
         cmd = ["./workbench", "--config", "update.yml", "--check"]
