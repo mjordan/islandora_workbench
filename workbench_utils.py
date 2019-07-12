@@ -281,8 +281,7 @@ def check_input(config, args):
                     logging.error("Error: CSV column header %s does not appear to match any Drupal field names.", csv_column_header)
             print('OK, CSV column headers match Drupal field names.')
 
-        # Check that Drupal fields that are configured as required are in the
-        # CSV file (create task only)
+        # Check that Drupal fields that are required are in the CSV file (create task only).
         if config['task'] == 'create':
             required_drupal_fields = []
             for drupal_fieldname in field_definitions:
@@ -319,6 +318,12 @@ def check_input(config, args):
                     logging.error('Error: CSV column header %s does not ' +
                                   'appear to match any Drupal field names.', csv_column_header)
             print('OK, CSV column headers match Drupal field names.')
+
+        if config['task'] == 'update' or config['task'] == 'create':
+            # Validate values in fields that are of type 'typed_relation'.
+            # Each value (don't forget multivalued fields) needs to have this
+            # pattern: string:string:int.
+            validate_typed_relation_values(config, field_definitions, csv_data)
 
         if config['task'] == 'delete':
             if 'node_id' not in csv_column_headers:
@@ -377,7 +382,7 @@ def split_typed_relation_string(config, typed_relation_string):
        e.g., 'relators:pht:5'. This function takes one of those strings
        (optionally with a multivalue subdelimiter) and returns a list
        of dictionaries, one per instance.
-       """
+    """
     return_list = []
     temp_list = typed_relation_string.split(config['subdelimiter'])
     for item in temp_list:
@@ -386,3 +391,12 @@ def split_typed_relation_string(config, typed_relation_string):
         return_list.append(item_dict)
 
     return return_list
+
+
+def validate_typed_relation_values(config, field_definitions, csv_data):
+    """Validate values in fields that are of type 'typed_relation'.
+       Each value (don't forget multivalued fields) must have this
+       pattern: string:string:int.
+    """
+    # @todo: Complete this function.
+    pass
