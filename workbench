@@ -49,6 +49,8 @@ def create():
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
+                    if not isinstance(row[custom_field], str):
+                        continue
                     # Skip updating field if value is empty.
                     if len(row[custom_field]) == 0:
                         continue
@@ -69,7 +71,7 @@ def create():
                                 subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                                 for subvalue in subvalues:
                                     field_values.append({'target_id': subvalue, 'target_type': target_type})
-                                    node[custom_field] = field_values
+                                node[custom_field] = field_values
                             else:
                                 node[custom_field] = [
                                                       {'target_id': row[custom_field],
@@ -81,8 +83,8 @@ def create():
                                 # @todo: log fact that we're slicing off values.
                                 for subvalue in subvalues:
                                     field_values.append({'target_id': subvalue, 'target_type': target_type})
-                                    # @todo: log fact that we're slicing off values.
-                                    node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]
+                                # @todo: log fact that we're slicing off values.
+                                node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]
                             else:
                                 node[custom_field] = [
                                                       {'target_id': row[custom_field],
@@ -104,7 +106,7 @@ def create():
                                     field_values.append({'target_id': subvalue['tid'],
                                                          'rel_type': subvalue['namespace'] + ':' + subvalue['property'],
                                                          'target_type': target_type})
-                                    node[custom_field] = field_values
+                                node[custom_field] = field_values
                             else:
                                 field_value = split_typed_relation_string(config, row[custom_field])
                                 node[custom_field] = [
@@ -123,7 +125,7 @@ def create():
                                         field_values.append({'target_id': subvalue['tid'],
                                                              'rel_type': subvalue['namespace'] + ':' + subvalue['property'],
                                                              'target_type': target_type})
-                                        node[custom_field] = field_values
+                                node[custom_field] = field_values
                             else:
                                 field_values = split_typed_relation_string(config, row[custom_field])
                                 node[custom_field] = [
@@ -137,7 +139,7 @@ def create():
                                                   {'target_id': field_values[0]['tid'],
                                                    'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
                                                    'target_type': target_type}]
-
+                            print(node[custom_field])
                     # For (non-entity reference (text, etc.) fields.                        
                     else:
                         # Cardinality is unlimited.
@@ -160,7 +162,7 @@ def create():
                                 subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                                 for subvalue in subvalues:
                                     field_values.append({'value': subvalue})
-                                    node[custom_field] = field_values
+                                node[custom_field] = field_values
                             else:
                                 node[custom_field] = [{'value': row[custom_field]}]
                         # Cardinality is 1.
@@ -284,7 +286,7 @@ def update():
                                 subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                                 for subvalue in subvalues:
                                     field_values.append({'target_id': subvalue, 'target_type': target_type})
-                                    node[custom_field] = node_field_values[custom_field] + field_values
+                                node[custom_field] = node_field_values[custom_field] + field_values
                             else:
                                 node[custom_field] = node_field_values[custom_field] + [
                                     {'target_id': row[custom_field],
@@ -335,7 +337,8 @@ def update():
                                                              'rel_type': subvalue['namespace'] + ':' + subvalue['property'],
                                                              'target_type': target_type})
                                 # @todo: log fact that we're slicing off values.
-                                node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]
+                                node[custom_field] = node_field_values[custom_field] + field_values
+                                node[custom_field] = node[custom_field][:field_definitions[custom_field]['cardinality']]
                             else:
                                 field_values = split_typed_relation_string(config, row[custom_field])
                                 node[custom_field] = node_field_values[custom_field] + [

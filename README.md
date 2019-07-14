@@ -145,11 +145,21 @@ The subdelimiter character defaults to a pipe (`|`) but can be set in your confi
 
 Unlike most field types, which take a string or an integer as their value in the CSV file, fields that have the "Typed Relation" type take structured values that need to be entered in a specific way in the CSV file. An example of this type of field is the "Linked Agent" field in the Repository Item content type created by the Islandora Defaults module.
 
-The values for the "linked Agent" field, for example, are comprised of three parts, each separated by a colon (`:`). For example:
+The structure of values for this field encode a namespace (representing the vocabulary the relation is from), a relation type, and a target ID (what the relation refers to, such as a taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an exmple):
+
+![Relations example](docs/images/relations.png)
+
+In the node edit form, this structure is represented as a select list of the types (the namespace is not shown) and a field to indicate the relation target, e.g.:
+
+![Linked agent example](docs/images/linked_agent.png)
+
+To include these values in a CSV field, we need to use a structured string as described above (namespace:relationtype:targetid). For example:
 
 `relators:art:30`
 
-In this example, `relators` is the namespace that the value `art` is from (the MARC Relators vocabulary), and the target taxonomy term ID is `30`. In other words, in the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Jordan, Mark":
+> Note that the format required for typed relation values in the CSV file is not the same as the format of the relations configuration depicted in the first screenshot above; the CSV values use only colons to seprate the three parts, but the field configuration uses a colon and then a pipe (|) to structure its values.
+
+In this example, `relators` is the namespace that the relation type `art` is from (the Library of Congress [Relators](http://id.loc.gov/vocabulary/relators.html) vocabulary), and the target taxonomy term ID is `30`. In the screenshot below, in the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Jordan, Mark"):
 
 ![Linked agent example](docs/images/linked_agent.png)
 

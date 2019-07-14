@@ -362,7 +362,8 @@ def clean_csv_values(row):
     """Strip whitespace, etc. from row values.
     """
     for field in row:
-        row[field] = row[field].strip()
+        if isinstance(row[field], str):
+            row[field] = row[field].strip()
     return row
 
 
@@ -398,5 +399,7 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
        Each value (don't forget multivalued fields) must have this
        pattern: string:string:int.
     """
-    # @todo: Complete this function.
+    # @todo: Complete this function: validate that the relations are from
+    # the list configured in the field config, and validate that the target
+    # ID exists in the linked taxonomy. See issue #41.
     pass
