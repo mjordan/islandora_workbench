@@ -1,8 +1,8 @@
 # Islandora Workbench
 
-A command-line tool that allows creation, updating, and deletion of Islandora content. Started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has a lot of additional functionality.
+A command-line tool that allows creation, updating, and deletion of Islandora content. Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
 
-Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
+Islandora Workbench started as a Python port of https://github.com/mjordan/claw_rest_ingester, but has a lot of additional functionality.
 
 ## Requirements
 
@@ -110,7 +110,7 @@ Typed relation fields [are not yet supported but will be](https://github.com/mjo
 
 Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields) or IDs (for taxonomy terms or collections).
 
-You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, and linked node fields (e.g. "Member of" for collection nodes) can be added. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
+You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, linked node fields (e.g. "Member of" for collection nodes), and typed relation fields can be added. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
 ```csv
 file,title,field_model,field_description,field_rights,field_extent,field_access_terms,field_member_of
@@ -141,10 +141,34 @@ Drupal strictly enforces the maximum number of values allowed in a field. If the
 
 The subdelimiter character defaults to a pipe (`|`) but can be set in your config file using the `subdelimiter: ";"` option.
 
+#### Typed Relation fields
+
+Unlike most field types, which take a string or an integer as their value in the CSV file, fields that have the "Typed Relation" type take structured values that need to be entered in a specific way in the CSV file. An example of this type of field is the "Linked Agent" field in the Repository Item content type created by the Islandora Defaults module.
+
+The structure of values for this field encode a namespace (indicating the vocabulary the relation is from), a relation type, and a target ID (which identifies what the relation refers to, such as a specific taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an exmple):
+
+![Relations example](docs/images/relators.png)
+
+In the node edit form, this structure is represented as a select list of the types (the namespace is not shown) and, below that, an autocomplete field to indicate the relation target, e.g.:
+
+![Linked agent example](docs/images/linked_agent.png)
+
+To include these kind of values in a CSV field, we need to use a structured string as described above (namespace:relationtype:targetid). For example:
+
+`relators:art:30`
+
+> Note that the structure required for typed relation values in the CSV file is not the same as the structure of the relations configuration depicted in the first screenshot above; the CSV values use only colons to seprate the three parts, but the field configuration uses a colon and then a pipe (|) to structure its values.
+
+In this example of a CSV value, `relators` is the namespace that the relation type `art` is from (the Library of Congress [Relators](http://id.loc.gov/vocabulary/relators.html) vocabulary), and the target taxonomy term ID is `30`. In the screenshot above showing the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Jordan, Mark"):
+
+If you want to include multiple typed relation values in a single field of your CSV file (such as in "field_linked_agent"), separate the three-part values with the same subdelimiter character you use in other fields, e.g. (`|`) (or whatever you have configured as your `subdelimiter`):
+
+`relators:art:30|relators:art:45`
+
 
 ## Updating nodes
 
-You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, and linked node fields (e.g. "Member of" for collection nodes) can be added.
+You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. Updates preserve any values in the fields, they don't replace the values. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, linked node fields (e.g. "Member of" for collection nodes), and typed relation fields can be added.
 
 For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
