@@ -147,7 +147,7 @@ Unlike most field types, which take a string or an integer as their value in the
 
 The structure of values for this field encode a namespace (representing the vocabulary the relation is from), a relation type, and a target ID (what the relation refers to, such as a taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an exmple):
 
-![Relations example](docs/images/relations.png)
+![Relations example](docs/images/relators.png)
 
 In the node edit form, this structure is represented as a select list of the types (the namespace is not shown) and a field to indicate the relation target, e.g.:
 
