@@ -11,7 +11,7 @@ class CheckTest(unittest.TestCase):
 
     def test_create_check(self):
         lines = self.output.splitlines()
-        self.assertEqual(len(lines), 5)
+        self.assertEqual(len(lines), 6)
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
 

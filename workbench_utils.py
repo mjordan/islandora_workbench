@@ -247,13 +247,23 @@ def check_input(config, args):
         # Check whether each row contains the same number of columns as there
         # are headers.
         for count, row in enumerate(csv_data, start=1):
-            if len(csv_column_headers) != len(row):
+            string_field_count = 0
+            for field in row:
+                if (row[field] is not None):
+                    string_field_count += 1
+            if len(csv_column_headers) > string_field_count:
                 sys.exit("Error: Row " + str(count) + " of your CSV file " +
-                         "does not have same number of columns (" + str(len(row)) +
+                         "does not have same number of columns (" + str(string_field_count) +
                          ") as there are headers (" + str(len(csv_column_headers)) + ").")
                 logging.error("Error: Row %s of your CSV file does not " +
                               "have same number of columns (%s) as there are headers " +
-                              "(%s).", str(count), str(len(row)), str(len(csv_column_headers)))
+                              "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
+            if len(csv_column_headers) < string_field_count:
+                sys.exit("Error: Row " + str(count) + " of your CSV file " +
+                         "has more columns than there are headers (" + str(len(csv_column_headers)) + ").")
+                logging.error("Error: Row %s of your CSV file has more columns than there are headers " +
+                              "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
+        print("OK, all rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
 
         # Task-specific CSV checks.
         if config['task'] == 'create':
