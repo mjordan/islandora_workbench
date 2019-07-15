@@ -103,8 +103,7 @@ Single-valued and multi-valued fields of the following types can be added:
 * text (plain, plain long, etc.) fields
 * EDTF date fields
 * entity reference (taxonomy and linked node) fields
-
-Typed relation fields [are not yet supported but will be](https://github.com/mjordan/islandora_workbench/issues/20).
+* typed relation (taxonomy and linked node) fields
 
 #### Single-valued fields
 
@@ -168,7 +167,7 @@ If you want to include multiple typed relation values in a single field of your 
 
 ## Updating nodes
 
-You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. Updates preserve any values in the fields, they don't replace the values. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, linked node fields (e.g. "Member of" for collection nodes), and typed relation fields can be added.
+You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. Updates preserve any values in the fields, they don't replace the values. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, linked node fields (e.g. "Member of" for collection nodes), and typed relation fields can be updated.
 
 For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
@@ -177,7 +176,7 @@ node_id,field_description,field_rights,field_access_terms,field_member_of
 100,This is my new title,I have changed my mind. This item is yours to keep.,27,45
 ```
 
-Multivalued fields are also supported in the update task. See details above.
+Multivalued fields are also supported in the update task. See details in the "Multivalued fields" section above.
 
 The config file for update operations looks like this (note the `task` option is 'update'):
 
