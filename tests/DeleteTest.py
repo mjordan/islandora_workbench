@@ -3,16 +3,15 @@ import tempfile
 import unittest
 import subprocess
 
-
-class CheckTest(unittest.TestCase):
+class DeleteTest(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        create_config_file_path = os.path.join(self.current_dir, 'assets', 'createtest', 'create.yml')
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'deletetest', 'create.yml')
         self.create_cmd = ["./workbench", "--config", create_config_file_path]
 
         self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchdeletetestnids.txt')
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchdeletetesttnids.txt')
 
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
@@ -27,8 +26,8 @@ class CheckTest(unittest.TestCase):
                     nids.append(nid)
                     fh.write(nid + "\n")
 
-    def test_create_check(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'createtest', 'delete.yml')
+    def test_delete_check(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'deletetest', 'delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
         delete_output = subprocess.check_output(delete_cmd)
         delete_output = delete_output.decode().strip()
