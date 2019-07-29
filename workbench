@@ -67,8 +67,6 @@ def create():
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
                                 subvalues = row[custom_field].split(config['subdelimiter'])
-                                # @todo: log fact that we're slicing off values.
-                                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                                 for subvalue in subvalues:
                                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                                 node[custom_field] = field_values
@@ -140,7 +138,7 @@ def create():
                                                    'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
                                                    'target_type': target_type}]
                             print(node[custom_field])
-                    # For (non-entity reference (text, etc.) fields.                        
+                    # For non-entity reference and non-typed relatino fields fields (text, etc.).                        
                     else:
                         # Cardinality is unlimited.
                         if field_definitions[custom_field]['cardinality'] == -1:
