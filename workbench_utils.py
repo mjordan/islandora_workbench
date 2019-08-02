@@ -387,6 +387,15 @@ def get_node_field_values(config, nid):
     return node_fields
 
 
+def get_target_ids(node_field_values):
+    """Get the target IDs of all entities in a field.
+    """
+    target_ids = []
+    for target in node_field_values:
+        target_ids.append(target['target_id'])
+    return target_ids
+
+
 def split_typed_relation_string(config, typed_relation_string):
     """Fields of type 'typed_relation' are represented in the CSV file
        using a structured string, specifically namespace:property:tid,
