@@ -92,7 +92,8 @@ def create():
                             node[custom_field] = [
                                                   {'target_id': row[custom_field],
                                                    'target_type': target_type}]
-                                                         
+                    
+                    # Typed relation fields.                      
                     elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                         target_type = field_definitions[custom_field]['target_type']
                         # Cardinality is unlimited.
@@ -138,7 +139,8 @@ def create():
                                                    'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
                                                    'target_type': target_type}]
                             print(node[custom_field])
-                    # For non-entity reference and non-typed relatino fields fields (text, etc.).                        
+                    
+                    # For non-entity reference and non-typed relation fields (text, etc.).                      
                     else:
                         # Cardinality is unlimited.
                         if field_definitions[custom_field]['cardinality'] == -1:
@@ -263,7 +265,7 @@ def update():
                     if len(row[custom_field]) == 0:
                         continue
 
-                    # For taxonomy terms, target_type is 'taxonomy_term';
+                    # Entity reference fields: for taxonomy terms, target_type is 'taxonomy_term';
                     # for nodes, it's 'node_type'.
                     if field_definitions[custom_field]['field_type'] == 'entity_reference':
                         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
@@ -319,6 +321,8 @@ def update():
                                 node[custom_field] = node_field_values[custom_field] + [
                                     {'target_id': row[custom_field],
                                      'target_type': 'taxonomy_term'}]
+
+                    # Typed relation fields.
                     elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                             target_type = 'taxonomy_term'
@@ -382,10 +386,8 @@ def update():
                                                   {'target_id': field_values[0]['tid'],
                                                    'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
                                                    'target_type': target_type}]
-                    # Non-entity reference and non-entity reference fields
-                    # (text/integer, etc.): if the field's cardinality is 1,
-                    # replace field value; if it's not, get the field's current
-                    # value and append the new value.
+
+                    # For non-entity reference and non-typed relation fields (text, etc.).
                     else:
                         if field_definitions[custom_field]['cardinality'] == 1:
                             node[custom_field] = [{'value': row[custom_field]}]
