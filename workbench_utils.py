@@ -396,18 +396,19 @@ def get_target_ids(node_field_values):
     return target_ids
 
 
-def split_typed_relation_string(config, typed_relation_string):
+def split_typed_relation_string(config, typed_relation_string, target_type):
     """Fields of type 'typed_relation' are represented in the CSV file
-       using a structured string, specifically namespace:property:tid,
-       e.g., 'relators:pht:5'. This function takes one of those strings
-       (optionally with a multivalue subdelimiter) and returns a list
-       of dictionaries, one per instance.
+       using a structured string, specifically namespace:property:id,
+       e.g., 'relators:pht:5'. 'id' is either a term ID or a node ID.
+       This function takes one of those strings (optionally with a multivalue
+       subdelimiter) and returns a list of dictionaries in the form they
+       take in existing node values.
     """
     return_list = []
     temp_list = typed_relation_string.split(config['subdelimiter'])
     for item in temp_list:
         item_list = item.split(':')
-        item_dict = {'namespace': item_list[0], 'property': item_list[1], 'tid': item_list[2]}
+        item_dict = {'target_id': int(item_list[2]), 'rel_type': item_list[0] + ':' + item_list[1], 'target_type': target_type}
         return_list.append(item_dict)
 
     return return_list

@@ -4,6 +4,7 @@
 
 import os
 import sys
+import copy
 import json
 import csv
 import logging
@@ -100,45 +101,31 @@ def create():
                         if field_definitions[custom_field]['cardinality'] == -1:
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
-                                subvalues = split_typed_relation_string(config, row[custom_field])
+                                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                                 for subvalue in subvalues:   
-                                    field_values.append({'target_id': subvalue['tid'],
-                                                         'rel_type': subvalue['namespace'] + ':' + subvalue['property'],
-                                                         'target_type': target_type})
+                                    field_values.append(subvalue)
                                 node[custom_field] = field_values
                             else:
-                                field_value = split_typed_relation_string(config, row[custom_field])
-                                node[custom_field] = [
-                                                      {'target_id': field_value[0]['tid'],
-                                                       'rel_type': field_value[0]['namespace'] + ':' + field_value[0]['property'],
-                                                       'target_type': target_type}]
+                                field_value = split_typed_relation_string(config, row[custom_field], target_type)
+                                node[custom_field] = field_value
                         
                         # Cardinality has a limit.
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
-                                subvalues = split_typed_relation_string(config, row[custom_field])
-                                # @todo: log fact that we're slicing off values.
+                                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                                 subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                                 for subvalue in subvalues:   
-                                        field_values.append({'target_id': subvalue['tid'],
-                                                             'rel_type': subvalue['namespace'] + ':' + subvalue['property'],
-                                                             'target_type': target_type})
+                                        field_values.append(subvalue)
                                 node[custom_field] = field_values
                             else:
-                                field_values = split_typed_relation_string(config, row[custom_field])
-                                node[custom_field] = [
-                                                      {'target_id': field_values[0]['tid'],
-                                                       'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
-                                                       'target_type': target_type}]
+                                field_value = split_typed_relation_string(config, row[custom_field], target_type)
+                                node[custom_field] = field_value
                         # Cardinality is 1.
                         else:
-                            field_values = split_typed_relation_string(config, row[custom_field])
-                            node[custom_field] = [
-                                                  {'target_id': field_values[0]['tid'],
-                                                   'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
-                                                   'target_type': target_type}]
-                            print(node[custom_field])
+                            field_values = split_typed_relation_string(config, row[custom_field], target_type)
+                            node[custom_field] = field_value[0]
+                            logging.warning("Adding all values in CSV field %s for row %s would exceed maximum number of allowed values (1), so only adding first value.", row[custom_field], row['node_id'])
                     
                     # For non-entity reference and non-typed relation fields (text, etc.).                      
                     else:
@@ -286,16 +273,17 @@ def update():
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
                                 subvalues = row[custom_field].split(config['subdelimiter'])
-                                if subvalue in existing_target_ids:
-                                    existing_target_ids.remove(subvalue)
+                                for subvalue in subvalues:
+                                    if subvalue in existing_target_ids:
+                                        existing_target_ids.remove(subvalue)
                                 # Slice the incoming values to a length that matches the field's
                                 # cardinality minus its existing length. Also log fact that we're
                                 # slicing off values.
                                 num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values              
                                 subvalues = subvalues[:num_values_to_add]
                                 if len(subvalues) > 0:
-                                    logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of allowed values (%s), so only adding %s values", custom_field, row['node_id'], field_definitions[custom_field]['cardinality'], num_values_to_add)
-                                    logging.info("Updating node %s with %s values from CSV record", row['node_id'], num_values_to_add)
+                                    logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of allowed values (%s), so only adding %s values.", custom_field, row['node_id'], field_definitions[custom_field]['cardinality'], num_values_to_add)
+                                    logging.info("Updating node %s with %s values from CSV record.", row['node_id'], num_values_to_add)
                                     for subvalue in subvalues:
                                         field_values.append({'target_id': subvalue, 'target_type': target_type})
                                     node[custom_field] = node_field_values[custom_field] + field_values
@@ -324,6 +312,15 @@ def update():
 
                     # Typed relation fields.
                     elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                        # Create a copy of the existing values in the current field so we can compare
+                        # them to the incoming values in the CSV file for deduping. To compare these
+                        # values with the incoming ones, we need to remove the 'url' and
+                        # 'target_uuid' members.
+                        node_comparison_values = copy.deepcopy(node_field_values[custom_field])
+                        for comparison_value in node_comparison_values:
+                            del comparison_value['url']
+                            del comparison_value['target_uuid']
+
                         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                             target_type = 'taxonomy_term'
                         if field_definitions[custom_field]['target_type'] == 'node':
@@ -333,19 +330,14 @@ def update():
                             # Append to existing values.
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
-                                subvalues = split_typed_relation_string(config, row[custom_field])
+                                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                                 for subvalue in subvalues:   
-                                    field_values.append({'target_id': subvalue['tid'],
-                                                         'rel_type': subvalue['namespace'] + ':' + subvalue['property'],
-                                                         'target_type': target_type})
+                                    field_values.append(subvalue)
                                 node[custom_field] = node_field_values[custom_field] + field_values
                             # Append to existing values.
                             else:
-                                field_values = split_typed_relation_string(config, row[custom_field])
-                                node[custom_field] = node_field_values[custom_field] + [
-                                                      {'target_id': field_values[0]['tid'],
-                                                       'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
-                                                       'target_type': target_type}]
+                                value = split_typed_relation_string(config, row[custom_field], target_type)
+                                node[custom_field] = node_field_values[custom_field] + [value]
                         # Cardinality has a limit.
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             existing_target_ids = get_target_ids(node_field_values[custom_field])
@@ -353,39 +345,34 @@ def update():
 
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
-                                subvalues = split_typed_relation_string(config, row[custom_field])                         
+                                subvalues = split_typed_relation_string(config, row[custom_field], target_type)           
                                 for subvalue in subvalues:
-                                    if subvalue['tid'] not in existing_target_ids: 
-                                        field_values.append({'target_id': subvalue['tid'],
-                                                             'rel_type': subvalue['namespace'] + ':' + subvalue['property'],
-                                                             'target_type': target_type})
+                                    if subvalue not in node_comparison_values:
+                                        field_values.append(subvalue)
                                 # Slice the incoming values to a length that matches the field's
                                 # cardinality minus its existing length. Also log fact that we're
                                 # slicing off values.                                
                                 num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values
                                 if num_values_to_add > 0:
-                                    logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of allowed values (%s), so only adding %s values", custom_field, row['node_id'], field_definitions[custom_field]['cardinality'], num_values_to_add)
-                                    logging.info("Updating node %s with %s values from CSV record", row['node_id'], num_values_to_add)
+                                    logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of allowed values (%s), so only adding %s values.", custom_field, row['node_id'], field_definitions[custom_field]['cardinality'], num_values_to_add)
+                                    logging.info("Updating node %s with %s values from CSV record.", row['node_id'], num_values_to_add)
                                     field_values = field_values[:num_values_to_add]
                                     node[custom_field] = node_field_values[custom_field] + field_values
                                 else:
-                                    logging.info("Not updating field %s node for %s, provided values do not contain any new values for this field.", custom_field, row['node_id'])          
+                                    logging.info("Not updating field %s node for %s, provided values do not contain any new values for this field.", custom_field, row['node_id'])
                             else:
                                 if num_existing_values + 1 <= field_definitions[custom_field]['cardinality']:
-                                    field_values = split_typed_relation_string(config, row[custom_field])
-                                    node[custom_field] = node_field_values[custom_field] + [
-                                                          {'target_id': field_values[0]['tid'],
-                                                           'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
-                                                           'target_type': target_type}]
+                                    field_value = split_typed_relation_string(config, row[custom_field], target_type)
+                                    node[custom_field] = node_field_values[custom_field] + field_value
                                 else:
                                     logging.warning("Not updating field %s node for %s, adding provided value would exceed maxiumum number of allowed values.", custom_field, row['node_id'])
                         # Cardinality is 1. Do not append to existing values, replace existing value.
                         else:
-                            field_values = split_typed_relation_string(config, row[custom_field])
-                            node[custom_field] = [
-                                                  {'target_id': field_values[0]['tid'],
-                                                   'rel_type': field_values[0]['namespace'] + ':' + field_values[0]['property'],
-                                                   'target_type': target_type}]
+                            field_values = split_typed_relation_string(config, row[custom_field], target_type)
+                            if len(field_values) > 1:
+                                node[custom_field] = [field_values[0]]
+                                logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of allowed values (1), so only adding first value.", custom_field, row['node_id'])
+                                logging.info("Updating node %s with 1 values from CSV record.", row['node_id'])
 
                     # For non-entity reference and non-typed relation fields (text, etc.).
                     else:
