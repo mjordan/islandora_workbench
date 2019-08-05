@@ -161,17 +161,21 @@ def create():
                 }
                 node_endpoint = '/node?_format=json'
                 node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
-                node_uri = node_response.headers['location']
                 if node_response.status_code == 201:
+                    node_uri = node_response.headers['location']
                     print("Node for '" + row['title'] +
                           "' created at " + node_uri + ".")
                     logging.info("Node for %s created at %s.", row['title'], node_uri)
+                else:
+                    logging.warning("Node for %s not created, HTTP response code was %s.", row['title'], node_response.status_code)
+                    continue
 
                 # Get ID of newly created node so we can use it for linking
                 # child nodes, etc.
-                if 'id_field' in config:
-                    id_field = row[config['id_field']]
-                    if node_response.status_code == 201:
+                if node_response.status_code == 201:
+                    # @todo: Make id_field required (it is currently optional).
+                    if 'id_field' in config:
+                        id_field = row[config['id_field']]
                         node_ids[id_field] = node_uri.rsplit('/', 1)[-1]
 
                 # If there is no media file, move on to the next CSV row.
