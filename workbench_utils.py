@@ -37,6 +37,8 @@ def set_config_defaults(args):
         config['log_file_mode'] = 'a'
     if 'allow_missing_files' not in config:
         config['allow_missing_files'] = False
+    if 'id_field' not in config:
+        config['id_field'] = 'id'
 
     if args.check:
         config['check'] = True
@@ -166,7 +168,7 @@ def check_input(config, args):
     # Dealing with optional config keys. If you introduce a new
     # optional key, add it to this list. Note that optional
     # keys are not validated.
-    optional_config_keys = ['id_field', 'delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files']
+    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -176,7 +178,7 @@ def check_input(config, args):
     if config['task'] == 'create':
         create_options = ['task', 'host', 'username', 'password', 'content_type',
                           'input_dir', 'input_csv', 'media_use_tid',
-                          'drupal_filesystem']
+                          'drupal_filesystem', 'id_field']
         if not set(config_keys) == set(create_options):
             sys.exit('Error: Please check your config file for required ' +
                      'values: ' + joiner.join(create_options))
@@ -267,6 +269,10 @@ def check_input(config, args):
 
         # Task-specific CSV checks.
         if config['task'] == 'create':
+            if config['id_field'] not in csv_column_headers:
+                message = 'Error: For "create" tasks, your CSV file must contain column containing a unique identifier.'
+                sys.exit(message)
+                logging.error(message)
             if 'file' not in csv_column_headers:
                 message = 'Error: For "create" tasks, your CSV file must contain a "file" column.'
                 sys.exit(message)
@@ -281,6 +287,8 @@ def check_input(config, args):
                 drupal_fieldnames.append(drupal_fieldname)
             if 'title' in csv_column_headers:
                 csv_column_headers.remove('title')
+            if config['id_field'] in csv_column_headers:
+                csv_column_headers.remove(config['id_field'])
             if 'file' in csv_column_headers:
                 csv_column_headers.remove('file')
             if 'node_id' in csv_column_headers:

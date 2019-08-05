@@ -8,3 +8,4 @@ media_use_tid: 16
 content_type: islandora_object
 drupal_filesystem: "fedora://"
 allow_missing_files: True
+id_field: id

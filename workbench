@@ -34,6 +34,9 @@ def create():
 
             for row in csv_data:
                 row = clean_csv_values(row)
+
+                id_field = row[config['id_field']]
+
                 # Add required fields.
                 node = {
                     'type': [
@@ -46,7 +49,7 @@ def create():
                 }
 
                 # Add custom (non-required) CSV fields.
-                required_fields = ['file', 'title']
+                required_fields = ['file', config['id_field'], 'title']
                 custom_fields = list(
                     set(csv_column_headers)-set(required_fields))
                 for custom_field in custom_fields:
@@ -125,9 +128,9 @@ def create():
                         else:
                             field_values = split_typed_relation_string(config, row[custom_field], target_type)
                             node[custom_field] = field_value[0]
-                            logging.warning("Adding all values in CSV field %s for row %s would exceed maximum number of allowed values (1), so only adding first value.", row[custom_field], row['node_id'])
+                            logging.warning("Adding all values in CSV field %s for record %s would exceed maximum number of allowed values (1), so only adding first value.", row[custom_field], id_field)
                     
-                    # For non-entity reference and non-typed relation fields (text, etc.).                      
+                    # For non-entity reference and non-typed relation fields (text, etc.).
                     else:
                         # Cardinality is unlimited.
                         if field_definitions[custom_field]['cardinality'] == -1:
@@ -164,19 +167,16 @@ def create():
                 if node_response.status_code == 201:
                     node_uri = node_response.headers['location']
                     print("Node for '" + row['title'] +
-                          "' created at " + node_uri + ".")
-                    logging.info("Node for %s created at %s.", row['title'], node_uri)
+                          "' (record " + id_field + ") created at " + node_uri + ".")
+                    logging.info("Node for %s (record %s) created at %s.", row['title'], id_field, node_uri)
                 else:
-                    logging.warning("Node for %s not created, HTTP response code was %s.", row['title'], node_response.status_code)
+                    logging.warning("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
                     continue
 
                 # Get ID of newly created node so we can use it for linking
                 # child nodes, etc.
                 if node_response.status_code == 201:
-                    # @todo: Make id_field required (it is currently optional).
-                    if 'id_field' in config:
-                        id_field = row[config['id_field']]
-                        node_ids[id_field] = node_uri.rsplit('/', 1)[-1]
+                     node_ids[id_field] = node_uri.rsplit('/', 1)[-1]
 
                 # If there is no media file, move on to the next CSV row.
                 if len(row['file']) == 0:
