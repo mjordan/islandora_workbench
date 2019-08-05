@@ -37,8 +37,10 @@ def set_config_defaults(args):
         config['log_file_mode'] = 'a'
     if 'allow_missing_files' not in config:
         config['allow_missing_files'] = False
-    if 'id_field' not in config:
-        config['id_field'] = 'id'
+
+    if config['task'] is 'create':
+        if 'id_field' not in config:
+            config['id_field'] = 'id'
 
     if args.check:
         config['check'] = True

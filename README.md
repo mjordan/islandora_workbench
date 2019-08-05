@@ -43,7 +43,7 @@ id_field: id
 * `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 * `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
 
- All configuration settings are required for the "create" task if they the entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
+ All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
 ## Checking configuration and input data
 
@@ -55,7 +55,7 @@ If you do this, Workbench will check the following and report any errors that re
 
 * Whether your configuration file contains all required values.
 * Whether the `host` you provided will accept the `username` and `password` you provided.
-* Whether your CSV file contains required columns headers, including the field defined as the unique ID for each record (defaults to 'id' if the `id_field` key is not in your config file)
+* Whether your CSV file contains required columns headers, including the field defined as the unique ID for each record (defaults to "id" if the `id_field` key is not in your config file)
 * Whether your CSV column headers correspond to existing Drupal field machine names.
 * Whether all Drupal fields that are configured to be required are present in the CSV file.
 * Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: True` is present in your config file for "create" tasks).
