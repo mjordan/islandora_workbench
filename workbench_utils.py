@@ -5,6 +5,8 @@ import csv
 import logging
 import datetime
 import requests
+import subprocess
+import collections
 from ruamel.yaml import YAML
 
 yaml = YAML()
@@ -38,9 +40,16 @@ def set_config_defaults(args):
     if 'allow_missing_files' not in config:
         config['allow_missing_files'] = False
 
-    if config['task'] is 'create':
+    if config['task'] == 'create':
         if 'id_field' not in config:
             config['id_field'] = 'id'
+
+    if config['task'] == 'create':
+        if 'preprocessors' in config_data:
+            config['preprocessors'] = {}
+            for preprocessor in config_data['preprocessors']:
+                for key, value in preprocessor.items():
+                    config['preprocessors'][key] = value
 
     if args.check:
         config['check'] = True
@@ -170,7 +179,7 @@ def check_input(config, args):
     # Dealing with optional config keys. If you introduce a new
     # optional key, add it to this list. Note that optional
     # keys are not validated.
-    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files']
+    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files', 'preprocessors']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -433,3 +442,14 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
     # the list configured in the field config, and validate that the target
     # ID exists in the linked taxonomy. See issue #41.
     pass
+
+
+def preprocess_field_data(subdelimiter, field_value, path_to_script):
+    """Executes a field preprocessor script and returns its output and exit status code. The script
+       is passed the field subdelimiter as defined in the config YAML and the field's value, and
+       prints a modified vesion of the value (result) back to this function.
+    """
+    cmd = subprocess.Popen([path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE)
+    result, stderrdata = cmd.communicate()
+
+    return result, cmd.returncode

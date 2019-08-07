@@ -59,8 +59,25 @@ def create():
                     if len(row[custom_field]) == 0:
                         continue
 
-                    # Entity reference fields: for taxonomy terms, target_type
-                    # it's 'taxonomy_term'; for nodes, it's 'node_type'.
+                    # Execute field preprocessor scripts, if any are configured. Note that these scripts
+                    # are applied to the entire value from the CSV field and not split field values,
+                    # e.g., if a field is multivalued, the preprocesor must split it and then reassemble
+                    # it back into a string before returning it. Note that preprocessor scripts work only
+                    # on string data and not on binary data like images, etc. and only on custom fields
+                    # (so not title).
+                    if 'preprocessors' in config and len(config['preprocessors']) > 0:
+                        for field, command in config['preprocessors'].items():
+                            if field in csv_column_headers:
+                                output, return_code = preprocess_field_data(config['subdelimiter'], row[field], command)
+                                if return_code == 0:
+                                    preprocessor_input = copy.deepcopy(row[field])
+                                    row[field] = output.decode().strip()                                  
+                                    logging.info('Preprocess command %s executed, taking "%s" as input and returning "%s".', command, preprocessor_input, output.decode().strip())
+                                else:
+                                    logging.error('Preprocess command %s failed with return code %s.', command, return_code)
+                    
+                    # Assemble Drupal field structures for entity reference fields from CSV data. For
+                    # taxonomy terms, target_type is 'taxonomy_term'; for nodes, it's 'node_type'.
                     if field_definitions[custom_field]['field_type'] == 'entity_reference':
                         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                             target_type = 'taxonomy_term'
