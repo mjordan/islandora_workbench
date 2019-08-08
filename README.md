@@ -12,6 +12,14 @@ Islandora Workbench started as a Python port of https://github.com/mjordan/claw_
 * An [Islandora 8](https://islandora.ca/) repository with the [JSON:API](https://www.drupal.org/project/jsonapi) module installed and enabled (included starting with Drupal 8.7).
    * Drupal's REST API must have "basic" authentication enabled (it is on by default for JSON:API)
 
+## Installation
+
+* `git clone https://github.com/mjordan/islandora_workbench.git`
+
+If you don't already have the two required libraries installed, clone this repo as above, and then use `setup.py`:
+
+* `sudo python3 setup.py install`
+
 ## Usage
 
 `./workbench --config config.yml`
