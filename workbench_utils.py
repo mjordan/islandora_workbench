@@ -7,9 +7,16 @@ import datetime
 import requests
 import subprocess
 import collections
+import mimetypes
 from ruamel.yaml import YAML
 
 yaml = YAML()
+
+# TIFFs and JP2s are 'file', as is everything else not in these lists.
+image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
+audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
+video_mimetypes = ['video/mp4']
+mimetypes.init()
 
 
 def set_config_defaults(args):
@@ -453,3 +460,32 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
     result, stderrdata = cmd.communicate()
 
     return result, cmd.returncode
+
+def create_media(config, filename, node_uri):
+    file_path = os.path.join(config['input_dir'], filename)
+    mimetype = mimetypes.guess_type(file_path)
+    media_type = 'file'
+    if mimetype[0] in image_mimetypes:
+        media_type = 'image'
+    if mimetype[0] in audio_mimetypes:
+        media_type = 'audio'
+    if mimetype[0] in video_mimetypes:
+        media_type = 'video'
+
+    media_endpoint_path = ('/media/' +
+                           media_type +
+                           '/' + str(config['media_use_tid']))
+    media_endpoint = node_uri + media_endpoint_path
+    location = config['drupal_filesystem'] + os.path.basename(filename)
+    media_headers = {
+        'Content-Type': mimetype[0],
+        'Content-Location': location
+    }
+    binary_data = open(os.path.join(
+        config['input_dir'], filename), 'rb')
+    media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
+    allowed_binary_response_codes = [201, 204]
+    if media_response.status_code in allowed_binary_response_codes:
+        print('+' + media_type.title() + " media for " +
+              filename + " created.")
+        logging.info("%s media for %s created.", media_type.title(), filename)   

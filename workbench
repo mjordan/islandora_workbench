@@ -193,7 +193,8 @@ def create():
                 # Get ID of newly created node so we can use it for linking
                 # child nodes, etc.
                 if node_response.status_code == 201:
-                     node_ids[id_field] = node_uri.rsplit('/', 1)[-1]
+                    node_id =  node_uri.rsplit('/', 1)[-1]
+                    node_ids[id_field] = node_id
 
                 # If there is no media file, move on to the next CSV row.
                 if len(row['file']) == 0:
@@ -204,34 +205,20 @@ def create():
                     continue
 
                 # If there is a media file, add it.
-                file_path = os.path.join(config['input_dir'], row['file'])
-                mimetype = mimetypes.guess_type(file_path)
-                media_type = 'file'
-                if mimetype[0] in image_mimetypes:
-                    media_type = 'image'
-                if mimetype[0] in audio_mimetypes:
-                    media_type = 'audio'
-                if mimetype[0] in video_mimetypes:
-                    media_type = 'video'
-
                 if node_response.status_code == 201 and len(row['file']) != 0:
-                    media_endpoint_path = ('/media/' +
-                                           media_type +
-                                           '/' + str(config['media_use_tid']))
-                    media_endpoint = node_uri + media_endpoint_path
-                    location = config['drupal_filesystem'] + os.path.basename(row['file'])
-                    media_headers = {
-                        'Content-Type': mimetype[0],
-                        'Content-Location': location
-                    }
-                    binary_data = open(os.path.join(
-                        config['input_dir'], row['file']), 'rb')
-                    media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
-                    allowed_binary_response_codes = [201, 204]
-                    if media_response.status_code in allowed_binary_response_codes:
+                    media_response_status_code = create_media(config, row['file'], node_uri)
+
+
+
+                    allowed_media_response_codes = [201, 204]
+                    if media_response_status_code in allowed_media_response_codes:
                         print('+' + media_type.title() + " media for " +
-                              row['file'] + " created.")
-                        logging.info("%s media for %s created.", media_type.title(), row['file'])
+                              filename + " created.")
+                        logging.info("%s media for %s created.", media_type.title(), filename)
+
+
+
+
                 if node_response.status_code == 201 and len(row['file']) == 0:
                     print('+ No file specified in CSV for ' + row['title'])
 
@@ -492,22 +479,11 @@ def add_media():
                 node_uri = config['host'] + '/node/' + row['node_id']
                 node_response = issue_request(config, 'GET', node_json_url)
                 if node_response.status_code == 200:
-                    media_endpoint_path = ('/media/' +
-                                           media_type + '/' +
-                                           str(config['media_use_tid']))
-                    media_endpoint = node_uri + media_endpoint_path
-                    location = config['drupal_filesystem'] + os.path.basename(row['file'])
-                    media_headers = {
-                        'Content-Type': mimetype[0],
-                        'Content-Location': location
-                    }
-                    binary_data = open(
-                        os.path.join(config['input_dir'], row['file']), 'rb')
-                    media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
-                    allowed_binary_response_codes = [201, 204]
-                    if media_response.status_code in allowed_binary_response_codes:
+                    media_response_status_code = create_media(config, row['file'], node_uri)
+                    allowed_media_response_codes = [201, 204]
+                    if media_response_status_code in allowed_media_response_codes:
                         print(media_type.title() + " media for " + row['file'] + " created and added to " + node_uri)
-                        logging.info("%s media for %s created and added to %s.", media_type.title(), row['file'], node_uri)
+                        logging.info("%s media for %s created and added to %s.", media_type.title(), row['file'], node_uri)                        
 
 
 # Main program logic.
@@ -525,7 +501,6 @@ args = parser.parse_args()
 image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
 audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
 video_mimetypes = ['video/mp4']
-mimetypes.init()
 
 config = set_config_defaults(args)
 logging.basicConfig(
