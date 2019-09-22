@@ -295,7 +295,7 @@ def check_input(config, args):
                          "has more columns than there are headers (" + str(len(csv_column_headers)) + ").")
                 logging.error("Error: Row %s of your CSV file has more columns than there are headers " +
                               "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
-        print("OK, all rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
+        print("OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
 
         # Task-specific CSV checks.
         if config['task'] == 'create':
