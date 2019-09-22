@@ -12,11 +12,23 @@ from ruamel.yaml import YAML
 
 yaml = YAML()
 
-# TIFFs and JP2s are 'file', as is everything else not in these lists.
-image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
-audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
-video_mimetypes = ['video/mp4']
-mimetypes.init()
+
+def set_media_type(mimetype):
+    # TIFFs and JP2s are 'file', as is everything else not in these lists.
+    image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
+    audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
+    video_mimetypes = ['video/mp4']
+    mimetypes.init()
+
+    media_type = 'file'
+    if mimetype in image_mimetypes:
+        media_type = 'image'
+    if mimetype in audio_mimetypes:
+        media_type = 'audio'
+    if mimetype in video_mimetypes:
+        media_type = 'video'
+
+    return media_type
 
 
 def set_config_defaults(args):
@@ -467,13 +479,7 @@ def create_media(config, filename, node_uri):
     """
     file_path = os.path.join(config['input_dir'], filename)
     mimetype = mimetypes.guess_type(file_path)
-    media_type = 'file'
-    if mimetype[0] in image_mimetypes:
-        media_type = 'image'
-    if mimetype[0] in audio_mimetypes:
-        media_type = 'audio'
-    if mimetype[0] in video_mimetypes:
-        media_type = 'video'
+    media_type = set_media_type(mimetype[0])
 
     media_endpoint_path = ('/media/' +
                            media_type +

@@ -10,7 +10,6 @@ import csv
 import logging
 import datetime
 import argparse
-import mimetypes
 from workbench_utils import *
 
 
@@ -207,13 +206,7 @@ def create():
                 # If there is a media file, add it.
                 file_path = os.path.join(config['input_dir'], row['file'])                
                 mimetype = mimetypes.guess_type(file_path)
-                media_type = 'file'
-                if mimetype[0] in image_mimetypes:
-                    media_type = 'image'
-                if mimetype[0] in audio_mimetypes:
-                    media_type = 'audio'
-                if mimetype[0] in video_mimetypes:
-                    media_type = 'video'
+                media_type = set_media_type(mimetype[0])                
 
                 if node_response.status_code == 201 and len(row['file']) != 0:
                     media_response_status_code = create_media(config, row['file'], node_uri)
@@ -471,13 +464,7 @@ def add_media():
 
                 file_path = os.path.join(config['input_dir'], row['file'])
                 mimetype = mimetypes.guess_type(file_path)
-                media_type = 'file'
-                if mimetype[0] in image_mimetypes:
-                    media_type = 'image'
-                if mimetype[0] in audio_mimetypes:
-                    media_type = 'audio'
-                if mimetype[0] in video_mimetypes:
-                    media_type = 'video'
+                media_type = set_media_type(mimetype[0])
 
                 node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_uri = config['host'] + '/node/' + row['node_id']
@@ -500,11 +487,6 @@ parser.add_argument(
     '--check',
     help='Check input data and exit without creating/updating/etc.', action='store_true')
 args = parser.parse_args()
-
-# TIFFs and JP2s are 'file', as is everything else not in these lists.
-image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
-audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
-video_mimetypes = ['video/mp4']
 
 config = set_config_defaults(args)
 logging.basicConfig(
