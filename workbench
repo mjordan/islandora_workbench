@@ -205,19 +205,23 @@ def create():
                     continue
 
                 # If there is a media file, add it.
+                file_path = os.path.join(config['input_dir'], row['file'])                
+                mimetype = mimetypes.guess_type(file_path)
+                media_type = 'file'
+                if mimetype[0] in image_mimetypes:
+                    media_type = 'image'
+                if mimetype[0] in audio_mimetypes:
+                    media_type = 'audio'
+                if mimetype[0] in video_mimetypes:
+                    media_type = 'video'
+
                 if node_response.status_code == 201 and len(row['file']) != 0:
                     media_response_status_code = create_media(config, row['file'], node_uri)
-
-
-
                     allowed_media_response_codes = [201, 204]
                     if media_response_status_code in allowed_media_response_codes:
                         print('+' + media_type.title() + " media for " +
-                              filename + " created.")
-                        logging.info("%s media for %s created.", media_type.title(), filename)
-
-
-
+                              row['file'] + " created.")
+                        logging.info("%s media for %s created.", media_type.title(), row['file'])
 
                 if node_response.status_code == 201 and len(row['file']) == 0:
                     print('+ No file specified in CSV for ' + row['title'])
@@ -483,7 +487,7 @@ def add_media():
                     allowed_media_response_codes = [201, 204]
                     if media_response_status_code in allowed_media_response_codes:
                         print(media_type.title() + " media for " + row['file'] + " created and added to " + node_uri)
-                        logging.info("%s media for %s created and added to %s.", media_type.title(), row['file'], node_uri)                        
+                        logging.info("%s media for %s created and added to %s.", media_type.title(), row['file'], node_uri)
 
 
 # Main program logic.

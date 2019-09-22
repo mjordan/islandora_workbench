@@ -461,7 +461,10 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
 
     return result, cmd.returncode
 
+
 def create_media(config, filename, node_uri):
+    """Logging, etc. happens in caller.
+    """
     file_path = os.path.join(config['input_dir'], filename)
     mimetype = mimetypes.guess_type(file_path)
     media_type = 'file'
@@ -484,8 +487,5 @@ def create_media(config, filename, node_uri):
     binary_data = open(os.path.join(
         config['input_dir'], filename), 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
-    allowed_binary_response_codes = [201, 204]
-    if media_response.status_code in allowed_binary_response_codes:
-        print('+' + media_type.title() + " media for " +
-              filename + " created.")
-        logging.info("%s media for %s created.", media_type.title(), filename)   
+
+    return media_response.status_code
