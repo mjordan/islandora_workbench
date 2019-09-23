@@ -463,12 +463,22 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
     pass
 
 
-def preprocess_field_data(subdelimiter, field_value, path_to_script):
+def preprocess_field_data(path_to_script):
     """Executes a field preprocessor script and returns its output and exit status code. The script
        is passed the field subdelimiter as defined in the config YAML and the field's value, and
        prints a modified vesion of the value (result) back to this function.
     """
     cmd = subprocess.Popen([path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE)
+    result, stderrdata = cmd.communicate()
+
+    return result, cmd.returncode
+
+
+def execute_bootstrap_script(path_to_script):
+    """Executes a bootstrap script and returns its output and exit status code.
+       @todo: pass config into script.
+    """
+    cmd = subprocess.Popen([path_to_script], stdout=subprocess.PIPE)
     result, stderrdata = cmd.communicate()
 
     return result, cmd.returncode
