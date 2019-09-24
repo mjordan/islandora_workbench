@@ -62,6 +62,9 @@ def set_config_defaults(args):
     if config['task'] == 'create':
         if 'id_field' not in config:
             config['id_field'] = 'id'
+    if config['task'] == 'create':
+        if 'published' not in config:
+            config['published'] = True
 
     if config['task'] == 'create':
         if 'preprocessors' in config_data:
@@ -198,7 +201,7 @@ def check_input(config, args):
     # Dealing with optional config keys. If you introduce a new
     # optional key, add it to this list. Note that optional
     # keys are not validated.
-    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files', 'preprocessors']
+    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files', 'preprocessors', 'published']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:

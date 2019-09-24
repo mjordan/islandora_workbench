@@ -50,8 +50,9 @@ id_field: id
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 * `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 * `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
+* 'published' determines if nodes are published or not. Applies to 'create' task only. Defaults to `True`; set to `False` if you want the nodes to be unpublished.
 
- All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
+All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
 ## Checking configuration and input data
 

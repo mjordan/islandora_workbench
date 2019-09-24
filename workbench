@@ -44,6 +44,9 @@ def create():
                     ],
                     'title': [
                         {'value': row['title']}
+                    ],
+                    'status': [
+                        {'value': config['published'] }
                     ]
                 }
 
