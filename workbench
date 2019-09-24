@@ -502,6 +502,12 @@ logging.basicConfig(
 if config['check']:
     check_input(config, args)
 
+# Execute bootstrap scripts, if any are configured.
+if 'bootstrap' in config and len(config['bootstrap']) > 0:
+    for command in config['bootstrap']:
+        print("Executing bootstrap script " + command)
+        output, return_code = execute_bootstrap_script(command, args.config)
+
 if config['task'] == 'create':
     create()
 if config['task'] == 'update':
