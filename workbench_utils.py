@@ -198,7 +198,7 @@ def check_input(config, args):
     # Dealing with optional config keys. If you introduce a new
     # optional key, add it to this list. Note that optional
     # keys are not validated.
-    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files', 'preprocessors']
+    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files', 'preprocessors', 'bootstrap']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -474,11 +474,11 @@ def preprocess_field_data(path_to_script):
     return result, cmd.returncode
 
 
-def execute_bootstrap_script(path_to_script):
+def execute_bootstrap_script(path_to_script, path_to_config_file):
     """Executes a bootstrap script and returns its output and exit status code.
        @todo: pass config into script.
     """
-    cmd = subprocess.Popen([path_to_script], stdout=subprocess.PIPE)
+    cmd = subprocess.Popen([path_to_script, path_to_config_file], stdout=subprocess.PIPE)
     result, stderrdata = cmd.communicate()
 
     return result, cmd.returncode
