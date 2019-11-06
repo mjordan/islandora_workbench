@@ -168,10 +168,14 @@ def get_field_definitions(config):
         for item in field_config['data']:
             field_name = item['attributes']['field_name']
             required = item['attributes']['required']
-            field_definitions[field_name]['required'] = required
-            # E.g., comment, media, node.
+            field_type = item['attributes']['field_type']
             entity_type = item['attributes']['entity_type']
-            field_definitions[field_name]['entity_type'] = entity_type
+            field_definitions[field_name] = {
+                'cardinality': 1,
+                'field_type': field_type,
+                'required': required,
+                'entity_type': entity_type
+            }
 
     return field_definitions
 
