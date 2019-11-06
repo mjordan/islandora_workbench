@@ -161,6 +161,18 @@ def get_field_definitions(config):
             entity_type = item['attributes']['entity_type']
             field_definitions[field_name]['entity_type'] = entity_type
 
+    base_field_override_url = config['host'] + '/jsonapi/base_field_override/base_field_override?filter[type][condition][path]=bundle&filter[type][condition][value]=' + config['content_type']
+    base_field_override_response = issue_request(config, 'GET', base_field_override_url, headers)
+    if base_field_override_response.status_code == 200:
+        field_config = json.loads(base_field_override_response.text)
+        for item in field_config['data']:
+            field_name = item['attributes']['field_name']
+            required = item['attributes']['required']
+            field_definitions[field_name]['required'] = required
+            # E.g., comment, media, node.
+            entity_type = item['attributes']['entity_type']
+            field_definitions[field_name]['entity_type'] = entity_type
+
     return field_definitions
 
 
