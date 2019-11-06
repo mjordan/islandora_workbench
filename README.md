@@ -14,6 +14,8 @@ Islandora Workbench started as a Python port of https://github.com/mjordan/claw_
    * You must enable the following two REST Resources at `admin/config/services/rest`:
      * Field
      * Field storage
+        * For these two resources, set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
+
 
 ## Installation
 
