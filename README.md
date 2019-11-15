@@ -9,12 +9,13 @@ Islandora Workbench started as a Python port of https://github.com/mjordan/claw_
 * Python 3 or higher
    * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
    * The [Requests](https://2.python-requests.org/en/master/) library
-* An [Islandora 8](https://islandora.ca/) repository with the [JSON:API](https://www.drupal.org/project/jsonapi) module installed and enabled (starting with Drupal 8.7, the JSON:API module is installed but you must enable it).
+* An [Islandora 8](https://islandora.ca/) repository
    * Drupal's REST API must have "basic" authentication enabled (it is on by default for JSON:API)
    * You must enable the following two REST Resources at `admin/config/services/rest`:
      * Field
      * Field storage
         * For these two resources, set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
+   * The JSON:API module is not enabled by default. You must enable it manually.
 
 
 ## Installation
