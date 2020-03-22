@@ -184,6 +184,7 @@ def get_field_definitions(config):
                 entity_type = item['attributes']['entity_type']
                 field_definitions[field_name]['entity_type'] = entity_type
 
+    # Base fields include title, promote, status, sticky, etc. Title is required in the CSV file.
     base_field_override_url = config['host'] + '/jsonapi/base_field_override/base_field_override?filter[type][condition][path]=bundle&filter[type][condition][value]=' + config['content_type']
     base_field_override_response = issue_request(config, 'GET', base_field_override_url, headers)
     if base_field_override_response.status_code == 200:
@@ -335,8 +336,6 @@ def check_input(config, args):
             drupal_fieldnames = []
             for drupal_fieldname in field_definitions:
                 drupal_fieldnames.append(drupal_fieldname)
-            if 'title' in csv_column_headers:
-                csv_column_headers.remove('title')
             if config['id_field'] in csv_column_headers:
                 csv_column_headers.remove(config['id_field'])
             if 'file' in csv_column_headers:
