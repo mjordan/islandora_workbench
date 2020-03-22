@@ -177,11 +177,12 @@ def get_field_definitions(config):
         field_config = json.loads(field_config_response.text)
         for item in field_config['data']:
             field_name = item['attributes']['field_name']
-            required = item['attributes']['required']
-            field_definitions[field_name]['required'] = required
-            # E.g., comment, media, node.
-            entity_type = item['attributes']['entity_type']
-            field_definitions[field_name]['entity_type'] = entity_type
+            if field_name in field_definitions:
+                required = item['attributes']['required']
+                field_definitions[field_name]['required'] = required
+                # E.g., comment, media, node.
+                entity_type = item['attributes']['entity_type']
+                field_definitions[field_name]['entity_type'] = entity_type
 
     return field_definitions
 
