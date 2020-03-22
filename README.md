@@ -9,8 +9,14 @@ Islandora Workbench started as a Python port of https://github.com/mjordan/claw_
 * Python 3 or higher
    * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
    * The [Requests](https://2.python-requests.org/en/master/) library
-* An [Islandora 8](https://islandora.ca/) repository with the [JSON:API](https://www.drupal.org/project/jsonapi) module installed and enabled (included starting with Drupal 8.7).
+* An [Islandora 8](https://islandora.ca/) repository
+   * The JSON:API module is not enabled by default. You must enable it manually.
    * Drupal's REST API must have "basic" authentication enabled (it is on by default for JSON:API)
+   * You must enable the following two REST Resources at `admin/config/services/rest`:
+     * Field
+     * Field storage
+        * For these two resources, set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
+
 
 ## Installation
 
@@ -50,8 +56,9 @@ id_field: id
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 * `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 * `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
+* `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `True`; set to `False` if you want the nodes to be unpublished.
 
- All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
+All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
 ## Checking configuration and input data
 

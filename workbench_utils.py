@@ -7,9 +7,28 @@ import datetime
 import requests
 import subprocess
 import collections
+import mimetypes
 from ruamel.yaml import YAML
 
 yaml = YAML()
+
+
+def set_media_type(mimetype):
+    # TIFFs and JP2s are 'file', as is everything else not in these lists.
+    image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
+    audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
+    video_mimetypes = ['video/mp4']
+    mimetypes.init()
+
+    media_type = 'file'
+    if mimetype in image_mimetypes:
+        media_type = 'image'
+    if mimetype in audio_mimetypes:
+        media_type = 'audio'
+    if mimetype in video_mimetypes:
+        media_type = 'video'
+
+    return media_type
 
 
 def set_config_defaults(args):
@@ -43,6 +62,9 @@ def set_config_defaults(args):
     if config['task'] == 'create':
         if 'id_field' not in config:
             config['id_field'] = 'id'
+    if config['task'] == 'create':
+        if 'published' not in config:
+            config['published'] = True
 
     if config['task'] == 'create':
         if 'preprocessors' in config_data:
@@ -155,11 +177,12 @@ def get_field_definitions(config):
         field_config = json.loads(field_config_response.text)
         for item in field_config['data']:
             field_name = item['attributes']['field_name']
-            required = item['attributes']['required']
-            field_definitions[field_name]['required'] = required
-            # E.g., comment, media, node.
-            entity_type = item['attributes']['entity_type']
-            field_definitions[field_name]['entity_type'] = entity_type
+            if field_name in field_definitions:
+                required = item['attributes']['required']
+                field_definitions[field_name]['required'] = required
+                # E.g., comment, media, node.
+                entity_type = item['attributes']['entity_type']
+                field_definitions[field_name]['entity_type'] = entity_type
 
     base_field_override_url = config['host'] + '/jsonapi/base_field_override/base_field_override?filter[type][condition][path]=bundle&filter[type][condition][value]=' + config['content_type']
     base_field_override_response = issue_request(config, 'GET', base_field_override_url, headers)
@@ -195,7 +218,7 @@ def check_input(config, args):
     # Dealing with optional config keys. If you introduce a new
     # optional key, add it to this list. Note that optional
     # keys are not validated.
-    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files', 'preprocessors']
+    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files', 'preprocessors', 'bootstrap', 'published']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -292,7 +315,7 @@ def check_input(config, args):
                          "has more columns than there are headers (" + str(len(csv_column_headers)) + ").")
                 logging.error("Error: Row %s of your CSV file has more columns than there are headers " +
                               "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
-        print("OK, all rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
+        print("OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
 
         # Task-specific CSV checks.
         if config['task'] == 'create':
@@ -460,7 +483,7 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
     pass
 
 
-def preprocess_field_data(subdelimiter, field_value, path_to_script):
+def preprocess_field_data(path_to_script):
     """Executes a field preprocessor script and returns its output and exit status code. The script
        is passed the field subdelimiter as defined in the config YAML and the field's value, and
        prints a modified vesion of the value (result) back to this function.
@@ -469,3 +492,36 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
     result, stderrdata = cmd.communicate()
 
     return result, cmd.returncode
+
+
+def execute_bootstrap_script(path_to_script, path_to_config_file):
+    """Executes a bootstrap script and returns its output and exit status code.
+       @todo: pass config into script.
+    """
+    cmd = subprocess.Popen([path_to_script, path_to_config_file], stdout=subprocess.PIPE)
+    result, stderrdata = cmd.communicate()
+
+    return result, cmd.returncode
+
+
+def create_media(config, filename, node_uri):
+    """Logging, etc. happens in caller.
+    """
+    file_path = os.path.join(config['input_dir'], filename)
+    mimetype = mimetypes.guess_type(file_path)
+    media_type = set_media_type(mimetype[0])
+
+    media_endpoint_path = ('/media/' +
+                           media_type +
+                           '/' + str(config['media_use_tid']))
+    media_endpoint = node_uri + media_endpoint_path
+    location = config['drupal_filesystem'] + os.path.basename(filename)
+    media_headers = {
+        'Content-Type': mimetype[0],
+        'Content-Location': location
+    }
+    binary_data = open(os.path.join(
+        config['input_dir'], filename), 'rb')
+    media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
+
+    return media_response.status_code
