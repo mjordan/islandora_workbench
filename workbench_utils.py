@@ -342,6 +342,9 @@ def check_input(config, args):
                 csv_column_headers.remove('file')
             if 'node_id' in csv_column_headers:
                 csv_column_headers.remove('node_id')
+            # langcode is a standard Drupal field but it doesn't show up in any field configs.
+            if 'langcode' in csv_column_headers:
+                csv_column_headers.remove('langcode')
             for csv_column_header in csv_column_headers:
                 if csv_column_header not in drupal_fieldnames:
                     sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')

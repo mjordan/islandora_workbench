@@ -61,6 +61,11 @@ def create():
                     if len(row[custom_field]) == 0:
                         continue
 
+                    # 'langcode' is a core Drupal field, but is not considered a "base field".
+                    # @todo: If it is present, validate its values.
+                    if custom_field == 'langcode':
+                        continue
+
                     # Execute field preprocessor scripts, if any are configured. Note that these scripts
                     # are applied to the entire value from the CSV field and not split field values,
                     # e.g., if a field is multivalued, the preprocesor must split it and then reassemble
@@ -500,7 +505,8 @@ logging.basicConfig(
     datefmt='%d-%b-%y %H:%M:%S')
 
 if 'check' in config.keys():
-    check_input(config, args)
+    if config['check']:
+        check_input(config, args)
 
 # Execute bootstrap scripts, if any are configured.
 if 'bootstrap' in config and len(config['bootstrap']) > 0:
