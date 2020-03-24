@@ -123,7 +123,7 @@ Single-valued and multi-valued fields of the following types can be added:
 * entity reference (taxonomy and linked node) fields
 * typed relation (taxonomy and linked node) fields
 
-### Base fields
+#### Base fields
 
 Base fields are basic node properties, shared by all content types. The base fields you can include in your CSV file are:
 
