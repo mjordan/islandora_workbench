@@ -127,7 +127,7 @@ Single-valued and multi-valued fields of the following types can be added:
 
 Base fields are basic node properties, shared by all content types. The base fields you can include in your CSV file are:
 
-* `title`: This field is required for all rows in your CSV.
+* `title`: This field is required for all rows in your CSV for the `create` task. Optional for the 'update' task.
 * `promote`: Promoted to front page. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
 * `status`: Whether the node is published. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
 * `sticky`: Sticky at top of lists. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
