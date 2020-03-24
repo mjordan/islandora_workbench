@@ -182,6 +182,16 @@ If you want to include multiple typed relation values in a single field of your 
 `relators:art:30|relators:art:45`
 
 
+### Base fields
+
+Base fields are basic node properties. The base fields you can include in your CSV file are:
+
+* `title`: This field is required for all rows in your CSV.
+* `promote`: Promoted to front page. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
+* `status`: Whether the node is published. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
+* `sticky`: Sticky at top of lists. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
+* `langcode`: The language of the node. Optional. If included, use one of Drupal's language codes as values (common values are 'en', 'fr', 'es', and 'nl'; the entire list can be seen [here](https://git.drupalcode.org/project/drupal/-/blob/8.8.x/core/lib/Drupal/Core/Language/LanguageManager.php#L224). If absent, is set to the default value for your content type.
+
 ## Updating nodes
 
 You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. Updates preserve any values in the fields, they don't replace the values. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, linked node fields (e.g. "Member of" for collection nodes), and typed relation fields can be updated.
