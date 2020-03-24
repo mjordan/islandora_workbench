@@ -5,6 +5,8 @@ import csv
 import logging
 import datetime
 import requests
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
 import subprocess
 import collections
 import mimetypes
@@ -81,7 +83,7 @@ def set_config_defaults(args):
     return config
 
 
-def issue_request(config, method, path, headers='', json='', data=''):
+def issue_request(config, method, path, headers='', json='', data='', query={}):
     """Issue the REST request to Drupal.
     """
     if config['host'] in path:
@@ -93,6 +95,7 @@ def issue_request(config, method, path, headers='', json='', data=''):
         response = requests.get(
             url,
             auth=(config['username'], config['password']),
+            params=query,
             headers=headers
         )
     if method == 'HEAD':
@@ -170,6 +173,23 @@ def get_field_definitions(config):
                 'field_type': item['attributes']['field_storage_config_type'],
                 'cardinality': item['attributes']['cardinality'],
                 'target_type': target_type}
+        offset = 0
+        while 'next' in field_storage_config['links']:
+            offset = offset + 50
+            field_storage_config_response = issue_request(config, 'GET', field_storage_config_url, headers, '', '', {'page[offset]': offset, 'page[limit]': '50'})
+            field_storage_config = json.loads(field_storage_config_response.text)
+            for item in field_storage_config['data']:
+                field_name = item['attributes']['field_name']
+                if 'target_type' in item['attributes']['settings']:
+                    target_type = item['attributes']['settings']['target_type']
+                else:
+                    target_type = None
+                field_definitions[field_name] = {
+                    'field_type': item['attributes']['field_storage_config_type'],
+                    'cardinality': item['attributes']['cardinality'],
+                    'target_type': target_type}
+            if 'next' not in field_storage_config['links']:
+                break
 
     field_config_url = config['host'] + '/jsonapi/field_config/field_config'
     field_config_response = issue_request(config, 'GET', field_config_url, headers)
@@ -183,6 +203,21 @@ def get_field_definitions(config):
                 # E.g., comment, media, node.
                 entity_type = item['attributes']['entity_type']
                 field_definitions[field_name]['entity_type'] = entity_type
+        offset = 0
+        while 'next' in field_config['links']:
+            offset = offset + 50
+            field_config_response = issue_request(config, 'GET', field_config_url, headers, '', '', {'page[offset]': offset, 'page[limit]': '50'})
+            field_config = json.loads(field_config_response.text)
+            for item in field_config['data']:
+                field_name = item['attributes']['field_name']
+                if field_name in field_definitions:
+                    required = item['attributes']['required']
+                    field_definitions[field_name]['required'] = required
+                    # E.g., comment, media, node.
+                    entity_type = item['attributes']['entity_type']
+                    field_definitions[field_name]['entity_type'] = entity_type
+            if 'next' not in field_config['links']:
+                break
 
     # Base fields include title, promote, status, sticky, etc. Title is required in the CSV file.
     base_field_override_url = config['host'] + '/jsonapi/base_field_override/base_field_override?filter[type][condition][path]=bundle&filter[type][condition][value]=' + config['content_type']
@@ -200,6 +235,23 @@ def get_field_definitions(config):
                 'required': required,
                 'entity_type': entity_type
             }
+        offset = 0
+        while 'next' in field_config['links']:
+            base_field_override_response = issue_request(config, 'GET', base_field_override_url, headers, '', '', {'page[offset]': offset, 'page[limit]': '50'})
+            field_config = json.loads(base_field_override_response.text)
+            for item in field_config['data']:
+                field_name = item['attributes']['field_name']
+                required = item['attributes']['required']
+                field_type = item['attributes']['field_type']
+                entity_type = item['attributes']['entity_type']
+                field_definitions[field_name] = {
+                    'cardinality': 1,
+                    'field_type': field_type,
+                    'required': required,
+                    'entity_type': entity_type
+                }
+                if 'next' not in field_config['links']:
+                    break
 
     return field_definitions
 
