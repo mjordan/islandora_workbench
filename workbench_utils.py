@@ -9,6 +9,7 @@ import subprocess
 import collections
 import mimetypes
 from ruamel.yaml import YAML
+# import copy
 
 yaml = YAML()
 
@@ -58,6 +59,8 @@ def set_config_defaults(args):
         config['log_file_mode'] = 'a'
     if 'allow_missing_files' not in config:
         config['allow_missing_files'] = False
+    if 'validate_title_length' not in config:
+        config['validate_title_length'] = True
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -272,7 +275,9 @@ def check_input(config, args):
     # Dealing with optional config keys. If you introduce a new
     # optional key, add it to this list. Note that optional
     # keys are not validated.
-    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode', 'allow_missing_files', 'preprocessors', 'bootstrap', 'published']
+    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
+                            'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
+                            'validate_title_length']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -348,6 +353,7 @@ def check_input(config, args):
     # Check column headers in CSV file.
     with open(input_csv) as csvfile:
         csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
+        # csv_data_for_field_validation = copy.copy(csv_data)
         csv_column_headers = csv_data.fieldnames
 
         # Check whether each row contains the same number of columns as there
@@ -451,14 +457,25 @@ def check_input(config, args):
             # Each value (don't forget multivalued fields) needs to have this
             # pattern: string:string:int.
             validate_typed_relation_values(config, field_definitions, csv_data)
-            # Validate 'langcode' fields if they exist.
+
+            # Validate length of 'title'.
+            if config['validate_title_length']:
+                with open(input_csv) as csvfile:
+                    validate_title_csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
+                    for count, row in enumerate(validate_title_csv_data, start=1):
+                        if len(row['title']) > 255:
+                            message = "Error: The 'title' column in row " + str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
+                            sys.exit(message)
+                            logging.error(message)
+
+            # Validate 'langcode' values if that field exists.
             if langcode_was_present:
                 with open(input_csv) as csvfile:
                     validate_langcode_csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
                     for count, row in enumerate(validate_langcode_csv_data, start=1):
                         langcode_valid = validate_language_code(row['langcode'])
                         if not langcode_valid:
-                            message = "Row " + str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
+                            message = "Error: Row " + str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
                             sys.exit(message)
                             logging.error(message)
 

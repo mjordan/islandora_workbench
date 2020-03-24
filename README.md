@@ -56,7 +56,8 @@ id_field: id
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 * `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 * `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
-* `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `True`; set to `False` if you want the nodes to be unpublished.
+* `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `True`; set to `False` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
+* `validate_title_length`: Whether or not to check if `title` values in the CSV do not exceed Drupal's maximum allowed length of 255 characters. Defaults to `True`. Set to `False` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length)
 
 All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
@@ -74,6 +75,8 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether your CSV column headers correspond to existing Drupal field machine names.
 * Whether all Drupal fields that are configured to be required are present in the CSV file.
 * Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: True` is present in your config file for "create" tasks).
+* If the `langcode` field is present in your CSV, whether values in it are valid Drupal language codes.
+* Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters.
 * Whether each row contains the same number of columns as there are column headers.
 
 ## Creating nodes from the sample data
@@ -127,7 +130,7 @@ Single-valued and multi-valued fields of the following types can be added:
 
 Base fields are basic node properties, shared by all content types. The base fields you can include in your CSV file are:
 
-* `title`: This field is required for all rows in your CSV for the `create` task. Optional for the 'update' task.
+* `title`: This field is required for all rows in your CSV for the `create` task. Optional for the 'update' task. Drupal limits the title's length to 255 characters, and Workbench will check that titles are less than 255 characters unless your configuration file contains `validate_title_length: False` as described above.
 * `promote`: Promoted to front page. Optional. If included, use `1` (promoted) or `0` (not promoted) as values. If absent, is set to the default value for your content type.
 * `status`: Whether the node is published. Optional. If included, use `1` (published) or `0` (unpublished) as values. If absent, is set to the default value for your content type.
 * `sticky`: Sticky at top of lists. Optional. If included, use `1` (sticky) or `0` (not sticky) as values. If absent, is set to the default value for your content type.
