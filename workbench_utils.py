@@ -5,8 +5,6 @@ import csv
 import logging
 import datetime
 import requests
-import urllib.parse as urlparse
-from urllib.parse import parse_qs
 import subprocess
 import collections
 import mimetypes
@@ -173,6 +171,7 @@ def get_field_definitions(config):
                 'field_type': item['attributes']['field_storage_config_type'],
                 'cardinality': item['attributes']['cardinality'],
                 'target_type': target_type}
+        # Hacky implementation of Drupal's JSON:API's pager.
         offset = 0
         while 'next' in field_storage_config['links']:
             offset = offset + 50
@@ -203,6 +202,7 @@ def get_field_definitions(config):
                 # E.g., comment, media, node.
                 entity_type = item['attributes']['entity_type']
                 field_definitions[field_name]['entity_type'] = entity_type
+        # Hacky implementation of Drupal's JSON:API's pager.
         offset = 0
         while 'next' in field_config['links']:
             offset = offset + 50
@@ -235,6 +235,7 @@ def get_field_definitions(config):
                 'required': required,
                 'entity_type': entity_type
             }
+        # Hacky implementation of Drupal's JSON:API's pager.
         offset = 0
         while 'next' in field_config['links']:
             base_field_override_response = issue_request(config, 'GET', base_field_override_url, headers, '', '', {'page[offset]': offset, 'page[limit]': '50'})
@@ -397,6 +398,10 @@ def check_input(config, args):
             # langcode is a standard Drupal field but it doesn't show up in any field configs.
             if 'langcode' in csv_column_headers:
                 csv_column_headers.remove('langcode')
+                # Set this so we can validate langcode below.
+                langcode_was_present = True
+            else:
+                langcode_was_present = False
             for csv_column_header in csv_column_headers:
                 if csv_column_header not in drupal_fieldnames:
                     sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
@@ -446,6 +451,16 @@ def check_input(config, args):
             # Each value (don't forget multivalued fields) needs to have this
             # pattern: string:string:int.
             validate_typed_relation_values(config, field_definitions, csv_data)
+            # Validate 'langcode' fields if they exist.
+            if langcode_was_present:
+                with open(input_csv) as csvfile:
+                    validate_langcode_csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
+                    for count, row in enumerate(validate_langcode_csv_data, start=1):
+                        langcode_valid = validate_language_code(row['langcode'])
+                        if not langcode_valid:
+                            message = "Row " + str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
+                            sys.exit(message)
+                            logging.error(message)
 
         if config['task'] == 'delete':
             if 'node_id' not in csv_column_headers:
@@ -478,6 +493,23 @@ def check_input(config, args):
     logging.info("Configuration checked for %s task using config file " +
                  "%s, no problems found", config['task'], args.config)
     sys.exit(0)
+
+
+def validate_language_code(langcode):
+    # Drupal's language codes.
+    codes = ['af', 'am', 'ar', 'ast', 'az', 'be', 'bg', 'bn', 'bo', 'bs',
+             'ca', 'cs', 'cy', 'da', 'de', 'dz', 'el', 'en', 'en-x-simple', 'eo',
+             'es', 'et', 'eu', 'fa', 'fi', 'fil', 'fo', 'fr', 'fy', 'ga', 'gd', 'gl',
+             'gsw-berne', 'gu', 'he', 'hi', 'hr', 'ht', 'hu', 'hy', 'id', 'is', 'it',
+             'ja', 'jv', 'ka', 'kk', 'km', 'kn', 'ko', 'ku', 'ky', 'lo', 'lt', 'lv',
+             'mg', 'mk', 'ml', 'mn', 'mr', 'ms', 'my', 'ne', 'nl', 'nb', 'nn', 'oc',
+             'pa', 'pl', 'pt-pt', 'pt-br', 'ro', 'ru', 'sco', 'se', 'si', 'sk', 'sl',
+             'sq', 'sr', 'sv', 'sw', 'ta', 'ta-lk', 'te', 'th', 'tr', 'tyv', 'ug',
+             'uk', 'ur', 'vi', 'xx-lolspeak', 'zh-hans', 'zh-hant']
+    if langcode in codes:
+        return True
+    else:
+        return False
 
 
 def clean_csv_values(row):
