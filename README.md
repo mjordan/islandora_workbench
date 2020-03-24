@@ -117,10 +117,21 @@ By defualt, if the `file` value for a row is empty, Workbench's `--check` option
 
 Single-valued and multi-valued fields of the following types can be added:
 
+* base fields
 * text (plain, plain long, etc.) fields
 * EDTF date fields
 * entity reference (taxonomy and linked node) fields
 * typed relation (taxonomy and linked node) fields
+
+### Base fields
+
+Base fields are basic node properties, shared by all content types. The base fields you can include in your CSV file are:
+
+* `title`: This field is required for all rows in your CSV.
+* `promote`: Promoted to front page. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
+* `status`: Whether the node is published. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
+* `sticky`: Sticky at top of lists. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
+* `langcode`: The language of the node. Optional. If included, use one of Drupal's language codes as values (common values are 'en', 'fr', 'es', and 'nl'; the entire list can be seen [here](https://git.drupalcode.org/project/drupal/-/blob/8.8.x/core/lib/Drupal/Core/Language/LanguageManager.php#L224). If absent, is set to the default value for your content type.
 
 #### Single-valued fields
 
@@ -181,16 +192,6 @@ If you want to include multiple typed relation values in a single field of your 
 
 `relators:art:30|relators:art:45`
 
-
-### Base fields
-
-Base fields are basic node properties. The base fields you can include in your CSV file are:
-
-* `title`: This field is required for all rows in your CSV.
-* `promote`: Promoted to front page. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
-* `status`: Whether the node is published. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
-* `sticky`: Sticky at top of lists. Optional. If included, use `true` or `false` as values. If absent, is set to the default value for your content type.
-* `langcode`: The language of the node. Optional. If included, use one of Drupal's language codes as values (common values are 'en', 'fr', 'es', and 'nl'; the entire list can be seen [here](https://git.drupalcode.org/project/drupal/-/blob/8.8.x/core/lib/Drupal/Core/Language/LanguageManager.php#L224). If absent, is set to the default value for your content type.
 
 ## Updating nodes
 
