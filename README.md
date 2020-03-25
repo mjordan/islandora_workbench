@@ -53,11 +53,12 @@ id_field: id
 * `input_dir` is the full or relative path to the directory containing the files and metadata CSV file.
 * `input_csv` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
 * `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
+* `media_type` specifies whether the media being created in the 'create' or 'add_media' task is an `image`, `file`, `audio`, or `video` (or other media type that exists in the target Islandora). If not present, Workbench will use the file's extension to guess its media type.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 * `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 * `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
 * `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `True`; set to `False` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
-* `validate_title_length`: Whether or not to check if `title` values in the CSV do not exceed Drupal's maximum allowed length of 255 characters. Defaults to `True`. Set to `False` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
+* `validate_title_length`: Whether or not to check if `title` values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to `True`. Set to `False` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
 
 All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 

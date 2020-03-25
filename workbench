@@ -214,7 +214,7 @@ def create():
                 # If there is a media file, add it.
                 file_path = os.path.join(config['input_dir'], row['file'])                
                 mimetype = mimetypes.guess_type(file_path)
-                media_type = set_media_type(mimetype[0])                
+                media_type = set_media_type(mimetype[0], config)                
 
                 if node_response.status_code == 201 and len(row['file']) != 0:
                     media_response_status_code = create_media(config, row['file'], node_uri)
@@ -472,7 +472,7 @@ def add_media():
 
                 file_path = os.path.join(config['input_dir'], row['file'])
                 mimetype = mimetypes.guess_type(file_path)
-                media_type = set_media_type(mimetype[0])
+                media_type = set_media_type(mimetype[0], config)
 
                 node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_uri = config['host'] + '/node/' + row['node_id']
