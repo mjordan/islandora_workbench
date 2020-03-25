@@ -9,5 +9,5 @@ setup(
     url="https://github.com/mjordan/islandora_workbench",
     license="The Unlicense",
     install_requires=['requests>=2.22,<3', 'ruamel.yaml'],
-    python_requires='>=3'
+    python_requires='>=3.2'
 )

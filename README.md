@@ -6,7 +6,7 @@ Islandora Workbench started as a Python port of https://github.com/mjordan/claw_
 
 ## Requirements
 
-* Python 3 or higher
+* Python 3.2 or higher
    * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
    * The [Requests](https://2.python-requests.org/en/master/) library
 * An [Islandora 8](https://islandora.ca/) repository
