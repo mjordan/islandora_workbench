@@ -8,7 +8,6 @@ import requests
 import subprocess
 import collections
 import mimetypes
-import copy
 from ruamel.yaml import YAML
 from functools import lru_cache
 
@@ -632,6 +631,9 @@ def create_media(config, filename, node_uri):
 
 @lru_cache(maxsize=4)
 def get_csv_data(input_dir, input_csv, delimiter):
+    """Read the input CSV file once and cache its contents
+       up to four calls.
+    """
     input_csv_path = os.path.join(input_dir, input_csv)
     if not os.path.exists(input_csv_path):
         sys.exit('Error: CSV file ' + input_csv_path + 'not found.')

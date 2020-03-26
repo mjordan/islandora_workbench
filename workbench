@@ -46,7 +46,7 @@ def create():
                         {'value': row['title']}
                     ],
                     'status': [
-                        {'value': config['published'] }
+                        {'value': config['published']}
                     ]
                 }
 
@@ -78,11 +78,11 @@ def create():
                                 output, return_code = preprocess_field_data(config['subdelimiter'], row[field], command)
                                 if return_code == 0:
                                     preprocessor_input = copy.deepcopy(row[field])
-                                    row[field] = output.decode().strip()                                  
+                                    row[field] = output.decode().strip()
                                     logging.info('Preprocess command %s executed, taking "%s" as input and returning "%s".', command, preprocessor_input, output.decode().strip())
                                 else:
                                     logging.error('Preprocess command %s failed with return code %s.', command, return_code)
-                    
+
                     # Assemble Drupal field structures for entity reference fields from CSV data. For
                     # taxonomy terms, target_type is 'taxonomy_term'; for nodes, it's 'node_type'.
                     if field_definitions[custom_field]['field_type'] == 'entity_reference':
@@ -102,6 +102,7 @@ def create():
                                 node[custom_field] = [
                                                       {'target_id': row[custom_field],
                                                        'target_type': target_type}]
+                        # Cardinality has a limit.
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
@@ -120,8 +121,8 @@ def create():
                             node[custom_field] = [
                                                   {'target_id': row[custom_field],
                                                    'target_type': target_type}]
-                    
-                    # Typed relation fields.                      
+
+                    # Typed relation fields.
                     elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                         target_type = field_definitions[custom_field]['target_type']
                         # Cardinality is unlimited.
@@ -129,20 +130,20 @@ def create():
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
                                 subvalues = split_typed_relation_string(config, row[custom_field], target_type)
-                                for subvalue in subvalues:   
+                                for subvalue in subvalues:
                                     field_values.append(subvalue)
                                 node[custom_field] = field_values
                             else:
                                 field_value = split_typed_relation_string(config, row[custom_field], target_type)
                                 node[custom_field] = field_value
-                        
+
                         # Cardinality has a limit.
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
                                 subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                                 subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
-                                for subvalue in subvalues:   
+                                for subvalue in subvalues:
                                         field_values.append(subvalue)
                                 node[custom_field] = field_values
                             else:
@@ -152,8 +153,9 @@ def create():
                         else:
                             field_values = split_typed_relation_string(config, row[custom_field], target_type)
                             node[custom_field] = field_value[0]
-                            logging.warning("Adding all values in CSV field %s for record %s would exceed maximum number of allowed values (1), so only adding first value.", row[custom_field], id_field)
-                    
+                            logging.warning("Adding all values in CSV field %s for record %s would exceed maximum " +
+                                            "number of allowed values (1), so only adding first value.", row[custom_field], id_field)
+
                     # For non-entity reference and non-typed relation fields (text, etc.).
                     else:
                         # Cardinality is unlimited.
@@ -168,6 +170,7 @@ def create():
                                     node[custom_field] = [{'value': row[custom_field]}]
                             else:
                                 node[custom_field] = [{'value': row[custom_field]}]
+                        # Cardinality has a limit.
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
@@ -200,7 +203,7 @@ def create():
                 # Get ID of newly created node so we can use it for linking
                 # child nodes, etc.
                 if node_response.status_code == 201:
-                    node_id =  node_uri.rsplit('/', 1)[-1]
+                    node_id = node_uri.rsplit('/', 1)[-1]
                     node_ids[id_field] = node_id
 
                 # If there is no media file, move on to the next CSV row.
@@ -212,9 +215,9 @@ def create():
                     continue
 
                 # If there is a media file, add it.
-                file_path = os.path.join(config['input_dir'], row['file'])                
+                file_path = os.path.join(config['input_dir'], row['file'])
                 mimetype = mimetypes.guess_type(file_path)
-                media_type = set_media_type(mimetype[0], config)                
+                media_type = set_media_type(mimetype[0], config)
 
                 if node_response.status_code == 201 and len(row['file']) != 0:
                     media_response_status_code = create_media(config, row['file'], node_uri)
@@ -292,10 +295,11 @@ def update():
                                 # Slice the incoming values to a length that matches the field's
                                 # cardinality minus its existing length. Also log fact that we're
                                 # slicing off values.
-                                num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values              
+                                num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values
                                 subvalues = subvalues[:num_values_to_add]
                                 if len(subvalues) > 0:
-                                    logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of allowed values (%s), so only adding %s values.", custom_field, row['node_id'], field_definitions[custom_field]['cardinality'], num_values_to_add)
+                                    logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of " +
+                                                    "allowed values (%s), so only adding %s values.", custom_field, row['node_id'], field_definitions[custom_field]['cardinality'], num_values_to_add)
                                     logging.info("Updating node %s with %s values from CSV record.", row['node_id'], num_values_to_add)
                                     for subvalue in subvalues:
                                         field_values.append({'target_id': subvalue, 'target_type': target_type})
@@ -344,7 +348,7 @@ def update():
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
                                 subvalues = split_typed_relation_string(config, row[custom_field], target_type)
-                                for subvalue in subvalues:   
+                                for subvalue in subvalues:
                                     field_values.append(subvalue)
                                 node[custom_field] = node_field_values[custom_field] + field_values
                             # Append to existing values.
@@ -358,16 +362,17 @@ def update():
 
                             if config['subdelimiter'] in row[custom_field]:
                                 field_values = []
-                                subvalues = split_typed_relation_string(config, row[custom_field], target_type)           
+                                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                                 for subvalue in subvalues:
                                     if subvalue not in node_comparison_values:
                                         field_values.append(subvalue)
                                 # Slice the incoming values to a length that matches the field's
                                 # cardinality minus its existing length. Also log fact that we're
-                                # slicing off values.                                
+                                # slicing off values.
                                 num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values
                                 if num_values_to_add > 0:
-                                    logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of allowed values (%s), so only adding %s values.", custom_field, row['node_id'], field_definitions[custom_field]['cardinality'], num_values_to_add)
+                                    logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of " +
+                                                    "allowed values (%s), so only adding %s values.", custom_field, row['node_id'], field_definitions[custom_field]['cardinality'], num_values_to_add)
                                     logging.info("Updating node %s with %s values from CSV record.", row['node_id'], num_values_to_add)
                                     field_values = field_values[:num_values_to_add]
                                     node[custom_field] = node_field_values[custom_field] + field_values
@@ -384,7 +389,8 @@ def update():
                             field_values = split_typed_relation_string(config, row[custom_field], target_type)
                             if len(field_values) > 1:
                                 node[custom_field] = [field_values[0]]
-                                logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number of allowed values (1), so only adding first value.", custom_field, row['node_id'])
+                                logging.warning("Adding all values in CSV field %s for node %s would exceed maximum number " +
+                                                "of allowed values (1), so only adding first value.", custom_field, row['node_id'])
                                 logging.info("Updating node %s with 1 values from CSV record.", row['node_id'])
 
                     # For non-entity reference and non-typed relation fields (text, etc.).
@@ -398,7 +404,7 @@ def update():
                                 subvalues = row[custom_field].split(config['subdelimiter'])
                                 # Slice the incoming values to a length that matches the field's
                                 # cardinality minus its existing length. Also log fact that we're
-                                # slicing off values. We don't dedupe these values. 
+                                # slicing off values. We don't dedupe these values.
                                 subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                                 for subvalue in subvalues:
                                     field_values.append({'value': subvalue})
@@ -415,7 +421,7 @@ def update():
                                     field_values.append({'value': subvalue})
                                     node[custom_field] = node_field_values[custom_field] + field_values
                             else:
-                                node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]                        
+                                node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
 
                 node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
                 node_headers = {
