@@ -64,7 +64,7 @@ All configuration settings are required for the "create" task if its entry in th
 
 ## Checking configuration and input data
 
-You should always check your configuration and input prior to creating, updating, or deleting content. You can do this by running Workbench with the `--check` option, e.g.:
+You should always (always, [I can't stress that enough](https://www.youtube.com/watch?v=2ZgtEdFAg3s)) check your configuration and input prior to creating, updating, or deleting content. You can do this by running Workbench with the `--check` option, e.g.:
 
 `./workbench --config config.yml --check`
 
