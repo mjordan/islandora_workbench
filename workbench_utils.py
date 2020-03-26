@@ -630,5 +630,6 @@ def create_media(config, filename, node_uri):
     binary_data = open(os.path.join(
         config['input_dir'], filename), 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
+    binary_data.close()
 
     return media_response.status_code
