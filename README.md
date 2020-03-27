@@ -54,7 +54,7 @@ id_field: id
 * `input_csv` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
 * `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
 * `media_type` (singular) specifies whether the media being created in the 'create' or 'add_media' task is an `image`, `file`, `document`, `audio`, or `video` (or other media type that exists in the target Islandora).
-* `media_types` (plural) provides a mapping bewteen file extensions and media types. More detail provided in the "Setting Media Types" section below.
+* `media_types` (plural) provides a mapping bewteen file extensions and media types. Note: either `media_type` or `media_types` is required. More detail provided in the "Setting Media Types" section below.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 * `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 * `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
@@ -207,7 +207,7 @@ If you want to include multiple typed relation values in a single field of your 
 
 ## Setting media types
 
-The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks.
+The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks. One of the the following two configuration options are required.
 
 1. Globally, via the `media_type` configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type.
 1. On a per-media basis, via a mapping from file extensions to media types. This is done by including a mapping in the `media_types` option (notice the plural) like this one in your configuration file:

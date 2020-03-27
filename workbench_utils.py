@@ -502,6 +502,10 @@ def check_input(config, args):
         print('OK, files named in the CSV "file" column are ' +
               'all present.')
 
+        # Check that either 'media_type' or 'media_types' are present in the config file.
+        if ('media_type' not in config and 'media_types' not in config):
+            sys.exit('Error: You must configure media type using either the "media_type" or "media_types" option.')
+
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
     logging.info("Configuration checked for %s task using config file " +
