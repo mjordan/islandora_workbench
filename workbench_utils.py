@@ -15,26 +15,20 @@ from functools import lru_cache
 yaml = YAML()
 
 
-def set_media_type(mimetype, config):
+def set_media_type(filepath, config):
     if 'media_type' in config:
         return config['media_type']
 
-    # TIFFs and JP2s are 'file', as is everything else not in these lists.
-    image_mimetypes = ['image/jpeg', 'image/png', 'image/gif']
-    audio_mimetypes = ['audio/mpeg3', 'audio/wav', 'audio/aac']
-    video_mimetypes = ['video/mp4']
+    extension_with_dot = os.path.splitext(filepath)[1]
+    extension = extension_with_dot[1:]
+    normalized_extension = extension.lower()
+    for types in config['media_types']:
+        for type, extensions in types.items():
+            if normalized_extension in extensions:
+                return type
 
-    mimetypes.init()
-
-    media_type = 'file'
-    if mimetype in image_mimetypes:
-        media_type = 'image'
-    if mimetype in audio_mimetypes:
-        media_type = 'audio'
-    if mimetype in video_mimetypes:
-        media_type = 'video'
-
-    return media_type
+    # If extension isn't in one of the lists, default to 'file'.
+    return 'file'
 
 
 def set_config_defaults(args):
@@ -286,7 +280,7 @@ def check_input(config, args):
     # keys are not validated.
     optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
-                            'validate_title_length', 'media_type', 'pause']
+                            'validate_title_length', 'media_type', 'media_types', 'pause']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -615,7 +609,7 @@ def create_media(config, filename, node_uri):
     """
     file_path = os.path.join(config['input_dir'], filename)
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(mimetype[0], config)
+    media_type = set_media_type(filename, config)
 
     media_endpoint_path = ('/media/' +
                            media_type +
