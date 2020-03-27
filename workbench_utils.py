@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import csv
+import time
 import logging
 import datetime
 import requests
@@ -91,6 +92,10 @@ def set_config_defaults(args):
 def issue_request(config, method, path, headers='', json='', data='', query={}):
     """Issue the REST request to Drupal.
     """
+    if config['check'] is False:
+        if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            time.sleep(config['pause'])
+
     if config['host'] in path:
         url = path
     else:
@@ -281,7 +286,7 @@ def check_input(config, args):
     # keys are not validated.
     optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
-                            'validate_title_length', 'media_type']
+                            'validate_title_length', 'media_type', 'pause']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
