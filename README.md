@@ -221,7 +221,7 @@ The media type for a given file (for example, `image`, `file`, `document`, `audi
     - video: ['mp4']
     - extracted_text: ['txt']
    ```
-  Use this option if the files in your batch are not to be assigned the same media type.
+   Use this option if the files in your batch are not to be assigned the same media type.
 
 If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
 
