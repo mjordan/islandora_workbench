@@ -80,6 +80,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: True` is present in your config file for "create" tasks).
 * If the `langcode` field is present in your CSV, whether values in it are valid Drupal language codes.
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
+* Whether either `media_type` or `media_types` is present in your configuration file.
 * Whether each row contains the same number of columns as there are column headers.
 
 ## Creating nodes from the sample data
@@ -207,7 +208,7 @@ If you want to include multiple typed relation values in a single field of your 
 
 ## Setting media types
 
-The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks. One of the the following two configuration options are required.
+The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks. One of the following two configuration options is required.
 
 1. Globally, via the `media_type` configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type.
 1. On a per-media basis, via a mapping from file extensions to media types. This is done by including a mapping in the `media_types` option (notice the plural) like this one in your configuration file:
