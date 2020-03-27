@@ -135,8 +135,8 @@ Single-valued and multi-valued fields of the following types can be added:
 #### Required fields
 
 * For the `create` task, `title`, `id` (or whatever field is identified in the `id_field` configuration option), and `file` are required. Empty values in the `file` field are allowed, in which case a node will be created but it will have no attached media.
-* For the `add_media` task, `file` is required.
 * For the `update`, `delete`, and `add_media` tasks, the `node_id` field is required.
+* For the `add_media` task, `file` is required.
  
 #### Base fields
 
