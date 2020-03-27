@@ -211,7 +211,7 @@ If you want to include multiple typed relation values in a single field of your 
 The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks. One of the following two configuration options is required.
 
 1. Globally, via the `media_type` configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type.
-1. On a per-file basis, via a mapping from file extensions to media types. This is done by including a mapping in the `media_types` option (notice the plural) like this one in your configuration file:
+1. On a per-file basis, via a mapping from file extensions to media types. This is done by including a mapping in the `media_types` option (notice the plural) in your configuration file like this one:
 
    ```
    media_types:
