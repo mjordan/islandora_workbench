@@ -130,6 +130,11 @@ Single-valued and multi-valued fields of the following types can be added:
 * entity reference (taxonomy and linked node) fields
 * typed relation (taxonomy and linked node) fields
 
+#### Required fields
+
+* For the `create` task, `title` and `id` (or whatever field is identified in the `id_field` configuration option) are required.
+* For the `update`, `delete`, and `add_media` tasks, the `node_id` field is required.
+ 
 #### Base fields
 
 Base fields are basic node properties, shared by all content types. The base fields you can include in your CSV file are:
@@ -138,7 +143,7 @@ Base fields are basic node properties, shared by all content types. The base fie
 * `promote`: Promoted to front page. Optional. If included, use `1` (promoted) or `0` (not promoted) as values. If absent, is set to the default value for your content type.
 * `status`: Whether the node is published. Optional. If included, use `1` (published) or `0` (unpublished) as values. If absent, is set to the default value for your content type.
 * `sticky`: Sticky at top of lists. Optional. If included, use `1` (sticky) or `0` (not sticky) as values. If absent, is set to the default value for your content type.
-* `langcode`: The language of the node. Optional. If included, use one of Drupal's language codes as values (common values are 'en', 'fr', 'es', and 'nl'; the entire list can be seen [here](https://git.drupalcode.org/project/drupal/-/blob/8.8.x/core/lib/Drupal/Core/Language/LanguageManager.php#L224). If absent, is set to the default value for your content type.
+* `langcode`: The language of the node. Optional. If included, use one of Drupal's language codes as values (common values are 'en', 'fr', and 'es'; the entire list can be seen [here](https://git.drupalcode.org/project/drupal/-/blob/8.8.x/core/lib/Drupal/Core/Language/LanguageManager.php#L224). If absent, Drupal sets the value to the default value for your content type.
 
 #### Single-valued fields
 
