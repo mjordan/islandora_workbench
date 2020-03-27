@@ -124,6 +124,8 @@ Single-valued and multi-valued fields of the following types can be added:
 
 * base fields
 * text (plain, plain long, etc.) fields
+* integer fields
+* boolean fields, with values 1 or 0
 * EDTF date fields
 * entity reference (taxonomy and linked node) fields
 * typed relation (taxonomy and linked node) fields
