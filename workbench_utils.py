@@ -591,7 +591,7 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
     pass
 
 
-def preprocess_field_data(path_to_script):
+def preprocess_field_data(subdelimiter, field_value, path_to_script):
     """Executes a field preprocessor script and returns its output and exit status code. The script
        is passed the field subdelimiter as defined in the config YAML and the field's value, and
        prints a modified vesion of the value (result) back to this function.
