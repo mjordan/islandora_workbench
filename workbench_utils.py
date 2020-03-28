@@ -12,6 +12,9 @@ import mimetypes
 from ruamel.yaml import YAML
 from functools import lru_cache
 
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+
 yaml = YAML()
 
 
@@ -493,17 +496,32 @@ def check_input(config, args):
             sys.exit('Error: For "add_media" tasks, your CSV file must ' +
                      'contain a "file" column.')
 
-    # Check for existence of files listed in the 'files' column.
+    # Check for existence of files listed in the 'file' column.
     if config['task'] == 'create' or config['task'] == 'add_media':
         file_check_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
-        for file_check_row in file_check_csv_data:
-            file_path = os.path.join(config['input_dir'], file_check_row['file'])
-            if config['allow_missing_files'] is False:
+        if config['allow_missing_files'] is False:
+            for count, file_check_row in enumerate(file_check_csv_data, start=1):
+                if len(file_check_row['file']) == 0:
+                    sys.exit('Error: Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.')
+                file_path = os.path.join(config['input_dir'], file_check_row['file'])
                 if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                    sys.exit('Error: File ' + file_path +
-                             ' identified in CSV "file" column not found.')
-        print('OK, files named in the CSV "file" column are ' +
-              'all present.')
+                    sys.exit('Error: File ' + file_path + ' identified in CSV "file" column for record ' +
+                             'with ID field value ' + file_check_row[config['id_field']] + ' not found.')
+            print('OK, files named in the CSV "file" column are all present.')
+        empty_file_values_exist = False
+        if config['allow_missing_files'] is True:
+            for count, file_check_row in enumerate(file_check_csv_data, start=1):
+                if len(file_check_row['file']) == 0:
+                    empty_file_values_exist = True
+                else:
+                    file_path = os.path.join(config['input_dir'], file_check_row['file'])
+                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                        sys.exit('Error: File ' + file_path + ' identified in CSV "file" column not found.')
+            if empty_file_values_exist is True:
+                ok_message = 'OK, files named in the CSV "file" column are all present; the "allow_missing_files" option is enabled and empty "file" values exist.'
+            else:
+                ok_message = 'OK, files named in the CSV "file" column are all present.'
+            print(ok_message)
 
         # Check that either 'media_type' or 'media_types' are present in the config file.
         if ('media_type' not in config and 'media_types' not in config):
@@ -635,10 +653,9 @@ def create_media(config, filename, node_uri):
     return media_response.status_code
 
 
-@lru_cache(maxsize=4)
+# @lru_cache(maxsize=None)
 def get_csv_data(input_dir, input_csv, delimiter):
-    """Read the input CSV file once and cache its contents
-       up to four calls.
+    """Read the input CSV file once and cache its contents.
     """
     input_csv_path = os.path.join(input_dir, input_csv)
     if not os.path.exists(input_csv_path):
