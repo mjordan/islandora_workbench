@@ -597,6 +597,22 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
     return return_list
 
 
+def split_geolocation_string(config, geolocation_string):
+    """Fields of type 'geolocation' are represented in the CSV file using a
+       structured string, specifically lat,lng, e.g. "49.16667, -123.93333".
+       This function takes one of those strings (optionally with a multivalue
+       subdelimiter) and returns a list of dictionaries with 'lat' and 'lng' keys.
+    """
+    return_list = []
+    temp_list = geolocation_string.split(config['subdelimiter'])
+    for item in temp_list:
+        item_list = item.split(',')
+        item_dict = {'lat': item_list[0].strip(), 'lng': item_list[1].strip()}
+        return_list.append(item_dict)
+
+    return return_list
+
+
 def validate_typed_relation_values(config, field_definitions, csv_data):
     """Validate values in fields that are of type 'typed_relation'.
        Each value (don't forget multivalued fields) must have this
