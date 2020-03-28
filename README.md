@@ -122,6 +122,8 @@ By defualt, if the `file` value for a row is empty, Workbench's `--check` option
 
 ### The CSV file
 
+Metadata that is to be added to new or existing nodes is contained in the CSV file. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields), integers (for `field_weight`, for example), `1` or `0` for binary fields, or IDs (for taxonomy terms or collections).
+
 Single-valued and multi-valued fields of the following types can be added:
 
 * base fields
@@ -136,7 +138,7 @@ Single-valued and multi-valued fields of the following types can be added:
 
 * For the `create` task, `title`, `id` (or whatever field is identified in the `id_field` configuration option), and `file` are required. Empty values in the `file` field are allowed, in which case a node will be created but it will have no attached media.
 * For the `update`, `delete`, and `add_media` tasks, the `node_id` field is required.
-* For the `add_media` task, `file` is required.
+* For the `add_media` task, `file` is required, but for this task, `file` must contain a filename.
  
 #### Base fields
 
@@ -150,13 +152,13 @@ Base fields are basic node properties, shared by all content types. The base fie
 
 #### Single-valued fields
 
-Metadata that is added to the nodes is contained in the CSV file. The two required fields are `file` (as mentioned above) and `title`. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields) or IDs (for taxonomy terms or collections).
+You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type.
 
-You can include additional fields that will be added to the nodes. The column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, linked node fields (e.g. "Member of" for collection nodes), and typed relation fields can be added. For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
+For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
 ```csv
-file,title,field_model,field_description,field_rights,field_extent,field_access_terms,field_member_of
-myfile.jpg,My nice image,24,"A fine image, yes?",Do whatever you want with it.,There's only one image.,27,45
+file,title,id,field_model,field_description,field_rights,field_extent,field_access_terms,field_member_of
+myfile.jpg,My nice image,obj_00001,24,"A fine image, yes?",Do whatever you want with it.,There's only one image.,27,45
 ```
 
 In this example, the term ID for the tag you want to assign in `field_access_terms` is 27, and the node ID of the collection you want to add the object to (in `field_member_of`) is 45.
