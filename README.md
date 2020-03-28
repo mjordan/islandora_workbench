@@ -212,9 +212,9 @@ If you want to include multiple typed relation values in a single field of your 
 
 ### Geolocation fields
 
-The Geolocation field type, managed by the [Geolocation](https://www.drupal.org/project/geolocation) contrib module, stores latitude and longitude coordinates in separate data elements. To add or update fields of this type, Workbench needs to provide the latitude and longitude data in these separate elements.
+The Geolocation field type, managed by the [Geolocation Field](https://www.drupal.org/project/geolocation) contrib module, stores latitude and longitude coordinates in separate data elements. To add or update fields of this type, Workbench needs to provide the latitude and longitude data in these separate elements.
 
-To simplify entering geocoordinates in the CSV file, Workbench allows geocoordinates to be in `lat,lng` format, that is the latitude coordinate followed by a comma, followed by the longitude coordinate. Workbench will split data on the comma into the required lat and lng parts. An example of a single geocoordinate in a field would be:
+To simplify entering geocoordinates in the CSV file, Workbench allows geocoordinates to be in `lat,lng` format, i.e., the latitude coordinate followed by a comma followed by the longitude coordinate. When Workbench reads your CSV file, it will split data on the comma into the required lat and lng parts. An example of a single geocoordinate in a field would be:
 
 ```
 field_coordinates
