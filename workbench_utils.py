@@ -16,6 +16,10 @@ yaml = YAML()
 
 
 def set_media_type(filepath, config):
+    """Using configuration options, determine which media type to use.
+       Options are either a single media type or a set of mappings from
+       file extenstion to media type.
+    """
     if 'media_type' in config:
         return config['media_type']
 
@@ -177,7 +181,7 @@ def get_field_definitions(config):
                 'field_type': item['attributes']['field_storage_config_type'],
                 'cardinality': item['attributes']['cardinality'],
                 'target_type': target_type}
-        # Hacky implementation of Drupal's JSON:API's pager.
+        # Hacky implementation of parsing Drupal's JSON:API pager.
         offset = 0
         while 'next' in field_storage_config['links']:
             offset = offset + 50
@@ -208,7 +212,7 @@ def get_field_definitions(config):
                 # E.g., comment, media, node.
                 entity_type = item['attributes']['entity_type']
                 field_definitions[field_name]['entity_type'] = entity_type
-        # Hacky implementation of Drupal's JSON:API's pager.
+        # Hacky implementation of parsing Drupal's JSON:API pager.
         offset = 0
         while 'next' in field_config['links']:
             offset = offset + 50
@@ -241,7 +245,7 @@ def get_field_definitions(config):
                 'required': required,
                 'entity_type': entity_type
             }
-        # Hacky implementation of Drupal's JSON:API's pager.
+        # Hacky implementation of parsing Drupal's JSON:API pager.
         offset = 0
         while 'next' in field_config['links']:
             base_field_override_response = issue_request(config, 'GET', base_field_override_url, headers, '', '', {'page[offset]': offset, 'page[limit]': '50'})
@@ -509,7 +513,7 @@ def check_input(config, args):
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
     logging.info("Configuration checked for %s task using config file " +
-                 "%s, no problems found", config['task'], args.config)
+                 "%s, no problems found.", config['task'], args.config)
     sys.exit(0)
 
 
