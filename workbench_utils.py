@@ -383,6 +383,7 @@ def check_input(config, args):
     print("OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
 
     # Task-specific CSV checks.
+    langcode_was_present = False
     if config['task'] == 'create':
         if config['id_field'] not in csv_column_headers:
             message = 'Error: For "create" tasks, your CSV file must contain column containing a unique identifier.'
@@ -411,8 +412,6 @@ def check_input(config, args):
             csv_column_headers.remove('langcode')
             # Set this so we can validate langcode below.
             langcode_was_present = True
-        else:
-            langcode_was_present = False
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
                 sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
