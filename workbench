@@ -136,7 +136,6 @@ def create():
                             else:
                                 field_value = split_typed_relation_string(config, row[custom_field], target_type)
                                 node[custom_field] = field_value
-
                         # Cardinality has a limit.
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             if config['subdelimiter'] in row[custom_field]:
@@ -156,7 +155,40 @@ def create():
                             logging.warning("Adding all values in CSV field %s for record %s would exceed maximum " +
                                             "number of allowed values (1), so only adding first value.", row[custom_field], id_field)
 
-                    # For non-entity reference and non-typed relation fields (text, etc.).
+                    # Geolocation fields.
+                    elif field_definitions[custom_field]['field_type'] == 'geolocation':
+                        target_type = field_definitions[custom_field]['target_type']
+                        # Cardinality is unlimited.
+                        if field_definitions[custom_field]['cardinality'] == -1:
+                            if config['subdelimiter'] in row[custom_field]:
+                                field_values = []
+                                subvalues = split_geolocation_string(config, row[custom_field])
+                                for subvalue in subvalues:
+                                    field_values.append(subvalue)
+                                node[custom_field] = field_values
+                            else:
+                                field_value = split_geolocation_string(config, row[custom_field])
+                                node[custom_field] = field_value
+                        # Cardinality has a limit.
+                        elif field_definitions[custom_field]['cardinality'] > 1:
+                            if config['subdelimiter'] in row[custom_field]:
+                                field_values = []
+                                subvalues = split_geolocation_string(config, row[custom_field])
+                                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                                for subvalue in subvalues:
+                                        field_values.append(subvalue)
+                                node[custom_field] = field_values
+                            else:
+                                field_value = split_geolocation_string(config, row[custom_field])
+                                node[custom_field] = field_value
+                        # Cardinality is 1.
+                        else:
+                            field_values = split_geolocation_string(config, row[custom_field])
+                            node[custom_field] = field_value[0]
+                            logging.warning("Adding all values in CSV field %s for record %s would exceed maximum " +
+                                            "number of allowed values (1), so only adding first value.", row[custom_field], id_field)
+
+                    # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
                     else:
                         # Cardinality is unlimited.
                         if field_definitions[custom_field]['cardinality'] == -1:

@@ -133,6 +133,7 @@ Single-valued and multi-valued fields of the following types can be added:
 * EDTF date fields
 * entity reference (taxonomy and linked node) fields
 * typed relation (taxonomy and linked node) fields
+* geolocation fields
 
 #### Required fields
 
@@ -208,6 +209,24 @@ In this example of a CSV value, `relators` is the namespace that the relation ty
 If you want to include multiple typed relation values in a single field of your CSV file (such as in "field_linked_agent"), separate the three-part values with the same subdelimiter character you use in other fields, e.g. (`|`) (or whatever you have configured as your `subdelimiter`):
 
 `relators:art:30|relators:art:45`
+
+### Geolocation fields
+
+The Geolocation field type, managed by the [Geolocation](https://www.drupal.org/project/geolocation) contrib module, stores latitude and longitude coordinates in separate data elements. To add or update fields of this type, Workbench needs to provide the latitude and longitude data in these separate elements.
+
+To simplify entering geocoordinates in the CSV file, Workbench allows geocoordinates to be in `lat,lng` format, that is the latitude coordinate followed by a comma, followed by the longitude coordinate. Workbench will split data on the comma into the required lat and lng parts. An example of a single geocoordinate in a field would be:
+
+```
+field_coordinates
+49.16667,-123.93333
+```
+
+You can include multiple pairs of geocoordinates in one CSV field if you separate them with the subdelimiter character:
+
+```
+field_coordinates
+49.16667,-123.93333|49.25,-124.8
+```
 
 ## Setting media types
 
