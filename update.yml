@@ -5,3 +5,4 @@ password: islandora
 content_type: islandora_object
 input_dir: input_data
 input_csv: update.csv
+validate_title_length: false
