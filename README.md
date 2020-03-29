@@ -229,6 +229,26 @@ field_coordinates
 49.16667,-123.93333|49.25,-124.8
 ```
 
+## Setting media types
+
+The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks. One of the following two configuration options is required.
+
+1. Globally, via the `media_type` configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type.
+1. On a per-file basis, via a mapping from file extensions to media types. This is done by including a mapping in the `media_types` option (notice the plural) in your configuration file like this one:
+
+   ```
+   media_types:
+    - file: ['tif', 'tiff', 'jp2', 'zip', 'tar']
+    - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
+    - image: ['png', 'gif', 'jpg', 'jpeg']
+    - audio: ['mp3', 'wav', 'aac']
+    - video: ['mp4']
+    - extracted_text: ['txt']
+   ```
+   Use this option if the files in your batch are not to be assigned the same media type. If a file's extension is not in one of the extension lists, the media is assigned the `file` type.
+
+If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
+
 ## Creating paged content
 
 Workbench can create paged content. It does this by creating parent/child membership relationships between each item with an `id` (the parent) that matches the value of other items' `parent_id` value (the children). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below).
@@ -255,25 +275,6 @@ Some important things to note:
 * Currently, you must include values in the children's `field_weight` column. It may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/84)).
 * Currently, Islandora model values (e.g. "Paged Content", "Page") are not automatically assigned. You must include the correct "Islandora Models" taxonomy term IDs in your `field_model` column for all parent and child records, as you would for any other Islandora objects you are creating. Like for `field_weight`, it may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/85)).
 
-## Setting media types
-
-The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks. One of the following two configuration options is required.
-
-1. Globally, via the `media_type` configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type.
-1. On a per-file basis, via a mapping from file extensions to media types. This is done by including a mapping in the `media_types` option (notice the plural) in your configuration file like this one:
-
-   ```
-   media_types:
-    - file: ['tif', 'tiff', 'jp2', 'zip', 'tar']
-    - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
-    - image: ['png', 'gif', 'jpg', 'jpeg']
-    - audio: ['mp3', 'wav', 'aac']
-    - video: ['mp4']
-    - extracted_text: ['txt']
-   ```
-   Use this option if the files in your batch are not to be assigned the same media type. If a file's extension is not in one of the extension lists, the media is assigned the `file` type.
-
-If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
 
 ## Updating nodes
 
