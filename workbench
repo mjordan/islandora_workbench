@@ -51,7 +51,7 @@ def create():
                 # If a node with an ID that matches the current item's
                 # 'parent_id' value has just been created, make the item
                 # a child of the node.
-                if row['parent_id'] in node_ids:
+                if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
                     row['field_member_of'] = node_ids[row['parent_id']]
 
                 # Add custom (non-required) CSV fields.

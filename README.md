@@ -82,6 +82,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
 * Whether either `media_type` or `media_types` is present in your configuration file.
 * Whether each row contains the same number of columns as there are column headers.
+* Whether the columns required to create paged content are present (see "Creating paged content" below).
 
 ## Creating nodes from the sample data
 
@@ -227,6 +228,31 @@ You can include multiple pairs of geocoordinates in one CSV field if you separat
 field_coordinates
 49.16667,-123.93333|49.25,-124.8
 ```
+
+## Creating paged content
+
+Workbench can create paged content. It does this by creating parent/child membership relationship between items with an `id` (the parent) that matches the value of other items' `parent_id` value (the children). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight` and `field_member_of` (the role of these last two fields will be explained below).
+
+The following example illustrates how this works. The CSV file has rows for two postcards plus a back and front for each. The `parent_id` value for items with `id` values "003" and "004" is the same as the `id` value for item "001", which will result in both of those items being children of "001"; the `parent_id` value for items with `id` values "006" and "007" is the same as the `id` value for item "002", which will make those items children of the item "002":
+
+```csv
+id,parent_id,field_weight,file,title,field_description,field_model,field_member_of
+001,,,,Postcard 1,The first postcard,28,197
+003,001,1,image456.jpg.jpg,Front of postcard 1,The first postcard's front,29,
+004,001,2,image389.jpg,Back of postcard 1,The first postcard's back,29,
+002,,,,Postcard 2,The second postcard,28,197
+006,002,1,image2828.jpg,Front of postcard 2,The second postcard's front,29,
+007,002,2,image777.jpg,Back of postcard 2,The second postcard's back,29,
+```
+
+Rows for child items have a value in their `field_weight` field but no value in their `field_member_of` field. `field_member_of` is empty because the node ID of the parent isn't known when you create your CSV; instead, each child's `field_member_of` is assigned dynamically, just after its parent node is created.
+
+A couple of things to note:
+
+* `id` can be defined as another field name using the `id_field` option. If you do define a different ID field using the `id_field` configuration option, creating the parent/child relationships will still work.
+* The CSV records for children items don't need to come *directly* after the record for their parent, but they do need to come after that record. This is because Workbench creates nodes in the order their records are in the CSV file (top to bottom). As long as the parent node has already been created when a child node is created, the parent/child relationship via the child's `field_member_of` will be correct.
+* Currently, you must include values in the children's `field_weight` column. It may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/84)).
+* Islandora model values (e.g. "Paged Content", "Page") are currently not automatically assigned. You must include the correct term IDs in your `field_model` column for all parent and child records. Like for `field_weight`, it may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/85)).
 
 ## Setting media types
 
