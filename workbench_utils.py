@@ -410,6 +410,8 @@ def check_input(config, args):
             csv_column_headers.remove('file')
         if 'node_id' in csv_column_headers:
             csv_column_headers.remove('node_id')
+        if 'parent_id' in csv_column_headers:
+            csv_column_headers.remove('parent_id')
         # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')

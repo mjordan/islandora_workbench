@@ -19,9 +19,7 @@ def create():
     logging.info('"Create" task started using config file %s', args.config)
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
-        # Store a dict of id_field: node IDs so we can add linked nodes.
-        # This dict is not currently used but could be for things like
-        # https://github.com/mjordan/islandora_workbench/issues/18.
+        # Store a dictionary of id_field values: node IDs so we can add child nodes.
         node_ids = dict()
 
         field_definitions = get_field_definitions(config)
@@ -50,6 +48,11 @@ def create():
                     ]
                 }
 
+                # debuggig during dev
+                if row['parent_id'] in node_ids:
+                    print("Parent node ID for " + id_field +  " is " + node_ids[row['parent_id']])
+                    row['field_member_of'] = node_ids[row['parent_id']]
+
                 # Add custom (non-required) CSV fields.
                 required_fields = ['file', config['id_field'], 'title']
                 custom_fields = list(
@@ -60,6 +63,10 @@ def create():
                     # Skip updating field if value is empty.
                     if len(row[custom_field]) == 0:
                         continue
+
+                    # 
+                    if custom_field == 'parent_id':
+                        continue                        
 
                     # 'langcode' is a core Drupal field, but is not considered a "base field".
                     # @todo: If it is present, validate its values.
@@ -232,11 +239,11 @@ def create():
                     logging.warning("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
                     continue
 
-                # Get ID of newly created node so we can use it for linking
-                # child nodes, etc.
+                # Map ID from CSV of newly created node to its node ID so we can
+                # use it for linking child nodes, etc.
                 if node_response.status_code == 201:
-                    node_id = node_uri.rsplit('/', 1)[-1]
-                    node_ids[id_field] = node_id
+                    node_nid = node_uri.rsplit('/', 1)[-1]
+                    node_ids[id_field] = node_nid
 
                 # If there is no media file, move on to the next CSV row.
                 if len(row['file']) == 0:
