@@ -245,9 +245,9 @@ id,parent_id,field_weight,file,title,field_description,field_model,field_member_
 007,002,2,image777.jpg,Back of postcard 2,The second postcard's back,29,
 ```
 
-Rows for parent items have empty `parent_id`, `field_wieght`, and `file` columns. Rows for child items have a value in their `field_weight` field but no value in their `field_member_of` field (and in this example, they have values in their `file` column because we are creating objects that contain image media). `field_member_of` is empty because the node ID of the parent isn't known when you create your CSV; instead, each child's `field_member_of` is assigned dynamically, just after its parent node is created.
+In this example, the rows for our postcard objects have empty `parent_id`, `field_weight`, and `file` columns because we our postcards are not children of other nodes and don't have their own media. (However, the records for postcard objects do have a value in `field_member_of`, which is the node ID of the "Postcards" collection that already exists.) Rows for the postcard front and back images have a value in their `field_weight` field but no value in their `field_member_of` field. They have values in their `file` column because we are creating objects that contain image media. `field_member_of` is empty because the node ID of the parent isn't known when you create your CSV; instead, each child's `field_member_of` is assigned dynamically, just after its parent node is created.
 
-A couple of things to note:
+Some important things to note:
 
 * `id` can be defined as another field name using the `id_field` configuration option. If you do define a different ID field using the `id_field` option, creating the parent/child relationships will still work.
 * The CSV records for children items don't need to come *directly* after the record for their parent, but they do need to come after that record. This is because Workbench creates nodes in the order their records are in the CSV file (top to bottom). As long as the parent node has already been created when a child node is created, the parent/child relationship via the child's `field_member_of` will be correct.
