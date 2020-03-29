@@ -48,9 +48,10 @@ def create():
                     ]
                 }
 
-                # debuggig during dev
+                # If a node with an ID that matches the current item's
+                # 'parent_id' value has just been created, make the item
+                # a child of the node.
                 if row['parent_id'] in node_ids:
-                    print("Parent node ID for " + id_field +  " is " + node_ids[row['parent_id']])
                     row['field_member_of'] = node_ids[row['parent_id']]
 
                 # Add custom (non-required) CSV fields.
@@ -64,9 +65,10 @@ def create():
                     if len(row[custom_field]) == 0:
                         continue
 
-                    # 
+                    # This field can exist in the CSV to create parent/child
+                    # relationships and is not a Drupal field.
                     if custom_field == 'parent_id':
-                        continue                        
+                        continue
 
                     # 'langcode' is a core Drupal field, but is not considered a "base field".
                     # @todo: If it is present, validate its values.
