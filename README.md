@@ -39,7 +39,8 @@ password: islandora
 content_type: islandora_object
 input_dir: input_data
 input_csv: metadata.csv
-media_use_tid: 16
+media_use_tid: 17
+media_type: image
 drupal_filesystem: "fedora://"
 id_field: id
 ```
