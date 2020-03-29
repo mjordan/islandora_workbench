@@ -1,7 +1,6 @@
 import sys
 import os
 import unittest
-from ruamel.yaml import YAML
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from workbench_utils import split_typed_relation_string
