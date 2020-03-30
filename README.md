@@ -253,9 +253,7 @@ If both `media_type` and `media_types` are included in the config file, the mapp
 
 Workbench can create paged content. It does this by creating parent/child membership relationships between each item with an `id` (the parent) that matches the value of other items' `parent_id` value (the children). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below).
 
-The following example illustrates how this works. The CSV file has rows for two postcards (rows with `id`s "001" and "002") plus a back and front for each (the remaining four rows). The `parent_id` value for items with `id` values "003" and "004" is the same as the `id` value for item "001", which will tell Workbench to make both of those items children of item "001"; the `parent_id` value for items with `id` values "006" and "007" is the same as the `id` value for item "002", which will tell Workbench to make both of those items children of the item "002". We can't use node IDs in the `field_member_of` for the child pages because the parent nodes haven't been created yet.
-
-Here is the raw CSV data:
+The following example illustrates how this works. Here is the raw CSV data:
 
 ```csv
 id,parent_id,field_weight,file,title,field_description,field_model,field_member_of
@@ -266,6 +264,7 @@ id,parent_id,field_weight,file,title,field_description,field_model,field_member_
 006,002,1,image2828.jpg,Front of postcard 2,The second postcard's front,29,
 007,002,2,image777.jpg,Back of postcard 2,The second postcard's back,29,
 ```
+The CSV file has rows for two postcards (rows with `id`s "001" and "002") plus a back and front for each (the remaining four rows). The `parent_id` value for items with `id` values "003" and "004" is the same as the `id` value for item "001", which will tell Workbench to make both of those items children of item "001"; the `parent_id` value for items with `id` values "006" and "007" is the same as the `id` value for item "002", which will tell Workbench to make both of those items children of the item "002". We can't use node IDs in the `field_member_of` for the child pages because the parent nodes haven't been created yet.
 
 The empty cells make this CSV difficult to read. Here is the same data in a spreadsheet:
 
