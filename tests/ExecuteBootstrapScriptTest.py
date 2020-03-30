@@ -1,7 +1,6 @@
 import os
 import sys
 import unittest
-from ruamel.yaml import YAML
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from workbench_utils import execute_bootstrap_script
@@ -10,7 +9,6 @@ from workbench_utils import execute_bootstrap_script
 class TestExecuteBootstrapScript(unittest.TestCase):
 
     def setUp(self):
-        yaml = YAML()
         dir_path = os.path.dirname(os.path.realpath(__file__))
 
         self.script_path = os.path.join(dir_path, 'assets', 'execute_bootstrap_script_test', 'script.py')
