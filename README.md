@@ -253,7 +253,9 @@ If both `media_type` and `media_types` are included in the config file, the mapp
 
 Workbench can create paged content. It does this by creating parent/child membership relationships between each item with an `id` (the parent) that matches the value of other items' `parent_id` value (the children). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below).
 
-The following example illustrates how this works. The CSV file has rows for two postcards plus a back and front for each. The `parent_id` value for items with `id` values "003" and "004" is the same as the `id` value for item "001", which will result in both of those items being children of "001"; the `parent_id` value for items with `id` values "006" and "007" is the same as the `id` value for item "002", which will make those items children of the item "002":
+The following example illustrates how this works. The CSV file has rows for two postcards (rows with `id`s "001" and "002") plus a back and front for each (the remaining four rows). The `parent_id` value for items with `id` values "003" and "004" is the same as the `id` value for item "001", which will tell Workbench to make both of those items children of item "001"; the `parent_id` value for items with `id` values "006" and "007" is the same as the `id` value for item "002", which will tell Workbench to make both of those items children of the item "002". We can't use node IDs in the `field_member_of` for the child pages because the parent nodes haven't been created yet.
+
+Here is the raw CSV data:
 
 ```csv
 id,parent_id,field_weight,file,title,field_description,field_model,field_member_of
@@ -269,7 +271,7 @@ The empty cells make this CSV difficult to read. Here is the same data in a spre
 
 ![Paged content CSV](docs/images/paged_csv.png)
 
-In this example, the rows for our postcard objects have empty `parent_id`, `field_weight`, and `file` columns because our postcards are not children of other nodes and don't have their own media. (However, the records for our postcard objects do have a value in `field_member_of`, which is the node ID of the "Postcards" collection that already exists.) Rows for the postcard front and back image objects have a value in their `field_weight` field, and they have values in their `file` column because we are creating objects that contain image media. Importantly, they have no value in their `field_member_of` field because the node ID of the parent isn't known when you create your CSV; instead, Islandora Workbench assigns each child's `field_member_of` dynamically, just after its parent node is created.
+In this example, the rows for our postcard objects have empty `parent_id`, `field_weight`, and `file` columns because our postcards are not children of other nodes and don't have their own media. (However, the records for our postcard objects do have a value in `field_member_of`, which is the node ID of the "Postcards" collection that already/hypothetically exists.) Rows for the postcard front and back image objects have a value in their `field_weight` field, and they have values in their `file` column because we are creating objects that contain image media. Importantly, they have no value in their `field_member_of` field because the node ID of the parent isn't known when you create your CSV; instead, Islandora Workbench assigns each child's `field_member_of` dynamically, just after its parent node is created.
 
 Some important things to note:
 
