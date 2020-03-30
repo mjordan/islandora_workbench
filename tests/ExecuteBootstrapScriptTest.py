@@ -16,10 +16,6 @@ class TestExecuteBootstrapScript(unittest.TestCase):
         self.script_path = os.path.join(dir_path, 'assets', 'execute_bootstrap_script_test', 'script.py')
         self.config_file_path = os.path.join(dir_path, 'assets', 'execute_bootstrap_script_test', 'config.yml')
 
-        with open(self.config_file_path, 'r') as f:
-            config_file_contents = f.read()
-        self.config_yaml = yaml.load(config_file_contents)
-
     def test_python_script(self):
         output, return_code = execute_bootstrap_script(self.script_path, self.config_file_path)
         self.assertEqual(output.strip(), b'Hello')
