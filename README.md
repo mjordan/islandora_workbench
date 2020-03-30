@@ -258,12 +258,16 @@ The following example illustrates how this works. The CSV file has rows for two 
 ```csv
 id,parent_id,field_weight,file,title,field_description,field_model,field_member_of
 001,,,,Postcard 1,The first postcard,28,197
-003,001,1,image456.jpg.jpg,Front of postcard 1,The first postcard's front,29,
+003,001,1,image456.jpg,Front of postcard 1,The first postcard's front,29,
 004,001,2,image389.jpg,Back of postcard 1,The first postcard's back,29,
 002,,,,Postcard 2,The second postcard,28,197
 006,002,1,image2828.jpg,Front of postcard 2,The second postcard's front,29,
 007,002,2,image777.jpg,Back of postcard 2,The second postcard's back,29,
 ```
+
+The empty cells make this CSV difficult to read. Here is the same data in a spreadsheet:
+
+![Paged content CSV](docs/images/paged_csv.png)
 
 In this example, the rows for our postcard objects have empty `parent_id`, `field_weight`, and `file` columns because our postcards are not children of other nodes and don't have their own media. (However, the records for our postcard objects do have a value in `field_member_of`, which is the node ID of the "Postcards" collection that already exists.) Rows for the postcard front and back image objects have a value in their `field_weight` field, and they have values in their `file` column because we are creating objects that contain image media. Importantly, they have no value in their `field_member_of` field because the node ID of the parent isn't known when you create your CSV; instead, Islandora Workbench assigns each child's `field_member_of` dynamically, just after its parent node is created.
 
