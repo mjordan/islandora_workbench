@@ -123,7 +123,7 @@ By defualt, if the `file` value for a row is empty, Workbench's `--check` option
 
 ### The CSV file
 
-Metadata that is to be added to new or existing nodes is contained in the CSV file. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields), integers (for `field_weight`, for example), `1` or `0` for binary fields, or IDs (for taxonomy terms or collections).
+Metadata that is to be added to new or existing nodes is contained in the CSV file. As is standard with CSV data, field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character (e.g., a comma). Field values are either strings (for string or text fields), integers (for `field_weight`, for example), `1` or `0` for binary fields, Drupal-generated IDs (term IDs taxonomy terms or node IDs for collections and parents), or structured strings (for typed relation and geolocation fields)
 
 Single-valued and multi-valued fields of the following types can be added:
 
