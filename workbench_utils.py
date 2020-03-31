@@ -3,6 +3,7 @@ import sys
 import json
 import csv
 import time
+import re
 import logging
 import datetime
 import requests
@@ -211,6 +212,12 @@ def get_field_definitions(config):
                 # E.g., comment, media, node.
                 entity_type = item['attributes']['entity_type']
                 field_definitions[field_name]['entity_type'] = entity_type
+                # If the current field is a taxonomy field, get the referenced taxonomies.
+                if 'config' in item['attributes']['dependencies']:
+                    raw_vocabularies = [x for x in item['attributes']['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+                    if len(raw_vocabularies) > 0:
+                        vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
+                        field_definitions[field_name]['vocabularies'] = vocabularies
         # Hacky implementation of parsing Drupal's JSON:API pager.
         offset = 0
         while 'next' in field_config['links']:
@@ -225,6 +232,12 @@ def get_field_definitions(config):
                     # E.g., comment, media, node.
                     entity_type = item['attributes']['entity_type']
                     field_definitions[field_name]['entity_type'] = entity_type
+                    # If the current field is a taxonomy field, get the referenced taxonomies.
+                    if 'config' in item['attributes']['dependencies']:
+                        raw_vocabularies = [x for x in item['attributes']['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+                        if len(raw_vocabularies) > 0:
+                            vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
+                            field_definitions[field_name]['vocabularies'] = vocabularies
             if 'next' not in field_config['links']:
                 break
 
@@ -384,6 +397,7 @@ def check_input(config, args):
     # Task-specific CSV checks.
     langcode_was_present = False
     if config['task'] == 'create':
+        field_definitions = get_field_definitions(config)
         if config['id_field'] not in csv_column_headers:
             message = 'Error: For "create" tasks, your CSV file must contain column containing a unique identifier.'
             logging.error(message)
@@ -404,8 +418,6 @@ def check_input(config, args):
                 message = 'Error: If your CSV file contains a "parent_id" column, it must also contain "field_weight" and "field_member_of" columns.'
                 logging.error(message)
                 sys.exit(message)
-
-        field_definitions = get_field_definitions(config)
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
@@ -473,6 +485,8 @@ def check_input(config, args):
         # Each value (don't forget multivalued fields) needs to have this
         # pattern: string:string:int.
         validate_typed_relation_values(config, field_definitions, csv_data)
+
+        validate_taxonomy_field_values(config, field_definitions, csv_data)
 
         # Validate length of 'title'.
         if config['validate_title_length']:
@@ -690,3 +704,46 @@ def get_csv_data(input_dir, input_csv, delimiter):
     # Yes, we leave the file open because Python.
     # https://github.com/mjordan/islandora_workbench/issues/74.
     return csv_data
+
+
+def get_term_pairs(config, vocab_id):
+    """Get all the term IDs plus associated term names in a vocabulary.
+    """
+    term_dict = dict()
+    # Note: this URL requires a custom view be present on the target Islandora.
+    vocab_url = config['host'] + '/vocabulary?_format=json&vid=' + vocab_id
+    response = issue_request(config, 'GET', vocab_url)
+    vocab = json.loads(response.text)
+    for term in vocab:
+        name = term['name'][0]['value']
+        tid = term['tid'][0]['value']
+        term_dict[tid] = name
+
+    return term_dict
+
+
+def validate_taxonomy_field_values(config, field_definitions, csv_data):
+    """Loop through all fields in field_definitions, and if a field
+       is a taxonomy reference field, validate all values in the CSV
+       data for that field.
+    """
+    # linked_vocabularies = field_definitions['field_media_use']['vocabularies']
+    # terms = get_term_pairs(config, 'islandora_media_use')
+    # print(linked_vocabularies)
+    # print(config)
+    # print(field_definitions)
+    for column_name in csv_data.fieldnames:
+        if column_name in field_definitions:
+            # print(field_definitions[column_name])
+            if 'vocabularies' in field_definitions[column_name]:
+                field_vocabularies = field_definitions[column_name]['vocabularies']
+                for field_vocabulary in field_vocabularies:
+                    terms = get_term_pairs(config, field_vocabulary)
+                    vocab_term_ids = terms.keys()
+                    print(vocab_term_ids)
+                    for count, row in enumerate(csv_data, start=1):
+                        print(row[column_name])
+
+
+
+    
