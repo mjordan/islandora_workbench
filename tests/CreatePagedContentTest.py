@@ -47,12 +47,12 @@ class CreateTest(unittest.TestCase):
         self.assertEqual(len(nids), 6)
 
         # Test a page object's 'field_member_of' value to see if it matches
-        # its parent's (the most recently ingested paged content object) node ID.
-        # The last paged content object's node ID will be the fourth node ID in nids
-        # (the previous three were for the first paged content object plus its two
-        # pages). Note: the metadata.csv file used to create the paged content and
-        # page objects uses hard-coded term IDs from the Islandora Models taxonomy
-        # as used in the Islandora Playbook. If they change or are different in the
+        # its parent's node ID. In this test, the last paged content object's
+        # node ID will be the fourth node ID in nids (the previous three were
+        # for the first paged content object plus its two pages). Note: the
+        # metadata.csv file used to create the paged content and page objects
+        # uses hard-coded term IDs from the Islandora Models taxonomy as used
+        # in the Islandora Playbook. If they change or are different in the
         # Islandora this test is running against, this test will fail.
         parent_node_id_to_test = nids[3]
         # The last node to be created was a page.

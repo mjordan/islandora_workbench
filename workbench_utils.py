@@ -7,13 +7,9 @@ import logging
 import datetime
 import requests
 import subprocess
-import collections
 import mimetypes
 from ruamel.yaml import YAML
 from functools import lru_cache
-
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
 
 yaml = YAML()
 
@@ -413,6 +409,8 @@ def check_input(config, args):
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
+        # We .remove() CSV column headers for this check because they are not Drupal field names
+        # (including 'langcode'). Any new columns introduced into the CSV need to be removed here.
         if config['id_field'] in csv_column_headers:
             csv_column_headers.remove(config['id_field'])
         if 'file' in csv_column_headers:
@@ -680,7 +678,7 @@ def create_media(config, filename, node_uri):
     return media_response.status_code
 
 
-# @lru_cache(maxsize=None)
+@lru_cache(maxsize=None)
 def get_csv_data(input_dir, input_csv, delimiter):
     """Read the input CSV file once and cache its contents.
     """
