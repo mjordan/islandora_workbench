@@ -29,7 +29,13 @@ If you don't already have the two required libraries installed, clone this repo 
 
 `./workbench --config config.yml`
 
-where `--config` is the path to a YAML file like this:
+or
+
+`./workbench --config config.yml --check`
+
+## The configuration file
+
+Workbench uses a YAML configuration whose location is indicated in the `--config` parameter. This file defines the various options it will use to create, update, or delete Islandora content (such as which CSV file to use and what directory your images are in). An example configuration file is:
 
 ```yaml
 task: create
@@ -44,6 +50,8 @@ media_type: image
 drupal_filesystem: "fedora://"
 id_field: id
 ```
+
+The settings defined in a configuration file are:
 
 * `task` is one of 'create', 'update', delete', or 'add_media'.
 * `host` is the hostname, including port number if not 80, of your Islandora repository.
