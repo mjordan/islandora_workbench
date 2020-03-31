@@ -390,16 +390,25 @@ def check_input(config, args):
     if config['task'] == 'create':
         if config['id_field'] not in csv_column_headers:
             message = 'Error: For "create" tasks, your CSV file must contain column containing a unique identifier.'
-            sys.exit(message)
             logging.error(message)
+            sys.exit(message)
         if 'file' not in csv_column_headers:
             message = 'Error: For "create" tasks, your CSV file must contain a "file" column.'
-            sys.exit(message)
             logging.error(message)
+            sys.exit(message)
         if 'title' not in csv_column_headers:
             message = 'Error: For "create" tasks, your CSV file must contain a "title" column.'
-            sys.exit(message)
             logging.error(message)
+            sys.exit(message)
+
+        # Specific to creating paged content. Current, if 'parent_id'
+        # is present in the CSV file, so must 'field_weight' and 'field_member_of'.
+        if 'parent_id' in csv_column_headers:
+            if ('field_weight' not in csv_column_headers or 'field_member_of' not in csv_column_headers):
+                message = 'Error: If your CSV file contains a "parent_id" column, it must also contain "field_weight" and "field_member_of" columns.'
+                logging.error(message)
+                sys.exit(message)
+
         field_definitions = get_field_definitions(config)
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
@@ -410,6 +419,8 @@ def check_input(config, args):
             csv_column_headers.remove('file')
         if 'node_id' in csv_column_headers:
             csv_column_headers.remove('node_id')
+        if 'parent_id' in csv_column_headers:
+            csv_column_headers.remove('parent_id')
         # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')

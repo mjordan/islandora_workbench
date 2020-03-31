@@ -83,6 +83,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
 * Whether either `media_type` or `media_types` is present in your configuration file.
 * Whether each row contains the same number of columns as there are column headers.
+* Whether the columns required to create paged content are present (see "Creating paged content" below).
 
 ## Creating nodes from the sample data
 
@@ -123,7 +124,7 @@ By defualt, if the `file` value for a row is empty, Workbench's `--check` option
 
 ### The CSV file
 
-Metadata that is to be added to new or existing nodes is contained in the CSV file. Field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character. Field values are either strings (for string or text fields), integers (for `field_weight`, for example), `1` or `0` for binary fields, or IDs (for taxonomy terms or collections).
+Metadata that is to be added to new or existing nodes is contained in the CSV file. As is standard with CSV data, field values do not need to be wrapped in double quotation marks (`"`), unless they contain an instance of the delimiter character (e.g., a comma). Field values are either strings (for string or text fields), integers (for `field_weight`, for example), `1` or `0` for binary fields, Drupal-generated IDs (term IDs taxonomy terms or node IDs for collections and parents), or structured strings (for typed relation and geolocation fields)
 
 Single-valued and multi-valued fields of the following types can be added:
 
@@ -248,6 +249,38 @@ The media type for a given file (for example, `image`, `file`, `document`, `audi
    Use this option if the files in your batch are not to be assigned the same media type. If a file's extension is not in one of the extension lists, the media is assigned the `file` type.
 
 If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
+
+## Creating paged content
+
+Workbench can create paged content. It does this by establishing parent/child relationships between items with `parent_id` values (the children) with that are the same as the `id` value of another item (the parent). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below). The `id` field is required in all CSV files useed to create content.
+
+The following example illustrates how this works. Here is the raw CSV data:
+
+```csv
+id,parent_id,field_weight,file,title,field_description,field_model,field_member_of
+001,,,,Postcard 1,The first postcard,28,197
+003,001,1,image456.jpg,Front of postcard 1,The first postcard's front,29,
+004,001,2,image389.jpg,Back of postcard 1,The first postcard's back,29,
+002,,,,Postcard 2,The second postcard,28,197
+006,002,1,image2828.jpg,Front of postcard 2,The second postcard's front,29,
+007,002,2,image777.jpg,Back of postcard 2,The second postcard's back,29,
+```
+The empty cells make this CSV difficult to read. Here is the same data in a spreadsheet:
+
+![Paged content CSV](docs/images/paged_csv.png)
+
+The data contains rows for two postcards (rows with `id` values "001" and "002") plus a back and front for each (the remaining four rows). The `parent_id` value for items with `id` values "003" and "004" is the same as the `id` value for item "001", which will tell Workbench to make both of those items children of item "001"; the `parent_id` value for items with `id` values "006" and "007" is the same as the `id` value for item "002", which will tell Workbench to make both of those items children of the item "002". We can't populate  `field_member_of` for the child pages in our CSV because we won't have node IDs for the parents until they are created as part of the same batch as the children.
+
+In this example, the rows for our postcard objects have empty `parent_id`, `field_weight`, and `file` columns because our postcards are not children of other nodes and don't have their own media. (However, the records for our postcard objects do have a value in `field_member_of`, which is the node ID of the "Postcards" collection that already/hypothetically exists.) Rows for the postcard front and back image objects have a value in their `field_weight` field, and they have values in their `file` column because we are creating objects that contain image media. Importantly, they have no value in their `field_member_of` field because the node ID of the parent isn't known when you create your CSV; instead, Islandora Workbench assigns each child's `field_member_of` dynamically, just after its parent node is created.
+
+Some important things to note:
+
+* `id` can be defined as another field name using the `id_field` configuration option. If you do define a different ID field using the `id_field` option, creating the parent/child relationships will still work.
+* The values of the `id` and `parent_id` columns do not have to follow any sequential pattern. Islandora Workbench treats them as simple strings and matches them on that basis, without looking for sequential relationships of any kind between the two fields.
+* The CSV records for children items don't need to come *immediately* after the record for their parent, but they do need to come after that record. This is because Workbench creates nodes in the order their records are in the CSV file (top to bottom). As long as the parent node has already been created when a child node is created, the parent/child relationship via the child's `field_member_of` will be correct.
+* Currently, you must include values in the children's `field_weight` column. It may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/84)).
+* Currently, Islandora model values (e.g. "Paged Content", "Page") are not automatically assigned. You must include the correct "Islandora Models" taxonomy term IDs in your `field_model` column for all parent and child records, as you would for any other Islandora objects you are creating. Like for `field_weight`, it may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/85)).
+
 
 ## Updating nodes
 
