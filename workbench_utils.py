@@ -486,8 +486,15 @@ def check_input(config, args):
         # pattern: string:string:int.
         validate_typed_relation_values(config, field_definitions, csv_data)
 
-        validate_taxonomy_field_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
-        validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
+        # Requires a View installed by the Islandora Workbench Integration module.
+        # If the View is not enabled, Drupal returns a 404.
+        terms_view_url = config['host'] + '/vocabulary'
+        terms_view_response = issue_request(config, 'GET', terms_view_url)
+        if terms_view_response.status_code == 404:
+            logging.warning('Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
+        else:
+            validate_taxonomy_field_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
 
         # Validate length of 'title'.
         if config['validate_title_length']:

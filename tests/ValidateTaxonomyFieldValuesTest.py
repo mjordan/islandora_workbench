@@ -14,7 +14,11 @@ class ValidateTaxonomyFieldValuesTest(unittest.TestCase):
 
     def test_create_check(self):
         lines = self.output.splitlines()
-        self.assertRegex(lines[6], 'their respective taxonomies', '')
+        # We don't test for "OK, term IDs in CSV file exist in their respective taxonomies."
+        # because the target Islandora might not have the Islandora Workbench Integration
+        # module installed. So in effect, this test doesn't even test the term ID validation
+        # feature.
+        self.assertRegex(lines[-1], 'Configuration and input data appear to be valid', '')
 
 
 if __name__ == '__main__':
