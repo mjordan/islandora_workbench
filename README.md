@@ -16,6 +16,8 @@ An accompanying project, [Islandora Workbench Desktop](https://github.com/mjorda
      * Field storage
         * For these two resources, set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
 
+If you want Workbench to validate the existence of taxonomy term IDs used in your CSV input file (very much advised), you need to install the [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module. If your Islandora does not have this module enabled, Workbench cannot validate your taxonomy term IDs.
+
 
 ## Installation
 
