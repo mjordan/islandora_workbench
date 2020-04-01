@@ -1,7 +1,4 @@
-field_local_identifier,parent_id,field_weight,file,title,field_model,field_member_of
-001,,,,Postcard 1,28,
-003,001,1,,Front of postcard 1,29,
-004,001,2,,Back of postcard 1,29,
-002,,,,Postcard 2,28,
-006,002,1,,Front of postcard 2,29,
-007,002,2,,Back of postcard 2,29,
+file,id,title,field_model,field_resource_type
+,001,Item 1,22,
+,002,Item 2,23,11|12
+,003,Item 3,25,10

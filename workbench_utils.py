@@ -739,7 +739,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 # Get the vocabularies linked from the current field (usually
                 # only one vocabulary)
                 vocabularies = field_definitions[column_name]['vocabularies']
-                all_tids_for_field = []                
+                all_tids_for_field = []
                 for vocabulary in vocabularies:
                     terms = get_term_pairs(config, vocabulary)
                     vocab_term_ids = list(terms.keys())
@@ -756,9 +756,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 tids_to_check = row[column_name].split(config['subdelimiter'])
                 for tid in tids_to_check:
                     if int(tid) not in fields_with_vocabularies[column_name]:
-                        message = 'Error: CSV field "' + column_name + '"" in row ' + str(count) + ' contains a term ID (' + tid + ') that is not in the referenced taxonomy.'
+                        message = 'Error: CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID (' + tid + ') that is not in the referenced taxonomy.'
                         logging.error(message)
                         sys.exit(message)
 
     # All term IDs are in their field's vocabularies.
-    print("Taxonomy term IDs in CSV validate.")
+    print("OK, term IDs in CSV file exist in their respective taxonomies.")
