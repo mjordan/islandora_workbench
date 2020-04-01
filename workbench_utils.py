@@ -715,7 +715,9 @@ def get_csv_data(input_dir, input_csv, delimiter):
 
 
 def get_term_pairs(config, vocab_id):
-    """Get all the term IDs plus associated term names in a vocabulary.
+    """Get all the term IDs plus associated term names in a vocabulary. If
+       the vocabulary does not exist, or is not registered with the view, the
+       request to Islandora returns a 200 plus an empty JSON list, i.e., [].
     """
     term_dict = dict()
     # Note: this URL requires a custom view be present on the target Islandora.
@@ -749,6 +751,10 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 all_tids_for_field = []
                 for vocabulary in vocabularies:
                     terms = get_term_pairs(config, vocabulary)
+                    if len(terms) == 0:
+                        message = 'Error: Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" either does not exist or contains no terms.'
+                        logging.error(message)
+                        sys.exit(message)
                     vocab_term_ids = list(terms.keys())
                     # If more than one vocab in this field, combine their
                     # term IDs into a single list.
