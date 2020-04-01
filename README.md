@@ -93,7 +93,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
 * Whether either `media_type` or `media_types` is present in your configuration file.
 * Whether each row contains the same number of columns as there are column headers.
-* Whether taxonomy term IDs (such as those used in `field_model`) exist in the referenced taxonomies. 
+* Whether taxonomy term IDs (such as those used in `field_model`) exist in the referenced taxonomies (but only if your Islandora has the [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled).
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
 
 ## Creating nodes from the sample data
