@@ -381,17 +381,17 @@ def check_input(config, args):
             if (row[field] is not None):
                 string_field_count += 1
         if len(csv_column_headers) > string_field_count:
-            sys.exit("Error: Row " + str(count) + " of your CSV file " +
-                     "does not have same number of columns (" + str(string_field_count) +
-                     ") as there are headers (" + str(len(csv_column_headers)) + ").")
             logging.error("Error: Row %s of your CSV file does not " +
                           "have same number of columns (%s) as there are headers " +
                           "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
-        if len(csv_column_headers) < string_field_count:
             sys.exit("Error: Row " + str(count) + " of your CSV file " +
-                     "has more columns than there are headers (" + str(len(csv_column_headers)) + ").")
+                     "does not have same number of columns (" + str(string_field_count) +
+                     ") as there are headers (" + str(len(csv_column_headers)) + ").")
+        if len(csv_column_headers) < string_field_count:
             logging.error("Error: Row %s of your CSV file has more columns than there are headers " +
                           "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
+            sys.exit("Error: Row " + str(count) + " of your CSV file " +
+                     "has more columns than there are headers (" + str(len(csv_column_headers)) + ").")
     print("OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
 
     # Task-specific CSV checks.
@@ -399,7 +399,7 @@ def check_input(config, args):
     if config['task'] == 'create':
         field_definitions = get_field_definitions(config)
         if config['id_field'] not in csv_column_headers:
-            message = 'Error: For "create" tasks, your CSV file must contain column containing a unique identifier.'
+            message = 'Error: For "create" tasks, your CSV file must have a column containing a unique identifier.'
             logging.error(message)
             sys.exit(message)
         if 'file' not in csv_column_headers:
@@ -438,8 +438,8 @@ def check_input(config, args):
             langcode_was_present = True
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
-                sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
                 logging.error("Error: CSV column header %s does not appear to match any Drupal field names.", csv_column_header)
+                sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
         print('OK, CSV column headers match Drupal field names.')
 
     # Check that Drupal fields that are required are in the CSV file (create task only).
@@ -468,16 +468,16 @@ def check_input(config, args):
             csv_column_headers.remove('title')
         if 'file' in csv_column_headers:
             message = 'Error: CSV column header "file" is not allowed in update tasks.'
-            sys.exit(message)
             logging.error(message)
+            sys.exit(message)
         if 'node_id' in csv_column_headers:
             csv_column_headers.remove('node_id')
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
-                sys.exit('Error: CSV column header "' + csv_column_header +
-                         '" does not appear to match any Drupal field names.')
                 logging.error('Error: CSV column header %s does not ' +
                               'appear to match any Drupal field names.', csv_column_header)
+                sys.exit('Error: CSV column header "' + csv_column_header +
+                         '" does not appear to match any Drupal field names.')
         print('OK, CSV column headers match Drupal field names.')
 
     if config['task'] == 'update' or config['task'] == 'create':
@@ -486,7 +486,8 @@ def check_input(config, args):
         # pattern: string:string:int.
         validate_typed_relation_values(config, field_definitions, csv_data)
 
-        validate_taxonomy_field_values(config, field_definitions, csv_data)
+        validate_taxonomy_field_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+        validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
 
         # Validate length of 'title'.
         if config['validate_title_length']:
@@ -494,8 +495,8 @@ def check_input(config, args):
             for count, row in enumerate(validate_title_csv_data, start=1):
                 if len(row['title']) > 255:
                     message = "Error: The 'title' column in row " + str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
-                    sys.exit(message)
                     logging.error(message)
+                    sys.exit(message)
 
         # Validate 'langcode' values if that field exists.
         if langcode_was_present:
@@ -504,8 +505,8 @@ def check_input(config, args):
                 langcode_valid = validate_language_code(row['langcode'])
                 if not langcode_valid:
                     message = "Error: Row " + str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
-                    sys.exit(message)
                     logging.error(message)
+                    sys.exit(message)
 
     if config['task'] == 'delete':
         if 'node_id' not in csv_column_headers:
@@ -692,7 +693,7 @@ def create_media(config, filename, node_uri):
     return media_response.status_code
 
 
-@lru_cache(maxsize=None)
+# @lru_cache(maxsize=None)
 def get_csv_data(input_dir, input_csv, delimiter):
     """Read the input CSV file once and cache its contents.
     """
@@ -725,25 +726,39 @@ def get_term_pairs(config, vocab_id):
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
     """Loop through all fields in field_definitions, and if a field
        is a taxonomy reference field, validate all values in the CSV
-       data for that field.
+       data in that field against term IDs in the taxonomies referenced
+       by the field.
     """
-    # linked_vocabularies = field_definitions['field_media_use']['vocabularies']
-    # terms = get_term_pairs(config, 'islandora_media_use')
-    # print(linked_vocabularies)
-    # print(config)
-    # print(field_definitions)
+    # Define a dictionary to store CSV field: term IDs mappings.
+    fields_with_vocabularies = dict()
+    # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
         if column_name in field_definitions:
-            # print(field_definitions[column_name])
             if 'vocabularies' in field_definitions[column_name]:
-                field_vocabularies = field_definitions[column_name]['vocabularies']
-                for field_vocabulary in field_vocabularies:
-                    terms = get_term_pairs(config, field_vocabulary)
-                    vocab_term_ids = terms.keys()
-                    print(vocab_term_ids)
-                    for count, row in enumerate(csv_data, start=1):
-                        print(row[column_name])
+                fields_with_vocabularies[column_name] = []
+                # Get the vocabularies linked from the current field (usually
+                # only one vocabulary)
+                vocabularies = field_definitions[column_name]['vocabularies']
+                all_tids_for_field = []                
+                for vocabulary in vocabularies:
+                    terms = get_term_pairs(config, vocabulary)
+                    vocab_term_ids = list(terms.keys())
+                    # If more than one vocab in this field, combine their
+                    # term IDs into a single list.
+                    all_tids_for_field = all_tids_for_field + vocab_term_ids
+                fields_with_vocabularies[column_name] = all_tids_for_field
 
+    # Iterate throught the CSV and validate each taxonomy fields's values.
+    for count, row in enumerate(csv_data, start=1):
+        for column_name in fields_with_vocabularies:
+            if len(row[column_name]):
+                # Allow for multiple values in one field.
+                tids_to_check = row[column_name].split(config['subdelimiter'])
+                for tid in tids_to_check:
+                    if int(tid) not in fields_with_vocabularies[column_name]:
+                        message = 'Error: CSV field "' + column_name + '"" in row ' + str(count) + ' contains a term ID (' + tid + ') that is not in the referenced taxonomy.'
+                        logging.error(message)
+                        sys.exit(message)
 
-
-    
+    # All term IDs are in their field's vocabularies.
+    print("Taxonomy term IDs in CSV validate.")

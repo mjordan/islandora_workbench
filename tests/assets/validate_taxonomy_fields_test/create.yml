@@ -1,0 +1,12 @@
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: tests/assets/validate_taxonomy_fields_test
+input_csv: metadata.csv
+media_use_tid: 17
+content_type: islandora_object
+drupal_filesystem: "fedora://"
+allow_missing_files: true
+media_type: image
+id_field: id
