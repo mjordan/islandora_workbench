@@ -388,7 +388,7 @@ Islandora Workbench writes a log file for all tasks to `workbench.log` in the wo
 
  The file will also contain empty columns corresponding to all of the fields in the target content type. An example, generated from a 2-record input CSV file, looks like this (only left-most part of the spreadsheet shown):
 
- ![Output CSV]((docs/images/output_csv.png))
+ ![Output CSV](docs/images/output_csv.png)
 
 ## Contributing
 
