@@ -2,7 +2,7 @@
 
 A command-line tool that allows creation, updating, and deletion of Islandora content. Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
 
-An accompanying project, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), adds a graphical user interface that will allow users who are not familiar or comfortable with the command link to use Workbench.
+A companion project, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), adds a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 
 ## Requirements
 
@@ -16,8 +16,7 @@ An accompanying project, [Islandora Workbench Desktop](https://github.com/mjorda
      * Field storage
         * For these two resources, set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
 
-If you want Workbench to validate the existence of taxonomy term IDs used in your CSV input file (very much advised), you need to install the [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module. If your Islandora does not have this module enabled, Workbench cannot validate your taxonomy term IDs.
-
+If you want Workbench to validate the existence of taxonomy term IDs used in your CSV input file (very much advised), you need to install the [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module.
 
 ## Installation
 
@@ -364,21 +363,11 @@ media_use_tid: 14
 drupal_filesystem: "fedora://"
 ```
 
-## Logging
-
-Islandora Workbench writes a log file for all tasks to `workbench.log` in the workbench directory, unless you specify an alternative log file location using the `log_file_path` configuration option, e.g.:
-
-`log_file_path: /tmp/mylogfilepath.log`
-
- By default, new entries are appended to this log, unless you indicate that the log file should be overwritten each time Workbench is run by providing the `log_file_mode` configuration option with a value of "w":
-
- `log_file_mode: w`
-
  ## The output CSV file
 
- Occasionally, you may want to create stub nodes that only contain basic fields, and then add values to the remaining fields later. To faciliate this type of workflow, Workbench provides an option to generate a simple CSV file containig a record for every newly created node. This file can then be used later in `update` tasks to add additional metadata or in `add_media` tasks to add media.
+ Occasionally, you may want to create stub nodes that only have a small subset of fields, and then populate the remaining fields later. To faciliate this type of workflow, Workbench provides an option to generate a simple CSV file containig a record for every newly created node. This file can then be used later in `update` tasks to add additional metadata or in `add_media` tasks to add media.
 
- If your `create` configuration file contains the optional `output_csv` setting, Workbench will write a CSV file at the specified location containing one record per node created. This CSV file contains the following fields:
+ You tell Workbench to generate this file by including the optional `output_csv` setting in your configuration file. If this setting is present, Workbench will write a CSV file at the specified location containing one record per node created. This CSV file contains the following fields:
 
  * `id` (or whatever column is specified in your `id_field` setting): the value in your input CSV file's ID field
  * `node_id`: the node ID for the newly created node
@@ -390,7 +379,17 @@ Islandora Workbench writes a log file for all tasks to `workbench.log` in the wo
 
  ![Output CSV](docs/images/output_csv.png)
 
- This file will be suitable as a template for subsequent `update` tasks, since it already contains the node IDs for all the stub nodes plus column headers for all of the fields in those nodes. You can remove any colums you do not want to include in your `update` task. You can also use the node IDs in this file as a template for later `add_media` tasks; all you will need to do is delete the other columns and add a `file` column containing the new nodes' corresponding filenames.
+This CSV file is suitable as a template for subsequent `update` tasks, since it already contains the `node_id`s for all the stub nodes plus column headers for all of the fields in those nodes. You can remove from the template any colums you do not want to include in your `update` task. You can also use the node IDs in this file as the basis for later `add_media` tasks; all you will need to do is delete the other columns and add a `file` column containing the new nodes' corresponding filenames.
+ 
+ ## Logging
+
+Islandora Workbench writes a log file for all tasks to `workbench.log` in the workbench directory, unless you specify an alternative log file location using the `log_file_path` configuration option, e.g.:
+
+`log_file_path: /tmp/mylogfilepath.log`
+
+ By default, new entries are appended to this log, unless you indicate that the log file should be overwritten each time Workbench is run by providing the `log_file_mode` configuration option with a value of "w":
+
+ `log_file_mode: w`
 
 ## Contributing
 
