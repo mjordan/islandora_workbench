@@ -62,6 +62,7 @@ The settings defined in a configuration file are:
 * `content_type` is the machine name of the Drupal node content type you are creating or updating.
 * `input_dir` is the full or relative path to the directory containing the files and metadata CSV file.
 * `input_csv` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
+* `output_csv` is the full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information.
 * `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
 * `media_type` (singular) specifies whether the media being created in the 'create' or 'add_media' task is an `image`, `file`, `document`, `audio`, or `video` (or other media type that exists in the target Islandora).
 * `media_types` (plural) provides a mapping bewteen file extensions and media types. Note: either `media_type` or `media_types` is required. More detail provided in the "Setting Media Types" section below.
@@ -372,6 +373,22 @@ Islandora Workbench writes a log file for all tasks to `workbench.log` in the wo
  By default, new entries are appended to this log, unless you indicate that the log file should be overwritten each time Workbench is run by providing the `log_file_mode` configuration option with a value of "w":
 
  `log_file_mode: w`
+
+ ## The output CSV file
+
+ Occasionally, you may want to create simple nodes that only contain basic fields, and then add content to empty fields later. To faciliate this type of workflow, Workbench provides an option to generate a simple CSV file containig records for every newly created node. This file can then be used later in `update` tasks to add additional metadata or in `add_media` tasks to add media.
+
+ If your configuration file contains the optional `output_csv` setting, Workbench will write a CSV file at the specified location containing one record per node created during a `create` task. This CSV file contains the following fields:
+
+ * `id` (or whatever column is specified in your `id_field` setting): the value in your input CSV file's ID field
+ * `node_id`: the node ID for the newly created node
+ * `uuid`: the new node's UUID
+ * `status`: True if the node is published, False if it is unpublished
+ * `title`: the node's title
+
+ The file will also contain empty columns corresponding to all of the fields in the target content type. An example, generated from a 2-record input CSV file, looks like this (only left-most part of the spreadsheet shown):
+
+ ![Output CSV]((docs/images/output_csv.png))
 
 ## Contributing
 
