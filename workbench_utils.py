@@ -296,7 +296,8 @@ def check_input(config, args):
     # keys are not validated.
     optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
-                            'validate_title_length', 'media_type', 'media_types', 'pause']
+                            'validate_title_length', 'media_type', 'media_types', 'pause',
+                            'output_csv']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -410,6 +411,10 @@ def check_input(config, args):
             message = 'Error: For "create" tasks, your CSV file must contain a "title" column.'
             logging.error(message)
             sys.exit(message)
+
+        if 'output_csv' in config.keys():
+            if os.path.exists(config['output_csv']):
+                print('Output CSV already exists at ' + config['output_csv'] + ', records will be appended to it.')
 
         # Specific to creating paged content. Current, if 'parent_id'
         # is present in the CSV file, so must 'field_weight' and 'field_member_of'.
@@ -775,3 +780,24 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 
     # All term IDs are in their field's vocabularies.
     print("OK, term IDs in CSV file exist in their respective taxonomies.")
+
+
+def write_to_output_csv(config, id, node_json):
+    """Appends a row to the CVS file located at config['output_csv'].
+    """
+    node_dict = json.loads(node_json)
+    node_field_names = list(node_dict.keys())
+    node_field_names.insert(0, config['id_field'])
+    # Don't need these Drupal fields.
+    fields_to_remove = ['vid', 'langcode', 'type', 'revision_timestamp',
+                        'revision_uid', 'revision_log', 'uid']
+    for field_to_remove in fields_to_remove:
+        node_field_names.remove(field_to_remove)
+    csvfile = open(config['output_csv'], 'a+')
+    writer = csv.DictWriter(csvfile, fieldnames=node_field_names)
+    writer.writeheader()
+    # Assemble the row to write.
+    row = dict()
+    row['node_id'] = node_dict
+    writer.writerow(row)
+    csvfile.close()
