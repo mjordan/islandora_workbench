@@ -376,9 +376,9 @@ Islandora Workbench writes a log file for all tasks to `workbench.log` in the wo
 
  ## The output CSV file
 
- Occasionally, you may want to create simple nodes that only contain basic fields, and then add content to empty fields later. To faciliate this type of workflow, Workbench provides an option to generate a simple CSV file containig records for every newly created node. This file can then be used later in `update` tasks to add additional metadata or in `add_media` tasks to add media.
+ Occasionally, you may want to create stub nodes that only contain basic fields, and then add values to the remaining fields later. To faciliate this type of workflow, Workbench provides an option to generate a simple CSV file containig a record for every newly created node. This file can then be used later in `update` tasks to add additional metadata or in `add_media` tasks to add media.
 
- If your configuration file contains the optional `output_csv` setting, Workbench will write a CSV file at the specified location containing one record per node created during a `create` task. This CSV file contains the following fields:
+ If your `create` configuration file contains the optional `output_csv` setting, Workbench will write a CSV file at the specified location containing one record per node created. This CSV file contains the following fields:
 
  * `id` (or whatever column is specified in your `id_field` setting): the value in your input CSV file's ID field
  * `node_id`: the node ID for the newly created node
@@ -389,6 +389,8 @@ Islandora Workbench writes a log file for all tasks to `workbench.log` in the wo
  The file will also contain empty columns corresponding to all of the fields in the target content type. An example, generated from a 2-record input CSV file, looks like this (only left-most part of the spreadsheet shown):
 
  ![Output CSV](docs/images/output_csv.png)
+
+ This file will be suitable as a template for subsequent `update` tasks, since it already contains the node IDs for all the stub nodes plus column headers for all of the fields in those nodes. You can remove any colums you do not want to include in your `update` task. You can also use the node IDs in this file as a template for later `add_media` tasks; all you will need to do is delete the other columns and add a `file` column containing the new nodes' corresponding filenames.
 
 ## Contributing
 
