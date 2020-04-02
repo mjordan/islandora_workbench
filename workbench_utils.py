@@ -149,7 +149,7 @@ def ping_node(config, nid):
     """Ping the node to see if it exists.
     """
     url = config['host'] + '/node/' + nid + '?_format=json'
-    response = issue_request(config, 'GET', url)
+    response = issue_request(config, 'HEAD', url)
     if response.status_code == 200:
         return True
     else:
@@ -509,6 +509,18 @@ def check_input(config, args):
                     message = "Error: The 'title' column in row " + str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
                     logging.error(message)
                     sys.exit(message)
+
+        # Validate existence of nodes specified in 'field_member_of'.
+        validate_field_member_of_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+        for count, row in enumerate(validate_field_member_of_csv_data, start=1):
+            if 'field_member_of' in csv_column_headers:
+                parent_nids = row['field_member_of'].split(config['subdelimiter'])
+                for parent_nid in parent_nids:
+                    parent_node_exists = ping_node(config, parent_nid)
+                    if parent_node_exists is False:
+                        message = "Error: The 'field_member_of field' in row " + str(count) + " of your CSV file contains a node ID that doesn't exist (" + parent_nid + ")"
+                        logging.error(message)
+                        sys.exit(message)
 
         # Validate 'langcode' values if that field exists.
         if langcode_was_present:
