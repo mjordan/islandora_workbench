@@ -262,12 +262,25 @@ def create():
                 media_type = set_media_type(file_path, config)
 
                 if node_response.status_code == 201 and len(row['file']) != 0:
-                    media_response_status_code = create_media(config, row['file'], node_uri)
-                    allowed_media_response_codes = [201, 204]
-                    if media_response_status_code in allowed_media_response_codes:
-                        print('+' + media_type.title() + " media for " +
-                              row['file'] + " created.")
-                        logging.info("%s media for %s created.", media_type.title(), row['file'])
+                    # If what is identified in the 'file' field is a file, add it.
+                    if os.path.isfile(row['file']):
+                        media_response_status_code = create_media(config, row['file'], node_uri)
+                        allowed_media_response_codes = [201, 204]
+                        if media_response_status_code in allowed_media_response_codes:
+                            print('+' + media_type.title() + " media for " +
+                                  row['file'] + " created.")
+                            logging.info("%s media for %s created.", media_type.title(), row['file'])
+                    else:
+                        # If what is identified in the 'file' field is a directory, create children
+                        # from the contents of the directory.
+                        media_response_status_code = create_children_from_directory(config, row['file'], node_nid)
+                        '''
+                        allowed_media_response_codes = [201, 204]
+                        if media_response_status_code in allowed_media_response_codes:
+                            print('+' + media_type.title() + " media for " +
+                                  row['file'] + " created.")
+                            logging.info("%s media for %s created.", media_type.title(), row['file'])
+                        '''                    
 
                 if node_response.status_code == 201 and len(row['file']) == 0:
                     print('+ No file specified in CSV for ' + row['title'])

@@ -11,10 +11,6 @@ A companion project, [Islandora Workbench Desktop](https://github.com/mjordan/is
    * The [Requests](https://2.python-requests.org/en/master/) library
 * An [Islandora 8](https://islandora.ca/) repository
    * The JSON:API module is not enabled by default. You must enable it manually.
-   * You must enable the following two REST Resources at `admin/config/services/rest`:
-     * Field
-     * Field storage
-        * For these two resources, set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
 
 If you want Workbench to validate the existence of taxonomy term IDs used in your CSV input file (very much advised), you need to install the [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module.
 

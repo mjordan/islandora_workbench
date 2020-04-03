@@ -4,6 +4,7 @@ import json
 import csv
 import time
 import re
+import glob
 import logging
 import datetime
 import requests
@@ -64,6 +65,8 @@ def set_config_defaults(args):
         config['allow_missing_files'] = False
     if 'validate_title_length' not in config:
         config['validate_title_length'] = True
+    if 'paged_content_from_directories' not in config:
+        config['paged_content_from_directories'] = False    
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -71,6 +74,8 @@ def set_config_defaults(args):
     if config['task'] == 'create':
         if 'published' not in config:
             config['published'] = True
+    if 'paged_content_sequence_seprator' not in config:
+        config['paged_content_sequence_seprator'] = '-'           
 
     if config['task'] == 'create':
         if 'preprocessors' in config_data:
@@ -297,7 +302,8 @@ def check_input(config, args):
     optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
                             'validate_title_length', 'media_type', 'media_types', 'pause',
-                            'output_csv']
+                            'output_csv', 'paged_content_from_directories',
+                            'paged_content_sequence_seprator']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -426,6 +432,12 @@ def check_input(config, args):
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
+
+        if len(drupal_fieldnames) == 0:
+            message = "Error: Can't retrieve field definitions from Drupal. Please confirm that the JSON:API module is enabled."
+            logging.error(message)
+            sys.exit(message)            
+
         # We .remove() CSV column headers for this check because they are not Drupal field names
         # (including 'langcode'). Any new columns introduced into the CSV need to be removed here.
         if config['id_field'] in csv_column_headers:
@@ -547,7 +559,7 @@ def check_input(config, args):
                      'contain a "file" column.')
 
     # Check for existence of files listed in the 'file' column.
-    if config['task'] == 'create' or config['task'] == 'add_media':
+    if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
         file_check_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
         if config['allow_missing_files'] is False:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
@@ -575,7 +587,29 @@ def check_input(config, args):
 
         # Check that either 'media_type' or 'media_types' are present in the config file.
         if ('media_type' not in config and 'media_types' not in config):
-            sys.exit('Error: You must configure media type using either the "media_type" or "media_types" option.')
+            message = 'Error: You must configure media type using either the "media_type" or "media_types" option.'
+            logging.error(message)
+            sys.exit(message)
+
+    if config['task'] == 'create' and config['paged_content_from_directories'] is True:
+        paged_content_from_directories_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+        for count, file_check_row in enumerate(paged_content_from_directories_csv_data, start=1):
+            dir_path = os.path.join(config['input_dir'], file_check_row[config['id_field']])
+            if not os.path.exists(dir_path) or os.path.isfile(dir_path):
+                message = 'Error: Page directory ' + dir_path + ' for CSV record with ID "' + file_check_row[config['id_field']] + '"" not found.'
+                logging.error(message)                
+                sys.exit(message)
+            page_files = os.listdir(dir_path)
+            if len(page_files) == 0:
+                print('Warning: Page directory ' + dir_path + ' is empty; is that intentional?')
+                logging.warning('Page directory ' + dir_path + ' is empty.')
+            for page_file_name in page_files:
+                if config['paged_content_sequence_seprator'] not in page_file_name:
+                    message = 'Error: Page file ' + os.path.join(dir_path, page_file_name) + ' does not contain a sequence separator (' + config['paged_content_sequence_seprator'] + ').'
+                    logging.error(message)
+                    sys.exit(message)
+
+        print('OK, page directories are all present.')                       
 
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
@@ -829,3 +863,9 @@ def write_to_output_csv(config, id, node_json):
     row['status'] = node_dict['status'][0]['value']
     writer.writerow(row)
     csvfile.close()
+
+
+def create_children_from_directory(config, directory_name, parent_node_id):
+    # These objects will have a title (derived from filename), an ID based on the parent's
+    # id, and a config-defined model. Content type and status are inherited as is from parent.
+    print("Found a child file in " + directory_name + " that would be a child of " + parent_node_id)
