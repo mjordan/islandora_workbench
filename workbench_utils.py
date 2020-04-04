@@ -854,7 +854,7 @@ def write_to_output_csv(config, id, node_json):
     if not first_line.startswith(config['id_field']):
         writer.writeheader()
 
-    # Assemble the row to write.
+    # Assemble the CSV record to write.
     row = dict()
     row[config['id_field']] = id
     row['node_id'] = node_dict['nid'][0]['value']
@@ -865,7 +865,72 @@ def write_to_output_csv(config, id, node_json):
     csvfile.close()
 
 
-def create_children_from_directory(config, directory_name, parent_node_id):
+def create_children_from_directory(config, parent_id, parent_node_id, parent_title):
     # These objects will have a title (derived from filename), an ID based on the parent's
-    # id, and a config-defined model. Content type and status are inherited as is from parent.
-    print("Found a child file in " + directory_name + " that would be a child of " + parent_node_id)
+    # id, and a config-defined Islandora model. Content type and status are inherited
+    # as is from parent. The weight assigned to the page is the last segment in the filename,
+    # split from the rest of the filename using the character defined in the
+    # 'paged_content_sequence_seprator' config option.
+    page_dir_path = os.path.join(config['input_dir'], parent_id)
+    page_files = os.listdir(page_dir_path)
+    page_file_return_dict = dict()
+    for page_file_name in page_files:
+        filename_without_extension = os.path.splitext(page_file_name)[0]
+        filename_segments = filename_without_extension.split(config['paged_content_sequence_seprator'])
+        weight = filename_segments[-1]
+        weight = weight.lstrip("0")
+        # @todo: come up with a templated way to generate the page_identifier,
+        # and what field to POST it to.
+        page_identifier = parent_id + '_' + filename_without_extension
+        page_title = parent_title + ', page ' + weight
+
+        # @todo: provide a config option for page content type.
+        node_json = {
+            'type': [
+                {'target_id': config['content_type'],
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': page_title}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_model': [
+                {'target_id': 29,
+                 'target_type': 'taxonomy_term'}
+            ],            
+            'field_member_of': [
+                {'target_id': parent_node_id,
+                 'target_type': 'node'}
+            ],
+            'field_weight': [
+                {'value': weight}
+            ]            
+        }
+
+        node_headers = {
+            'Content-Type': 'application/json'
+        }
+        node_endpoint = '/node?_format=json'
+        node_response = issue_request(config, 'POST', node_endpoint, node_headers, node_json, None)
+        if node_response.status_code == 201:
+            node_uri = node_response.headers['location']
+            print("+ Node for page '" + page_title + " created at " + node_uri + ".")
+            logging.info("Node for page %s created at %s.", page_title, node_uri)
+            if 'output_csv' in config.keys():
+                write_to_output_csv(config, page_identifier, node_response.text)
+        else:
+            logging.warning("Node for page %s not created, HTTP response code was %s.", page_identifier, node_response.status_code)
+
+'''
+        media_response_status_code = create_media(config, row['file'], node_uri)
+        allowed_media_response_codes = [201, 204]
+        if media_response_status_code in allowed_media_response_codes:
+            print('+' + media_type.title() + " media for " +
+                  row['file'] + " created.")
+            logging.info("%s media for %s created.", media_type.title(), row['file'])
+'''            
+
+    # Do we need to return anything?
+    # return page_file_return_dict
