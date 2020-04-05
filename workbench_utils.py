@@ -66,7 +66,7 @@ def set_config_defaults(args):
     if 'validate_title_length' not in config:
         config['validate_title_length'] = True
     if 'paged_content_from_directories' not in config:
-        config['paged_content_from_directories'] = False    
+        config['paged_content_from_directories'] = False
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -75,7 +75,7 @@ def set_config_defaults(args):
         if 'published' not in config:
             config['published'] = True
     if 'paged_content_sequence_seprator' not in config:
-        config['paged_content_sequence_seprator'] = '-'           
+        config['paged_content_sequence_seprator'] = '-'
 
     if config['task'] == 'create':
         if 'preprocessors' in config_data:
@@ -303,7 +303,8 @@ def check_input(config, args):
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
                             'validate_title_length', 'media_type', 'media_types', 'pause',
                             'output_csv', 'paged_content_from_directories',
-                            'paged_content_sequence_seprator']
+                            'paged_content_sequence_seprator', 'paged_content_page_model_tid',
+                            'paged_content_page_display_hints']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -409,7 +410,7 @@ def check_input(config, args):
             message = 'Error: For "create" tasks, your CSV file must have a column containing a unique identifier.'
             logging.error(message)
             sys.exit(message)
-        if 'file' not in csv_column_headers:
+        if 'file' not in csv_column_headers and config['paged_content_from_directories'] is False:
             message = 'Error: For "create" tasks, your CSV file must contain a "file" column.'
             logging.error(message)
             sys.exit(message)
@@ -436,7 +437,7 @@ def check_input(config, args):
         if len(drupal_fieldnames) == 0:
             message = "Error: Can't retrieve field definitions from Drupal. Please confirm that the JSON:API module is enabled."
             logging.error(message)
-            sys.exit(message)            
+            sys.exit(message)
 
         # We .remove() CSV column headers for this check because they are not Drupal field names
         # (including 'langcode'). Any new columns introduced into the CSV need to be removed here.
@@ -548,15 +549,12 @@ def check_input(config, args):
 
     if config['task'] == 'delete':
         if 'node_id' not in csv_column_headers:
-            sys.exit('Error: For "delete" tasks, your CSV file must ' +
-                     'contain a "node_id" column.')
+            sys.exit('Error: For "delete" tasks, your CSV file must contain a "node_id" column.')
     if config['task'] == 'add_media':
         if 'node_id' not in csv_column_headers:
-            sys.exit('Error: For "add_media" tasks, your CSV file must ' +
-                     'contain a "node_id" column.')
+            sys.exit('Error: For "add_media" tasks, your CSV file must contain a "node_id" column.')
         if 'file' not in csv_column_headers:
-            sys.exit('Error: For "add_media" tasks, your CSV file must ' +
-                     'contain a "file" column.')
+            sys.exit('Error: For "add_media" tasks, your CSV file must contain a "file" column.')
 
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
@@ -592,12 +590,15 @@ def check_input(config, args):
             sys.exit(message)
 
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
+        if 'paged_content_page_model_tid' not in config:
+            print('Error: If you are creating paged content, you must include "paged_content_page_model_tid" in your configuration.')
+            logging.error('Configuration requires "paged_content_page_model_tid" setting when creating paged content.')
         paged_content_from_directories_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
         for count, file_check_row in enumerate(paged_content_from_directories_csv_data, start=1):
             dir_path = os.path.join(config['input_dir'], file_check_row[config['id_field']])
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
                 message = 'Error: Page directory ' + dir_path + ' for CSV record with ID "' + file_check_row[config['id_field']] + '"" not found.'
-                logging.error(message)                
+                logging.error(message)
                 sys.exit(message)
             page_files = os.listdir(dir_path)
             if len(page_files) == 0:
@@ -609,7 +610,7 @@ def check_input(config, args):
                     logging.error(message)
                     sys.exit(message)
 
-        print('OK, page directories are all present.')                       
+        print('OK, page directories are all present.')
 
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
@@ -865,12 +866,13 @@ def write_to_output_csv(config, id, node_json):
     csvfile.close()
 
 
-def create_children_from_directory(config, parent_id, parent_node_id, parent_title):
+def create_children_from_directory(config, parent_csv_record, parent_node_id, parent_title):
     # These objects will have a title (derived from filename), an ID based on the parent's
     # id, and a config-defined Islandora model. Content type and status are inherited
     # as is from parent. The weight assigned to the page is the last segment in the filename,
     # split from the rest of the filename using the character defined in the
     # 'paged_content_sequence_seprator' config option.
+    parent_id = parent_csv_record[config['id_field']]
     page_dir_path = os.path.join(config['input_dir'], parent_id)
     page_files = os.listdir(page_dir_path)
     page_file_return_dict = dict()
@@ -897,16 +899,20 @@ def create_children_from_directory(config, parent_id, parent_node_id, parent_tit
                 {'value': 1}
             ],
             'field_model': [
-                {'target_id': 29,
+                {'target_id': config['paged_content_page_model_tid'],
                  'target_type': 'taxonomy_term'}
-            ],            
+            ],
             'field_member_of': [
                 {'target_id': parent_node_id,
                  'target_type': 'node'}
             ],
             'field_weight': [
                 {'value': weight}
-            ]            
+            ],
+            'field_display_hints': [
+                {'target_id': parent_csv_record['field_display_hints'],
+                 'target_type': 'taxonomy_term'}
+            ]
         }
 
         node_headers = {
@@ -916,21 +922,15 @@ def create_children_from_directory(config, parent_id, parent_node_id, parent_tit
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node_json, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
-            print("+ Node for page '" + page_title + " created at " + node_uri + ".")
-            logging.info("Node for page %s created at %s.", page_title, node_uri)
+            print('+ Node for page "' + page_title + '" created at ' + node_uri + '.')
+            logging.info('Node for page "%s" created at %s.', page_title, node_uri)
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, page_identifier, node_response.text)
         else:
-            logging.warning("Node for page %s not created, HTTP response code was %s.", page_identifier, node_response.status_code)
+            logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
 
-'''
-        media_response_status_code = create_media(config, row['file'], node_uri)
+        page_file_path = os.path.join(parent_id, page_file_name)
+        media_response_status_code = create_media(config, page_file_path, node_uri)
         allowed_media_response_codes = [201, 204]
         if media_response_status_code in allowed_media_response_codes:
-            print('+' + media_type.title() + " media for " +
-                  row['file'] + " created.")
-            logging.info("%s media for %s created.", media_type.title(), row['file'])
-'''            
-
-    # Do we need to return anything?
-    # return page_file_return_dict
+            logging.info("Media for %s created.", page_file_path)

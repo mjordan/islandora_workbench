@@ -234,8 +234,8 @@ def create():
                 node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
                 if node_response.status_code == 201:
                     node_uri = node_response.headers['location']
-                    print("Node for '" + row['title'] +
-                          "' (record " + id_field + ") created at " + node_uri + ".")
+                    print('Node for "' + row['title'] +
+                          '" (record ' + id_field + ') created at ' + node_uri + '.')
                     logging.info("Node for %s (record %s) created at %s.", row['title'], id_field, node_uri)
                     if 'output_csv' in config.keys():
                         write_to_output_csv(config, id_field, node_response.text)
@@ -251,7 +251,7 @@ def create():
 
                 # If there is no media file (and we're not creating paged content),
                 # move on to the next CSV row.
-                if len(row['file']) == 0 and config['paged_content_from_directories'] is False:
+                if 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                     print("+No media for " + node_uri + " created since " +
                           "its 'file' field in the CSV is empty.")
                     logging.warning("No media for %s created since its " +
@@ -259,12 +259,13 @@ def create():
                     continue
 
                 # If there is a media file, add it.
-                file_path = os.path.join(config['input_dir'], row['file'])
-                media_type = set_media_type(file_path, config)
+                if 'file' in row:
+                    file_path = os.path.join(config['input_dir'], row['file'])
+                    media_type = set_media_type(file_path, config)
 
                 if node_response.status_code == 201:
                     # If what is identified in the 'file' field is a file, create the media from it.
-                    if len(row['file']) != 0 and os.path.isfile(file_path):
+                    if 'file' in row and len(row['file']) != 0 and os.path.isfile(file_path):
                         media_response_status_code = create_media(config, row['file'], node_uri)
                         allowed_media_response_codes = [201, 204]
                         if media_response_status_code in allowed_media_response_codes:
@@ -272,13 +273,13 @@ def create():
                                   row['file'] + " created.")
                             logging.info("%s media for %s created.", media_type.title(), row['file'])
 
-                    if len(row['file']) == 0 and config['paged_content_from_directories'] is False:
+                    if 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                         print('+ No file specified in CSV for ' + row['title'])
                         logging.info("No file specified for %s, so no media created.", id_field)
 
                     if config['paged_content_from_directories'] is True:
                         # Create children from the contents of the directory.
-                        page_response_status_codes = create_children_from_directory(config, id_field, node_nid, row['title'])
+                        page_response_status_codes = create_children_from_directory(config, row, node_nid, row['title'])
                         '''
                         allowed_media_response_codes = [201, 204]
                         if media_response_status_code in allowed_media_response_codes:

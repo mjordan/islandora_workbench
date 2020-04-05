@@ -68,8 +68,10 @@ The settings defined in a configuration file are:
 * `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `True`; set to `False` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
 * `validate_title_length`: Whether or not to check if `title` values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to `True`. Set to `False` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
 * `pause` defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example `pause: 1.5`.
-* `paged_content_from_directories`: defaults to `false`
-* `paged_content_sequence_seprator`: defaults to hypen (`-`)
+* `paged_content_from_directories`: Defaults to `false`. Set to `true` if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information.
+* `paged_content_sequence_seprator`: The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. Defaults to hypen (`-`)
+* `paged_content_page_model_tid`: The the term ID from the Islandora Models taxonomy to assign to pages. Required if `paged_content_from_directories` is true.
+* `paged_content_page_display_hints`: The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the `field_display_hints` in the parent's record in the CSV file.
 
 All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
@@ -263,7 +265,48 @@ If both `media_type` and `media_types` are included in the config file, the mapp
 
 ## Creating paged content
 
-Workbench can create paged content. It does this by establishing parent/child relationships between items with `parent_id` values (the children) with that are the same as the `id` value of another item (the parent). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below). The `id` field is required in all CSV files useed to create content.
+Islandora Workbench provides two ways to create paged content. The first uses a specific directory structure to define the relationship between the parent item and the pages, and the second uses page-level metadata in the CSV to establish that relationship.
+
+### Without page-level metadata
+
+Enable this method by include `paged_content_from_directories: true` in your configuration file. Use this method when you are creating books, newspaper issues, or other paged content where your pages don't have their own metadata. This method groups page-level files into subdirectories that correspond to each parent, and does not require (or allow) page-level metadata in the CSV file. Each parent (book, newspaper issue, etc.) has a row on the CSV file, e.g.:
+
+```
+id,title,field_model,field_display_hints
+book1,How to Use Islandora Workbench like a Pro,28,2
+book2,Using Islandora Workbench for Fun and Profit,28,2
+```
+Each parent's pages are located in a subdirectory that is named to match the value of the `id` field of the parent item they correspond to:
+
+```
+samplebook/
+├── book1
+│   ├── page-001.jpg
+│   ├── page-002.jpg
+│   └── page-003.jpg
+├── book2
+│   ├── isbn-1843341778-001.jpg
+│   ├── using-islandora-workbench-page-002.jpg
+│   └── page-003.jpg
+└── metadata.csv
+```
+
+The page filenames have significance. The sequence of the page is determined by the last segment of each filename before the extension, and is separated from the rest of the filename by a dash (`-`), although you can use another character by setting the `paged_content_sequence_seprator` option in your configuration file. The rest of your filenames can contain dashes (or whatever your separator character is), since Workbench will always use the characters after the *last dash as the sequence number. Workbench takes this sequence number, strips of any leader zeros, and uses it to populate the `field_weight` in the page nodes.
+
+Important things to note when using this method:
+
+* You must include the following in your configuration file:
+   * `paged_content_sequence_seprator: true`
+   * `paged_content_page_model_tid` set to your Islandora's term ID for pages
+* The Islandora model of the parent is not set automatically. You need to include a `field_model` value for each item in your CSV file.  
+* You should also include a `field_display_hints` field in your CSV. This value is applied to the parent nodes and also the page nodes, unless the `paged_content_page_display_hints` setting is present in you configuration file.
+* The metadata CSV should not contain a `file` column (unlike every other Islandora Workbench configuration, which requires a `file` field in the CSV).
+
+
+
+### With page-level metadata
+
+Using this method, the metadata CSV file contains a row for each parent and all pages. You should use this method when you are creating books, newspaper issues, or other paged content where your page have their own metadata, or when you are created compound objects. The files for each page are named explicitly in the `file` column rather than being grouped into a subdirectory. To link the pages to the parent, Workbench establishes parent/child relationships between items with `parent_id` values (the pages/children) with that are the same as the `id` value of another item (the parent). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below). The `id` field is required in all CSV files useed to create content.
 
 The following example illustrates how this works. Here is the raw CSV data:
 
