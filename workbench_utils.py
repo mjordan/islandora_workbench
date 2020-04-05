@@ -375,7 +375,7 @@ def check_input(config, args):
     if os.path.exists(input_csv):
         print('OK, CSV file ' + input_csv + ' found.')
     else:
-        sys.exit('Error: CSV file ' + input_csv + 'not found.')
+        sys.exit('Error: CSV file ' + input_csv + ' not found.')
 
     # Check column headers in CSV file.
     csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])

@@ -1,0 +1,13 @@
+paged_content_from_directories: true
+paged_content_page_model_tid: 29
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: tests/assets/create_paged_content_from_directories_test/samplebooks
+input_csv: metadata.csv
+media_use_tid: 17
+content_type: islandora_object
+drupal_filesystem: "fedora://"
+id_field: id
+media_type: image

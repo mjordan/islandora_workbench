@@ -1,6 +1,6 @@
 # Islandora Workbench
 
-A command-line tool that allows creation, updating, and deletion of Islandora content. Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
+A command-line tool that allows creation, updating, and deletion of Islandora content. Islandora Workbench is an alternative to using Drupal's built-in [Migrate tools](https://github.com/Islandora/migrate_islandora_csv) for ingesting content from CSV files. Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
 
 A companion project, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), adds a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 
@@ -263,7 +263,7 @@ The media type for a given file (for example, `image`, `file`, `document`, `audi
 
 If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
 
-## Creating paged content
+## Creating paged and compound content
 
 Islandora Workbench provides two ways to create paged content. The first uses a specific directory structure to define the relationship between the parent item and the pages, and the second uses page-level metadata in the CSV to establish that relationship.
 
@@ -293,20 +293,22 @@ samplebook/
 
 The page filenames have significance. The sequence of the page is determined by the last segment of each filename before the extension, and is separated from the rest of the filename by a dash (`-`), although you can use another character by setting the `paged_content_sequence_seprator` option in your configuration file. For example, using the filenames for "book1" above, the sequence of "page-001.jpg" is "001". The rest of your filenames can contain dashes (or whatever your separator character is), since Workbench will always use the characters after the *last dash as the sequence number; for example, the sequence of "isbn-1843341778-001.jpg" for "book2" is also "001". Workbench takes this sequence number, strips of any leader zeros, and uses it to populate the `field_weight` in the page nodes, so "001" becomes a weight value of 1, "002" becomes a weight value of 2, and so on.
 
+Titles for pages are generated automatically using the patter `parent_title` + `, page` + `sequence_number`, where "parent title" is inherited from the page's parent node and "sequence number" is the page's sequence. For example, if a page's parent has a title "How to Write a Book" and its sequence number is 450, its automatically generated title will be "How to Write a Book, page 450".
+
 Important things to note when using this method:
 
 * To use this method of creating paged content, you must include the following in your configuration file:
    * `paged_content_sequence_seprator: true`
    * `paged_content_page_model_tid` set to your Islandora's term ID for pages
-* The Islandora model of the parent is not set automatically. You need to include a `field_model` value for each item in your CSV file.  
+* The Islandora model of the parent is not set automatically. You need to include a `field_model` value for each item in your CSV file.
 * You should also include a `field_display_hints` column in your CSV. This value is applied to the parent nodes and also the page nodes, unless the `paged_content_page_display_hints` setting is present in you configuration file. However, if you normally don't set the "Display hints" field in your objects but use a Context to determine how objects display, you should not include a `field_display_hints` column in your CSV file.
 * The metadata CSV should not contain a `file` column (unlike every other Islandora Workbench configuration, which requires a `file` field in the CSV).
-
-
+* `id` can be defined as another field name using the `id_field` configuration option. If you do define a different ID field using the `id_field` option, creating the parent/paged item relationships will still work.
+* Even though minimal metadata is assigned to pages using this method (automatically generated title and Islandora model only), you can add additional metadata using an `update` task.
 
 ### With page-level metadata
 
-Using this method, the metadata CSV file contains a row for each parent and all child pages. You should use this method when you are creating books, newspaper issues, or other paged content where each page has its own metadata, or when you are created compound objects of any Islandora model. The files for each page are named explicitly in the `file` column rather than being grouped into a subdirectory. To link the pages to the parent, Workbench establishes parent/child relationships between items with `parent_id` values (the pages/children) with that are the same as the `id` value of another item (the parent). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below). The `id` field is required in all CSV files useed to create content.
+Using this method, the metadata CSV file contains a row for each parent and all child items. You should use this method when you are creating books, newspaper issues, or other paged content where each page has its own metadata, or when you are created compound objects of any Islandora model. The files for each page are named explicitly in the `file` column rather than being grouped into a subdirectory. To link the pages to the parent, Workbench establishes parent/child relationships between items with `parent_id` values (the pages/children) with that are the same as the `id` value of another item (the parent). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below). The `id` field is required in all CSV files useed to create content.
 
 The following example illustrates how this works. Here is the raw CSV data:
 
