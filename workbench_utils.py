@@ -66,18 +66,14 @@ def set_config_defaults(args):
     if 'validate_title_length' not in config:
         config['validate_title_length'] = True
     if 'paged_content_from_directories' not in config:
-        config['paged_content_from_directories'] = False
-    if 'paged_content_page_content_type' not in config:
-        config['paged_content_page_content_type'] = config['content_type']
+        config['paged_content_from_directories'] = False        
 
     if config['task'] == 'create':
         if 'id_field' not in config:
             config['id_field'] = 'id'
     if config['task'] == 'create':
         if 'published' not in config:
-            config['published'] = True
-    if 'paged_content_sequence_seprator' not in config:
-        config['paged_content_sequence_seprator'] = '-'
+            config['published'] = 1
 
     if config['task'] == 'create':
         if 'preprocessors' in config_data:
@@ -85,6 +81,12 @@ def set_config_defaults(args):
             for preprocessor in config_data['preprocessors']:
                 for key, value in preprocessor.items():
                     config['preprocessors'][key] = value
+
+    if config['task'] == 'create':               
+        if 'paged_content_sequence_seprator' not in config:
+            config['paged_content_sequence_seprator'] = '-'            
+        if 'paged_content_page_content_type' not in config:
+            config['paged_content_page_content_type'] = config['content_type']                  
 
     if args.check:
         config['check'] = True
@@ -533,11 +535,12 @@ def check_input(config, args):
             if 'field_member_of' in csv_column_headers:
                 parent_nids = row['field_member_of'].split(config['subdelimiter'])
                 for parent_nid in parent_nids:
-                    parent_node_exists = ping_node(config, parent_nid)
-                    if parent_node_exists is False:
-                        message = "Error: The 'field_member_of field' in row " + str(count) + " of your CSV file contains a node ID that doesn't exist (" + parent_nid + ")"
-                        logging.error(message)
-                        sys.exit(message)
+                    if len(parent_nid) > 0:
+                        parent_node_exists = ping_node(config, parent_nid)
+                        if parent_node_exists is False:
+                            message = "Error: The 'field_member_of field' in row " + str(count) + " of your CSV file contains a node ID that doesn't exist (" + parent_nid + ")"
+                            logging.error(message)
+                            sys.exit(message)
 
         # Validate 'langcode' values if that field exists.
         if langcode_was_present:
@@ -898,7 +901,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
                 {'value': page_title}
             ],
             'status': [
-                {'value': 1}
+                {'value': config['published']}
             ],
             'field_model': [
                 {'target_id': config['paged_content_page_model_tid'],

@@ -27,7 +27,7 @@ class CreatePagedContentFromDirectoriesTest (unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
         self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatepagedcontentfromdirectoriestestnids.txt')
 
-    def test_create_paged_content(self):
+    def test_create_paged_content_from_directories(self):
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
