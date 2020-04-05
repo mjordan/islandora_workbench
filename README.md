@@ -69,10 +69,10 @@ The settings defined in a configuration file are:
 * `validate_title_length`: Whether or not to check if `title` values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to `True`. Set to `False` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
 * `pause` defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example `pause: 1.5`.
 * `paged_content_from_directories`: Defaults to `false`. Set to `true` if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information.
-* `paged_content_sequence_seprator`: The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. Defaults to hypen (`-`)
-* `paged_content_page_model_tid`: The the term ID from the Islandora Models taxonomy to assign to pages. Required if `paged_content_from_directories` is true.
-* `paged_content_page_display_hints`: The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the `field_display_hints` in the parent's record in the CSV file.
-* `paged_content_page_content_type`: Set to the machine name of the Drupal node content type for pages created using the "Without page-level metadata" if it is different than the content_type value of the parents (which is specified in the `content_type` setting). See the section "Creating paged content" below for more information.
+* `paged_content_sequence_seprator`: The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. Defaults to hypen (`-`). See the section "Creating paged content" below for more information.
+* `paged_content_page_model_tid`: The the term ID from the Islandora Models taxonomy to assign to pages. Required if `paged_content_from_directories` is true. See the section "Creating paged content" below for more information.
+* `paged_content_page_display_hints`: The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the `field_display_hints` in the parent's record in the CSV file. See the section "Creating paged content" below for more information.
+* `paged_content_page_content_type`: Set to the machine name of the Drupal node content type for pages created using the "Without page-level metadata" method if it is different than the content type of the parents (which is specified in the `content_type` setting). See the section "Creating paged content" below for more information.
 
 All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
@@ -296,7 +296,7 @@ The page filenames have significance. The sequence of the page is determined by 
 
 Titles for pages are generated automatically using the pattern `parent_title` + `, page` + `sequence_number`, where "parent title" is inherited from the page's parent node and "sequence number" is the page's sequence. For example, if a page's parent has the title "How to Write a Book" and its sequence number is 450, its automatically generated title will be "How to Write a Book, page 450".
 
-Finally, even though minimal metadata is assigned to pages using this method (i.e., only the automatically generated title and Islandora model), you can add additional metadata using an `update` task.
+Finally, even though only minimal metadata is assigned to pages using this method (i.e., the automatically generated title and Islandora model), you can add additional metadata to pages using a separate `update` task.
 
 Important things to note when using this method:
 
