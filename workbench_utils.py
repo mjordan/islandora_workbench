@@ -67,6 +67,8 @@ def set_config_defaults(args):
         config['validate_title_length'] = True
     if 'paged_content_from_directories' not in config:
         config['paged_content_from_directories'] = False
+    if 'paged_content_page_content_type' not in config:
+        config['paged_content_page_content_type'] = config['content_type']
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -304,7 +306,7 @@ def check_input(config, args):
                             'validate_title_length', 'media_type', 'media_types', 'pause',
                             'output_csv', 'paged_content_from_directories',
                             'paged_content_sequence_seprator', 'paged_content_page_model_tid',
-                            'paged_content_page_display_hints']
+                            'paged_content_page_display_hints', 'paged_content_page_content_type']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -889,7 +891,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
         # @todo: provide a config option for page content type.
         node_json = {
             'type': [
-                {'target_id': config['content_type'],
+                {'target_id': config['paged_content_page_content_type'],
                  'target_type': 'node_type'}
             ],
             'title': [
