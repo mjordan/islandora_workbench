@@ -1,8 +1,8 @@
 # Islandora Workbench
 
-A command-line tool that allows creation, updating, and deletion of Islandora content. Islandora Workbench is an alternative to using Drupal's built-in [Migrate tools](https://github.com/Islandora/migrate_islandora_csv) for ingesting content from CSV files. Islandora Workbench communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
+A command-line tool that allows creation, updating, and deletion of Islandora content. Islandora Workbench is an alternative to using Drupal's built-in Migrate tools for [ingesting Islandora content from CSV files](https://github.com/Islandora/migrate_islandora_csv). It communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
 
-A companion project, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), adds a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
+A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), adds a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 
 ## Requirements
 
@@ -65,8 +65,8 @@ The settings defined in a configuration file are:
 * `allow_missing_files` determines if empty`file` values are allowed. If set to `true`, empty `file` values are allowed and will result in nodes without attached media. Defaults to `false` (which means all `file` values must contain the name of a file that exists in the `input_data` directory).
 * `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 * `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
-* `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `True`; set to `False` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
-* `validate_title_length`: Whether or not to check if `title` values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to `True`. Set to `False` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
+* `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `true`; set to `false` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
+* `validate_title_length`: Whether or not to check if `title` values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to `true`. Set to `false` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
 * `pause` defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example `pause: 1.5`.
 * `paged_content_from_directories`: Defaults to `false`. Set to `true` if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information.
 * `paged_content_sequence_seprator`: The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. Defaults to hypen (`-`). See the section "Creating paged content" below for more information.
@@ -89,15 +89,19 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether your CSV file contains required columns headers, including the field defined as the unique ID for each record (defaults to "id" if the `id_field` key is not in your config file)
 * Whether your CSV column headers correspond to existing Drupal field machine names.
 * Whether all Drupal fields that are configured to be required are present in the CSV file.
-* Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: True` is present in your config file for "create" tasks).
+* Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: true` is present in your config file for "create" tasks).
 * If the `langcode` field is present in your CSV, whether values in it are valid Drupal language codes.
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
 * Whether either `media_type` or `media_types` is present in your configuration file.
 * Whether each row contains the same number of columns as there are column headers.
-* Whether taxonomy term IDs (such as those used in `field_model`) exist in the referenced taxonomies (but only if your Islandora has the [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled).
 * Whether the nodes refrenced in `field_member_of` (if that field is present in the CSV) exist.
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
-* If using the pages from directories configuration, that page filenames contain sequence separator and warning if page directories are empty [mj: maybe provide an 'allow empty page directories' option?]
+* Whether your Islandora has the [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled.
+   * If not, Workbench will recommend that you enable it.
+   * If so, Workbench will validate whether taxonomy term IDs (such as those used in `field_model`) exist in each taxonomy field's the referenced taxonomies
+* If using the pages from directories configuration:
+   * Whether page filenames contain an occurance of the sequence separator.
+   * Whether any page directories are empty.
 
 ## Creating nodes from the sample data
 
@@ -134,7 +138,7 @@ your_folder/
 
 The names of the image/PDF/video/etc. files can take any form you want since they are included in the `file` column of the CSV file. Files of any extension are allowed.
 
-By defualt, if the `file` value for a row is empty, Workbench's `--check` option will show an error. But, in some cases you may want to create a node but not add any media. If you add `allow_missing_files: True` to your config file for "create" tasks, you can leave the `file` cell in your CSV for that item empty.
+By defualt, if the `file` value for a row is empty, Workbench's `--check` option will show an error. But, in some cases you may want to create a node but not add any media. If you add `allow_missing_files: true` to your config file for "create" tasks, you can leave the `file` cell in your CSV for that item empty.
 
 ### The CSV file
 
@@ -420,7 +424,7 @@ drupal_filesystem: "fedora://"
  * `id` (or whatever column is specified in your `id_field` setting): the value in your input CSV file's ID field
  * `node_id`: the node ID for the newly created node
  * `uuid`: the new node's UUID
- * `status`: True if the node is published, False if it is unpublished
+ * `status`: true if the node is published, False if it is unpublished
  * `title`: the node's title
 
  The file will also contain empty columns corresponding to all of the fields in the target content type. An example, generated from a 2-record input CSV file, looks like this (only left-most part of the spreadsheet shown):
