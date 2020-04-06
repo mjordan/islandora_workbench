@@ -5,6 +5,7 @@ password: islandora
 input_dir: "tests/assets/createtest"
 input_csv: metadata.csv
 media_use_tid: 16
+media_type: image
 content_type: islandora_object
 drupal_filesystem: "fedora://"
 allow_missing_files: True

@@ -16,34 +16,15 @@ from functools import lru_cache
 yaml = YAML()
 
 
-def set_media_type(filepath, config):
-    """Using configuration options, determine which media type to use.
-       Options are either a single media type or a set of mappings from
-       file extenstion to media type.
-    """
-    if 'media_type' in config:
-        return config['media_type']
-
-    extension_with_dot = os.path.splitext(filepath)[1]
-    extension = extension_with_dot[1:]
-    normalized_extension = extension.lower()
-    for types in config['media_types']:
-        for type, extensions in types.items():
-            if normalized_extension in extensions:
-                return type
-
-    # If extension isn't in one of the lists, default to 'file'.
-    return 'file'
-
-
 def set_config_defaults(args):
     """Convert the YAML configuration data into an array for easy use.
        Also set some sensible defaults config values.
     """
-
     # Check existence of configuration file.
     if not os.path.exists(args.config):
-        sys.exit('Error: Configuration file ' + args.config + 'not found.')
+        message = 'Error: Configuration file ' + args.config + 'not found.'
+        logging.error(message)
+        sys.exit(message)
 
     config_file_contents = open(args.config).read()
     config_data = yaml.load(config_file_contents)
@@ -66,7 +47,7 @@ def set_config_defaults(args):
     if 'validate_title_length' not in config:
         config['validate_title_length'] = True
     if 'paged_content_from_directories' not in config:
-        config['paged_content_from_directories'] = False        
+        config['paged_content_from_directories'] = False
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -82,11 +63,11 @@ def set_config_defaults(args):
                 for key, value in preprocessor.items():
                     config['preprocessors'][key] = value
 
-    if config['task'] == 'create':               
+    if config['task'] == 'create':
         if 'paged_content_sequence_seprator' not in config:
-            config['paged_content_sequence_seprator'] = '-'            
+            config['paged_content_sequence_seprator'] = '-'
         if 'paged_content_page_content_type' not in config:
-            config['paged_content_page_content_type'] = config['content_type']                  
+            config['paged_content_page_content_type'] = config['content_type']
 
     if args.check:
         config['check'] = True
@@ -94,6 +75,26 @@ def set_config_defaults(args):
         config['check'] = False
 
     return config
+
+
+def set_media_type(filepath, config):
+    """Using configuration options, determine which media type to use.
+       Options are either a single media type or a set of mappings from
+       file extenstion to media type.
+    """
+    if 'media_type' in config:
+        return config['media_type']
+
+    extension_with_dot = os.path.splitext(filepath)[1]
+    extension = extension_with_dot[1:]
+    normalized_extension = extension.lower()
+    for types in config['media_types']:
+        for type, extensions in types.items():
+            if normalized_extension in extensions:
+                return type
+
+    # If extension isn't in one of the lists, default to 'file'.
+    return 'file'
 
 
 def issue_request(config, method, path, headers='', json='', data='', query={}):
@@ -295,7 +296,9 @@ def check_input(config, args):
     tasks = ['create', 'update', 'delete', 'add_media']
     joiner = ', '
     if config['task'] not in tasks:
-        sys.exit('Error: "task" in your configuration file must be one of "create", "update", "delete", "add_media".')
+        message = 'Error: "task" in your configuration file must be one of "create", "update", "delete", "add_media".'
+        logging.error(message)
+        sys.exit(message)
 
     config_keys = list(config.keys())
     config_keys.remove('check')
@@ -320,27 +323,31 @@ def check_input(config, args):
                           'input_dir', 'input_csv', 'media_use_tid',
                           'drupal_filesystem', 'id_field']
         if not set(config_keys) == set(create_options):
-            sys.exit('Error: Please check your config file for required ' +
-                     'values: ' + joiner.join(create_options))
+            message = 'Error: Please check your config file for required values: ' + joiner.join(create_options)
+            logging.error(message)
+            sys.exit(message)
     if config['task'] == 'update':
         update_options = ['task', 'host', 'username', 'password',
                           'content_type', 'input_dir', 'input_csv']
         if not set(config_keys) == set(update_options):
-            sys.exit('Error: Please check your config file for required ' +
-                     'values: ' + joiner.join(update_options))
+            message = 'Error: Please check your config file for required values: ' + joiner.join(update_options)
+            logging.error(message)
+            sys.exit(message)
     if config['task'] == 'delete':
         delete_options = ['task', 'host', 'username', 'password',
                           'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_options):
-            sys.exit('Error: Please check your config file for required ' +
-                     'values: ' + joiner.join(delete_options))
+            message = 'Error: Please check your config file for required values: ' + joiner.join(delete_options)
+            logging.error(message)
+            sys.exit(message)
     if config['task'] == 'add_media':
         add_media_options = ['task', 'host', 'username', 'password',
                              'input_dir', 'input_csv', 'media_use_tid',
                              'drupal_filesystem']
         if not set(config_keys) == set(add_media_options):
-            sys.exit('Error: Please check your config file for required ' +
-                     'values: ' + joiner.join(add_media_options))
+            message = 'Error: Please check your config file for required values: ' + joiner.join(add_media_options)
+            logging.error(message)
+            sys.exit(message)
     print('OK, configuration file has all required values (did not check ' +
           'for optional values).')
 
@@ -368,8 +375,9 @@ def check_input(config, args):
     if response.status_code == 200:
         field_config = json.loads(response.text)
         if field_config['data'] == []:
-            sys.exit('Error: ' + config['host'] + ' does not recognize the ' +
-                     'username/password combination you have provided.')
+            message = 'Error: ' + config['host'] + ' does not recognize the username/password combination you have provided.'
+            logging.error(message)
+            sys.exit(message)
         else:
             print('OK, ' + config['host'] + ' is accessible using the ' +
                   'credentials provided.')
@@ -379,7 +387,9 @@ def check_input(config, args):
     if os.path.exists(input_csv):
         print('OK, CSV file ' + input_csv + ' found.')
     else:
-        sys.exit('Error: CSV file ' + input_csv + ' not found.')
+        message = 'Error: CSV file ' + input_csv + ' not found.'
+        logging.error(message)
+        sys.exit(message)
 
     # Check column headers in CSV file.
     csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
@@ -474,14 +484,15 @@ def check_input(config, args):
                     required_drupal_fields.append(drupal_fieldname)
         for required_drupal_field in required_drupal_fields:
             if required_drupal_field not in csv_column_headers:
-                sys.exit('Error: Required Drupal field "' + required_drupal_field + '" is not present in the CSV file.')
                 logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
+                sys.exit('Error: Required Drupal field "' + required_drupal_field + '" is not present in the CSV file.')
         print('OK, required Drupal fields are present in the CSV file.')
 
     if config['task'] == 'update':
         if 'node_id' not in csv_column_headers:
-            sys.exit('Error: For "update" tasks, your CSV file must ' +
-                     'contain a "node_id" column.')
+            message = 'Error: For "update" tasks, your CSV file must contain a "node_id" column.'
+            logging.error(message)
+            sys.exit(message)
         field_definitions = get_field_definitions(config)
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
@@ -496,10 +507,8 @@ def check_input(config, args):
             csv_column_headers.remove('node_id')
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
-                logging.error('Error: CSV column header %s does not ' +
-                              'appear to match any Drupal field names.', csv_column_header)
-                sys.exit('Error: CSV column header "' + csv_column_header +
-                         '" does not appear to match any Drupal field names.')
+                logging.error('Error: CSV column header %s does not appear to match any Drupal field names.', csv_column_header)
+                sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
         print('OK, CSV column headers match Drupal field names.')
 
     if config['task'] == 'update' or config['task'] == 'create':
@@ -514,6 +523,7 @@ def check_input(config, args):
         terms_view_response = issue_request(config, 'GET', terms_view_url)
         if terms_view_response.status_code == 404:
             logging.warning('Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
+            print('Warning: Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
         else:
             validate_taxonomy_field_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
             validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
@@ -554,12 +564,18 @@ def check_input(config, args):
 
     if config['task'] == 'delete':
         if 'node_id' not in csv_column_headers:
-            sys.exit('Error: For "delete" tasks, your CSV file must contain a "node_id" column.')
+            message = 'Error: For "delete" tasks, your CSV file must contain a "node_id" column.'
+            logging.error(message)
+            sys.exit(message)
     if config['task'] == 'add_media':
         if 'node_id' not in csv_column_headers:
-            sys.exit('Error: For "add_media" tasks, your CSV file must contain a "node_id" column.')
+            message = 'Error: For "add_media" tasks, your CSV file must contain a "node_id" column.'
+            logging.error(message)
+            sys.exit(message)
         if 'file' not in csv_column_headers:
-            sys.exit('Error: For "add_media" tasks, your CSV file must contain a "file" column.')
+            message = 'Error: For "add_media" tasks, your CSV file must contain a "file" column.'
+            logging.error(message)
+            sys.exit(message)
 
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
@@ -567,11 +583,14 @@ def check_input(config, args):
         if config['allow_missing_files'] is False:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
-                    sys.exit('Error: Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.')
+                    message = 'Error: Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
+                    logging.error(message)
+                    sys.exit(message)
                 file_path = os.path.join(config['input_dir'], file_check_row['file'])
                 if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                    sys.exit('Error: File ' + file_path + ' identified in CSV "file" column for record ' +
-                             'with ID field value ' + file_check_row[config['id_field']] + ' not found.')
+                    message = 'Error: File ' + file_path + ' identified in CSV "file" column for record with ID field value ' + file_check_row[config['id_field']] + ' not found.'
+                    logging.error(message)
+                    sys.exit(message)
             print('OK, files named in the CSV "file" column are all present.')
         empty_file_values_exist = False
         if config['allow_missing_files'] is True:
@@ -581,7 +600,9 @@ def check_input(config, args):
                 else:
                     file_path = os.path.join(config['input_dir'], file_check_row['file'])
                     if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                        sys.exit('Error: File ' + file_path + ' identified in CSV "file" column not found.')
+                        message = 'Error: File ' + file_path + ' identified in CSV "file" column not found.'
+                        logging.error(message)
+                        sys.exit(message)
             if empty_file_values_exist is True:
                 ok_message = 'OK, files named in the CSV "file" column are all present; the "allow_missing_files" option is enabled and empty "file" values exist.'
             else:
@@ -765,7 +786,9 @@ def get_csv_data(input_dir, input_csv, delimiter):
     """
     input_csv_path = os.path.join(input_dir, input_csv)
     if not os.path.exists(input_csv_path):
-        sys.exit('Error: CSV file ' + input_csv_path + 'not found.')
+        messsage = 'Error: CSV file ' + input_csv_path + 'not found.'
+        logging.error(message)
+        sys.exit(message)
     csv_file_handle = open(input_csv_path, 'r')
     csv_data = csv.DictReader(csv_file_handle, delimiter=delimiter)
     # Yes, we leave the file open because Python.
