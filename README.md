@@ -68,7 +68,7 @@ The settings defined in a configuration file are:
 * `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `true`; set to `false` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
 * `validate_title_length`: Whether or not to check if `title` values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to `true`. Set to `false` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
 * `pause` defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example `pause: 1.5`.
-* `delete_media_with_nodes`: set to `false` to *not* automatically delete all of a node's media when the node is deleted using a `delete` task. Defaults to `true` (in other words, delete the media with the node).
+* `delete_media_with_nodes`: When a node is deleted using a `delete` task, by default, all if its media are automatically deleted. Set this option to `false` to *not* delete all of a node's media (you do not generally want to keep the media without the node).
 * `paged_content_from_directories`: Defaults to `false`. Set to `true` if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information.
 * `paged_content_sequence_seprator`: The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. Defaults to hypen (`-`). See the section "Creating paged content" below for more information.
 * `paged_content_page_model_tid`: The the term ID from the Islandora Models taxonomy to assign to pages. Required if `paged_content_from_directories` is true. See the section "Creating paged content" below for more information.
@@ -394,7 +394,7 @@ input_dir: input_data
 input_csv: delete.csv
 ```
 
-Note that when you delete nodes using this method, all media associated with the node are also deleted, unless the `delete_media_with_nodes` configuration option is set to `false` (it defaults to `true`):
+Note that when you delete nodes using this method, all media associated with the nodes are also deleted, unless the `delete_media_with_nodes` configuration option is set to `false` (it defaults to `true`). Typical output produced by a `delete` task looks like this:
 
 ```
 Node http://localhost:8000/node/89 deleted.
