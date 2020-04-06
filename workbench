@@ -236,8 +236,7 @@ def create():
                 node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
                 if node_response.status_code == 201:
                     node_uri = node_response.headers['location']
-                    print('Node for "' + row['title'] +
-                          '" (record ' + id_field + ') created at ' + node_uri + '.')
+                    print('Node for "' + row['title'] + '" (record ' + id_field + ') created at ' + node_uri + '.')
                     logging.info("Node for %s (record %s) created at %s.", row['title'], id_field, node_uri)
                     if 'output_csv' in config.keys():
                         write_to_output_csv(config, id_field, node_response.text)
@@ -245,17 +244,14 @@ def create():
                     logging.warning("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
                     continue
 
-                # Map ID from CSV of newly created node to its node ID so we can
-                # use it for linking child nodes, etc.
+                # Map ID from CSV of newly created node to its node ID so we can use it for linking child nodes, etc.
                 if node_response.status_code == 201:
                     node_nid = node_uri.rsplit('/', 1)[-1]
                     node_ids[id_field] = node_nid
 
-                # If there is no media file (and we're not creating paged content),
-                # move on to the next CSV row.
+                # If there is no media file (and we're not creating paged content), move on to the next CSV row.
                 if 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
-                    print("+No media for " + node_uri + " created since " +
-                          "its 'file' field in the CSV is empty.")
+                    print('+No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
                     logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
                     continue
 
@@ -278,8 +274,7 @@ def create():
                         logging.info("No file specified for %s, so no media created.", id_field)
 
                     if config['paged_content_from_directories'] is True:
-                        # Create children from the contents of the directory. Console output and logging are
-                        # done in the create_children_from_directory function.
+                        # Console output and logging are done in the create_children_from_directory function.
                         create_children_from_directory(config, row, node_nid, row['title'])
 
 
@@ -503,13 +498,27 @@ def delete():
                           "accessible, skipping delete.")
                     continue
 
+                # Delete the node's media first.
+                if config['delete_media_with_nodes'] is True:
+                    media_endpoint = config['host'] + '/node/' + str(row['node_id']) + '/media/?_format=json'
+                    media_response = issue_request(config, 'GET', media_endpoint)
+                    media_response_body = json.loads(media_response.text)
+                    media_messages = []
+                    for media in media_response_body:
+                        media_id = media['mid'][0]['value']
+                        media_delete_status_code = remove_media_and_file(config, media_id)
+                        if media_delete_status_code == 204:
+                            media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
+
                 node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
                 node_response = issue_request(config, 'DELETE', node_endpoint)
                 if node_response.status_code == 204:
-                    print("Node " + config['host'] + '/node/' +
-                          str(row['node_id']) + " deleted.")
-                    logging.info("Node %s deleted.", config['host'] +
-                                 '/node/' + row['node_id'])
+                    print("Node " + config['host'] + '/node/' + str(row['node_id']) + " deleted.")
+                    logging.info("Node %s deleted.", config['host'] + '/node/' + row['node_id'])
+                if config['delete_media_with_nodes'] is True:
+                    if len(media_messages):
+                        for media_message in media_messages:
+                            print(media_message)
 
 
 def add_media():
@@ -540,6 +549,22 @@ def add_media():
                     if media_response_status_code in allowed_media_response_codes:
                         print(media_type.title() + " media for " + row['file'] + " created and added to " + node_uri)
                         logging.info("%s media for %s created and added to %s.", media_type.title(), row['file'], node_uri)
+
+
+def delete_media():
+    """Delete media.
+    """
+    input_csv = os.path.join(config['input_dir'], config['input_csv'])
+    if os.path.exists(input_csv):
+        with open(input_csv) as csvfile:
+            csv_data = csv.DictReader(csvfile)
+            csv_column_headers = csv_data.fieldnames
+
+            for row in csv_data:
+                row = clean_csv_values(row)
+                media_delete_status_code = remove_media_and_file(config, row['media_id'])
+                if media_delete_status_code == 204:
+                    print("Media " + config['host'] + '/media/' + str(row['media_id']) + " and associated file deleted.")
 
 
 # Main program logic.
@@ -579,3 +604,5 @@ if config['task'] == 'delete':
     delete()
 if config['task'] == 'add_media':
     add_media()
+if config['task'] == 'delete_media':
+    delete_media()

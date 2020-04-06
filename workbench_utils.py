@@ -48,6 +48,8 @@ def set_config_defaults(args):
         config['validate_title_length'] = True
     if 'paged_content_from_directories' not in config:
         config['paged_content_from_directories'] = False
+    if 'delete_media_with_nodes' not in config:
+        config['delete_media_with_nodes'] = True
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -293,7 +295,7 @@ def check_input(config, args):
     """Validate the config file and input data.
     """
     # First, check the config file.
-    tasks = ['create', 'update', 'delete', 'add_media']
+    tasks = ['create', 'update', 'delete', 'add_media', 'delete_media']
     joiner = ', '
     if config['task'] not in tasks:
         message = 'Error: "task" in your configuration file must be one of "create", "update", "delete", "add_media".'
@@ -309,7 +311,7 @@ def check_input(config, args):
     optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
                             'validate_title_length', 'media_type', 'media_types', 'pause',
-                            'output_csv', 'paged_content_from_directories',
+                            'output_csv', 'delete_media_with_nodes', 'paged_content_from_directories',
                             'paged_content_sequence_seprator', 'paged_content_page_model_tid',
                             'paged_content_page_display_hints', 'paged_content_page_content_type']
 
@@ -346,6 +348,13 @@ def check_input(config, args):
                              'drupal_filesystem']
         if not set(config_keys) == set(add_media_options):
             message = 'Error: Please check your config file for required values: ' + joiner.join(add_media_options)
+            logging.error(message)
+            sys.exit(message)
+    if config['task'] == 'delete_media':
+        delete_media_options = ['task', 'host', 'username', 'password',
+                                'input_dir', 'input_csv']
+        if not set(config_keys) == set(delete_media_options):
+            message = 'Error: Please check your config file for required values: ' + joiner.join(delete_media_options)
             logging.error(message)
             sys.exit(message)
     print('OK, configuration file has all required values (did not check ' +
@@ -576,6 +585,11 @@ def check_input(config, args):
             message = 'Error: For "add_media" tasks, your CSV file must contain a "file" column.'
             logging.error(message)
             sys.exit(message)
+    if config['task'] == 'delete_media':
+        if 'media_id' not in csv_column_headers:
+            message = 'Error: For "delete_media" tasks, your CSV file must contain a "media_id" column.'
+            logging.error(message)
+            sys.exit(message)
 
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
@@ -772,12 +786,55 @@ def create_media(config, filename, node_uri):
         'Content-Type': mimetype[0],
         'Content-Location': location
     }
-    binary_data = open(os.path.join(
-        config['input_dir'], filename), 'rb')
+    binary_data = open(os.path.join(config['input_dir'], filename), 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
+    if 'location' in media_response.headers:
+        # A 201 response provides a 'location' header, but a '204' response does not.
+        media_uri = media_response.headers['location']
+        logging.info("Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
+    else:
+        logging.warning("Media created and linked to node %s, but its URI is not available since its creation returned an HTTP status code of %s", node_uri, media_response.status_code)
+
     binary_data.close()
 
     return media_response.status_code
+
+
+def remove_media_and_file(config, media_id):
+    """Delete a media and the file associated with it.
+    """
+    # First get the media JSON.
+    get_media_url = '/media/' + str(media_id) + '?_format=json'
+    get_media_response = issue_request(config, 'GET', get_media_url)
+    get_media_response_body = json.loads(get_media_response.text)
+
+    # These are the Drupal field names on the various types of media.
+    file_fields = ['field_media_file', 'field_media_image', 'field_media_document', 'field_media_audio_file', 'field_media_video_file']
+    for file_field_name in file_fields:
+        if file_field_name in get_media_response_body:
+            file_id = get_media_response_body[file_field_name][0]['target_id']
+            break
+
+    # Delete the file first.
+    file_endpoint = config['host'] + '/entity/file/' + str(file_id) + '?_format=json'
+    file_response = issue_request(config, 'DELETE', file_endpoint)
+    if file_response.status_code == 204:
+        logging.info("File %s (from media %s) deleted.", file_id, media_id)
+    else:
+        logging.error("File %s (from media %s) not deleted (HTTP response code %s).", file_id, media_id, file_response.status_code)
+
+    # Then the media.
+    if file_response.status_code == 204:
+        media_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+        media_response = issue_request(config, 'DELETE', media_endpoint)
+        if media_response.status_code == 204:
+            logging.info("Media %s deleted.", media_id)
+            return media_response.status_code
+        else:
+            logging.error("Media %s not deleted (HTTP response code %s).", media_id, media_response.status_code)
+            return False
+
+    return False
 
 
 # @lru_cache(maxsize=None)

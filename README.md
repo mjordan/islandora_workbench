@@ -50,7 +50,7 @@ id_field: id
 
 The settings defined in a configuration file are:
 
-* `task` is one of 'create', 'update', delete', or 'add_media'.
+* `task` is one of 'create', 'update', delete', 'add_media', or 'delete_media'.
 * `host` is the hostname, including port number if not 80, of your Islandora repository.
 * `username` is the username used to authenticate the requests.
 * `password` is the user's password.
@@ -68,6 +68,7 @@ The settings defined in a configuration file are:
 * `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `true`; set to `false` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
 * `validate_title_length`: Whether or not to check if `title` values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to `true`. Set to `false` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
 * `pause` defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example `pause: 1.5`.
+* `delete_media_with_nodes`: set to `false` to *not* automatically delete all of a node's media when the node is deleted using a `delete` task. Defaults to `true` (in other words, delete the media with the node).
 * `paged_content_from_directories`: Defaults to `false`. Set to `true` if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information.
 * `paged_content_sequence_seprator`: The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. Defaults to hypen (`-`). See the section "Creating paged content" below for more information.
 * `paged_content_page_model_tid`: The the term ID from the Islandora Models taxonomy to assign to pages. Required if `paged_content_from_directories` is true. See the section "Creating paged content" below for more information.
@@ -393,6 +394,15 @@ input_dir: input_data
 input_csv: delete.csv
 ```
 
+Note that when you delete nodes using this method, all media associated with the node are also deleted, unless the `delete_media_with_nodes` configuration option is set to `false` (it defaults to `true`):
+
+```
+Node http://localhost:8000/node/89 deleted.
++ Media http://localhost:8000/media/329 deleted.
++ Media http://localhost:8000/media/331 deleted.
++ Media http://localhost:8000/media/335 deleted.
+```
+
 ## Adding media to nodes
 
 You can add media to nodes by providing a CSV file with a `node_id` column plus a `file` field that contains the name of the file you want to add. For example, your CSV file could look like this:
@@ -413,6 +423,28 @@ input_dir: input_data
 input_csv: add_media.csv
 media_use_tid: 14
 drupal_filesystem: "fedora://"
+```
+
+## Deleting media
+
+You can delte media and their associate files by providing a CSV file with a `media_id` column that contains the Drupal IDs of media you want to delete. For example, your CSV file could look like this:
+
+```csv
+media_id
+100
+103
+104
+```
+
+The config file for update operations looks like this (note the `task` option is 'delete_media'):
+
+```yaml
+task: delete_media
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: input_data
+input_csv: delete_media.csv
 ```
 
  ## The output CSV file
