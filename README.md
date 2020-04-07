@@ -24,11 +24,11 @@ If you don't already have the two required libraries installed, clone this repo 
 
 ## Usage
 
-`./workbench --config config.yml`
-
-or
-
 `./workbench --config config.yml --check`
+
+then
+
+`./workbench --config config.yml`  
 
 ## The configuration file
 
@@ -427,7 +427,7 @@ drupal_filesystem: "fedora://"
 
 ## Deleting media
 
-You can delte media and their associate files by providing a CSV file with a `media_id` column that contains the Drupal IDs of media you want to delete. For example, your CSV file could look like this:
+You can delete media and their associate files by providing a CSV file with a `media_id` column that contains the Drupal IDs of media you want to delete. For example, your CSV file could look like this:
 
 ```csv
 media_id
