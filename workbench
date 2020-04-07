@@ -31,7 +31,6 @@ def create():
 
             for row in csv_data:
                 row = clean_csv_values(row)
-
                 id_field = row[config['id_field']]
 
                 # Add required fields.
@@ -71,7 +70,6 @@ def create():
                         continue
 
                     # 'langcode' is a core Drupal field, but is not considered a "base field".
-                    # @todo: If it is present, validate its values.
                     if custom_field == 'langcode':
                         continue
 
