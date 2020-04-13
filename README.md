@@ -100,7 +100,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
 * Whether your Islandora has the [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled.
    * If not, Workbench will recommend that you enable it.
-   * If so, Workbench will validate whether taxonomy term IDs (such as those used in `field_model`) exist in each taxonomy field's the referenced taxonomies
+   * If so, Workbench will validate whether taxonomy term IDs or term names (such as those used in `field_model`) exist in each taxonomy field's the referenced taxonomies
 * If using the pages from directories configuration:
    * Whether page filenames contain an occurance of the sequence separator.
    * Whether any page directories are empty.
@@ -240,7 +240,7 @@ In CSV columns for taxonomy fields, you can use either term IDs (integers) or te
 file,title,field_my_multivalued_taxonomy_field
 img001.png,Picture of cats and yarn,Cats|46
 img002.png,Picture of dogs and sticks,Dogs|Sticks
-img003.png,Picture of yarn and sticks,Yarn|Sticks
+img003.png,Picture of yarn and needles,"Yarn, Balls of"|Knitting needles
 ```
 If you use a term name that doesn't match an existing term name, Workbench will create the new term. For this to work, you will need to add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks. A couple of things to note:
 
@@ -249,15 +249,14 @@ If you use a term name that doesn't match an existing term name, Workbench will 
    * Next to "Taxonomy term" in the list of disabled resource names, click on the "Enable" button.
    * Set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
    * Click on the "Save configuration" button.
-* If your new term name contains a comma, you need to wrap the term name in quotation marks so the CSV data will parse properly.
-* If multiple records in your CSV contain the same term name in the same field, the term is only created once.
+* If multiple records in your CSV contain the same new term name in the same field, the term is only created once.
+* If your new term name contains a comma, you need to wrap the term name in quotation marks so the CSV data will parse properly (see the example of "Yarn, Balls of" above).
 * When Workbench checks to see if the term with the new name exists in the target vocabulary, it normalizes it and compares it with existing term names in that vocabulary applying these normalization rules to both the new term and the existing terms:
    * It strips all leading and trailing whitespace
    * It replaces all other whitespace with a single space character
    * It converts all text to lower case
    * It removes all punctuation
-   
-If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
+* If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field after these normalization rules are applied, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
 
 
 ### Geolocation fields
