@@ -3,6 +3,7 @@ import sys
 import json
 import csv
 import time
+import string
 import re
 import glob
 import logging
@@ -50,6 +51,8 @@ def set_config_defaults(args):
         config['paged_content_from_directories'] = False
     if 'delete_media_with_nodes' not in config:
         config['delete_media_with_nodes'] = True
+    if 'allow_adding_terms' not in config:
+        config['allow_adding_terms'] = False
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -313,7 +316,8 @@ def check_input(config, args):
                             'validate_title_length', 'media_type', 'media_types', 'pause',
                             'output_csv', 'delete_media_with_nodes', 'paged_content_from_directories',
                             'paged_content_sequence_seprator', 'paged_content_page_model_tid',
-                            'paged_content_page_display_hints', 'paged_content_page_content_type']
+                            'paged_content_page_display_hints', 'paged_content_page_content_type',
+                            'allow_adding_terms']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -869,6 +873,131 @@ def get_term_pairs(config, vocab_id):
         term_dict[tid] = name
 
     return term_dict
+
+
+def find_term_in_vocab(config, vocab_id, term_name_to_find):
+    """For a given term name, loops through all term names in vocab_id
+       to see if term is there already. If so, returns term ID; if not
+       returns False.
+    """
+    terms_in_vocab = get_term_pairs(config, vocab_id)
+    for tid, term_name in terms_in_vocab.items():
+        match = compare_strings(term_name, term_name_to_find)
+        if match:
+            return tid
+
+    # I.e., none matched.
+    return False
+
+
+def create_term(config, vocab_id, term_name):
+    """Adds a term to the target vocabulary. Returns the new term's ID
+       if successful or False if not.
+    """
+    if config['allow_adding_terms'] is False:
+        logging.warning('To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.')
+        return False
+
+    # Check to see if term exists; if so, return its ID, if not, proceed to create it.
+    tid = find_term_in_vocab(config, vocab_id, term_name)
+    if value_is_numeric(tid):
+        logging.info('Term "%s" (term ID %s) already exists in vocabulary "%s".', term_name, tid, vocab_id)
+        return False
+
+    term = {
+           "vid": [
+              {
+                 "target_id": vocab_id,
+                 "target_type": "taxonomy_vocabulary"
+              }
+           ],
+           "status": [
+              {
+                 "value": True
+              }
+           ],
+           "name": [
+              {
+                 "value": term_name
+              }
+           ],
+           "description": [
+              {
+                 "value": "",
+                 "format": None
+              }
+           ],
+           "weight": [
+              {
+                 "value": 0
+              }
+           ],
+           "parent": [
+              {
+                 "target_id": None
+              }
+           ],
+           "default_langcode": [
+              {
+                 "value": True
+              }
+           ],
+           "path": [
+              {
+                 "alias": None,
+                 "pid": None,
+                 "langcode": "en"
+              }
+           ]
+        }
+
+    term_endpoint = config['host'] + '/taxonomy/term?_format=json'
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    response = issue_request(config, 'POST', term_endpoint, headers, term, None)
+    if response.status_code == 201:
+        term_response_body = json.loads(response.text)
+        tid = term_response_body['tid'][0]['value']
+        logging.info('Term %s ("%s") added to vocabulary "%s".', tid, term_name, vocab_id)
+        return tid
+    else:
+        logging.warning("Term '%s' not created, HTTP response code was %s.", term_name, response.status_code)
+        return False
+
+
+def value_is_numeric(value):
+    """Tests to see if value is numeric.
+    """
+    var = str(value)
+    if var.isnumeric():
+        return True
+    else:
+        return False
+
+
+def compare_strings(known, unknown):
+    """Normalizes the unknown string and the known one, and compares
+       them. If they match, returns True, if not, False. We could
+       use FuzzyWuzzy or something but this is probably sufficient.
+    """
+    # Strips leading and trailing whitespace.
+    known = known.strip()
+    unknown = unknown.strip()
+    # Converts to lower case.
+    known = known.lower()
+    unknown = unknown.lower()
+    # Remove all punctuation.
+    known = known.translate(str.maketrans('', '', string.punctuation))
+    unknown = unknown.translate(str.maketrans('', '', string.punctuation))
+    # Replaces whitespace with a single space.
+    known = " ".join(known.split())
+    unknown = " ".join(unknown.split())
+
+    if unknown == known:
+        return True
+    else:
+        return False
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):

@@ -63,6 +63,7 @@ The settings defined in a configuration file are:
 * `media_types` (plural) provides a mapping bewteen file extensions and media types. Note: either `media_type` or `media_types` is required. More detail provided in the "Setting Media Types" section below.
 * `drupal_filesystem` is either 'fedora://' or 'public://'.
 * `allow_missing_files` determines if empty`file` values are allowed. If set to `true`, empty `file` values are allowed and will result in nodes without attached media. Defaults to `false` (which means all `file` values must contain the name of a file that exists in the `input_data` directory).
+* `allow_adding_terms` determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. Defauls to `false`.
 * `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
 * `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
 * `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `true`; set to `false` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
