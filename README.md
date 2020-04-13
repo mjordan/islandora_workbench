@@ -232,6 +232,34 @@ If you want to include multiple typed relation values in a single field of your 
 
 `relators:art:30|relators:art:45`
 
+### Taxonomy fields
+
+In CSV columns for taxonomy fields, you can use either term IDs (integers) or term names (strings). You can even mix IDs and names in the same field:
+
+```
+file,title,field_my_multivalued_taxonomy_field
+img001.png,Picture of cats and yarn,Cats|46
+img002.png,Picture of dogs and sticks,Dogs|Sticks
+img003.png,Picture of yarn and sticks,Yarn|Sticks
+```
+If you use a term name that doesn't match an existing term name, Workbench will create the new term. For this to work, you will need to add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks. A couple of things to note:
+
+* To create new terms, your target Drupal needs to have its "Taxonomy term" REST endpoint enabled. To do so:
+   * Go to `admin/config/services/rest`
+   * Next to "Taxonomy term" in the list of disabled resource names, click on the "Enable" button.
+   * Set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
+   * Click on the "Save configuration" button.
+* If your new term name contains a comma, you need to wrap the term name in quotation marks so the CSV data will parse properly.
+* If multiple records in your CSV contain the same term name in the same field, the term is only created once.
+* When Workbench checks to see if the term with the new name exists in the target vocabulary, it normalizes it and compares it with existing term names in that vocabulary applying these normalization rules to both the new term and the existing terms:
+   * It strips all leading and trailing whitespace
+   * It replaces all other whitespace with a single space character
+   * It converts all text to lower case
+   * It removes all punctuation
+   
+If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
+
+
 ### Geolocation fields
 
 The Geolocation field type, managed by the [Geolocation Field](https://www.drupal.org/project/geolocation) contrib module, stores latitude and longitude coordinates in separate data elements. To add or update fields of this type, Workbench needs to provide the latitude and longitude data in these separate elements.

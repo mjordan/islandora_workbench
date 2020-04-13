@@ -892,16 +892,17 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
 
 def create_term(config, vocab_id, term_name):
     """Adds a term to the target vocabulary. Returns the new term's ID
-       if successful or False if not.
+       if successful (or the term already exists) or False if not.
     """
-    if config['allow_adding_terms'] is False:
-        logging.warning('To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.')
-        return False
 
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
         logging.info('Term "%s" (term ID %s) already exists in vocabulary "%s".', term_name, tid, vocab_id)
+        return tid
+
+    if config['allow_adding_terms'] is False:
+        logging.warning('To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.')
         return False
 
     term = {
@@ -963,6 +964,36 @@ def create_term(config, vocab_id, term_name):
         return tid
     else:
         logging.warning("Term '%s' not created, HTTP response code was %s.", term_name, response.status_code)
+        return False
+
+
+def prepare_term_id(config, vocab_ids, term):
+    """REST POST and PATCH operations require taxonomy term IDs, not term names.
+       This funtion checks its arguement to see if it's numeric (i.e., a term ID) and
+       if it is, returns it as is. If it's not (i.e., a term name) it looks for the
+       term name in the referenced vocabulary and returns its term ID (existing or
+       newly created).
+    """
+    if value_is_numeric(term):
+        return term
+    else:
+        if len(vocab_ids) == 1:
+            tid = create_term(config, vocab_ids[0], term)
+            return tid
+        # This field has more than one vocabulary linked to it. Since we don't know
+        # which vocabulary the user wants the new term to be added to, we split the term name
+        # on : and take what second half as the vocabulary ID to add the first half to.
+        # else:
+            # @todo: deal with this edge case.
+
+
+def get_field_vocabularies(config, field_definitions, field_name):
+    """Gets IDs of vocabularies linked from the current field (usually only one vocabulary).
+    """
+    if 'vocabularies' in field_definitions[field_name]:
+        vocabularies = field_definitions[field_name]['vocabularies']
+        return vocabularies
+    else:
         return False
 
 
@@ -1030,19 +1061,42 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 fields_with_vocabularies[column_name] = all_tids_for_field
 
     # Iterate throught the CSV and validate each taxonomy fields's values.
+    new_term_names_in_csv = False
     for count, row in enumerate(csv_data, start=1):
         for column_name in fields_with_vocabularies:
             if len(row[column_name]):
                 # Allow for multiple values in one field.
                 tids_to_check = row[column_name].split(config['subdelimiter'])
-                for tid in tids_to_check:
-                    if int(tid) not in fields_with_vocabularies[column_name]:
-                        message = 'Error: CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID (' + tid + ') that is not in the referenced taxonomy.'
-                        logging.error(message)
-                        sys.exit(message)
+                for field_value in tids_to_check:
+                    # It's a term ID.
+                    if value_is_numeric(field_value):
+                        if int(field_value) not in fields_with_vocabularies[column_name]:
+                            message = 'Error: CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID (' + field_value + ') that is '
+                            message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                            logging.error(message + message_2)
+                            sys.exit(message + message_2)
+                    else:
+                        # field_value is a string term.
+                        tid = find_term_in_vocab(config, vocabulary, field_value)
+                        if value_is_numeric(tid) is not True:
+                            if config['allow_adding_terms'] is True:
+                                new_term_names_in_csv = True
+                                message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
+                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '"). Workbench will create this term.'
+                                logging.warning(message + message_2)
+                                print('Warning: ' + message + message_2)
+                            else:
+                                message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
+                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                                logging.error(message + message_2)
+                                sys.exit('Error: ' + message + message_2)
 
-    # All term IDs are in their field's vocabularies.
-    print("OK, term IDs in CSV file exist in their respective taxonomies.")
+    if new_term_names_in_csv is True:
+        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted).")
+    else:
+        # All term IDs are in their field's vocabularies.
+        print("OK, term IDs/names in CSV file exist in their respective taxonomies.")
+        logging.info("OK, term IDs/names in CSV file exist in their respective taxonomies.")
 
 
 def write_to_output_csv(config, id, node_json):

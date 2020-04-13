@@ -4,5 +4,5 @@ username: admin
 password: islandora
 content_type: islandora_object
 input_dir: input_data
-input_csv: update.csv
+input_csv: update_terms.csv
 validate_title_length: false

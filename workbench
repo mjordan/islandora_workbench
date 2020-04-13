@@ -97,6 +97,19 @@ def create():
                     if field_definitions[custom_field]['field_type'] == 'entity_reference':
                         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                             target_type = 'taxonomy_term'
+                            field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
+                            if config['subdelimiter'] in row[custom_field]:
+                                prepared_tids = []
+                                delimited_values = row[custom_field].split(config['subdelimiter'])
+                                for delimited_value in delimited_values:
+                                    tid = prepare_term_id(config, field_vocabs, delimited_value)
+                                    tid = str(tid)
+                                    prepared_tids.append(tid)
+                                row[custom_field] = config['subdelimiter'].join(prepared_tids)
+                            else:
+                                row[custom_field] = prepare_term_id(config, field_vocabs, row[custom_field])
+                                row[custom_field] = str(row[custom_field])
+
                         if field_definitions[custom_field]['target_type'] == 'node':
                             target_type = 'node_type'
                         # Cardinality is unlimited.
@@ -318,6 +331,19 @@ def update():
                     if field_definitions[custom_field]['field_type'] == 'entity_reference':
                         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                             target_type = 'taxonomy_term'
+                            field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
+                            if config['subdelimiter'] in row[custom_field]:
+                                prepared_tids = []
+                                delimited_values = row[custom_field].split(config['subdelimiter'])
+                                for delimited_value in delimited_values:
+                                    tid = prepare_term_id(config, field_vocabs, delimited_value)
+                                    tid = str(tid)
+                                    prepared_tids.append(tid)
+                                row[custom_field] = config['subdelimiter'].join(prepared_tids)
+                            else:
+                                row[custom_field] = prepare_term_id(config, field_vocabs, row[custom_field])
+                                row[custom_field] = str(row[custom_field])
+
                         if field_definitions[custom_field]['target_type'] == 'node':
                             target_type = 'node_type'
 
