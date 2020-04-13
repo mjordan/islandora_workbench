@@ -11,6 +11,11 @@ A companion project under development, [Islandora Workbench Desktop](https://git
    * The [Requests](https://2.python-requests.org/en/master/) library
 * An [Islandora 8](https://islandora.ca/) repository
    * The JSON:API module is not enabled by default. You must enable it manually.
+   * If you want to be able to create new taxonomy terms by including term names in your CSV data, your target Drupal needs to have its "Taxonomy term" REST endpoint enabled. To do so:
+      * Go to `admin/config/services/rest`
+      * Next to "Taxonomy term" in the list of disabled resource names, click on the "Enable" button.
+      * Set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
+      * Click on the "Save configuration" button.
 
 If you want Workbench to validate the existence of taxonomy term IDs used in your CSV input file (very much advised), you need to install the [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module.
 
@@ -244,20 +249,17 @@ img003.png,Picture of yarn and needles,"Yarn, Balls of"|Knitting needles
 ```
 If you use a term name that doesn't match an existing term name, Workbench will create the new term. For this to work, you will need to add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks. A couple of things to note:
 
-* To create new terms, your target Drupal needs to have its "Taxonomy term" REST endpoint enabled. To do so:
-   * Go to `admin/config/services/rest`
-   * Next to "Taxonomy term" in the list of disabled resource names, click on the "Enable" button.
-   * Set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
-   * Click on the "Save configuration" button.
+* To create new terms, your target Drupal needs to have its "Taxonomy term" REST endpoint enabled as described in the "Requirements" section at the beginning of this README.
 * If multiple records in your CSV contain the same new term name in the same field, the term is only created once.
 * If your new term name contains a comma, you need to wrap the term name in quotation marks so the CSV data will parse properly (see the example of "Yarn, Balls of" above).
 * When Workbench checks to see if the term with the new name exists in the target vocabulary, it normalizes it and compares it with existing term names in that vocabulary applying these normalization rules to both the new term and the existing terms:
-   * It strips all leading and trailing whitespace
-   * It replaces all other whitespace with a single space character
-   * It converts all text to lower case
-   * It removes all punctuation
-* If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field after these normalization rules are applied, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
+   * It strips all leading and trailing whitespace.
+   * It replaces all other whitespace with a single space character.
+   * It converts all text to lower case.
+   * It removes all punctuation.
+   * If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field after these normalization rules are applied, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
 * Creating taxonomy terms by including them in your CSV file adds new terms to the root of the applicable vocabulary. You cannot create new terms that have another term as its parent (i.e. terms below the top leve of a hierarchical taxonomy).
+* Terms created in this way do not have any external URIs. If you want your terms to have external URIs, you will need to either create the terms manually or add the URIs manually after the terms are created by Islandora Workbench.
 
 
 ### Geolocation fields
