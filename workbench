@@ -102,11 +102,8 @@ def create():
                                 prepared_tids = []
                                 delimited_values = row[custom_field].split(config['subdelimiter'])
                                 for delimited_value in delimited_values:
-                                    print(field_vocabs)
-                                    print(delimited_value)
                                     tid = prepare_term_id(config, field_vocabs, delimited_value)
                                     tid = str(tid)
-                                    print("tid from workbench is " + tid)
                                     prepared_tids.append(tid)
                                 row[custom_field] = config['subdelimiter'].join(prepared_tids)
                             else:
@@ -243,7 +240,6 @@ def create():
                         else:
                             node[custom_field] = [{'value': row[custom_field]}]
 
-                print(node)
                 node_headers = {
                     'Content-Type': 'application/json'
                 }

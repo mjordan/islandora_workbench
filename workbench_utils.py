@@ -297,6 +297,8 @@ def get_field_definitions(config):
 def check_input(config, args):
     """Validate the config file and input data.
     """
+    logging.info("Starting configuration check for %s task using config file %s.", config['task'], args.config)
+
     # First, check the config file.
     tasks = ['create', 'update', 'delete', 'add_media', 'delete_media']
     joiner = ', '
@@ -308,8 +310,7 @@ def check_input(config, args):
     config_keys = list(config.keys())
     config_keys.remove('check')
 
-    # Dealing with optional config keys. If you introduce a new
-    # optional key, add it to this list. Note that optional
+    # Dealing with optional config keys. If you introduce a new optional key, add it to this list. Note that optional
     # keys are not validated.
     optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
@@ -450,8 +451,7 @@ def check_input(config, args):
             if os.path.exists(config['output_csv']):
                 print('Output CSV already exists at ' + config['output_csv'] + ', records will be appended to it.')
 
-        # Specific to creating paged content. Current, if 'parent_id' is present
-        # in the CSV file, so must 'field_weight' and 'field_member_of'.
+        # Specific to creating paged content. Current, if 'parent_id' is present in the CSV file, so must 'field_weight' and 'field_member_of'.
         if 'parent_id' in csv_column_headers:
             if ('field_weight' not in csv_column_headers or 'field_member_of' not in csv_column_headers):
                 message = 'Error: If your CSV file contains a "parent_id" column, it must also contain "field_weight" and "field_member_of" columns.'
@@ -466,8 +466,8 @@ def check_input(config, args):
             logging.error(message)
             sys.exit(message)
 
-        # We .remove() CSV column headers for this check because they are not Drupal field names
-        # (including 'langcode'). Any new columns introduced into the CSV need to be removed here.
+        # We .remove() CSV column headers for this check because they are not Drupal field names (including 'langcode').
+        # Any new columns introduced into the CSV need to be removed here.
         if config['id_field'] in csv_column_headers:
             csv_column_headers.remove(config['id_field'])
         if 'file' in csv_column_headers:
@@ -525,13 +525,11 @@ def check_input(config, args):
         print('OK, CSV column headers match Drupal field names.')
 
     if config['task'] == 'update' or config['task'] == 'create':
-        # Validate values in fields that are of type 'typed_relation'.
-        # Each value (don't forget multivalued fields) needs to have this
-        # pattern: string:string:int.
+        # Validate values in fields that are of type 'typed_relation'. Each value (don't forget multivalued fields) needs to have
+        # this pattern: string:string:int.
         validate_typed_relation_values(config, field_definitions, csv_data)
 
-        # Requires a View installed by the Islandora Workbench Integration module.
-        # If the View is not enabled, Drupal returns a 404.
+        # Requires a View installed by the Islandora Workbench Integration module. If the View is not enabled, Drupal returns a 404.
         terms_view_url = config['host'] + '/vocabulary'
         terms_view_response = issue_request(config, 'GET', terms_view_url)
         if terms_view_response.status_code == 404:
@@ -550,8 +548,7 @@ def check_input(config, args):
                     logging.error(message)
                     sys.exit(message)
 
-        # Validate existence of nodes specified in 'field_member_of'.
-        # This could be generalized out to validate node IDs in other fields.
+        # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
         validate_field_member_of_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
         for count, row in enumerate(validate_field_member_of_csv_data, start=1):
@@ -658,8 +655,7 @@ def check_input(config, args):
 
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
-    logging.info("Configuration checked for %s task using config file " +
-                 "%s, no problems found.", config['task'], args.config)
+    logging.info("Configuration checked for %s task using config file %s, no problems found.", config['task'], args.config)
     sys.exit(0)
 
 
@@ -981,10 +977,17 @@ def prepare_term_id(config, vocab_ids, term):
             tid = create_term(config, vocab_ids[0], term)
             return tid
         else:
+            # Term names used in mult-taxonomy fields. They need to be namespaced with the taxonomy ID.
+            #
             # If the field has more than one vocabulary linked to it, we don't know which
-            # vocabulary the user wants the new term to be added to, we split the term name on : and
-            # take the first half as the the namespace (vocabulary ID) to add the second half (the
-            # term name itself) to.
+            # vocabulary the user wants a new term to be added to, and if the term name is
+            # already used in any of the taxonomies linked to this field, we also don't know
+            # which vocabulary to look for it in to get its term ID. Therefore, we always need
+            # to namespace term names if they are used in multi-taxonomy fields. If people want
+            # to use term names that contain a colon, they need to add them to Drupal first
+            # and use the term ID. Workaround PRs welcome.
+            #
+            # Split the namespace/vocab ID from the term name on ':'.
             namespaced = re.search(':', term)
             if namespaced:
                 [vocab_id, term_name] = term.split(':')
@@ -1086,23 +1089,24 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                         # field_value is a string term.
                         tid = find_term_in_vocab(config, vocabulary, field_value)
                         if value_is_numeric(tid) is not True:
-                            if config['allow_adding_terms'] is True:
-                                namespaced = re.search(':', field_value)
-                                if namespaced:
-                                    [namespace_vocab_id, namespaced_term_name] = field_value.split(':')
-                                    if namespace_vocab_id not in this_fields_vocabularies:
-                                        message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name ("' + field_value + '") '
-                                        message_2 = 'that specifies a taxonomy that is not associated with that field.'
-                                        logging.error(message + message_2)
-                                        sys.exit('Error: ' + message + message_2)
-                                new_term_names_in_csv = True
-                                message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
-                                if len(this_fields_vocabularies) > 1:
-                                    message_2 = 'not in the referenced taxonomies (' + this_fields_vocabularies_string + ').'
-                                else:
-                                    message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
-                                logging.warning(message + message_2)
-                                print('Warning: ' + message + message_2)
+                            # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
+                            # regardless of whether config['allow_adding_terms'] is True.
+                            namespaced = re.search(':', field_value)
+                            if namespaced:
+                                [namespace_vocab_id, namespaced_term_name] = field_value.split(':')
+                                if namespace_vocab_id not in this_fields_vocabularies:
+                                    message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name ("' + field_value + '") '
+                                    message_2 = 'that specifies a taxonomy that is not associated with that field.'
+                                    logging.error(message + message_2)
+                                    sys.exit('Error: ' + message + message_2)
+                            new_term_names_in_csv = True
+                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
+                            if len(this_fields_vocabularies) > 1:
+                                message_2 = 'not in the referenced taxonomies (' + this_fields_vocabularies_string + ').'
+                            else:
+                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                            logging.warning(message + message_2)
+                            print('Warning: ' + message + message_2)
                         # field_value is a term ID.
                         else:
                             if tid not in fields_with_vocabularies[column_name]:
