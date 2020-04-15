@@ -270,9 +270,9 @@ Adding new terms has some contraints:
 
 While most node taxonomy fields reference only a single taxonomy, Drupal does allow fields to reference multiple taxonomies. This ability poses a problem when we use term names instead of term IDs in our CSV files: in a multi-taxonomy field, Workbench can't be sure which term name belongs in which of the multiple taxonomies referenced by that field. This applies to both existing terms and to new terms we want to add when creating node content.
 
-To avoid this problem, we need to tell Workbench which of the multple vocabularies each term name should (or does) belong to. We do this by namespacing terms with the applicable vocabulary ID. Workbench will remind you during its `--check` operation that you need to namespace terms. It determines if the field references multiple taxonomies, and then checks to see if the field's values in the CSV are term IDs or term names. If both of those conditions are true, and the term values don't contain namespaces, it will warn you.
+To avoid this problem, we need to tell Workbench which of the multple vocabularies each term name should (or does) belong to. We do this by namespacing terms with the applicable vocabulary ID.
 
-For example, let's imagine we have a node field whose name is `field_sample_tags`, and this field references two taxonomies, `cat` and `dogs`. To use the terms `Tuxedo`, `Tabby`, `German Shepherd` in the CSV when adding new nodes, we would namespace them like this:
+For example, let's imagine we have a node field whose name is `field_sample_tags`, and this field references two taxonomies, `cats` and `dogs`. To use the terms `Tuxedo`, `Tabby`, `German Shepherd` in the CSV when adding new nodes, we would namespace them like this:
 
 
 ```
@@ -290,13 +290,16 @@ cats:Tuxedo|cats:Misbehaving
 
 Term names containing commas (`,`) in multi-valued, multi-taxonomy fields need special treatment (no surprise there): you need to wrap the entire field in quotation marks (like you would for any other CSV value that contains a comma), and in addition, specify the namespace within each of the values:
 
-
 ```
 "tags:gum, Bubble|tags:candy, Hard"
 ```
-Using these conventions, Workbench will be certain which taxonomy the term names belong to.
+Using these conventions, Workbench will be certain which taxonomy the term names belong to. Workbench will remind you during its `--check` operation that you need to namespace terms. It determines 1) if the field references multiple taxonomies, and then checks to see 2) if the field's values in the CSV are term IDs or term names. If you use term names in multi-taxonomy fields, and the term names aren't namespaced, Workbench will warn you:
 
-Note that since the `:` is a special character in this case, you can't add a namespaced term that itself contains a `:` in this way; you need to add it manually to Drupal and then use its term ID in your CSV file.
+```
+Error: Term names in multi-vocabulary CSV field "field_tags" require a vocabulary namespace; value "Dogs" in row 4 does not have one.
+```
+
+Note that since `:` is a special character when you use term names in multi-taxonomy CSV fields, you can't add a namespaced term that itself contains a `:`. You need to add it manually to Drupal and then use its term ID in your CSV file.
 
 ### Geolocation fields
 
