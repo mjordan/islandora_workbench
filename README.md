@@ -262,7 +262,33 @@ If you use a term name that doesn't match an existing term name, Workbench will 
    * If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field after these normalization rules are applied, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
 * Creating taxonomy terms by including them in your CSV file adds new terms to the root of the applicable vocabulary. You cannot create new terms that have another term as its parent (i.e. terms below the top leve of a hierarchical taxonomy).
 * Terms created in this way do not have any external URIs. If you want your terms to have external URIs, you will need to either create the terms manually or add the URIs manually after the terms are created by Islandora Workbench.
+* Taxonomy terms created with new nodes are not removed when you delete the nodes.
 
+#### Using term names in multi-taxonomy fields
+
+Most node taxonomy fields reference only a single taxonomy, but Drupal allows fields to reference multiple fields. This ability poses a problem when we use term names instead of term IDs in our CSV files: when a multi-taxonomy field, Workbench can't be sure which term name belongs in which of the multiple taxonomies referenced by that field. This applies to both existing terms and to new ones we want to add when creating node content.
+
+To avoid this problem, we need to tell Workbench which vocabulary each term name should (or does) belong to which of the multiple vocabularies. We do this by "namespacing" terms with the vocabulary ID each terms belongs to. Workbench will remind you during its `--check` operation that you need to namespace terms. It determines if the field references multiple taxonomies, and then checks to see if the field's values in the CSV are term IDs or term names. If both of those conditions are true, and the values don't contain namespaces, it will warn you.
+
+For example, let's imagine we have a node field whose name is `field_sample_tags`, and this field references two taxonomies, `cat` and `dogs`. To use the terms `Tuxedo`, `Tabby`, `German Shepherd` in the CSV when adding new nodes, we would namespace them like this:
+
+
+```
+field_sample_tags
+cats:Tabby
+cats:Tuxedo
+dogs:German Shepherd
+```
+
+If you want to use multiple terms in a single field, you would namespace them both:
+
+```
+cats:Tuxedo|cats:Misbehaving
+```
+
+Using this convention, Workbench will know which taxonomy the terms belong to. Since the `:` is a special character in this case, you can't add a namespaced term that itself contains a `:` in this way; you need to add it manually to Drupal and then use its term ID in your CSV file.
+
+If the field you are populating references only a single taxonomy (which is the most common case), you don't need to use namespaces.
 
 ### Geolocation fields
 
@@ -306,7 +332,7 @@ If both `media_type` and `media_types` are included in the config file, the mapp
 
 Islandora Workbench provides two ways to create paged content. The first uses a specific directory structure to define the relationship between the parent item and the pages, and the second uses page-level metadata in the CSV to establish that relationship.
 
-### Without page-level metadata
+### Using subdirectories
 
 Enable this method by including `paged_content_from_directories: true` in your configuration file. Use this method when you are creating books, newspaper issues, or other paged content where your pages don't have their own metadata. This method groups page-level files into subdirectories that correspond to each parent, and does not require (or allow) page-level metadata in the CSV file. Each parent (book, newspaper issue, etc.) has a row on the CSV file, e.g.:
 
@@ -435,6 +461,7 @@ Node http://localhost:8000/node/89 deleted.
 + Media http://localhost:8000/media/331 deleted.
 + Media http://localhost:8000/media/335 deleted.
 ```
+Note that taxonomy terms created with new nodes are not removed when you delete the nodes.
 
 ## Adding media to nodes
 

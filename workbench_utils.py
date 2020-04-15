@@ -299,7 +299,27 @@ def check_input(config, args):
     """
     logging.info("Starting configuration check for %s task using config file %s.", config['task'], args.config)
 
-    # First, check the config file.
+    # First, test host and credentials.
+    jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
+    headers = {'Accept': 'Application/vnd.api+json'}
+    try:
+        response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as error:
+        message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
+        sys.exit(message)
+
+    # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
+    if response.status_code == 200:
+        field_config = json.loads(response.text)
+        if field_config['data'] == []:
+            message = 'Error: ' + config['host'] + ' does not recognize the username/password combination you have provided.'
+            logging.error(message)
+            sys.exit(message)
+        else:
+            print('OK, ' + config['host'] + ' is accessible using the credentials provided.')
+
+    # Check the config file.
     tasks = ['create', 'update', 'delete', 'add_media', 'delete_media']
     joiner = ', '
     if config['task'] not in tasks:
@@ -364,37 +384,6 @@ def check_input(config, args):
             sys.exit(message)
     print('OK, configuration file has all required values (did not check ' +
           'for optional values).')
-
-    # Test host and credentials.
-    jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
-    headers = {'Accept': 'Application/vnd.api+json'}
-    response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
-    """
-    try:
-        response = requests.get(
-            jsonapi_url,
-            auth=(config['username'], config['password']),
-            headers=headers
-        )
-        response.raise_for_status()
-    except requests.exceptions.TooManyRedirects as error:
-        print(error)
-        sys.exit(1)
-    except requests.exceptions.RequestException as error:
-        print(error)
-        sys.exit(1)
-    """
-
-    # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
-    if response.status_code == 200:
-        field_config = json.loads(response.text)
-        if field_config['data'] == []:
-            message = 'Error: ' + config['host'] + ' does not recognize the username/password combination you have provided.'
-            logging.error(message)
-            sys.exit(message)
-        else:
-            print('OK, ' + config['host'] + ' is accessible using the ' +
-                  'credentials provided.')
 
     # Check existence of CSV file.
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
@@ -977,7 +966,8 @@ def prepare_term_id(config, vocab_ids, term):
             tid = create_term(config, vocab_ids[0], term)
             return tid
         else:
-            # Term names used in mult-taxonomy fields. They need to be namespaced with the taxonomy ID.
+            # Term names used in mult-taxonomy fields. They need to be namespaced with
+            # the taxonomy ID.
             #
             # If the field has more than one vocabulary linked to it, we don't know which
             # vocabulary the user wants a new term to be added to, and if the term name is
@@ -1075,12 +1065,12 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 # Allow for multiple values in one field.
                 tids_to_check = row[column_name].split(config['subdelimiter'])
                 for field_value in tids_to_check:
-                    # It's a term ID.
+                    # field_value is s a term ID.
                     if value_is_numeric(field_value):
                         if int(field_value) not in fields_with_vocabularies[column_name]:
                             message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID (' + field_value + ') that is '
                             if len(this_fields_vocabularies) > 1:
-                                message_2 = 'not in the referenced taxonomies (' + this_fields_vocabularies_string + ').'                                
+                                message_2 = 'not in one of the referenced taxonomies (' + this_fields_vocabularies_string + ').'
                             else:
                                 message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
                             logging.error(message + message_2)
@@ -1089,36 +1079,57 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                         # field_value is a string term.
                         tid = find_term_in_vocab(config, vocabulary, field_value)
                         if value_is_numeric(tid) is not True:
+                            # Single taxonomy fields.
+                            if len(this_fields_vocabularies) == 1:
+                                new_term_names_in_csv = True
+                                message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
+                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                                logging.warning(message + message_2)
+                                print('Warning: ' + message + message_2)
+
+                            # @@@@ From the README: "[Workbench] determines if the field references multiple taxonomies, and then checks to see if
+                            # @@@@ the field's values in the CSV are term IDs or term names. If both of those conditions are true, and the values
+                            # @@@@ don't contain namespaces, it will warn you."
+
                             # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
                             # regardless of whether config['allow_adding_terms'] is True.
-                            namespaced = re.search(':', field_value)
-                            if namespaced:
-                                [namespace_vocab_id, namespaced_term_name] = field_value.split(':')
-                                if namespace_vocab_id not in this_fields_vocabularies:
-                                    message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name ("' + field_value + '") '
-                                    message_2 = 'that specifies a taxonomy that is not associated with that field.'
-                                    logging.error(message + message_2)
-                                    sys.exit('Error: ' + message + message_2)
-                            new_term_names_in_csv = True
-                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
                             if len(this_fields_vocabularies) > 1:
-                                message_2 = 'not in the referenced taxonomies (' + this_fields_vocabularies_string + ').'
-                            else:
-                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
-                            logging.warning(message + message_2)
-                            print('Warning: ' + message + message_2)
-                        # field_value is a term ID.
-                        else:
-                            if tid not in fields_with_vocabularies[column_name]:
-                                message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID ("' + field_value + '") that is '
-                                if len(this_fields_vocabularies) > 1:
-                                    message_2 = 'not in the referenced taxonomies (' + this_fields_vocabularies_string + ').'                                
-                                else:
-                                    message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
-                                logging.error(message + message_2)
-                                sys.exit('Error: ' + message + message_2)
+                                field_values = field_value.split(config['subdelimiter'])
+                                for split_field_value in field_values:
+                                    namespaced = re.search(':', field_value)
+                                    if not namespaced:
+                                        message = 'Term names in CSV field "' + column_name + '" require a vocabulary namespace; value '
+                                        message_2 = '"' + field_value + '" in row ' + str(count) + ' does not have one.'
+                                        logging.error(message + message_2)
+                                        sys.exit('Error: ' + message + message_2)
 
-    if new_term_names_in_csv is True:
+                                    # Check to see if namespaced vocab is referenced by this field.
+                                    [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':')
+                                    if namespace_vocab_id not in this_fields_vocabularies:
+                                        message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name ("' + field_value + '") '
+                                        message_2 = 'that specifies a taxonomy that is not associated with that field.'
+                                        logging.error(message + message_2)
+                                        sys.exit('Error: ' + message + message_2)
+
+                                    tid = find_term_in_vocab(config, namespace_vocab_id, namespaced_term_name)
+                                    if config['allow_adding_terms'] is True:
+                                        # Warn if namespaced term name is not in specified vocab.
+                                        if tid is False:
+                                            new_term_names_in_csv = True
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
+                                            message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                                            logging.warning(message + message_2)
+                                            print('Warning: ' + message + message_2)
+                                    else:
+                                        # Die if namespaced term name is not specified vocab.
+                                        if tid is False:
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
+                                            message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                                            logging.warning(message + message_2)
+                                            print('Error: ' + message + message_2)
+                                            sys.exit('Error: ' + message + message_2)
+
+    if new_term_names_in_csv is True and config['allow_adding_terms'] is True:
         print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted).")
     else:
         # All term IDs are in their field's vocabularies.
