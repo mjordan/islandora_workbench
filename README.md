@@ -64,9 +64,9 @@ The settings defined in a configuration file are:
 | username |  ✔️ | | The username used to authenticate the requests. |
 | password |  ✔️ | | The user's password. |
 | content_type |  ✔️ | | The machine name of the Drupal node content type you are creating or updating. |
-| input_dir |  ✔️ | | the full or relative path to the directory containing the files and metadata CSV file. |
+| input_dir |  ✔️ | | The full or relative path to the directory containing the files and metadata CSV file. |
 | input_csv |  ✔️ | | The name of the CSV metadata file, which must be in the directory named in `input_dir`. |
-| id_field |  ✔️ | id | the name of the field in the CSV that uniquely identifies each record. |
+| id_field |  | id | The name of the field in the CSV that uniquely identifies each record. |
 | delimiter |  | , [comma]| The delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",". |
 | subdelimiter |  | &#124; [pipe]| The subdelimiter used in the CSV file to define multiple values in one field. If omitted, defaults to "&#124;". |
 | drupal_filesystem |  ✔️ | | One of 'fedora://', 'public://', or 'private://'. |
@@ -76,7 +76,7 @@ The settings defined in a configuration file are:
 | media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: either media_type or media_types is required. More detail provided in the "Setting Media Types" section below. One of `media_type` or `media_types` is required. |
 | allow_missing_files |  | false | Determines if emptyfile values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the input_data directory). |
 | allow_adding_terms |  | false | Determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. See more information in the "Taxonomy fields" section below. |
-| published | | true | hether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
+| published | | true | Whether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
 | validate_title_length |  | true | Whether or not to check if title values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to true. Set to false if you are using a module that lets you override Drupal's maximum title length, such as Node Title Length or Entity Title Length. |
 | pause |  | | Defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example pause: 1.5. |
 | delete_media_with_nodes |  | true | When a node is deleted using a delete task, by default, all if its media are automatically deleted. Set this option to false to not delete all of a node's media (you do not generally want to keep the media without the node). |
