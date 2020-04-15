@@ -318,6 +318,7 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
         else:
             print('OK, ' + config['host'] + ' is accessible using the credentials provided.')
+            logging.info(config['host'] + ' is accessible using the credentials provided.')
 
     # Check the config file.
     tasks = ['create', 'update', 'delete', 'add_media', 'delete_media']
@@ -382,12 +383,16 @@ def check_input(config, args):
             message = 'Please check your config file for required values: ' + joiner.join(delete_media_options)
             logging.error(message)
             sys.exit('Error: ' + message)
-    print('OK, configuration file has all required values (did not check for optional values).')
+    message = 'OK, configuration file has all required values (did not check for optional values).'
+    print(message)
+    logging.info(message)
 
     # Check existence of CSV file.
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
-        print('OK, CSV file ' + input_csv + ' found.')
+        message = 'OK, CSV file ' + input_csv + ' found.'
+        print(message)
+        logging.info(message)
     else:
         message = 'CSV file ' + input_csv + ' not found.'
         logging.error(message)
@@ -416,7 +421,9 @@ def check_input(config, args):
                           "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
             sys.exit("Error: Row " + str(count) + " of your CSV file " +
                      "has more columns than there are headers (" + str(len(csv_column_headers)) + ").")
-    print("OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
+    message = "OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ")."
+    print(message)
+    logging.info(message)
 
     # Task-specific CSV checks.
     langcode_was_present = False
@@ -437,7 +444,9 @@ def check_input(config, args):
 
         if 'output_csv' in config.keys():
             if os.path.exists(config['output_csv']):
-                print('Output CSV already exists at ' + config['output_csv'] + ', records will be appended to it.')
+                message = 'Output CSV already exists at ' + config['output_csv'] + ', records will be appended to it.'
+                print(message)
+                logging.info(message)
 
         # Specific to creating paged content. Current, if 'parent_id' is present in the CSV file, so must 'field_weight' and 'field_member_of'.
         if 'parent_id' in csv_column_headers:
@@ -473,7 +482,9 @@ def check_input(config, args):
             if csv_column_header not in drupal_fieldnames:
                 logging.error("CSV column header %s does not appear to match any Drupal field names.", csv_column_header)
                 sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
-        print('OK, CSV column headers match Drupal field names.')
+        message = 'OK, CSV column headers match Drupal field names.'
+        print(message)
+        logging.info(message)
 
     # Check that Drupal fields that are required are in the CSV file (create task only).
     if config['task'] == 'create':
@@ -487,7 +498,9 @@ def check_input(config, args):
             if required_drupal_field not in csv_column_headers:
                 logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
                 sys.exit('Error: Required Drupal field "' + required_drupal_field + '" is not present in the CSV file.')
-        print('OK, required Drupal fields are present in the CSV file.')
+        message = 'OK, required Drupal fields are present in the CSV file.'
+        print(message)
+        logging.info(message)
 
     if config['task'] == 'update':
         if 'node_id' not in csv_column_headers:
@@ -510,7 +523,9 @@ def check_input(config, args):
             if csv_column_header not in drupal_fieldnames:
                 logging.error('CSV column header %s does not appear to match any Drupal field names.', csv_column_header)
                 sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
-        print('OK, CSV column headers match Drupal field names.')
+        message = 'OK, CSV column headers match Drupal field names.'
+        print(message)
+        logging.info(message)
 
     if config['task'] == 'update' or config['task'] == 'create':
         # Validate values in fields that are of type 'typed_relation'. Each value (don't forget multivalued fields) needs to have
@@ -594,7 +609,9 @@ def check_input(config, args):
                     message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value ' + file_check_row[config['id_field']] + ' not found.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
-            print('OK, files named in the CSV "file" column are all present.')
+            message = 'OK, files named in the CSV "file" column are all present.'
+            print(message)
+            logging.info(message)
         empty_file_values_exist = False
         if config['allow_missing_files'] is True:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
@@ -607,10 +624,13 @@ def check_input(config, args):
                         logging.error(message)
                         sys.exit('Error: ' + message)
             if empty_file_values_exist is True:
-                ok_message = 'OK, files named in the CSV "file" column are all present; the "allow_missing_files" option is enabled and empty "file" values exist.'
+                message = 'OK, files named in the CSV "file" column are all present; the "allow_missing_files" option is enabled and empty "file" values exist.'
+                print(message)
+                logging.info(message)
             else:
-                ok_message = 'OK, files named in the CSV "file" column are all present.'
-            print(ok_message)
+                message = 'OK, files named in the CSV "file" column are all present.'
+                print(message)
+                logging.info(message)
 
         # Check that either 'media_type' or 'media_types' are present in the config file.
         if ('media_type' not in config and 'media_types' not in config):
@@ -1065,6 +1085,18 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 # Allow for multiple values in one field.
                 tids_to_check = row[column_name].split(config['subdelimiter'])
                 for field_value in tids_to_check:
+                    # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
+                    # regardless of whether config['allow_adding_terms'] is True.
+                    if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True:
+                        split_field_values = field_value.split(config['subdelimiter'])
+                        for split_field_value in split_field_values:
+                            namespaced = re.search(':', field_value)
+                            if not namespaced:
+                                message = 'Term names in multi-vocabulary CSV field "' + column_name + '" require a vocabulary namespace; value '
+                                message_2 = '"' + field_value + '" in row ' + str(count) + ' does not have one.'
+                                logging.error(message + message_2)
+                                sys.exit('Error: ' + message + message_2)
+
                     # field_value is s a term ID.
                     if value_is_numeric(field_value):
                         if int(field_value) not in fields_with_vocabularies[column_name]:
@@ -1087,27 +1119,16 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 logging.warning(message + message_2)
                                 print('Warning: ' + message + message_2)
 
-                            # !!! From the README: "[Workbench] determines if the field references multiple taxonomies, and then checks to see if
-                            # !!! the field's values in the CSV are term IDs or term names. If both of those conditions are true, and the values
-                            # !!! don't contain namespaces, it will warn you."
-
                             # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
                             # regardless of whether config['allow_adding_terms'] is True.
                             if len(this_fields_vocabularies) > 1:
-                                field_values = field_value.split(config['subdelimiter'])
-                                for split_field_value in field_values:
-                                    namespaced = re.search(':', field_value)
-                                    if not namespaced:
-                                        message = 'Term names in CSV field "' + column_name + '" require a vocabulary namespace; value '
-                                        message_2 = '"' + field_value + '" in row ' + str(count) + ' does not have one.'
-                                        logging.error(message + message_2)
-                                        sys.exit('Error: ' + message + message_2)
-
+                                split_field_values = field_value.split(config['subdelimiter'])
+                                for split_field_value in split_field_values:
                                     # Check to see if namespaced vocab is referenced by this field.
                                     [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':')
                                     if namespace_vocab_id not in this_fields_vocabularies:
-                                        message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name ("' + field_value + '") '
-                                        message_2 = 'that specifies a taxonomy that is not associated with that field.'
+                                        message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name '
+                                        message_2 = '(' + namespaced_term_name + '") that specifies a taxonomy not associated with that field.'
                                         logging.error(message + message_2)
                                         sys.exit('Error: ' + message + message_2)
 
@@ -1116,21 +1137,20 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                         # Warn if namespaced term name is not in specified vocab.
                                         if tid is False:
                                             new_term_names_in_csv = True
-                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
-                                            message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name + '") that is '
+                                            message_2 = 'not in the referenced taxonomy ("' + namespace_vocab_id + '"). That tag will be added to that vocabulary.'
                                             logging.warning(message + message_2)
                                             print('Warning: ' + message + message_2)
                                     else:
                                         # Die if namespaced term name is not specified vocab.
                                         if tid is False:
-                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
-                                            message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name + '") that is '
+                                            message_2 = 'not in the referenced taxonomy ("' + namespace_vocab_id + '").'
                                             logging.warning(message + message_2)
-                                            print('Error: ' + message + message_2)
                                             sys.exit('Error: ' + message + message_2)
 
     if new_term_names_in_csv is True and config['allow_adding_terms'] is True:
-        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted).")
+        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted, but only once).")
     else:
         # All term IDs are in their field's vocabularies.
         print("OK, term IDs/names in CSV file exist in their respective taxonomies.")

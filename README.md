@@ -249,26 +249,28 @@ img001.png,Picture of cats and yarn,Cats|46
 img002.png,Picture of dogs and sticks,Dogs|Sticks
 img003.png,Picture of yarn and needles,"Yarn, Balls of"|Knitting needles
 ```
-If you use a term name that doesn't match an existing term name, Workbench will create the new term. For this to work, you will need to add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks. A couple of things to note:
+If you use a term name that doesn't match an existing term name, Workbench will create the new term. For this to work, you will need to add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks. A few of things to note:
 
 * To create new terms, your target Drupal needs to have its "Taxonomy term" REST endpoint enabled as described in the "Requirements" section at the beginning of this README.
 * If multiple records in your CSV contain the same new term name in the same field, the term is only created once.
-* If your new term name contains a comma, you need to wrap the term name in quotation marks so the CSV data will parse properly (see the example of "Yarn, Balls of" above).
-* When Workbench checks to see if the term with the new name exists in the target vocabulary, it normalizes it and compares it with existing term names in that vocabulary applying these normalization rules to both the new term and the existing terms:
+* When Workbench checks to see if the term with the new name exists in the target vocabulary, it normalizes it and compares it with existing term names in that vocabulary, applying these normalization rules to both the new term and the existing terms:
    * It strips all leading and trailing whitespace.
    * It replaces all other whitespace with a single space character.
    * It converts all text to lower case.
    * It removes all punctuation.
    * If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field after these normalization rules are applied, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
+   
+Adding new terms has some contraints:
+
 * Creating taxonomy terms by including them in your CSV file adds new terms to the root of the applicable vocabulary. You cannot create new terms that have another term as its parent (i.e. terms below the top leve of a hierarchical taxonomy).
 * Terms created in this way do not have any external URIs. If you want your terms to have external URIs, you will need to either create the terms manually or add the URIs manually after the terms are created by Islandora Workbench.
 * Taxonomy terms created with new nodes are not removed when you delete the nodes.
 
 #### Using term names in multi-taxonomy fields
 
-Most node taxonomy fields reference only a single taxonomy, but Drupal allows fields to reference multiple fields. This ability poses a problem when we use term names instead of term IDs in our CSV files: when a multi-taxonomy field, Workbench can't be sure which term name belongs in which of the multiple taxonomies referenced by that field. This applies to both existing terms and to new ones we want to add when creating node content.
+While most node taxonomy fields reference only a single taxonomy, Drupal does allow fields to reference multiple taxonomies. This ability poses a problem when we use term names instead of term IDs in our CSV files: in a multi-taxonomy field, Workbench can't be sure which term name belongs in which of the multiple taxonomies referenced by that field. This applies to both existing terms and to new terms we want to add when creating node content.
 
-To avoid this problem, we need to tell Workbench which vocabulary each term name should (or does) belong to which of the multiple vocabularies. We do this by "namespacing" terms with the vocabulary ID each terms belongs to. Workbench will remind you during its `--check` operation that you need to namespace terms. It determines if the field references multiple taxonomies, and then checks to see if the field's values in the CSV are term IDs or term names. If both of those conditions are true, and the values don't contain namespaces, it will warn you.
+To avoid this problem, we need to tell Workbench which of the multple vocabularies each term name should (or does) belong to. We do this by namespacing terms with the applicable vocabulary ID. Workbench will remind you during its `--check` operation that you need to namespace terms. It determines if the field references multiple taxonomies, and then checks to see if the field's values in the CSV are term IDs or term names. If both of those conditions are true, and the term values don't contain namespaces, it will warn you.
 
 For example, let's imagine we have a node field whose name is `field_sample_tags`, and this field references two taxonomies, `cat` and `dogs`. To use the terms `Tuxedo`, `Tabby`, `German Shepherd` in the CSV when adding new nodes, we would namespace them like this:
 
@@ -286,9 +288,15 @@ If you want to use multiple terms in a single field, you would namespace them bo
 cats:Tuxedo|cats:Misbehaving
 ```
 
-Using this convention, Workbench will know which taxonomy the terms belong to. Since the `:` is a special character in this case, you can't add a namespaced term that itself contains a `:` in this way; you need to add it manually to Drupal and then use its term ID in your CSV file.
+Term names containing commas (`,`) in multi-valued, multi-taxonomy fields need special treatment (no surprise there): you need to wrap the entire field in quotation marks (like you would for any other CSV value that contains a comma), and in addition, specify the namespace within each of the values:
 
-If the field you are populating references only a single taxonomy (which is the most common case), you don't need to use namespaces.
+
+```
+"tags:gum, Bubble|tags:candy, Hard"
+```
+Using these conventions, Workbench will be certain which taxonomy the term names belong to.
+
+Note that since the `:` is a special character in this case, you can't add a namespaced term that itself contains a `:` in this way; you need to add it manually to Drupal and then use its term ID in your CSV file.
 
 ### Geolocation fields
 
