@@ -109,6 +109,7 @@ def issue_request(config, method, path, headers='', json='', data='', query={}):
         if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE']:
             time.sleep(config['pause'])
 
+    config['host'] = config['host'].rstrip('/')
     if config['host'] in path:
         url = path
     else:
