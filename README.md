@@ -57,31 +57,34 @@ id_field: id
 
 The settings defined in a configuration file are:
 
-* `task` is one of 'create', 'update', delete', 'add_media', or 'delete_media'.
-* `host` is the hostname, including port number if not 80, of your Islandora repository.
-* `username` is the username used to authenticate the requests.
-* `password` is the user's password.
-* `content_type` is the machine name of the Drupal node content type you are creating or updating.
-* `input_dir` is the full or relative path to the directory containing the files and metadata CSV file.
-* `input_csv` is the filename of the CSV metadata file, which must be in the directory named in '--input_dir'.
-* `output_csv` is the full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information.
-* `media_use_tid` is the term ID for the Media Use term you want to apply to the media.
-* `media_type` (singular) specifies whether the media being created in the 'create' or 'add_media' task is an `image`, `file`, `document`, `audio`, or `video` (or other media type that exists in the target Islandora).
-* `media_types` (plural) provides a mapping bewteen file extensions and media types. Note: either `media_type` or `media_types` is required. More detail provided in the "Setting Media Types" section below.
-* `drupal_filesystem` is either 'fedora://' or 'public://'.
-* `allow_missing_files` determines if empty`file` values are allowed. If set to `true`, empty `file` values are allowed and will result in nodes without attached media. Defaults to `false` (which means all `file` values must contain the name of a file that exists in the `input_data` directory).
-* `allow_adding_terms` determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. Defauls to `false`. See more information in the "Taxonomy fields" section below.
-* `delimiter` is the delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",".
-* `id_field` is the name of the field in the CSV that uniquely identifies each record. If omitted, defaults to 'id'.
-* `published` determines if nodes are published or not. Applies to 'create' task only. Defaults to `true`; set to `false` if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the `status` base field, as described in the "Base Fields" section below. Values in the CSV override the value of `published` set here.
-* `validate_title_length`: Whether or not to check if `title` values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to `true`. Set to `false` if you are using a module that lets you override Drupal's maximum title length, such as [Node Title Length](https://www.drupal.org/project/title_length) or [Entity Title Length](https://www.drupal.org/project/entity_title_length).
-* `pause` defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example `pause: 1.5`.
-* `delete_media_with_nodes`: When a node is deleted using a `delete` task, by default, all if its media are automatically deleted. Set this option to `false` to *not* delete all of a node's media (you do not generally want to keep the media without the node).
-* `paged_content_from_directories`: Defaults to `false`. Set to `true` if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information.
-* `paged_content_sequence_seprator`: The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. Defaults to hypen (`-`). See the section "Creating paged content" below for more information.
-* `paged_content_page_model_tid`: The the term ID from the Islandora Models taxonomy to assign to pages. Required if `paged_content_from_directories` is true. See the section "Creating paged content" below for more information.
-* `paged_content_page_display_hints`: The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the `field_display_hints` in the parent's record in the CSV file. See the section "Creating paged content" below for more information.
-* `paged_content_page_content_type`: Set to the machine name of the Drupal node content type for pages created using the "Without page-level metadata" method if it is different than the content type of the parents (which is specified in the `content_type` setting). See the section "Creating paged content" below for more information.
+| Key | Required | Default value | Purpose |
+| --- | --- | --- | --- | 
+| task | ✔️ | | 'create', 'update', delete', 'add_media', or 'delete_media' |
+| host | ✔️ | | The hostname, including port number if not 80, of your Islandora repository. |
+| username |  ✔️ | | The username used to authenticate the requests. |
+| password |  ✔️ | | The user's password. |
+| content_type |  ✔️ | | The machine name of the Drupal node content type you are creating or updating. |
+| input_dir |  ✔️ | | the full or relative path to the directory containing the files and metadata CSV file. |
+| input_csv |  ✔️ | | The name of the CSV metadata file, which must be in the directory named in `input_dir`. |
+| id_field |  ✔️ | id | the name of the field in the CSV that uniquely identifies each record. |
+| delimiter |  | , [comma]| The delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",". |
+| subdelimiter |  | &#124; [pipe]| The subdelimiter used in the CSV file to define multiple values in one field. If omitted, defaults to "&#124;". |
+| drupal_filesystem |  ✔️ | | One of 'fedora://', 'public://', or 'private://'. |
+| output_csv | | | The full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information. |
+| media_use_tid |  |  ✔️ | The term ID for the Media Use term you want to apply to the media. |
+| media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). One of `media_type` or `media_types` is required. |
+| media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: either media_type or media_types is required. More detail provided in the "Setting Media Types" section below. One of `media_type` or `media_types` is required. |
+| allow_missing_files |  | false | Determines if emptyfile values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the input_data directory). |
+| allow_adding_terms |  | false | Determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. See more information in the "Taxonomy fields" section below. |
+| published | | true | hether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
+| validate_title_length |  | true | Whether or not to check if title values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to true. Set to false if you are using a module that lets you override Drupal's maximum title length, such as Node Title Length or Entity Title Length. |
+| pause |  | | Defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example pause: 1.5. |
+| delete_media_with_nodes |  | true | When a node is deleted using a delete task, by default, all if its media are automatically deleted. Set this option to false to not delete all of a node's media (you do not generally want to keep the media without the node). |
+| paged_content_from_directories |  | false | Set to true if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information. |
+| paged_content_sequence_seprator |  | - [hyphen]| The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. See the section "Creating paged content" below for more information. |
+| paged_content_page_model_tid |  | | Required if paged_content_from_directories is true. The the term ID from the Islandora Models taxonomy to assign to pages. See the section "Creating paged content" below for more information. |
+| paged_content_page_display_hints |  | | The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the field_display_hints in the parent's record in the CSV file. See the section "Creating paged content" below for more information. |
+| paged_content_page_content_type |  | | Set to the machine name of the Drupal node content type for pages created using the "Without page-level metadata" method if it is different than the content type of the parents (which is specified in the content_type setting). See the section "Creating paged content" below for more information. |
 
 All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
 
