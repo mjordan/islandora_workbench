@@ -59,7 +59,7 @@ The settings defined in a configuration file are:
 
 | Key | Required | Default value | Purpose |
 | --- | --- | --- | --- | 
-| task | ✔️ | | 'create', 'update', delete', 'add_media', or 'delete_media' |
+| task | ✔️ | | One of 'create', 'update', delete', 'add_media', or 'delete_media' |
 | host | ✔️ | | The hostname, including port number if not 80, of your Islandora repository. |
 | username |  ✔️ | | The username used to authenticate the requests. |
 | password |  ✔️ | | The user's password. |
