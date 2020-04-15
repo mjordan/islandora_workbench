@@ -5,7 +5,6 @@ import csv
 import time
 import string
 import re
-import glob
 import logging
 import datetime
 import requests
@@ -298,19 +297,42 @@ def get_field_definitions(config):
 def check_input(config, args):
     """Validate the config file and input data.
     """
-    # First, check the config file.
+    logging.info("Starting configuration check for %s task using config file %s.", config['task'], args.config)
+
+    # First, test host and credentials.
+    jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
+    headers = {'Accept': 'Application/vnd.api+json'}
+    try:
+        response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as error:
+        message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
+    if response.status_code == 200:
+        field_config = json.loads(response.text)
+        if field_config['data'] == []:
+            message = config['host'] + ' does not recognize the username/password combination you have provided.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        else:
+            print('OK, ' + config['host'] + ' is accessible using the credentials provided.')
+            logging.info(config['host'] + ' is accessible using the credentials provided.')
+
+    # Check the config file.
     tasks = ['create', 'update', 'delete', 'add_media', 'delete_media']
     joiner = ', '
     if config['task'] not in tasks:
-        message = 'Error: "task" in your configuration file must be one of "create", "update", "delete", "add_media".'
+        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media".'
         logging.error(message)
-        sys.exit(message)
+        sys.exit('Error: ' + message)
 
     config_keys = list(config.keys())
     config_keys.remove('check')
 
-    # Dealing with optional config keys. If you introduce a new
-    # optional key, add it to this list. Note that optional
+    # Dealing with optional config keys. If you introduce a new optional key, add it to this list. Note that optional
     # keys are not validated.
     optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
@@ -330,80 +352,52 @@ def check_input(config, args):
                           'input_dir', 'input_csv', 'media_use_tid',
                           'drupal_filesystem', 'id_field']
         if not set(config_keys) == set(create_options):
-            message = 'Error: Please check your config file for required values: ' + joiner.join(create_options)
+            message = 'Please check your config file for required values: ' + joiner.join(create_options)
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
     if config['task'] == 'update':
         update_options = ['task', 'host', 'username', 'password',
                           'content_type', 'input_dir', 'input_csv']
         if not set(config_keys) == set(update_options):
-            message = 'Error: Please check your config file for required values: ' + joiner.join(update_options)
+            message = 'Please check your config file for required values: ' + joiner.join(update_options)
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
     if config['task'] == 'delete':
         delete_options = ['task', 'host', 'username', 'password',
                           'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_options):
-            message = 'Error: Please check your config file for required values: ' + joiner.join(delete_options)
+            message = 'Please check your config file for required values: ' + joiner.join(delete_options)
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
     if config['task'] == 'add_media':
         add_media_options = ['task', 'host', 'username', 'password',
                              'input_dir', 'input_csv', 'media_use_tid',
                              'drupal_filesystem']
         if not set(config_keys) == set(add_media_options):
-            message = 'Error: Please check your config file for required values: ' + joiner.join(add_media_options)
+            message = 'Please check your config file for required values: ' + joiner.join(add_media_options)
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
         delete_media_options = ['task', 'host', 'username', 'password',
                                 'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_media_options):
-            message = 'Error: Please check your config file for required values: ' + joiner.join(delete_media_options)
+            message = 'Please check your config file for required values: ' + joiner.join(delete_media_options)
             logging.error(message)
-            sys.exit(message)
-    print('OK, configuration file has all required values (did not check ' +
-          'for optional values).')
-
-    # Test host and credentials.
-    jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
-    headers = {'Accept': 'Application/vnd.api+json'}
-    response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
-    """
-    try:
-        response = requests.get(
-            jsonapi_url,
-            auth=(config['username'], config['password']),
-            headers=headers
-        )
-        response.raise_for_status()
-    except requests.exceptions.TooManyRedirects as error:
-        print(error)
-        sys.exit(1)
-    except requests.exceptions.RequestException as error:
-        print(error)
-        sys.exit(1)
-    """
-
-    # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
-    if response.status_code == 200:
-        field_config = json.loads(response.text)
-        if field_config['data'] == []:
-            message = 'Error: ' + config['host'] + ' does not recognize the username/password combination you have provided.'
-            logging.error(message)
-            sys.exit(message)
-        else:
-            print('OK, ' + config['host'] + ' is accessible using the ' +
-                  'credentials provided.')
+            sys.exit('Error: ' + message)
+    message = 'OK, configuration file has all required values (did not check for optional values).'
+    print(message)
+    logging.info(message)
 
     # Check existence of CSV file.
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
-        print('OK, CSV file ' + input_csv + ' found.')
+        message = 'OK, CSV file ' + input_csv + ' found.'
+        print(message)
+        logging.info(message)
     else:
-        message = 'Error: CSV file ' + input_csv + ' not found.'
+        message = 'CSV file ' + input_csv + ' not found.'
         logging.error(message)
-        sys.exit(message)
+        sys.exit('Error: ' + message)
 
     # Check column headers in CSV file.
     csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
@@ -417,58 +411,61 @@ def check_input(config, args):
             if (row[field] is not None):
                 string_field_count += 1
         if len(csv_column_headers) > string_field_count:
-            logging.error("Error: Row %s of your CSV file does not " +
+            logging.error("Row %s of your CSV file does not " +
                           "have same number of columns (%s) as there are headers " +
                           "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
             sys.exit("Error: Row " + str(count) + " of your CSV file " +
                      "does not have same number of columns (" + str(string_field_count) +
                      ") as there are headers (" + str(len(csv_column_headers)) + ").")
         if len(csv_column_headers) < string_field_count:
-            logging.error("Error: Row %s of your CSV file has more columns than there are headers " +
+            logging.error("Row %s of your CSV file has more columns than there are headers " +
                           "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
             sys.exit("Error: Row " + str(count) + " of your CSV file " +
                      "has more columns than there are headers (" + str(len(csv_column_headers)) + ").")
-    print("OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ").")
+    message = "OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ")."
+    print(message)
+    logging.info(message)
 
     # Task-specific CSV checks.
     langcode_was_present = False
     if config['task'] == 'create':
         field_definitions = get_field_definitions(config)
         if config['id_field'] not in csv_column_headers:
-            message = 'Error: For "create" tasks, your CSV file must have a column containing a unique identifier.'
+            message = 'For "create" tasks, your CSV file must have a column containing a unique identifier.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
         if 'file' not in csv_column_headers and config['paged_content_from_directories'] is False:
-            message = 'Error: For "create" tasks, your CSV file must contain a "file" column.'
+            message = 'For "create" tasks, your CSV file must contain a "file" column.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
         if 'title' not in csv_column_headers:
-            message = 'Error: For "create" tasks, your CSV file must contain a "title" column.'
+            message = 'For "create" tasks, your CSV file must contain a "title" column.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
 
         if 'output_csv' in config.keys():
             if os.path.exists(config['output_csv']):
-                print('Output CSV already exists at ' + config['output_csv'] + ', records will be appended to it.')
+                message = 'Output CSV already exists at ' + config['output_csv'] + ', records will be appended to it.'
+                print(message)
+                logging.info(message)
 
-        # Specific to creating paged content. Current, if 'parent_id' is present
-        # in the CSV file, so must 'field_weight' and 'field_member_of'.
+        # Specific to creating paged content. Current, if 'parent_id' is present in the CSV file, so must 'field_weight' and 'field_member_of'.
         if 'parent_id' in csv_column_headers:
             if ('field_weight' not in csv_column_headers or 'field_member_of' not in csv_column_headers):
-                message = 'Error: If your CSV file contains a "parent_id" column, it must also contain "field_weight" and "field_member_of" columns.'
+                message = 'If your CSV file contains a "parent_id" column, it must also contain "field_weight" and "field_member_of" columns.'
                 logging.error(message)
-                sys.exit(message)
+                sys.exit('Error: ' + message)
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
 
         if len(drupal_fieldnames) == 0:
-            message = "Error: Can't retrieve field definitions from Drupal. Please confirm that the JSON:API module is enabled."
+            message = "Can't retrieve field definitions from Drupal. Please confirm that the JSON:API module is enabled."
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
 
-        # We .remove() CSV column headers for this check because they are not Drupal field names
-        # (including 'langcode'). Any new columns introduced into the CSV need to be removed here.
+        # We .remove() CSV column headers for this check because they are not Drupal field names (including 'langcode').
+        # Any new columns introduced into the CSV need to be removed here.
         if config['id_field'] in csv_column_headers:
             csv_column_headers.remove(config['id_field'])
         if 'file' in csv_column_headers:
@@ -484,9 +481,11 @@ def check_input(config, args):
             langcode_was_present = True
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
-                logging.error("Error: CSV column header %s does not appear to match any Drupal field names.", csv_column_header)
+                logging.error("CSV column header %s does not appear to match any Drupal field names.", csv_column_header)
                 sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
-        print('OK, CSV column headers match Drupal field names.')
+        message = 'OK, CSV column headers match Drupal field names.'
+        print(message)
+        logging.info(message)
 
     # Check that Drupal fields that are required are in the CSV file (create task only).
     if config['task'] == 'create':
@@ -500,13 +499,15 @@ def check_input(config, args):
             if required_drupal_field not in csv_column_headers:
                 logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
                 sys.exit('Error: Required Drupal field "' + required_drupal_field + '" is not present in the CSV file.')
-        print('OK, required Drupal fields are present in the CSV file.')
+        message = 'OK, required Drupal fields are present in the CSV file.'
+        print(message)
+        logging.info(message)
 
     if config['task'] == 'update':
         if 'node_id' not in csv_column_headers:
-            message = 'Error: For "update" tasks, your CSV file must contain a "node_id" column.'
+            message = 'For "update" tasks, your CSV file must contain a "node_id" column.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
         field_definitions = get_field_definitions(config)
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
@@ -521,18 +522,18 @@ def check_input(config, args):
             csv_column_headers.remove('node_id')
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
-                logging.error('Error: CSV column header %s does not appear to match any Drupal field names.', csv_column_header)
+                logging.error('CSV column header %s does not appear to match any Drupal field names.', csv_column_header)
                 sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
-        print('OK, CSV column headers match Drupal field names.')
+        message = 'OK, CSV column headers match Drupal field names.'
+        print(message)
+        logging.info(message)
 
     if config['task'] == 'update' or config['task'] == 'create':
-        # Validate values in fields that are of type 'typed_relation'.
-        # Each value (don't forget multivalued fields) needs to have this
-        # pattern: string:string:int.
+        # Validate values in fields that are of type 'typed_relation'. Each value (don't forget multivalued fields) needs to have
+        # this pattern: string:string:int.
         validate_typed_relation_values(config, field_definitions, csv_data)
 
-        # Requires a View installed by the Islandora Workbench Integration module.
-        # If the View is not enabled, Drupal returns a 404.
+        # Requires a View installed by the Islandora Workbench Integration module. If the View is not enabled, Drupal returns a 404.
         terms_view_url = config['host'] + '/vocabulary'
         terms_view_response = issue_request(config, 'GET', terms_view_url)
         if terms_view_response.status_code == 404:
@@ -547,12 +548,11 @@ def check_input(config, args):
             validate_title_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
             for count, row in enumerate(validate_title_csv_data, start=1):
                 if len(row['title']) > 255:
-                    message = "Error: The 'title' column in row " + str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
+                    message = "The 'title' column in row " + str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
                     logging.error(message)
-                    sys.exit(message)
+                    sys.exit('Error: ' + message)
 
-        # Validate existence of nodes specified in 'field_member_of'.
-        # This could be generalized out to validate node IDs in other fields.
+        # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
         validate_field_member_of_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
         for count, row in enumerate(validate_field_member_of_csv_data, start=1):
@@ -562,9 +562,9 @@ def check_input(config, args):
                     if len(parent_nid) > 0:
                         parent_node_exists = ping_node(config, parent_nid)
                         if parent_node_exists is False:
-                            message = "Error: The 'field_member_of field' in row " + str(count) + " of your CSV file contains a node ID that doesn't exist (" + parent_nid + ")"
+                            message = "The 'field_member_of field' in row " + str(count) + " of your CSV file contains a node ID that doesn't exist (" + parent_nid + ")"
                             logging.error(message)
-                            sys.exit(message)
+                            sys.exit('Error: ' + message)
 
         # Validate 'langcode' values if that field exists.
         if langcode_was_present:
@@ -572,29 +572,29 @@ def check_input(config, args):
             for count, row in enumerate(validate_langcode_csv_data, start=1):
                 langcode_valid = validate_language_code(row['langcode'])
                 if not langcode_valid:
-                    message = "Error: Row " + str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
+                    message = "Row " + str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
                     logging.error(message)
-                    sys.exit(message)
+                    sys.exit('Error: ' + message)
 
     if config['task'] == 'delete':
         if 'node_id' not in csv_column_headers:
-            message = 'Error: For "delete" tasks, your CSV file must contain a "node_id" column.'
+            message = 'For "delete" tasks, your CSV file must contain a "node_id" column.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
     if config['task'] == 'add_media':
         if 'node_id' not in csv_column_headers:
-            message = 'Error: For "add_media" tasks, your CSV file must contain a "node_id" column.'
+            message = 'For "add_media" tasks, your CSV file must contain a "node_id" column.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
         if 'file' not in csv_column_headers:
-            message = 'Error: For "add_media" tasks, your CSV file must contain a "file" column.'
+            message = 'For "add_media" tasks, your CSV file must contain a "file" column.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
         if 'media_id' not in csv_column_headers:
-            message = 'Error: For "delete_media" tasks, your CSV file must contain a "media_id" column.'
+            message = 'For "delete_media" tasks, your CSV file must contain a "media_id" column.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
 
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
@@ -602,15 +602,17 @@ def check_input(config, args):
         if config['allow_missing_files'] is False:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
-                    message = 'Error: Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
+                    message = 'Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                     logging.error(message)
-                    sys.exit(message)
+                    sys.exit('Error: ' + message)
                 file_path = os.path.join(config['input_dir'], file_check_row['file'])
                 if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                    message = 'Error: File ' + file_path + ' identified in CSV "file" column for record with ID field value ' + file_check_row[config['id_field']] + ' not found.'
+                    message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value ' + file_check_row[config['id_field']] + ' not found.'
                     logging.error(message)
-                    sys.exit(message)
-            print('OK, files named in the CSV "file" column are all present.')
+                    sys.exit('Error: ' + message)
+            message = 'OK, files named in the CSV "file" column are all present.'
+            print(message)
+            logging.info(message)
         empty_file_values_exist = False
         if config['allow_missing_files'] is True:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
@@ -619,48 +621,51 @@ def check_input(config, args):
                 else:
                     file_path = os.path.join(config['input_dir'], file_check_row['file'])
                     if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                        message = 'Error: File ' + file_path + ' identified in CSV "file" column not found.'
+                        message = 'File ' + file_path + ' identified in CSV "file" column not found.'
                         logging.error(message)
-                        sys.exit(message)
+                        sys.exit('Error: ' + message)
             if empty_file_values_exist is True:
-                ok_message = 'OK, files named in the CSV "file" column are all present; the "allow_missing_files" option is enabled and empty "file" values exist.'
+                message = 'OK, files named in the CSV "file" column are all present; the "allow_missing_files" option is enabled and empty "file" values exist.'
+                print(message)
+                logging.info(message)
             else:
-                ok_message = 'OK, files named in the CSV "file" column are all present.'
-            print(ok_message)
+                message = 'OK, files named in the CSV "file" column are all present.'
+                print(message)
+                logging.info(message)
 
         # Check that either 'media_type' or 'media_types' are present in the config file.
         if ('media_type' not in config and 'media_types' not in config):
-            message = 'Error: You must configure media type using either the "media_type" or "media_types" option.'
+            message = 'You must configure media type using either the "media_type" or "media_types" option.'
             logging.error(message)
-            sys.exit(message)
+            sys.exit('Error: ' + message)
 
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
-            print('Error: If you are creating paged content, you must include "paged_content_page_model_tid" in your configuration.')
+            message = 'If you are creating paged content, you must include "paged_content_page_model_tid" in your configuration.'
             logging.error('Configuration requires "paged_content_page_model_tid" setting when creating paged content.')
+            sys.exit('Error: ' + message)
         paged_content_from_directories_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
         for count, file_check_row in enumerate(paged_content_from_directories_csv_data, start=1):
             dir_path = os.path.join(config['input_dir'], file_check_row[config['id_field']])
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
-                message = 'Error: Page directory ' + dir_path + ' for CSV record with ID "' + file_check_row[config['id_field']] + '"" not found.'
+                message = 'Page directory ' + dir_path + ' for CSV record with ID "' + file_check_row[config['id_field']] + '"" not found.'
                 logging.error(message)
-                sys.exit(message)
+                sys.exit('Error: ' + message)
             page_files = os.listdir(dir_path)
             if len(page_files) == 0:
                 print('Warning: Page directory ' + dir_path + ' is empty; is that intentional?')
                 logging.warning('Page directory ' + dir_path + ' is empty.')
             for page_file_name in page_files:
                 if config['paged_content_sequence_seprator'] not in page_file_name:
-                    message = 'Error: Page file ' + os.path.join(dir_path, page_file_name) + ' does not contain a sequence separator (' + config['paged_content_sequence_seprator'] + ').'
+                    message = 'Page file ' + os.path.join(dir_path, page_file_name) + ' does not contain a sequence separator (' + config['paged_content_sequence_seprator'] + ').'
                     logging.error(message)
-                    sys.exit(message)
+                    sys.exit('Error: ' + message)
 
         print('OK, page directories are all present.')
 
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
-    logging.info("Configuration checked for %s task using config file " +
-                 "%s, no problems found.", config['task'], args.config)
+    logging.info("Configuration checked for %s task using config file %s, no problems found.", config['task'], args.config)
     sys.exit(0)
 
 
@@ -887,7 +892,7 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
         if match:
             return tid
 
-    # I.e., none matched.
+    # None matched.
     return False
 
 
@@ -969,8 +974,8 @@ def create_term(config, vocab_id, term_name):
 
 
 def prepare_term_id(config, vocab_ids, term):
-    """REST POST and PATCH operations require taxonomy term IDs, not term names.
-       This funtion checks its arguement to see if it's numeric (i.e., a term ID) and
+    """REST POST and PATCH operations require taxonomy term IDs, not term names. This
+       funtion checks its 'term' arguement to see if it's numeric (i.e., a term ID) and
        if it is, returns it as is. If it's not (i.e., a term name) it looks for the
        term name in the referenced vocabulary and returns its term ID (existing or
        newly created).
@@ -981,15 +986,28 @@ def prepare_term_id(config, vocab_ids, term):
         if len(vocab_ids) == 1:
             tid = create_term(config, vocab_ids[0], term)
             return tid
-        # This field has more than one vocabulary linked to it. Since we don't know
-        # which vocabulary the user wants the new term to be added to, we split the term name
-        # on : and take what second half as the vocabulary ID to add the first half to.
-        # else:
-            # @todo: deal with this edge case.
+        else:
+            # Term names used in mult-taxonomy fields. They need to be namespaced with
+            # the taxonomy ID.
+            #
+            # If the field has more than one vocabulary linked to it, we don't know which
+            # vocabulary the user wants a new term to be added to, and if the term name is
+            # already used in any of the taxonomies linked to this field, we also don't know
+            # which vocabulary to look for it in to get its term ID. Therefore, we always need
+            # to namespace term names if they are used in multi-taxonomy fields. If people want
+            # to use term names that contain a colon, they need to add them to Drupal first
+            # and use the term ID. Workaround PRs welcome.
+            #
+            # Split the namespace/vocab ID from the term name on ':'.
+            namespaced = re.search(':', term)
+            if namespaced:
+                [vocab_id, term_name] = term.split(':')
+                tid = create_term(config, vocab_id, term_name)
+                return tid
 
 
 def get_field_vocabularies(config, field_definitions, field_name):
-    """Gets IDs of vocabularies linked from the current field (usually only one vocabulary).
+    """Gets IDs of vocabularies linked from the current field (could be more than one).
     """
     if 'vocabularies' in field_definitions[field_name]:
         vocabularies = field_definitions[field_name]['vocabularies']
@@ -1042,22 +1060,19 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     fields_with_vocabularies = dict()
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
+        fields_with_vocabularies = dict()
         if column_name in field_definitions:
             if 'vocabularies' in field_definitions[column_name]:
-                fields_with_vocabularies[column_name] = []
-                # Get the vocabularies linked from the current field (usually
-                # only one vocabulary)
-                vocabularies = field_definitions[column_name]['vocabularies']
+                vocabularies = get_field_vocabularies(config, field_definitions, column_name)
                 all_tids_for_field = []
                 for vocabulary in vocabularies:
                     terms = get_term_pairs(config, vocabulary)
                     if len(terms) == 0:
-                        message = 'Error: Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" either does not exist or contains no terms.'
+                        message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" either does not exist or contains no terms.'
                         logging.error(message)
-                        sys.exit(message)
+                        sys.exit('Error: ' + message)
                     vocab_term_ids = list(terms.keys())
-                    # If more than one vocab in this field, combine their
-                    # term IDs into a single list.
+                    # If more than one vocab in this field, combine their term IDs into a single list.
                     all_tids_for_field = all_tids_for_field + vocab_term_ids
                 fields_with_vocabularies[column_name] = all_tids_for_field
 
@@ -1065,35 +1080,78 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     new_term_names_in_csv = False
     for count, row in enumerate(csv_data, start=1):
         for column_name in fields_with_vocabularies:
+            this_fields_vocabularies = get_field_vocabularies(config, field_definitions, column_name)
+            this_fields_vocabularies_string = ', '.join(this_fields_vocabularies)
             if len(row[column_name]):
                 # Allow for multiple values in one field.
                 tids_to_check = row[column_name].split(config['subdelimiter'])
                 for field_value in tids_to_check:
-                    # It's a term ID.
+                    # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
+                    # regardless of whether config['allow_adding_terms'] is True.
+                    if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True:
+                        split_field_values = field_value.split(config['subdelimiter'])
+                        for split_field_value in split_field_values:
+                            namespaced = re.search(':', field_value)
+                            if not namespaced:
+                                message = 'Term names in multi-vocabulary CSV field "' + column_name + '" require a vocabulary namespace; value '
+                                message_2 = '"' + field_value + '" in row ' + str(count) + ' does not have one.'
+                                logging.error(message + message_2)
+                                sys.exit('Error: ' + message + message_2)
+
+                    # field_value is s a term ID.
                     if value_is_numeric(field_value):
                         if int(field_value) not in fields_with_vocabularies[column_name]:
-                            message = 'Error: CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID (' + field_value + ') that is '
-                            message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID (' + field_value + ') that is '
+                            if len(this_fields_vocabularies) > 1:
+                                message_2 = 'not in one of the referenced taxonomies (' + this_fields_vocabularies_string + ').'
+                            else:
+                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
                             logging.error(message + message_2)
-                            sys.exit(message + message_2)
+                            sys.exit('Error: ' + message + message_2)
                     else:
                         # field_value is a string term.
                         tid = find_term_in_vocab(config, vocabulary, field_value)
                         if value_is_numeric(tid) is not True:
-                            if config['allow_adding_terms'] is True:
+                            # Single taxonomy fields.
+                            if len(this_fields_vocabularies) == 1:
                                 new_term_names_in_csv = True
                                 message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
-                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '"). Workbench will create this term.'
+                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
                                 logging.warning(message + message_2)
                                 print('Warning: ' + message + message_2)
-                            else:
-                                message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
-                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
-                                logging.error(message + message_2)
-                                sys.exit('Error: ' + message + message_2)
 
-    if new_term_names_in_csv is True:
-        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted).")
+                            # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
+                            # regardless of whether config['allow_adding_terms'] is True.
+                            if len(this_fields_vocabularies) > 1:
+                                split_field_values = field_value.split(config['subdelimiter'])
+                                for split_field_value in split_field_values:
+                                    # Check to see if namespaced vocab is referenced by this field.
+                                    [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':')
+                                    if namespace_vocab_id not in this_fields_vocabularies:
+                                        message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name '
+                                        message_2 = '(' + namespaced_term_name + '") that specifies a taxonomy not associated with that field.'
+                                        logging.error(message + message_2)
+                                        sys.exit('Error: ' + message + message_2)
+
+                                    tid = find_term_in_vocab(config, namespace_vocab_id, namespaced_term_name)
+                                    if config['allow_adding_terms'] is True:
+                                        # Warn if namespaced term name is not in specified vocab.
+                                        if tid is False:
+                                            new_term_names_in_csv = True
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name + '") that is '
+                                            message_2 = 'not in the referenced taxonomy ("' + namespace_vocab_id + '"). That tag will be added to that vocabulary.'
+                                            logging.warning(message + message_2)
+                                            print('Warning: ' + message + message_2)
+                                    else:
+                                        # Die if namespaced term name is not specified vocab.
+                                        if tid is False:
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name + '") that is '
+                                            message_2 = 'not in the referenced taxonomy ("' + namespace_vocab_id + '").'
+                                            logging.warning(message + message_2)
+                                            sys.exit('Error: ' + message + message_2)
+
+    if new_term_names_in_csv is True and config['allow_adding_terms'] is True:
+        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted, but only once).")
     else:
         # All term IDs are in their field's vocabularies.
         print("OK, term IDs/names in CSV file exist in their respective taxonomies.")

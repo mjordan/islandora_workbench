@@ -249,20 +249,57 @@ img001.png,Picture of cats and yarn,Cats|46
 img002.png,Picture of dogs and sticks,Dogs|Sticks
 img003.png,Picture of yarn and needles,"Yarn, Balls of"|Knitting needles
 ```
-If you use a term name that doesn't match an existing term name, Workbench will create the new term. For this to work, you will need to add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks. A couple of things to note:
+If you use a term name that doesn't match an existing term name, Workbench will create the new term. For this to work, you will need to add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks. A few of things to note:
 
 * To create new terms, your target Drupal needs to have its "Taxonomy term" REST endpoint enabled as described in the "Requirements" section at the beginning of this README.
 * If multiple records in your CSV contain the same new term name in the same field, the term is only created once.
-* If your new term name contains a comma, you need to wrap the term name in quotation marks so the CSV data will parse properly (see the example of "Yarn, Balls of" above).
-* When Workbench checks to see if the term with the new name exists in the target vocabulary, it normalizes it and compares it with existing term names in that vocabulary applying these normalization rules to both the new term and the existing terms:
+* When Workbench checks to see if the term with the new name exists in the target vocabulary, it normalizes it and compares it with existing term names in that vocabulary, applying these normalization rules to both the new term and the existing terms:
    * It strips all leading and trailing whitespace.
    * It replaces all other whitespace with a single space character.
    * It converts all text to lower case.
    * It removes all punctuation.
    * If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field after these normalization rules are applied, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
+   
+Adding new terms has some contraints:
+
 * Creating taxonomy terms by including them in your CSV file adds new terms to the root of the applicable vocabulary. You cannot create new terms that have another term as its parent (i.e. terms below the top leve of a hierarchical taxonomy).
 * Terms created in this way do not have any external URIs. If you want your terms to have external URIs, you will need to either create the terms manually or add the URIs manually after the terms are created by Islandora Workbench.
+* Taxonomy terms created with new nodes are not removed when you delete the nodes.
 
+#### Using term names in multi-taxonomy fields
+
+While most node taxonomy fields reference only a single taxonomy, Drupal does allow fields to reference multiple taxonomies. This ability poses a problem when we use term names instead of term IDs in our CSV files: in a multi-taxonomy field, Workbench can't be sure which term name belongs in which of the multiple taxonomies referenced by that field. This applies to both existing terms and to new terms we want to add when creating node content.
+
+To avoid this problem, we need to tell Workbench which of the multple vocabularies each term name should (or does) belong to. We do this by namespacing terms with the applicable vocabulary ID.
+
+For example, let's imagine we have a node field whose name is `field_sample_tags`, and this field references two taxonomies, `cats` and `dogs`. To use the terms `Tuxedo`, `Tabby`, `German Shepherd` in the CSV when adding new nodes, we would namespace them like this:
+
+
+```
+field_sample_tags
+cats:Tabby
+cats:Tuxedo
+dogs:German Shepherd
+```
+
+If you want to use multiple terms in a single field, you would namespace them both:
+
+```
+cats:Tuxedo|cats:Misbehaving
+```
+
+Term names containing commas (`,`) in multi-valued, multi-taxonomy fields need special treatment (no surprise there): you need to wrap the entire field in quotation marks (like you would for any other CSV value that contains a comma), and in addition, specify the namespace within each of the values:
+
+```
+"tags:gum, Bubble|tags:candy, Hard"
+```
+Using these conventions, Workbench will be certain which taxonomy the term names belong to. Workbench will remind you during its `--check` operation that you need to namespace terms. It determines 1) if the field references multiple taxonomies, and then checks to see 2) if the field's values in the CSV are term IDs or term names. If you use term names in multi-taxonomy fields, and the term names aren't namespaced, Workbench will warn you:
+
+```
+Error: Term names in multi-vocabulary CSV field "field_tags" require a vocabulary namespace; value "Dogs" in row 4 does not have one.
+```
+
+Note that since `:` is a special character when you use term names in multi-taxonomy CSV fields, you can't add a namespaced term that itself contains a `:`. You need to add it manually to Drupal and then use its term ID in your CSV file.
 
 ### Geolocation fields
 
@@ -306,7 +343,7 @@ If both `media_type` and `media_types` are included in the config file, the mapp
 
 Islandora Workbench provides two ways to create paged content. The first uses a specific directory structure to define the relationship between the parent item and the pages, and the second uses page-level metadata in the CSV to establish that relationship.
 
-### Without page-level metadata
+### Using subdirectories
 
 Enable this method by including `paged_content_from_directories: true` in your configuration file. Use this method when you are creating books, newspaper issues, or other paged content where your pages don't have their own metadata. This method groups page-level files into subdirectories that correspond to each parent, and does not require (or allow) page-level metadata in the CSV file. Each parent (book, newspaper issue, etc.) has a row on the CSV file, e.g.:
 
@@ -435,6 +472,7 @@ Node http://localhost:8000/node/89 deleted.
 + Media http://localhost:8000/media/331 deleted.
 + Media http://localhost:8000/media/335 deleted.
 ```
+Note that taxonomy terms created with new nodes are not removed when you delete the nodes.
 
 ## Adding media to nodes
 
