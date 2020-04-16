@@ -1117,8 +1117,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 new_term_names_in_csv = True
                                 message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
                                 message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
-                                logging.warning(message + message_2)
-                                print('Warning: ' + message + message_2)
+                                logging.error(message + message_2)
+                                sys.exit('Error: ' + message + message_2)
 
                             # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
                             # regardless of whether config['allow_adding_terms'] is True.
