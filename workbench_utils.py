@@ -299,14 +299,24 @@ def check_input(config, args):
     """
     logging.info("Starting configuration check for %s task using config file %s.", config['task'], args.config)
 
-    # First, test host and credentials.
+    # First, test host. Surprisingly, using credentials to ping the base URL results in a 403, so we don't
+    # go through issue_request(), which always uses credentials.
+    try:
+        host_response = requests.head(config['host'])
+        host_response.raise_for_status()
+    except requests.exceptions.RequestException as error:
+        message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    # Then JSON:API and the credientials.
     jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
     headers = {'Accept': 'Application/vnd.api+json'}
     try:
         response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
         response.raise_for_status()
     except requests.exceptions.RequestException as error:
-        message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
+        message = "Workbench cannot connect to Drupal's JSON:API. Please confirm it is enabled, and that the credentials in your config file have access to it."
         logging.error(message)
         sys.exit('Error: ' + message)
 
