@@ -1,6 +1,6 @@
 # Islandora Workbench
 
-A command-line tool that allows creation, updating, and deletion of Islandora content. Islandora Workbench is an alternative to using Drupal's built-in Migrate tools for [ingesting Islandora content from CSV files](https://github.com/Islandora/migrate_islandora_csv). It communicates with Islandora via REST, so it can be run anywhere - it does not need to run on the Islandora server.
+A command-line tool that allows creation, updating, and deletion of Islandora content from CSV data. Islandora Workbench is an alternative to using Drupal's built-in Migrate tools for [ingesting Islandora content from CSV files](https://github.com/Islandora/migrate_islandora_csv). Unlike the Migrate tools, Islandora Workbench can be run anywhere - it does not need to run on the Islandora server. 
 
 A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), adds a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 
@@ -57,7 +57,7 @@ id_field: id
 
 The settings defined in a configuration file are:
 
-| Key | Required | Default value | Purpose |
+| Setting | Required | Default value | Description |
 | --- | --- | --- | --- | 
 | task | ✔️ | | One of 'create', 'update', delete', 'add_media', or 'delete_media' |
 | host | ✔️ | | The hostname, including port number if not 80, of your Islandora repository. |
@@ -74,7 +74,7 @@ The settings defined in a configuration file are:
 | media_use_tid |  ✔️ |  | The term ID for the Media Use term you want to apply to the media. |
 | media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). One of `media_type` or `media_types` is required. |
 | media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: either media_type or media_types is required. More detail provided in the "Setting Media Types" section below. One of `media_type` or `media_types` is required. |
-| allow_missing_files |  | false | Determines if emptyfile values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the input_data directory). |
+| allow_missing_files |  | false | Determines if empty `file` values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the `input_data` directory). |
 | allow_adding_terms |  | false | Determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. See more information in the "Taxonomy fields" section below. |
 | published | | true | Whether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
 | validate_title_length |  | true | Whether or not to check if title values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to true. Set to false if you are using a module that lets you override Drupal's maximum title length, such as Node Title Length or Entity Title Length. |
@@ -82,11 +82,9 @@ The settings defined in a configuration file are:
 | delete_media_with_nodes |  | true | When a node is deleted using a delete task, by default, all if its media are automatically deleted. Set this option to false to not delete all of a node's media (you do not generally want to keep the media without the node). |
 | paged_content_from_directories |  | false | Set to true if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information. |
 | paged_content_sequence_seprator |  | - [hyphen]| The character used to separate the page sequence number from the rest of the filename. Used when creating paged content with the "Without page-level metadata" method. See the section "Creating paged content" below for more information. |
-| paged_content_page_model_tid |  | | Required if paged_content_from_directories is true. The the term ID from the Islandora Models taxonomy to assign to pages. See the section "Creating paged content" below for more information. |
-| paged_content_page_display_hints |  | | The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the field_display_hints in the parent's record in the CSV file. See the section "Creating paged content" below for more information. |
-| paged_content_page_content_type |  | | Set to the machine name of the Drupal node content type for pages created using the "Without page-level metadata" method if it is different than the content type of the parents (which is specified in the content_type setting). See the section "Creating paged content" below for more information. |
-
-All configuration settings are required for the "create" task if its entry in the list above does not specify a default value. The "update", "delete", and "add_media" tasks do not require all of the options, as illustrated below. Optional configuration settings are described in the sections below where they apply.
+| paged_content_page_model_tid |  | | Required if `paged_content_from_directories` is true. The the term ID from the Islandora Models taxonomy to assign to pages. See the section "Creating paged content" below for more information. |
+| paged_content_page_display_hints |  | | The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the `field_display_hints` in the parent's record in the CSV file. See the section "Creating paged content" below for more information. |
+| paged_content_page_content_type |  | | Set to the machine name of the Drupal node content type for pages created using the "Without page-level metadata" method if it is different than the content type of the parent (which is specified in the content_type setting). See the section "Creating paged content" below for more information. |
 
 ## Checking configuration and input data
 
@@ -114,6 +112,12 @@ If you do this, Workbench will check the following and report any errors that re
 * If using the pages from directories configuration:
    * Whether page filenames contain an occurance of the sequence separator.
    * Whether any page directories are empty.
+
+You will probably need to run Workbench using `--check` a few times before you will be ready to run it without `--check` and commit your data to Islandora. For example, you may need to correct errors in taxonomy term IDs or names, fix errors in media filenames, or wrap values in your CSV files in quotation marks.
+
+It's also a good idea to check the Workbench log file after running `--check`. All warnings and errors are printed to the console, but the log file may contain additional information or detail that will help you resolve issues.
+
+Once you have used `--check` to detect all of the problems with your CSV data, committing it to Islandora will work very reliably.
 
 ## Creating nodes from the sample data
 
@@ -252,7 +256,7 @@ img001.png,Picture of cats and yarn,Cats|46
 img002.png,Picture of dogs and sticks,Dogs|Sticks
 img003.png,Picture of yarn and needles,"Yarn, Balls of"|Knitting needles
 ```
-If you use a term name that doesn't match an existing term name, Workbench will create the new term. For this to work, you will need to add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks. A few of things to note:
+By default, if you use a term name in your CSV data that doesn't match a term name that exists in the referenced taxonomy, Workbench will detect this when you use `--check` and exit. However, if you add `allow_adding_terms: true` to your configuration file for `create` and `update` tasks, Workbench will create the new term. A few of things to note:
 
 * To create new terms, your target Drupal needs to have its "Taxonomy term" REST endpoint enabled as described in the "Requirements" section at the beginning of this README.
 * If multiple records in your CSV contain the same new term name in the same field, the term is only created once.
@@ -265,7 +269,7 @@ If you use a term name that doesn't match an existing term name, Workbench will 
    
 Adding new terms has some contraints:
 
-* Creating taxonomy terms by including them in your CSV file adds new terms to the root of the applicable vocabulary. You cannot create new terms that have another term as its parent (i.e. terms below the top leve of a hierarchical taxonomy).
+* Creating taxonomy terms by including them in your CSV file adds new terms to the root of the applicable vocabulary. You cannot create new terms that have another term as its parent (i.e. terms below the top leve of a hierarchical taxonomy). However, for existing terms, Workbench doesn't care where they are in a taxonomy's hierarchy.
 * Terms created in this way do not have any external URIs. If you want your terms to have external URIs, you will need to either create the terms manually or add the URIs manually after the terms are created by Islandora Workbench.
 * Taxonomy terms created with new nodes are not removed when you delete the nodes.
 
@@ -312,15 +316,17 @@ To simplify entering geocoordinates in the CSV file, Workbench allows geocoordin
 
 ```
 field_coordinates
-49.16667,-123.93333
+"49.16667,-123.93333"
 ```
 
 You can include multiple pairs of geocoordinates in one CSV field if you separate them with the subdelimiter character:
 
 ```
 field_coordinates
-49.16667,-123.93333|49.25,-124.8
+"49.16667,-123.93333|49.25,-124.8"
 ```
+
+Notice that these fields need to be wrapped in double quotation marks, unless the `delimiter` key in your configuration file is set to something other than a comma.
 
 ## Setting media types
 
