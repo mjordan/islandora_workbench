@@ -1,5 +1,5 @@
 task: create
-allow_adding_terms: true
+allow_adding_terms: false
 allow_missing_files: true
 host: "http://localhost:8000"
 username: admin
