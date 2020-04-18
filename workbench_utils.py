@@ -679,6 +679,15 @@ def check_input(config, args):
     sys.exit(0)
 
 
+def log_field_cardinality_violation(field_name, record_id, cardinality):
+    """Writes an entry to the log during create/update tasks if any field values
+       are sliced off. Workbench does this if the number of values in a field
+       exceeds the field's cardinality.
+    """
+    logging.warning("Adding all values in CSV field %s for record %s would exceed maximum " +
+                    "number of allowed values (%s), so only adding first value.", field_name, record_id, cardinality)
+
+
 def validate_language_code(langcode):
     # Drupal's language codes.
     codes = ['af', 'am', 'ar', 'ast', 'az', 'be', 'bg', 'bn', 'bo', 'bs',
