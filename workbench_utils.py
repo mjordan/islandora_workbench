@@ -543,7 +543,11 @@ def check_input(config, args):
         # this pattern: string:string:int.
         validate_typed_relation_values(config, field_definitions, csv_data)
 
-        # Requires a View installed by the Islandora Workbench Integration module. If the View is not enabled, Drupal returns a 404.
+        validate_csv_field_cardinality_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+        validate_csv_field_cardinality(config, field_definitions, validate_csv_field_cardinality_csv_data)
+
+        # Validating values in CSV taxonomy fields requires a View installed by the Islandora Workbench Integration module.
+        # If the View is not enabled, Drupal returns a 404.
         terms_view_url = config['host'] + '/vocabulary'
         terms_view_response = issue_request(config, 'GET', terms_view_url)
         if terms_view_response.status_code == 404:
@@ -1067,6 +1071,35 @@ def compare_strings(known, unknown):
         return True
     else:
         return False
+
+
+def validate_csv_field_cardinality(config, field_definitions, csv_data):
+    """Compare values in the CSV data with the fields' cardinality. Log CSV
+       fields that have more values than allowed, and warn user if and of
+       these fields exist in their CSV data.
+    """
+    field_cardinalities = dict()
+    csv_headers = csv_data.fieldnames
+    for csv_header in csv_headers:
+        if csv_header in field_definitions.keys():
+            cardinality = field_definitions[csv_header]['cardinality']
+            # We don't care about cardinality of -1 (unlimited)
+            if cardinality > 0:
+                field_cardinalities[csv_header] = cardinality
+
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_cardinalities.keys():
+            if field_name in row:
+                delimited_field_values = row[field_name].split(config['subdelimiter'])
+                message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains more values than the number '
+                if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
+                    message_2 = 'allowed for that field (' + str(field_cardinalities[field_name]) + '). Workbench will add only the first value.'
+                    print('Warning: ' + message + message_2)
+                    logging.warning(message + message_2)
+                if field_cardinalities[field_name] > 1 and len(delimited_field_values) > field_cardinalities[field_name]:
+                    message_2 = 'allowed for that field (' + str(field_cardinalities[field_name]) + '). Workbench will add only the first ' + str(field_cardinalities[field_name]) + ' values.'
+                    print('Warning: ' + message + message_2)
+                    logging.warning(message + message_2)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):

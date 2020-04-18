@@ -99,6 +99,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether your CSV file contains required columns headers, including the field defined as the unique ID for each record (defaults to "id" if the `id_field` key is not in your config file)
 * Whether your CSV column headers correspond to existing Drupal field machine names.
 * Whether all Drupal fields that are configured to be required are present in the CSV file.
+* Whether multivalued fields exceed their allowed number of values.
 * Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: true` is present in your config file for "create" tasks).
 * If the `langcode` field is present in your CSV, whether values in it are valid Drupal language codes.
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
