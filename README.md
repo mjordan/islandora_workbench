@@ -108,7 +108,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
 * Whether your Islandora has the [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled.
    * If not, Workbench will recommend that you enable it.
-   * If so, Workbench will validate whether taxonomy term IDs or term names (such as those used in `field_model`) exist in each taxonomy field's the referenced taxonomies
+   * If so, Workbench will validate whether taxonomy term IDs or term names (such as those used in `field_model`) exist in the referenced taxonomies
 * If using the pages from directories configuration:
    * Whether page filenames contain an occurance of the sequence separator.
    * Whether any page directories are empty.

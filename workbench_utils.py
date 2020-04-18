@@ -1086,6 +1086,10 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     all_tids_for_field = all_tids_for_field + vocab_term_ids
                 fields_with_vocabularies[column_name] = all_tids_for_field
 
+    # If none of the CSV fields are taxonomy reference fields, return.
+    if len(fields_with_vocabularies) == 0:
+        return
+
     # Iterate throught the CSV and validate each taxonomy fields's values.
     new_term_names_in_csv = False
     for count, row in enumerate(csv_data, start=1):
