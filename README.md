@@ -562,7 +562,7 @@ Bug reports, improvements, feature requests, and PRs welcome. Before you open a 
 
 If you open a PR, please check your code with pycodestyle:
 
-`pycodestyle --show-source --show-pep8 --max-line-length=200 .`
+`pycodestyle --show-source --show-pep8 --ignore=E402 --max-line-length=200 .`
 
 Also provide tests where applicable. Sample tests are available in the `tests` directory. Note that these tests query a live Islandora instance, so you should write them assuming there is one running at localhost:8000. Run tests using the following:
 
