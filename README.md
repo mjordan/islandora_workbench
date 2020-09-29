@@ -4,6 +4,8 @@ A command-line tool that allows creation, updating, and deletion of Islandora co
 
 A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), adds a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 
+This tool is not related in any way to the Drupal contrib module called [Workbench](https://www.drupal.org/project/workbench).
+
 ## Requirements
 
 * Python 3.2 or higher
