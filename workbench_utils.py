@@ -52,6 +52,8 @@ def set_config_defaults(args):
         config['delete_media_with_nodes'] = True
     if 'allow_adding_terms' not in config:
         config['allow_adding_terms'] = False
+    if 'log_json' not in config:
+        config['log_json'] = False
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -128,6 +130,8 @@ def issue_request(config, method, path, headers='', json='', data='', query={}):
             headers=headers
         )
     if method == 'POST':
+        if config['log_json'] is True:
+            logging.info(json)
         response = requests.post(
             url,
             auth=(config['username'], config['password']),
@@ -136,6 +140,8 @@ def issue_request(config, method, path, headers='', json='', data='', query={}):
             data=data
         )
     if method == 'PUT':
+        if config['log_json'] is True:
+            logging.info(json)        
         response = requests.put(
             url,
             auth=(config['username'], config['password']),
@@ -144,6 +150,8 @@ def issue_request(config, method, path, headers='', json='', data='', query={}):
             data=data
         )
     if method == 'PATCH':
+        if config['log_json'] is True:
+            logging.info(json)        
         response = requests.patch(
             url,
             auth=(config['username'], config['password']),
@@ -576,7 +584,7 @@ def check_input(config, args):
                     if len(parent_nid) > 0:
                         parent_node_exists = ping_node(config, parent_nid)
                         if parent_node_exists is False:
-                            message = "The 'field_member_of field' in row " + str(count) + " of your CSV file contains a node ID that doesn't exist (" + parent_nid + ")"
+                            message = "The 'field_member_of' field in row " + str(count) + " of your CSV file contains a node ID (" + parent_nid + ") that doesn't exist."
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
@@ -892,7 +900,8 @@ def get_term_pairs(config, vocab_id):
        request to Islandora returns a 200 plus an empty JSON list, i.e., [].
     """
     term_dict = dict()
-    # Note: this URL requires a custom view be present on the target Islandora.
+    # Note: this URL requires the view "Terms in vocabulary", created by the
+    # Islandora Workbench Integation module, to present on the target Islandora.
     vocab_url = config['host'] + '/vocabulary?_format=json&vid=' + vocab_id
     response = issue_request(config, 'GET', vocab_url)
     vocab = json.loads(response.text)
@@ -1120,7 +1129,10 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 for vocabulary in vocabularies:
                     terms = get_term_pairs(config, vocabulary)
                     if len(terms) == 0:
-                        message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" either does not exist or contains no terms.'
+                        if config['allow_adding_terms'] is True:
+                            message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" is not enabled in the "Terms in vocabulary" View.'
+                        else:
+                            message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" is not enabled in the "Terms in vocabulary" View or contains no terms.'
                         logging.error(message)
                         sys.exit('Error: ' + message)
                     vocab_term_ids = list(terms.keys())

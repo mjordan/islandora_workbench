@@ -12,7 +12,6 @@ import datetime
 import argparse
 from workbench_utils import *
 
-
 def create():
     """Create new nodes via POST, and add media if there are any.
     """
@@ -257,7 +256,7 @@ def create():
                     if 'output_csv' in config.keys():
                         write_to_output_csv(config, id_field, node_response.text)
                 else:
-                    logging.warning("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
+                    logging.error("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
                     continue
 
                 # Map ID from CSV of newly created node to its node ID so we can use it for linking child nodes, etc.
