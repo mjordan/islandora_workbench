@@ -358,7 +358,7 @@ def check_input(config, args):
                             'output_csv', 'delete_media_with_nodes', 'paged_content_from_directories',
                             'paged_content_sequence_seprator', 'paged_content_page_model_tid',
                             'paged_content_page_display_hints', 'paged_content_page_content_type',
-                            'allow_adding_terms']
+                            'allow_adding_terms', 'log_json']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
