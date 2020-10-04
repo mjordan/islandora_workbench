@@ -902,7 +902,7 @@ def get_term_pairs(config, vocab_id):
     term_dict = dict()
     # Note: this URL requires the view "Terms in vocabulary", created by the
     # Islandora Workbench Integation module, to present on the target Islandora.
-    vocab_url = config['host'] + '/vocabulary?_format=json&vid=' + vocab_id
+    vocab_url = config['host'] + '/vocabulary/' + vocab_id + '?_format=json'
     response = issue_request(config, 'GET', vocab_url)
     vocab = json.loads(response.text)
     for term in vocab:
@@ -920,6 +920,8 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
     """
     terms_in_vocab = get_term_pairs(config, vocab_id)
     for tid, term_name in terms_in_vocab.items():
+        # if vocab_id == 'islandora_display':
+            # print(term_name)
         match = compare_strings(term_name, term_name_to_find)
         if match:
             return tid
@@ -1126,19 +1128,24 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
             if 'vocabularies' in field_definitions[column_name]:
                 vocabularies = get_field_vocabularies(config, field_definitions, column_name)
                 all_tids_for_field = []
+                vocab_validation_issues = False
                 for vocabulary in vocabularies:
                     terms = get_term_pairs(config, vocabulary)
                     if len(terms) == 0:
                         if config['allow_adding_terms'] is True:
-                            message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" is not enabled in the "Terms in vocabulary" View.'
+                            vocab_validation_issues = True
+                            message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not be enabled in the "Terms in vocabulary" View. Please confirm it is.'
+                            logging.warning(message)
                         else:
-                            message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" is not enabled in the "Terms in vocabulary" View or contains no terms.'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
+                            vocab_validation_issues = True
+                            message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
+                            logging.warning(message)
                     vocab_term_ids = list(terms.keys())
                     # If more than one vocab in this field, combine their term IDs into a single list.
                     all_tids_for_field = all_tids_for_field + vocab_term_ids
                 fields_with_vocabularies[column_name] = all_tids_for_field
+                if vocab_validation_issues is True:
+                    print('Warning: Issues detected with validating taxonomy terms used in the CSV column "' + column_name + '". See the Workbench log for important details.')
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
