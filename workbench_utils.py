@@ -141,7 +141,7 @@ def issue_request(config, method, path, headers='', json='', data='', query={}):
         )
     if method == 'PUT':
         if config['log_json'] is True:
-            logging.info(json)        
+            logging.info(json)
         response = requests.put(
             url,
             auth=(config['username'], config['password']),
@@ -151,7 +151,7 @@ def issue_request(config, method, path, headers='', json='', data='', query={}):
         )
     if method == 'PATCH':
         if config['log_json'] is True:
-            logging.info(json)        
+            logging.info(json)
         response = requests.patch(
             url,
             auth=(config['username'], config['password']),
@@ -200,10 +200,15 @@ def get_field_definitions(config):
                 target_type = item['attributes']['settings']['target_type']
             else:
                 target_type = None
+            if 'max_length' in item['attributes']['settings']:
+                max_length = item['attributes']['settings']['max_length']
+            else:
+                max_length = None
             field_definitions[field_name] = {
                 'field_type': item['attributes']['field_storage_config_type'],
                 'cardinality': item['attributes']['cardinality'],
-                'target_type': target_type}
+                'target_type': target_type,
+                'max_length': max_length}
         # Hacky implementation of parsing Drupal's JSON:API pager.
         offset = 0
         while 'next' in field_storage_config['links']:
@@ -554,6 +559,9 @@ def check_input(config, args):
         validate_csv_field_cardinality_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
         validate_csv_field_cardinality(config, field_definitions, validate_csv_field_cardinality_csv_data)
 
+        validate_csv_field_length_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+        validate_csv_field_length(config, field_definitions, validate_csv_field_length_csv_data)
+
         # Validating values in CSV taxonomy fields requires a View installed by the Islandora Workbench Integration module.
         # If the View is not enabled, Drupal returns a 404.
         terms_view_url = config['host'] + '/vocabulary'
@@ -724,6 +732,21 @@ def clean_csv_values(row):
         if isinstance(row[field], str):
             row[field] = row[field].strip()
     return row
+
+
+def truncate_csv_value(field_name, record_id, field_config, value):
+    """Drupal will not accept field values that have a length that
+       exceeds the configured maximum length for that field. 'value'
+       here is a field subvalue.
+    """
+    if isinstance(value, str) and 'max_length' in field_config:
+        max_length = field_config['max_length']
+        if max_length is not None and len(value) > max_length:
+            original_value = value
+            value = value[:max_length]
+            logging.warning('CSV field value "%s" in field "%s" (record ID %s) truncated at %s characters as required by the field\'s configuration.',
+                            original_value, field_name, record_id, max_length)
+    return value
 
 
 def get_node_field_values(config, nid):
@@ -946,11 +969,11 @@ def create_term(config, vocab_id, term_name):
         return False
 
     term = {
-           "vid": [
-              {
-                 "target_id": vocab_id,
-                 "target_type": "taxonomy_vocabulary"
-              }
+        "vid": [
+           {
+               "target_id": vocab_id,
+               "target_type": "taxonomy_vocabulary"
+           }
            ],
            "status": [
               {
@@ -1086,7 +1109,7 @@ def compare_strings(known, unknown):
 
 def validate_csv_field_cardinality(config, field_definitions, csv_data):
     """Compare values in the CSV data with the fields' cardinality. Log CSV
-       fields that have more values than allowed, and warn user if and of
+       fields that have more values than allowed, and warn user if
        these fields exist in their CSV data.
     """
     field_cardinalities = dict()
@@ -1111,6 +1134,34 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                     message_2 = 'allowed for that field (' + str(field_cardinalities[field_name]) + '). Workbench will add only the first ' + str(field_cardinalities[field_name]) + ' values.'
                     print('Warning: ' + message + message_2)
                     logging.warning(message + message_2)
+
+
+def validate_csv_field_length(config, field_definitions, csv_data):
+    """Compare values in the CSV data with the fields' max_length. Log CSV
+       fields that exceed their max_length, and warn user if
+       these fields exist in their CSV data.
+    """
+    field_max_lengths = dict()
+    csv_headers = csv_data.fieldnames
+    for csv_header in csv_headers:
+        if csv_header in field_definitions.keys():
+            if 'max_length' in field_definitions[csv_header]:
+                max_length = field_definitions[csv_header]['max_length']
+                # We don't care about max_length of None (not applicable or unlimited)
+                if max_length is not None:
+                    field_max_lengths[csv_header] = max_length
+
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_max_lengths.keys():
+            if field_name in row:
+                delimited_field_values = row[field_name].split(config['subdelimiter'])
+                for field_value in delimited_field_values:
+                    field_value_length = len(field_value)
+                    if field_name in field_max_lengths and len(field_value) > field_max_lengths[field_name]:
+                        message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'
+                        message_2 = ' than allowed for that field (' + str(field_max_lengths[field_name]) + ' characters). Workbench will truncate this value prior to populating Drupal.'
+                        print('Warning: ' + message + message_2)
+                        logging.warning(message + message_2)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
