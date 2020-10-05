@@ -345,10 +345,10 @@ def check_input(config, args):
             logging.info(config['host'] + ' is accessible using the credentials provided.')
 
     # Check the config file.
-    tasks = ['create', 'update', 'delete', 'add_media', 'delete_media']
+    tasks = ['create', 'update', 'delete', 'add_media', 'delete_media', 'create_from_files']
     joiner = ', '
     if config['task'] not in tasks:
-        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media".'
+        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media", or "create_from_files".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -1293,6 +1293,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 def write_to_output_csv(config, id, node_json):
     """Appends a row to the CVS file located at config['output_csv'].
     """
+    if config['task'] == 'create_from_files':
+        config['id_field'] = 'ID'
+
     node_dict = json.loads(node_json)
     node_field_names = list(node_dict.keys())
     node_field_names.insert(0, 'node_id')

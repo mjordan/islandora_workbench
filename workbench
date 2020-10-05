@@ -643,6 +643,60 @@ def delete_media():
                     print("Media " + config['host'] + '/media/' + str(row['media_id']) + " and associated file deleted.")
 
 
+def create_from_files():
+    """Create new nodes from files only (no CSV), and add media.
+       These objects will have a title (derived from filename), and a config-defined
+       Islandora model, content type, and status. Media use is derived from config
+       as well.
+    """
+    logging.info('"Create from files" task started using config file %s', args.config)
+    file_dir_path = config['input_dir']
+    files = os.listdir(file_dir_path)
+
+    for file_name in files:
+        filename_without_extension = os.path.splitext(file_name)[0]
+
+        # @todo: provide a config option for page content type.
+        node_json = {
+            'type': [
+                {'target_id': config['content_type'],
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': filename_without_extension}
+            ],
+            'status': [
+                {'value': config['published']}
+            ],
+            'field_model': [
+                {'target_id': config['field_model'],
+                 'target_type': 'taxonomy_term'}
+            ]
+        }
+
+        node_headers = {
+            'Content-Type': 'application/json'
+        }
+        node_endpoint = '/node?_format=json'
+        node_response = issue_request(config, 'POST', node_endpoint, node_headers, node_json, None)
+        if node_response.status_code == 201:
+            node_uri = node_response.headers['location']
+            print('+ Node for "' + filename_without_extension + '" created at ' + node_uri + '.')
+            logging.info('Node for "%s" created at %s.', filename_without_extension, node_uri)
+            if 'output_csv' in config.keys():
+                write_to_output_csv(config, '', node_response.text)
+        else:
+            logging.warning('Node for "%s" not created, HTTP response code was %s.', os.path.join(config['input_dir'], file_name), node_response.status_code)
+
+        file_path = os.path.join(config['input_dir'], file_name)
+        media_type = set_media_type(file_path, config)
+        media_response_status_code = create_media(config, file_name, node_uri)
+        allowed_media_response_codes = [201, 204]
+        if media_response_status_code in allowed_media_response_codes:
+            print(' + ' + media_type.title() + " media for " + filename_without_extension + " created.")
+            logging.info("Media for %s created.", file_path)
+
+
 # Main program logic.
 
 parser = argparse.ArgumentParser()
@@ -682,3 +736,5 @@ if config['task'] == 'add_media':
     add_media()
 if config['task'] == 'delete_media':
     delete_media()
+if config['task'] == 'create_from_files':
+    create_from_files()
