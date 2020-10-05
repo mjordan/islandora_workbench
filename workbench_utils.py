@@ -1125,7 +1125,10 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
         for field_name in field_cardinalities.keys():
             if field_name in row:
                 delimited_field_values = row[field_name].split(config['subdelimiter'])
-                message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains more values than the number '
+                if config['task'] == 'create':
+                    message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains more values than the number '
+                if config['task'] == 'update':
+                    message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains more values than the number '                    
                 if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
                     message_2 = 'allowed for that field (' + str(field_cardinalities[field_name]) + '). Workbench will add only the first value.'
                     print('Warning: ' + message + message_2)
@@ -1158,7 +1161,10 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                 for field_value in delimited_field_values:
                     field_value_length = len(field_value)
                     if field_name in field_max_lengths and len(field_value) > field_max_lengths[field_name]:
-                        message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'
+                        if config['task'] == 'create':
+                            message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'
+                        if config['task'] == 'update':
+                            message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'                            
                         message_2 = ' than allowed for that field (' + str(field_max_lengths[field_name]) + ' characters). Workbench will truncate this value prior to populating Drupal.'
                         print('Warning: ' + message + message_2)
                         logging.warning(message + message_2)

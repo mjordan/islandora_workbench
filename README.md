@@ -80,7 +80,7 @@ The settings defined in a configuration file are:
 | allow_missing_files |  | false | Determines if empty `file` values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the `input_data` directory). |
 | allow_adding_terms |  | false | Determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. See more information in the "Taxonomy fields" section below. |
 | published | | true | Whether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
-| validate_title_length |  | true | Whether or not to check if title values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to true. Set to false if you are using a module that lets you override Drupal's maximum title length, such as Node Title Length or Entity Title Length. |
+| validate_title_length |  | true | Whether or not to check if title values in the CSV exceed Drupal's maximum allowed length of 255 characters. Defaults to true. Set to false if you are using a module that lets you override Drupal's maximum title length, such as Node Title Length or Entity Title Length. Also, if your task is `update`, you should set this to false if `title` is not one of the fields you are updating. |
 | pause |  | | Defines the number of seconds to pause between each REST request to Drupal. Include it in your configuration to lessen the impact of Islandora Workbench on your site during large jobs, for example pause: 1.5. |
 | delete_media_with_nodes |  | true | When a node is deleted using a delete task, by default, all if its media are automatically deleted. Set this option to false to not delete all of a node's media (you do not generally want to keep the media without the node). |
 | paged_content_from_directories |  | false | Set to true if you are using the "Without page-level metadata" method of creating paged content. See the section "Creating paged content" below for more information. |
@@ -434,7 +434,7 @@ Some important things to note:
 
 ## Updating nodes
 
-You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. Updates preserve any values in the fields, they don't replace the values. The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, linked node fields (e.g. "Member of" for collection nodes), and typed relation fields can be updated.
+You can update nodes by providing a CSV file with a `node_id` column plus field data you want to update. Updates preserve any values in the fields, they don't replace the values (but see issue #47). The other column headings in the CSV file must match machine names of fields that exist in the target Islandora content type. Currently, text fields, taxonomy fields, linked node fields (e.g. "Member of" for collection nodes), and typed relation fields can be updated.
 
 For example, using the fields defined by the Islandora Defaults module for the "Repository Item" content type, your CSV file could look like this:
 
@@ -456,6 +456,8 @@ password: islandora
 input_dir: input_data
 input_csv: update.csv
 ```
+
+Note that you should include `validate_title_length: false` in your update configuration file, unless you are updating node titles.
 
 ## Deleting nodes
 
