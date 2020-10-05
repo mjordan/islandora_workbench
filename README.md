@@ -22,6 +22,7 @@ This tool is not related in any way to the Drupal contrib module called [Workben
          * Set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
          * Click on the "Save configuration" button.
 
+While installing the Islandora Workbench Integration module is currently optional as described above, it will likely become required in the future.
 
 ## Installation
 
@@ -449,6 +450,7 @@ The config file for update operations looks like this (note the `task` option is
 
 ```yaml
 task: update
+validate_title_length: false
 host: "http://localhost:8000"
 username: admin
 content_type: islandora_object
