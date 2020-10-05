@@ -656,6 +656,8 @@ def create_from_files():
     for file_name in files:
         filename_without_extension = os.path.splitext(file_name)[0]
 
+        islandora_model = set_model_from_extension(file_name, config)
+
         # @todo: provide a config option for page content type.
         node_json = {
             'type': [
@@ -669,7 +671,7 @@ def create_from_files():
                 {'value': config['published']}
             ],
             'field_model': [
-                {'target_id': config['field_model'],
+                {'target_id': islandora_model,
                  'target_type': 'taxonomy_term'}
             ]
         }

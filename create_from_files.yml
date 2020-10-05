@@ -4,7 +4,6 @@ username: admin
 password: islandora
 input_dir: input_files
 media_use_tid: 17
-field_model: 23
 published: true
 output_csv: /tmp/output.csv
 content_type: islandora_object
@@ -16,3 +15,10 @@ media_types:
  - audio: ['mp3', 'wav', 'aac']
  - video: ['mp4']
  - extracted_text: ['txt']
+# field_model: 23
+models:
+ - 23: ['zip', 'tar']
+ - 27: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
+ - 25: ['tif', 'tiff', 'jp2', 'png', 'gif', 'jpg', 'jpeg']
+ - 22: ['mp3', 'wav', 'aac']
+ - 26: ['mp4']

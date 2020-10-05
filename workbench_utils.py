@@ -103,6 +103,28 @@ def set_media_type(filepath, config):
     return 'file'
 
 
+def set_model_from_extension(file_name, config):
+    """Using configuration options, determine which Islandora Model value
+       to assign to nodes created from files. Options are either a single model
+       or a set of mappings from file extenstion to Islandora Model term ID.
+    """
+    if config['task'] != 'create_from_files':
+        return None
+
+    if 'field_model' in config:
+        return config['field_model']
+
+    extension_with_dot = os.path.splitext(file_name)[1]
+    extension = extension_with_dot[1:]
+    normalized_extension = extension.lower()
+    for model_tids in config['models']:
+        for tid, extensions in model_tids.items():
+            if normalized_extension in extensions:
+                return tid
+
+    # I@todo: Need default.
+
+
 def issue_request(config, method, path, headers='', json='', data='', query={}):
     """Issue the REST request to Drupal.
     """
