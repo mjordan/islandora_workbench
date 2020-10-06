@@ -440,10 +440,10 @@ If you want to ingest some files without a metadata CSV you can do so using the 
 
 Nodes created using this task have only the following properties/fields populated:
 
-* content_type: this is defined in the configuration file, using the `content_type` setting.
-* title: this is derived from the filename minus the extension.
-* status: published by default, or overridden in the configuration file using the `published` setting.
-* field_model: defined in the configuration file using either the `model` or `models` setting.
+* Content type: this is defined in the configuration file, using the `content_type` setting.
+* Title: this is derived from the filename minus the extension.
+* Published: published by default, or overridden in the configuration file using the `published` setting.
+* Model: defined in the configuration file using either the `model` or `models` setting.
 
 The media attached to the nodes is the file, with its type (image, document, audio, video, file) assigned by the `media_types` configuration setting and its Media Use tag defined in the `media_use_tid` setting. 
 
