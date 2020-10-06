@@ -77,7 +77,7 @@ The settings defined in a configuration file are:
 | output_csv | | | The full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information. |
 | media_use_tid |  ✔️ |  | The term ID for the Media Use term you want to apply to the media. |
 | media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). One of `media_type` or `media_types` is required. |
-| media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: either media_type or media_types is required. More detail provided in the "Setting Media Types" section below. One of `media_type` or `media_types` is required. |
+| media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: one of `media_type` or `media_types` is required. More detail provided in the "Setting Media Types" section below. |
 | allow_missing_files |  | false | Determines if empty `file` values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the `input_data` directory). |
 | allow_adding_terms |  | false | Determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. See more information in the "Taxonomy fields" section below. |
 | published | | true | Whether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
@@ -90,6 +90,9 @@ The settings defined in a configuration file are:
 | paged_content_page_display_hints |  | | The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the `field_display_hints` in the parent's record in the CSV file. See the section "Creating paged content" below for more information. |
 | paged_content_page_content_type |  | | Set to the machine name of the Drupal node content type for pages created using the "Without page-level metadata" method if it is different than the content type of the parent (which is specified in the content_type setting). See the section "Creating paged content" below for more information. |
 | log_json |  | false | Whether or not to log the raw JSON POSTed, PUT, or PATCHed to Drupal. Useful for debugging. |
+| models |  |  | Used in the create_from_files task only. Provides a mapping bewteen file extensions and terms in the "Islandora Models" vocabulary. Note: one of `field_model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
+| field_model |  |  | Used in the create_from_files task only. Defines the term ID from the the "Islandora Models" vocabulary for all nodes created using this task. Note: one of `field_model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
+
 
 ## Checking configuration and input data
 
@@ -432,6 +435,40 @@ Some important things to note:
 * Currently, you must include values in the children's `field_weight` column. It may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/84)).
 * Currently, Islandora model values (e.g. "Paged Content", "Page") are not automatically assigned. You must include the correct "Islandora Models" taxonomy term IDs in your `field_model` column for all parent and child records, as you would for any other Islandora objects you are creating. Like for `field_weight`, it may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/85)).
 
+## Creating nodes from files only
+
+If you want to ingest some files and create stub nodes to accompany them you can do so using the `create_from_files` action. A common application of this ability is in automated workflows where files are saved to a watch folder, and metadata is added later.
+
+Here is a sample configuration file for this task:
+
+```
+task: create_from_files
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: input_files
+media_use_tid: 17
+output_csv: /tmp/output.csv
+content_type: islandora_object
+drupal_filesystem: "fedora://"
+media_types:
+ - file: ['tif', 'tiff', 'jp2', 'zip', 'tar']
+ - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
+ - image: ['png', 'gif', 'jpg', 'jpeg']
+ - audio: ['mp3', 'wav', 'aac']
+ - video: ['mp4']
+ - extracted_text: ['txt']
+models:
+ - 23: ['zip', 'tar', '']
+ - 27: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
+ - 25: ['tif', 'tiff', 'jp2', 'png', 'gif', 'jpg', 'jpeg']
+ - 22: ['mp3', 'wav', 'aac']
+ - 26: ['mp4']
+```
+
+All of the options are used in the `create` task other than `models`, which is a mapping from terms IDs in the "Islandora Models" vocabulary to file extensions.
+
+In the workflow described above, you might want to include the `output_csv` option in the configuration file, since the resulting file can be populated with metadata later and used in an `update` task to add it to the stub nodes.
 
 ## Updating nodes
 

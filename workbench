@@ -655,10 +655,13 @@ def create_from_files():
 
     for file_name in files:
         filename_without_extension = os.path.splitext(file_name)[0]
+        if len(filename_without_extension) > 255:
+            message = 'Truncating the filename "' + filename_without_extension + '" since it exceeds Drupal\'s maximum node title length of 255 characters.'
+            logging.error(message)
+            filename_without_extension = filename_without_extension[:255]
 
         islandora_model = set_model_from_extension(file_name, config)
 
-        # @todo: provide a config option for page content type.
         node_json = {
             'type': [
                 {'target_id': config['content_type'],
@@ -687,16 +690,16 @@ def create_from_files():
             logging.info('Node for "%s" created at %s.', filename_without_extension, node_uri)
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, '', node_response.text)
-        else:
-            logging.warning('Node for "%s" not created, HTTP response code was %s.', os.path.join(config['input_dir'], file_name), node_response.status_code)
 
-        file_path = os.path.join(config['input_dir'], file_name)
-        media_type = set_media_type(file_path, config)
-        media_response_status_code = create_media(config, file_name, node_uri)
-        allowed_media_response_codes = [201, 204]
-        if media_response_status_code in allowed_media_response_codes:
-            print(' + ' + media_type.title() + " media for " + filename_without_extension + " created.")
-            logging.info("Media for %s created.", file_path)
+            file_path = os.path.join(config['input_dir'], file_name)
+            media_type = set_media_type(file_path, config)
+            media_response_status_code = create_media(config, file_name, node_uri)
+            allowed_media_response_codes = [201, 204]
+            if media_response_status_code in allowed_media_response_codes:
+                print('+ ' + media_type.title() + " media for " + filename_without_extension + " created.")
+                logging.info("Media for %s created.", file_path)
+        else:
+            logging.error('Node for "%s" not created, HTTP response code was %s.', os.path.join(config['input_dir'], file_name), node_response.status_code)
 
 
 # Main program logic.
@@ -720,7 +723,10 @@ logging.basicConfig(
 
 if 'check' in config.keys():
     if config['check']:
-        check_input(config, args)
+        if config['task'] == 'create_from_files':
+            check_input_for_create_from_files(config, args)
+        else:
+            check_input(config, args)
 
 # Execute bootstrap scripts, if any are configured.
 if 'bootstrap' in config and len(config['bootstrap']) > 0:

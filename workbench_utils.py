@@ -58,11 +58,11 @@ def set_config_defaults(args):
     if config['task'] == 'create':
         if 'id_field' not in config:
             config['id_field'] = 'id'
-    if config['task'] == 'create':
+    if config['task'] == 'create' or config['task'] == 'create_from_files':
         if 'published' not in config:
             config['published'] = 1
 
-    if config['task'] == 'create':
+    if config['task'] == 'create' or config['task'] == 'create_from_files':
         if 'preprocessors' in config_data:
             config['preprocessors'] = {}
             for preprocessor in config_data['preprocessors']:
@@ -121,8 +121,10 @@ def set_model_from_extension(file_name, config):
         for tid, extensions in model_tids.items():
             if normalized_extension in extensions:
                 return tid
-
-    # I@todo: Need default.
+            # If the file's extension is not listed in the config,
+            # We use the term ID that contains an empty extension.
+            if '' in extensions:
+                return tid
 
 
 def issue_request(config, method, path, headers='', json='', data='', query={}):
@@ -203,6 +205,40 @@ def ping_node(config, nid):
             url,
             response.status_code)
         return False
+
+
+def ping_islandora(config):
+    # First, test host. Surprisingly, using credentials to ping the base URL results in a 403, so we don't
+    # go through issue_request(), which always uses credentials.
+    try:
+        host_response = requests.head(config['host'])
+        host_response.raise_for_status()
+    except requests.exceptions.RequestException as error:
+        message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    # Then JSON:API and the credientials.
+    jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
+    headers = {'Accept': 'Application/vnd.api+json'}
+    try:
+        response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as error:
+        message = "Workbench cannot connect to Drupal's JSON:API. Please confirm it is enabled, and that the credentials in your config file have access to it."
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
+    if response.status_code == 200:
+        field_config = json.loads(response.text)
+        if field_config['data'] == []:
+            message = config['host'] + ' does not recognize the username/password combination you have provided.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        else:
+            print('OK, ' + config['host'] + ' is accessible using the credentials provided.')
+            logging.info(config['host'] + ' is accessible using the credentials provided.')
 
 
 def get_field_definitions(config):
@@ -332,39 +368,9 @@ def get_field_definitions(config):
 def check_input(config, args):
     """Validate the config file and input data.
     """
-    logging.info("Starting configuration check for %s task using config file %s.", config['task'], args.config)
+    logging.info('Starting configuration check for "%s" task using config file %s.', config['task'], args.config)
 
-    # First, test host. Surprisingly, using credentials to ping the base URL results in a 403, so we don't
-    # go through issue_request(), which always uses credentials.
-    try:
-        host_response = requests.head(config['host'])
-        host_response.raise_for_status()
-    except requests.exceptions.RequestException as error:
-        message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
-        logging.error(message)
-        sys.exit('Error: ' + message)
-
-    # Then JSON:API and the credientials.
-    jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
-    headers = {'Accept': 'Application/vnd.api+json'}
-    try:
-        response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as error:
-        message = "Workbench cannot connect to Drupal's JSON:API. Please confirm it is enabled, and that the credentials in your config file have access to it."
-        logging.error(message)
-        sys.exit('Error: ' + message)
-
-    # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
-    if response.status_code == 200:
-        field_config = json.loads(response.text)
-        if field_config['data'] == []:
-            message = config['host'] + ' does not recognize the username/password combination you have provided.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
-        else:
-            print('OK, ' + config['host'] + ' is accessible using the credentials provided.')
-            logging.info(config['host'] + ' is accessible using the credentials provided.')
+    ping_islandora(config)
 
     # Check the config file.
     tasks = ['create', 'update', 'delete', 'add_media', 'delete_media', 'create_from_files']
@@ -397,21 +403,21 @@ def check_input(config, args):
                           'input_dir', 'input_csv', 'media_use_tid',
                           'drupal_filesystem', 'id_field']
         if not set(config_keys) == set(create_options):
-            message = 'Please check your config file for required values: ' + joiner.join(create_options)
+            message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'update':
         update_options = ['task', 'host', 'username', 'password',
                           'content_type', 'input_dir', 'input_csv']
         if not set(config_keys) == set(update_options):
-            message = 'Please check your config file for required values: ' + joiner.join(update_options)
+            message = 'Please check your config file for required values: ' + joiner.join(update_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'delete':
         delete_options = ['task', 'host', 'username', 'password',
                           'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_options):
-            message = 'Please check your config file for required values: ' + joiner.join(delete_options)
+            message = 'Please check your config file for required values: ' + joiner.join(delete_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'add_media':
@@ -419,14 +425,14 @@ def check_input(config, args):
                              'input_dir', 'input_csv', 'media_use_tid',
                              'drupal_filesystem']
         if not set(config_keys) == set(add_media_options):
-            message = 'Please check your config file for required values: ' + joiner.join(add_media_options)
+            message = 'Please check your config file for required values: ' + joiner.join(add_media_options)  + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
         delete_media_options = ['task', 'host', 'username', 'password',
                                 'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_media_options):
-            message = 'Please check your config file for required values: ' + joiner.join(delete_media_options)
+            message = 'Please check your config file for required values: ' + joiner.join(delete_media_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
     message = 'OK, configuration file has all required values (did not check for optional values).'
@@ -717,7 +723,81 @@ def check_input(config, args):
 
     # If nothing has failed by now, exit with a positive message.
     print("Configuration and input data appear to be valid.")
-    logging.info("Configuration checked for %s task using config file %s, no problems found.", config['task'], args.config)
+    logging.info('Configuration checked for "%s" task using config file %s, no problems found.', config['task'], args.config)
+    sys.exit(0)
+
+
+def check_input_for_create_from_files(config, args):
+    """Validate the config file and input data if task is 'create_from_files'.
+    """
+    if config['task'] != 'create_from_files':
+        message = 'Your task must be "create_from_files".'
+        logging.error(message)
+        sys.exit('Error: ' + message)        
+
+    logging.info('Starting configuration check for "%s" task using config file %s.', config['task'], args.config)
+
+    ping_islandora(config)
+
+    config_keys = list(config.keys())
+    unwanted_in_create_from_files = ['check', 'delimiter', 'subdelimiter', 'allow_missing_files', 'validate_title_length',
+        'paged_content_from_directories', 'delete_media_with_nodes', 'allow_adding_terms']
+    for option in unwanted_in_create_from_files:
+        if option in config_keys:
+            config_keys.remove(option)
+
+    # If you introduce a new optional key, add it to this list. Note thatoptional_config_key optional keys are not validated.
+    joiner = ', '
+    optional_config_keys = ['log_file_path', 'log_file_mode', 'preprocessors', 'bootstrap', 'published', 'pause',
+                           'published', 'validate_title_length', 'media_type', 'media_types', 'media_types',
+                           'field_model', 'models', 'output_csv','log_json']
+
+    for optional_config_key in optional_config_keys:
+        if optional_config_key in config_keys:
+            config_keys.remove(optional_config_key)
+
+    # Check for presence of required config keys.
+    create_options = ['task', 'host', 'username', 'password', 'content_type',
+                      'input_dir', 'media_use_tid', 'drupal_filesystem']
+    if not set(config_keys) == set(create_options):
+        message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    # Check existence of input directory.
+    if os.path.exists(config['input_dir']):
+        message = 'OK, input directory "' + config['input_dir'] + '"" found.'
+        print(message)
+        logging.info(message)
+    else:
+        message = 'Input directory "' + config['input_dir'] + '"" not found.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    # Validate length of 'title'.
+    files = os.listdir(config['input_dir'])
+    for file_name in files:
+        filename_without_extension = os.path.splitext(file_name)[0]
+        if len(filename_without_extension) > 255:
+            message = 'The filename "' + filename_without_extension + '" exceeds Drupal\'s maximum length of 255 characters and cannot be used for a node title.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
+    # Check that either 'media_type' or 'media_types' are present in the config file.
+    if ('media_type' not in config and 'media_types' not in config):
+        message = 'You must configure media type using either the "media_type" or "media_types" option.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    # Check that either 'field_model' or 'models' are present in the config file.
+    if ('field_model' not in config and 'models' not in config):
+        message = 'You must include either the "field_model" or "models" option in your configuration.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    # If nothing has failed by now, exit with a positive message.
+    print("Configuration and input data appear to be valid.")
+    logging.info('Configuration checked for "%s" task using config file %s, no problems found.', config['task'], args.config)
     sys.exit(0)
 
 
@@ -874,13 +954,16 @@ def create_media(config, filename, node_uri):
     }
     binary_data = open(os.path.join(config['input_dir'], filename), 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
-    if 'location' in media_response.headers:
-        # A 201 response provides a 'location' header, but a '204' response does not.
-        media_uri = media_response.headers['location']
-        logging.info("Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
-    else:
+    if media_response.status_code == 201:
+        if 'location' in media_response.headers:
+            # A 201 response provides a 'location' header, but a '204' response does not.
+            media_uri = media_response.headers['location']
+            logging.info("Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
+    elif media_response.status_code == 204:
         logging.warning("Media created and linked to node %s, but its URI is not available since its creation returned an HTTP status code of %s", node_uri, media_response.status_code)
-
+    else:
+        logging.error('Media not created, PUT request to "%s" returned an HTTP status code of "%s".', media_endpoint, media_response.status_code)
+   
     binary_data.close()
 
     return media_response.status_code
