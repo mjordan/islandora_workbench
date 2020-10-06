@@ -436,7 +436,7 @@ Some important things to note:
 
 ## Creating nodes from files only
 
-If you want to ingest some files and create stub nodes to accompany them you can do so using the `create_from_files` action. A common application of this ability is in automated workflows where files are saved to a watch folder, and metadata is added later.
+If you want to ingest some files without a metadata CSV you can do so using the `create_from_files` action. A common application of this ability is in automated workflows where files are saved to a watch folder, and metadata is added later.
 
 Here is a sample configuration file for this task:
 
@@ -465,9 +465,9 @@ models:
  - 26: ['mp4']
 ```
 
-All of the options are used in the `create` task other than `models`, which is a mapping from terms IDs in the "Islandora Models" vocabulary to file extensions. Note that either the 'model' or 'models' configuration option is required in the `create_from_files` task.
+All of the options are used in the `create` task other than `models`, which is a mapping from terms IDs in the "Islandora Models" vocabulary to file extensions. Note that either the  `models` or `model` configuration option is required in the `create_from_files` task. `model` is conventient when all of the objects you are creating are the same Islandora Model.
 
-In the workflow described above, you might want to include the `output_csv` option in the configuration file, since the resulting file can be populated with metadata later and used in an `update` task to add it to the stub nodes.
+In the workflow described above, you might want to include the `output_csv` option in the configuration file, since the resulting CSV file can be populated with metadata later and used in an `update` task to add it to the stub nodes.
 
 ## Updating nodes
 
