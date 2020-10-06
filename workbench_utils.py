@@ -111,8 +111,8 @@ def set_model_from_extension(file_name, config):
     if config['task'] != 'create_from_files':
         return None
 
-    if 'field_model' in config:
-        return config['field_model']
+    if 'model' in config:
+        return config['model']
 
     extension_with_dot = os.path.splitext(file_name)[1]
     extension = extension_with_dot[1:]
@@ -750,7 +750,7 @@ def check_input_for_create_from_files(config, args):
     joiner = ', '
     optional_config_keys = ['log_file_path', 'log_file_mode', 'preprocessors', 'bootstrap', 'published', 'pause',
                            'published', 'validate_title_length', 'media_type', 'media_types', 'media_types',
-                           'field_model', 'models', 'output_csv','log_json']
+                           'model', 'models', 'output_csv','log_json']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -785,13 +785,13 @@ def check_input_for_create_from_files(config, args):
 
     # Check that either 'media_type' or 'media_types' are present in the config file.
     if ('media_type' not in config and 'media_types' not in config):
-        message = 'You must configure media type using either the "media_type" or "media_types" option.'
+        message = 'You must configure media type using either the "media_type" or "media_types" option in your configuration.'
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    # Check that either 'field_model' or 'models' are present in the config file.
-    if ('field_model' not in config and 'models' not in config):
-        message = 'You must include either the "field_model" or "models" option in your configuration.'
+    # Check that either 'model' or 'models' are present in the config file.
+    if ('model' not in config and 'models' not in config):
+        message = 'You must include either the "model" or "models" option in your configuration.'
         logging.error(message)
         sys.exit('Error: ' + message)
 

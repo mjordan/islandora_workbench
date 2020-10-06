@@ -62,7 +62,7 @@ The settings defined in a configuration file are:
 
 | Setting | Required | Default value | Description |
 | --- | --- | --- | --- | 
-| task | ✔️ | | One of 'create', 'update', delete', 'add_media', or 'delete_media' |
+| task | ✔️ | | One of 'create', 'create_from_files', update', delete', 'add_media', or 'delete_media' |
 | host | ✔️ | | The hostname, including port number if not 80, of your Islandora repository. |
 | username |  ✔️ | | The username used to authenticate the requests. |
 | password |  ✔️ | | The user's password. |
@@ -90,9 +90,8 @@ The settings defined in a configuration file are:
 | paged_content_page_display_hints |  | | The term ID from the Islandora Display taxonomy to assign to pages. If not included, defaults to the value of the `field_display_hints` in the parent's record in the CSV file. See the section "Creating paged content" below for more information. |
 | paged_content_page_content_type |  | | Set to the machine name of the Drupal node content type for pages created using the "Without page-level metadata" method if it is different than the content type of the parent (which is specified in the content_type setting). See the section "Creating paged content" below for more information. |
 | log_json |  | false | Whether or not to log the raw JSON POSTed, PUT, or PATCHed to Drupal. Useful for debugging. |
-| models |  |  | Used in the create_from_files task only. Provides a mapping bewteen file extensions and terms in the "Islandora Models" vocabulary. Note: one of `field_model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
-| field_model |  |  | Used in the create_from_files task only. Defines the term ID from the the "Islandora Models" vocabulary for all nodes created using this task. Note: one of `field_model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
-
+| model [singular]|  |  | Used in the create_from_files task only. Defines the term ID from the the "Islandora Models" vocabulary for all nodes created using this task. Note: one of `model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
+| models [plural] |  |  | Used in the create_from_files task only. Provides a mapping bewteen file extensions and terms in the "Islandora Models" vocabulary. Note: one of `model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
 
 ## Checking configuration and input data
 
@@ -466,7 +465,7 @@ models:
  - 26: ['mp4']
 ```
 
-All of the options are used in the `create` task other than `models`, which is a mapping from terms IDs in the "Islandora Models" vocabulary to file extensions.
+All of the options are used in the `create` task other than `models`, which is a mapping from terms IDs in the "Islandora Models" vocabulary to file extensions. Note that either the 'model' or 'models' configuration option is required in the `create_from_files` task.
 
 In the workflow described above, you might want to include the `output_csv` option in the configuration file, since the resulting file can be populated with metadata later and used in an `update` task to add it to the stub nodes.
 
