@@ -438,6 +438,15 @@ Some important things to note:
 
 If you want to ingest some files without a metadata CSV you can do so using the `create_from_files` action. A common application of this ability is in automated workflows where Islandora objects are created from files saved to a watch folder, and metadata is added later.
 
+Nodes created using this task have only the following properties/fields populated:
+
+* content_type: this is defined in the configuration file, using the `content_type` setting.
+* title: this is derived from the filename minus the extension.
+* status: published by default, or overridden in the configuration file using the `published` setting.
+* field_model: defined in the configuration file using either the `model` or `models` setting.
+
+The media attached to the nodes is the file, with its type (image, document, audio, video, file) assigned by the `media_types` configuration setting and its Media Use tag defined in the `media_use_tid` setting. 
+
 Here is a sample configuration file for this task:
 
 ```yaml
