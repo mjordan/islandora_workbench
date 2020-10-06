@@ -440,7 +440,7 @@ If you want to ingest some files without a metadata CSV you can do so using the 
 
 Here is a sample configuration file for this task:
 
-```
+```yaml
 task: create_from_files
 host: "http://localhost:8000"
 username: admin
