@@ -436,7 +436,7 @@ Some important things to note:
 
 ## Creating nodes from files only
 
-If you want to ingest some files without a metadata CSV you can do so using the `create_from_files` action. A common application of this ability is in automated workflows where files are saved to a watch folder, and metadata is added later.
+If you want to ingest some files without a metadata CSV you can do so using the `create_from_files` action. A common application of this ability is in automated workflows where Islandora objects are created from files are saved to a watch folder, and metadata is added later.
 
 Here is a sample configuration file for this task:
 
