@@ -1143,6 +1143,7 @@ def prepare_term_id(config, vocab_ids, term):
        newly created).
     """
     if value_is_numeric(term):
+        term = term.strip()
         return term
     else:
         if len(vocab_ids) == 1:
