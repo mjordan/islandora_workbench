@@ -1025,7 +1025,7 @@ def get_csv_data(input_dir, input_csv, delimiter):
 def get_term_pairs(config, vocab_id):
     """Get all the term IDs plus associated term names in a vocabulary. If
        the vocabulary does not exist, or is not registered with the view, the
-       request to Islandora returns a 200 plus an empty JSON list, i.e., [].
+       request to Drupal returns a 200 plus an empty JSON list, i.e., [].
     """
     term_dict = dict()
     # Note: this URL requires the view "Terms in vocabulary", created by the
@@ -1285,7 +1285,6 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     fields_with_vocabularies = dict()
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
-        fields_with_vocabularies = dict()
         if column_name in field_definitions:
             if 'vocabularies' in field_definitions[column_name]:
                 vocabularies = get_field_vocabularies(config, field_definitions, column_name)
@@ -1305,7 +1304,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     vocab_term_ids = list(terms.keys())
                     # If more than one vocab in this field, combine their term IDs into a single list.
                     all_tids_for_field = all_tids_for_field + vocab_term_ids
-                fields_with_vocabularies[column_name] = all_tids_for_field
+                fields_with_vocabularies.update({column_name:all_tids_for_field})
                 if vocab_validation_issues is True:
                     print('Warning: Issues detected with validating taxonomy terms used in the CSV column "' + column_name + '". See the Workbench log for important details.')
 
@@ -1337,6 +1336,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 
                     # field_value is s a term ID.
                     if value_is_numeric(field_value):
+                        field_value = field_value.strip()
                         if int(field_value) not in fields_with_vocabularies[column_name]:
                             message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID (' + field_value + ') that is '
                             if len(this_fields_vocabularies) > 1:
@@ -1346,7 +1346,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             logging.error(message + message_2)
                             sys.exit('Error: ' + message + message_2)
                     else:
-                        # field_value is a string term.
+                        # field_value is a string term name.
                         tid = find_term_in_vocab(config, vocabulary, field_value)
                         if value_is_numeric(tid) is not True:
                             # Single taxonomy fields.
