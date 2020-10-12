@@ -1296,11 +1296,11 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     if len(terms) == 0:
                         if config['allow_adding_terms'] is True:
                             vocab_validation_issues = True
-                            message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not be enabled in the "Terms in vocabulary" View. Please confirm it is.'
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not be enabled in the "Terms in vocabulary" View. Please confirm it is.'
                             logging.warning(message)
                         else:
                             vocab_validation_issues = True
-                            message = 'Taxonomy "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
                             logging.warning(message)
                     vocab_term_ids = list(terms.keys())
                     # If more than one vocab in this field, combine their term IDs into a single list.
@@ -1340,9 +1340,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                         if int(field_value) not in fields_with_vocabularies[column_name]:
                             message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ID (' + field_value + ') that is '
                             if len(this_fields_vocabularies) > 1:
-                                message_2 = 'not in one of the referenced taxonomies (' + this_fields_vocabularies_string + ').'
+                                message_2 = 'not in one of the referenced vocabularies (' + this_fields_vocabularies_string + ').'
                             else:
-                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                                message_2 = 'not in the referenced vocabulary ("' + vocabulary + '").'
                             logging.error(message + message_2)
                             sys.exit('Error: ' + message + message_2)
                     else:
@@ -1353,7 +1353,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             if len(this_fields_vocabularies) == 1:
                                 new_term_names_in_csv = True
                                 message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
-                                message_2 = 'not in the referenced taxonomy ("' + vocabulary + '").'
+                                message_2 = 'not in the referenced vocabulary ("' + vocabulary + '").'
                                 logging.error(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
 
@@ -1366,7 +1366,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':')
                                     if namespace_vocab_id not in this_fields_vocabularies:
                                         message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name '
-                                        message_2 = '(' + namespaced_term_name + '") that specifies a taxonomy not associated with that field.'
+                                        message_2 = '(' + namespaced_term_name + '") that specifies a vocabulary not associated with that field.'
                                         logging.error(message + message_2)
                                         sys.exit('Error: ' + message + message_2)
 
@@ -1376,14 +1376,14 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                         if tid is False:
                                             new_term_names_in_csv = True
                                             message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name + '") that is '
-                                            message_2 = 'not in the referenced taxonomy ("' + namespace_vocab_id + '"). That tag will be added to that vocabulary.'
+                                            message_2 = 'not in the referenced vocabulary ("' + namespace_vocab_id + '"). That tag will be added to that vocabulary.'
                                             logging.warning(message + message_2)
                                             print('Warning: ' + message + message_2)
                                     else:
                                         # Die if namespaced term name is not specified vocab.
                                         if tid is False:
                                             message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name + '") that is '
-                                            message_2 = 'not in the referenced taxonomy ("' + namespace_vocab_id + '").'
+                                            message_2 = 'not in the referenced vocabulary ("' + namespace_vocab_id + '").'
                                             logging.warning(message + message_2)
                                             sys.exit('Error: ' + message + message_2)
 
