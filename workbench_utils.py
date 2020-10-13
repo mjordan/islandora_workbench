@@ -298,6 +298,11 @@ def get_field_definitions(config):
                 # E.g., comment, media, node.
                 entity_type = item['attributes']['entity_type']
                 field_definitions[field_name]['entity_type'] = entity_type
+                # If the current field is attached to media, get the bundle and configured file extensions.
+                if item['attributes']['entity_type'] == 'media' and 'file_extensions' in item['attributes']['settings']:
+                    field_definitions[field_name]['file_extensions'] = item['attributes']['settings']['file_extensions']
+                if item['attributes']['entity_type'] == 'media' and 'bundle' in item['attributes']:
+                    field_definitions[field_name]['media_type'] = item['attributes']['bundle']          
                 # If the current field is a taxonomy field, get the referenced taxonomies.
                 if 'config' in item['attributes']['dependencies']:
                     raw_vocabularies = [x for x in item['attributes']['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
@@ -318,6 +323,11 @@ def get_field_definitions(config):
                     # E.g., comment, media, node.
                     entity_type = item['attributes']['entity_type']
                     field_definitions[field_name]['entity_type'] = entity_type
+                    # If the current field is attached to media, get the bundle and configured file extensions.
+                    if item['attributes']['entity_type'] == 'media' and 'file_extensions' in item['attributes']['settings']:
+                        field_definitions[field_name]['file_extensions'] = item['attributes']['settings']['file_extensions']
+                    if item['attributes']['entity_type'] == 'media' and 'bundle' in item['attributes']:
+                        field_definitions[field_name]['media_type'] = item['attributes']['bundle']                    
                     # If the current field is a taxonomy field, get the referenced taxonomies.
                     if 'config' in item['attributes']['dependencies']:
                         raw_vocabularies = [x for x in item['attributes']['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
@@ -691,6 +701,10 @@ def check_input(config, args):
                 print(message)
                 logging.info(message)
 
+         # To do: check that each file's extension is allowed for the current media type usin get_registered_media_extensions().
+         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
+         # 'media_type[s]' config option?
+
         # Check that either 'media_type' or 'media_types' are present in the config file.
         if ('media_type' not in config and 'media_types' not in config):
             message = 'You must configure media type using either the "media_type" or "media_types" option.'
@@ -725,6 +739,20 @@ def check_input(config, args):
     print("Configuration and input data appear to be valid.")
     logging.info('Configuration checked for "%s" task using config file %s, no problems found.', config['task'], args.config)
     sys.exit(0)
+
+
+def get_registered_media_extensions(field_definitions):
+    # Unfinished. See https://github.com/mjordan/islandora_workbench/issues/126.
+    for field_name, field_def in field_definitions.items():
+        print("Field name: " + field_name + ' / ' + str(field_def))
+        """
+        print(field_def)
+        if field_def['entity_type'] == 'media':
+            if 'file_extensions' in field_def:
+                print('Allowed file extensions for ' + field_def['media_type'] + ' :' + field_def['file_extensions'])
+            else:
+                print("No file extensions for " + field_def['media_type'])
+        """
 
 
 def check_input_for_create_from_files(config, args):
