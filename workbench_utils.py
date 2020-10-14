@@ -282,7 +282,8 @@ def get_field_definitions(config):
                 field_definitions[field_name] = {
                     'field_type': item['attributes']['field_storage_config_type'],
                     'cardinality': item['attributes']['cardinality'],
-                    'target_type': target_type}
+                    'target_type': target_type,
+                    'max_length': max_length}
             if 'next' not in field_storage_config['links']:
                 break
 
