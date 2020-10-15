@@ -224,9 +224,7 @@ def create():
                                 for subvalue in subvalues:
                                     subvalue = truncate_csv_value(custom_field, id_field, field_definitions[custom_field], subvalue)
                                     field_values.append({'value': subvalue})
-                                    node[custom_field] = field_values
-                                else:
-                                    node[custom_field] = [{'value': row[custom_field]}]
+                                node[custom_field] = field_values
                             else:
                                 row[custom_field] = truncate_csv_value(custom_field, id_field, field_definitions[custom_field], row[custom_field])
                                 node[custom_field] = [{'value': row[custom_field]}]
