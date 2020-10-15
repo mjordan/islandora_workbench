@@ -602,8 +602,9 @@ def check_input(config, args):
         validate_csv_field_length(config, field_definitions, validate_csv_field_length_csv_data)
 
         # Validating values in CSV taxonomy fields requires a View installed by the Islandora Workbench Integration module.
-        # If the View is not enabled, Drupal returns a 404.
-        terms_view_url = config['host'] + '/vocabulary'
+        # If the View is not enabled, Drupal returns a 404. Use a dummy vocabulary ID or we'll get a 404 even if the View
+        # is enabled.
+        terms_view_url = config['host'] + '/vocabulary/dummyvid?_format=json'
         terms_view_response = issue_request(config, 'GET', terms_view_url)
         if terms_view_response.status_code == 404:
             logging.warning('Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
@@ -1171,11 +1172,12 @@ def prepare_term_id(config, vocab_ids, term):
        term name in the referenced vocabulary and returns its term ID (existing or
        newly created).
     """
+    term = term.strip()
     if value_is_numeric(term):
         return term
     else:
         if len(vocab_ids) == 1:
-            tid = create_term(config, vocab_ids[0], term)
+            tid = create_term(config, vocab_ids[0].strip(), term.strip())
             return tid
         else:
             # Term names used in mult-taxonomy fields. They need to be namespaced with
@@ -1193,7 +1195,7 @@ def prepare_term_id(config, vocab_ids, term):
             namespaced = re.search(':', term)
             if namespaced:
                 [vocab_id, term_name] = term.split(':')
-                tid = create_term(config, vocab_id, term_name)
+                tid = create_term(config, vocab_id.strip(), term_name.strip())
                 return tid
 
 
