@@ -1374,7 +1374,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             if len(this_fields_vocabularies) > 1:
                                 message_2 = 'not in one of the referenced vocabularies (' + this_fields_vocabularies_string + ').'
                             else:
-                                message_2 = 'not in the referenced vocabulary ("' + vocabulary + '").'
+                                message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
                             logging.error(message + message_2)
                             sys.exit('Error: ' + message + message_2)
                     else:
@@ -1385,7 +1385,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             if len(this_fields_vocabularies) == 1:
                                 new_term_names_in_csv = True
                                 message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
-                                message_2 = 'not in the referenced vocabulary ("' + vocabulary + '").'
+                                message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
                                 logging.error(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
 
