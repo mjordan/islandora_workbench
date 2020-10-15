@@ -1213,6 +1213,7 @@ def value_is_numeric(value):
     """Tests to see if value is numeric.
     """
     var = str(value)
+    var = var.strip()
     if var.isnumeric():
         return True
     else:
