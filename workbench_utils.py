@@ -56,6 +56,8 @@ def set_config_defaults(args):
         config['log_json'] = False
     if 'user_agent' not in config:
         config['user_agent'] = 'Islandora Workbench'
+    if 'allow_redirects' not in config:
+        config['allow_redirects'] = True
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -147,6 +149,7 @@ def issue_request(config, method, path, headers=dict(), json='', data='', query=
     if method == 'GET':
         response = requests.get(
             url,
+            allow_redirects=config['allow_redirects'],
             auth=(config['username'], config['password']),
             params=query,
             headers=headers
@@ -154,6 +157,7 @@ def issue_request(config, method, path, headers=dict(), json='', data='', query=
     if method == 'HEAD':
         response = requests.head(
             url,
+            allow_redirects=config['allow_redirects'],
             auth=(config['username'], config['password']),
             headers=headers
         )
@@ -162,6 +166,7 @@ def issue_request(config, method, path, headers=dict(), json='', data='', query=
             logging.info(json)
         response = requests.post(
             url,
+            allow_redirects=config['allow_redirects'],
             auth=(config['username'], config['password']),
             headers=headers,
             json=json,
@@ -172,6 +177,7 @@ def issue_request(config, method, path, headers=dict(), json='', data='', query=
             logging.info(json)
         response = requests.put(
             url,
+            allow_redirects=config['allow_redirects'],
             auth=(config['username'], config['password']),
             headers=headers,
             json=json,
@@ -182,6 +188,7 @@ def issue_request(config, method, path, headers=dict(), json='', data='', query=
             logging.info(json)
         response = requests.patch(
             url,
+            allow_redirects=config['allow_redirects'],
             auth=(config['username'], config['password']),
             headers=headers,
             json=json,
@@ -190,6 +197,7 @@ def issue_request(config, method, path, headers=dict(), json='', data='', query=
     if method == 'DELETE':
         response = requests.delete(
             url,
+            allow_redirects=config['allow_redirects'],
             auth=(config['username'], config['password']),
             headers=headers
         )
@@ -215,7 +223,7 @@ def ping_islandora(config):
     # First, test host. Surprisingly, using credentials to ping the base URL results in a 403, so we don't
     # go through issue_request(), which always uses credentials.
     try:
-        host_response = requests.head(config['host'], headers={'User-Agent': config['user_agent']})
+        host_response = requests.head(config['host'], allow_redirects=config['allow_redirects'], headers={'User-Agent': config['user_agent']})
         host_response.raise_for_status()
     except requests.exceptions.RequestException as error:
         message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
@@ -406,7 +414,7 @@ def check_input(config, args):
                             'output_csv', 'delete_media_with_nodes', 'paged_content_from_directories',
                             'paged_content_sequence_seprator', 'paged_content_page_model_tid',
                             'paged_content_page_display_hints', 'paged_content_page_content_type',
-                            'allow_adding_terms', 'log_json', 'user_agent']
+                            'allow_adding_terms', 'log_json', 'user_agent', 'allow_redirects']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -784,7 +792,7 @@ def check_input_for_create_from_files(config, args):
     joiner = ', '
     optional_config_keys = ['log_file_path', 'log_file_mode', 'preprocessors', 'bootstrap', 'published', 'pause',
                            'published', 'validate_title_length', 'media_type', 'media_types', 'media_types',
-                           'model', 'models', 'output_csv','log_json', 'user_agent']
+                           'model', 'models', 'output_csv','log_json', 'user_agent', 'allow_redirects']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
