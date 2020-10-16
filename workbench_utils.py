@@ -54,6 +54,8 @@ def set_config_defaults(args):
         config['allow_adding_terms'] = False
     if 'log_json' not in config:
         config['log_json'] = False
+    if 'user_agent' not in config:
+        config['user_agent'] = 'Islandora Workbench'
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -127,12 +129,14 @@ def set_model_from_extension(file_name, config):
                 return tid
 
 
-def issue_request(config, method, path, headers='', json='', data='', query={}):
+def issue_request(config, method, path, headers=dict(), json='', data='', query={}):
     """Issue the REST request to Drupal.
     """
     if config['check'] is False:
         if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE']:
             time.sleep(config['pause'])
+
+    headers.update({'User-Agent':config['user_agent']})
 
     config['host'] = config['host'].rstrip('/')
     if config['host'] in path:
@@ -211,7 +215,7 @@ def ping_islandora(config):
     # First, test host. Surprisingly, using credentials to ping the base URL results in a 403, so we don't
     # go through issue_request(), which always uses credentials.
     try:
-        host_response = requests.head(config['host'])
+        host_response = requests.head(config['host'], headers={'User-Agent': config['user_agent']})
         host_response.raise_for_status()
     except requests.exceptions.RequestException as error:
         message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
@@ -402,7 +406,7 @@ def check_input(config, args):
                             'output_csv', 'delete_media_with_nodes', 'paged_content_from_directories',
                             'paged_content_sequence_seprator', 'paged_content_page_model_tid',
                             'paged_content_page_display_hints', 'paged_content_page_content_type',
-                            'allow_adding_terms', 'log_json']
+                            'allow_adding_terms', 'log_json', 'user_agent']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -780,7 +784,7 @@ def check_input_for_create_from_files(config, args):
     joiner = ', '
     optional_config_keys = ['log_file_path', 'log_file_mode', 'preprocessors', 'bootstrap', 'published', 'pause',
                            'published', 'validate_title_length', 'media_type', 'media_types', 'media_types',
-                           'model', 'models', 'output_csv','log_json']
+                           'model', 'models', 'output_csv','log_json', 'user_agent']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
