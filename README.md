@@ -122,6 +122,7 @@ If you do this, Workbench will check the following and report any errors that re
    * If not, Workbench will recommend that you enable it.
    * If so, Workbench will validate whether taxonomy term IDs or term names (such as those used in `field_model`) exist in the referenced taxonomies.
 * Whether the length of new terms exceeds 255 characters, which is the maximum length for a term name.
+* Whether term names in your CSV require a vocabulary namespace.
 * If using the pages from directories configuration:
    * Whether page filenames contain an occurance of the sequence separator.
    * Whether any page directories are empty.
