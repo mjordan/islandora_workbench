@@ -477,8 +477,7 @@ def check_input(config, args):
     csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
     csv_column_headers = csv_data.fieldnames
 
-    # Check whether each row contains the same number of columns as there
-    # are headers.
+    # Check whether each row contains the same number of columns as there are headers.
     for count, row in enumerate(csv_data, start=1):
         string_field_count = 0
         for field in row:
@@ -1115,6 +1114,13 @@ def create_term(config, vocab_id, term_name):
         logging.warning('To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.')
         return False
 
+    if len(term_name) > 255:
+        truncated_term_name = term_name[:255]
+        message = 'Term "' + term_name + '"' + "provided in the CSV data exceeds Drupal's maximum length of 255 characters."
+        message_2 = ' It has been trucated to "' + truncated_term_name + '".'
+        logging.info(message + message_2)
+        term_name = truncated_term_name
+
     term = {
         "vid": [
            {
@@ -1319,6 +1325,19 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                         logging.warning(message + message_2)
 
 
+def validate_term_name_length(term_name, row_number, column_name):
+    """Checks that the length of a term name does not exceed
+       Drupal's 255 character length.
+    """
+    term_name = term_name.strip()
+    if len(term_name) > 255:
+        message = 'CSV field "' + column_name + '" in record ' + row_number + " contains a taxonomy term that exceeds Drupal's limit of 255 characters (length of term is " + str(len(term_name)) + ' characters).'
+        message_2 = ' Term provided in CSV is "' + term_name + '".'
+        message_3 = " Please reduce the term's length to less than 256 characters."
+        logging.error(message + message_2 + message_3)
+        sys.exit('Error: ' + message + ' See the Workbench log for more information.')
+
+
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
     """Loop through all fields in field_definitions, and if a field
        is a taxonomy reference field, validate all values in the CSV
@@ -1339,7 +1358,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     if len(terms) == 0:
                         if config['allow_adding_terms'] is True:
                             vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not be enabled in the "Terms in vocabulary" View. Please confirm it is.'
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not be enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
                             logging.warning(message)
                         else:
                             vocab_validation_issues = True
@@ -1378,6 +1397,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 logging.error(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
 
+                                validate_term_name_length(split_field_value, str(count), column_name)
+
                     # field_value is s a term ID.
                     if value_is_numeric(field_value):
                         field_value = field_value.strip()
@@ -1395,11 +1416,21 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                         if value_is_numeric(tid) is not True:
                             # Single taxonomy fields.
                             if len(this_fields_vocabularies) == 1:
-                                new_term_names_in_csv = True
-                                message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value + '") that is '
-                                message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
-                                logging.error(message + message_2)
-                                sys.exit('Error: ' + message + message_2)
+                                    if config['allow_adding_terms'] is True:
+                                        # Warn if namespaced term name is not in specified vocab.
+                                        if tid is False:
+                                            new_term_names_in_csv = True
+                                            validate_term_name_length(field_value, str(count), column_name)                                            
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value.strip() + '") that is '
+                                            message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '"). That tag will be added to that vocabulary.'
+                                            logging.warning(message + message_2)
+                                            print('Warning: ' + message + message_2)
+                                    else:
+                                        new_term_names_in_csv = True
+                                        message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value.strip() + '") that is '
+                                        message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
+                                        logging.error(message + message_2)
+                                        sys.exit('Error: ' + message + message_2)
 
                             # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
                             # regardless of whether config['allow_adding_terms'] is True.
@@ -1410,23 +1441,26 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':')
                                     if namespace_vocab_id not in this_fields_vocabularies:
                                         message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a namespaced term name '
-                                        message_2 = '(' + namespaced_term_name + '") that specifies a vocabulary not associated with that field.'
+                                        message_2 = '(' + namespaced_term_name.strip() + '") that specifies a vocabulary not associated with that field.'
                                         logging.error(message + message_2)
                                         sys.exit('Error: ' + message + message_2)
 
                                     tid = find_term_in_vocab(config, namespace_vocab_id, namespaced_term_name)
+
                                     if config['allow_adding_terms'] is True:
                                         # Warn if namespaced term name is not in specified vocab.
                                         if tid is False:
                                             new_term_names_in_csv = True
-                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name + '") that is '
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
                                             message_2 = 'not in the referenced vocabulary ("' + namespace_vocab_id + '"). That tag will be added to that vocabulary.'
                                             logging.warning(message + message_2)
                                             print('Warning: ' + message + message_2)
+
+                                            validate_term_name_length(split_field_value, str(count), column_name)
                                     else:
                                         # Die if namespaced term name is not specified vocab.
                                         if tid is False:
-                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name + '") that is '
+                                            message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
                                             message_2 = 'not in the referenced vocabulary ("' + namespace_vocab_id + '").'
                                             logging.warning(message + message_2)
                                             sys.exit('Error: ' + message + message_2)
