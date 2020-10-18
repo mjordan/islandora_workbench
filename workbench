@@ -512,11 +512,14 @@ def update():
                     # For non-entity reference and non-typed relation fields (text, etc.).
                     else:
                         if field_definitions[custom_field]['cardinality'] == 1:
-                            subvalues = row[custom_field].split(config['subdelimiter'])
-                            subvalues[0] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalues[0])
-                            node[custom_field] = [{'value': subvalues[0]}]
-                            if len(subvalues) > 1:
-                                log_field_cardinality_violation(custom_field, row['node_id'], '1')
+                            if custom_field == 'title':
+                                node[custom_field] = [{'value': row[custom_field]}]
+                            else:
+                                subvalues = row[custom_field].split(config['subdelimiter'])
+                                subvalues[0] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalues[0])
+                                node[custom_field] = [{'value': subvalues[0]}]
+                                if len(subvalues) > 1:
+                                    log_field_cardinality_violation(custom_field, row['node_id'], '1')
                         elif field_definitions[custom_field]['cardinality'] > 1:
                             # Append to existing values.
                             if config['subdelimiter'] in row[custom_field]:

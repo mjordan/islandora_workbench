@@ -1269,6 +1269,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
     """
     field_cardinalities = dict()
     csv_headers = csv_data.fieldnames
+    csv_headers.remove('title')
     for csv_header in csv_headers:
         if csv_header in field_definitions.keys():
             cardinality = field_definitions[csv_header]['cardinality']
