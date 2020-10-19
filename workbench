@@ -687,7 +687,7 @@ def create_from_files():
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node_json, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
-            print('+ Node for "' + filename_without_extension + '" created at ' + node_uri + '.')
+            print('Node for "' + filename_without_extension + '" created at ' + node_uri + '.')
             logging.info('Node for "%s" created at %s.', filename_without_extension, node_uri)
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, '', node_response.text)
