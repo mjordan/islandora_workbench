@@ -1,0 +1,11 @@
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: input_daa
+input_csv: collections.csv
+content_type: islandora_object
+drupal_filesystem: "fedora://"
+id_field: id
+allow_missing_files: true
+media_type: none
