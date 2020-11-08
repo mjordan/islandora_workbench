@@ -1423,9 +1423,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                             new_term_names_in_csv = True
                                             validate_term_name_length(field_value, str(count), column_name)                                            
                                             message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value.strip() + '") that is '
-                                            message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '"). That tag will be added to that vocabulary.'
+                                            message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '"). That term will be created.'
                                             logging.warning(message + message_2)
-                                            print('Warning: ' + message + message_2)
                                     else:
                                         new_term_names_in_csv = True
                                         message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value.strip() + '") that is '
@@ -1453,9 +1452,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                         if tid is False:
                                             new_term_names_in_csv = True
                                             message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                            message_2 = 'not in the referenced vocabulary ("' + namespace_vocab_id + '"). That tag will be added to that vocabulary.'
+                                            message_2 = 'not in the referenced vocabulary ("' + namespace_vocab_id + '"). That term will be created.'
                                             logging.warning(message + message_2)
-                                            print('Warning: ' + message + message_2)
 
                                             validate_term_name_length(split_field_value, str(count), column_name)
                                     else:
@@ -1467,7 +1465,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                             sys.exit('Error: ' + message + message_2)
 
     if new_term_names_in_csv is True and config['allow_adding_terms'] is True:
-        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted, but only once).")
+        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
     else:
         # All term IDs are in their field's vocabularies.
         print("OK, term IDs/names in CSV file exist in their respective taxonomies.")
