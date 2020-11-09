@@ -554,8 +554,8 @@ def check_input(config, args):
             langcode_was_present = True
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
-                logging.error("CSV column header %s does not appear to match any Drupal field names.", csv_column_header)
-                sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
+                logging.error("CSV column header %s does not match any Drupal field names.", csv_column_header)
+                sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names.')
         message = 'OK, CSV column headers match Drupal field names.'
         print(message)
         logging.info(message)
@@ -595,8 +595,8 @@ def check_input(config, args):
             csv_column_headers.remove('node_id')
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
-                logging.error('CSV column header %s does not appear to match any Drupal field names.', csv_column_header)
-                sys.exit('Error: CSV column header "' + csv_column_header + '" does not appear to match any Drupal field names.')
+                logging.error('CSV column header %s does not match any Drupal field names.', csv_column_header)
+                sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names.')
         message = 'OK, CSV column headers match Drupal field names.'
         print(message)
         logging.info(message)
@@ -1352,6 +1352,14 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         if column_name in field_definitions:
             if 'vocabularies' in field_definitions[column_name]:
                 vocabularies = get_field_vocabularies(config, field_definitions, column_name)
+                # If there are no vocabularies linked to the current field, 'vocabularies'
+                # will be False and will throw a TypeError.
+                try:
+                    num_vocabs = len(vocabularies)
+                except:
+                    message = 'Workbench cannot get vocabularies linked to field "' + column_name +'". Please confirm that field has at least one vocabulary.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
                 all_tids_for_field = []
                 vocab_validation_issues = False
                 for vocabulary in vocabularies:
