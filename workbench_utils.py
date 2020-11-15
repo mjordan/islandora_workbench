@@ -256,136 +256,75 @@ def ping_islandora(config):
 def get_field_definitions(config):
     """Get field definitions from Drupal.
     """
-    headers = {'Accept': 'Application/vnd.api+json'}
+    # For media, entity_type will need to be 'media' and bundle_type will need to be one of
+    # 'image', 'document', 'audio', 'video', 'file'
+    entity_type = 'node'
+    bundle_type = config['content_type']
+
     field_definitions = {}
+    fields = get_entity_fields(config, entity_type, bundle_type)
+    for fieldname in fields:
+        field_definitions[fieldname] = {}
+        raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
+        field_config = json.loads(raw_field_config)
+        field_definitions[fieldname]['entity_type'] = field_config['entity_type']
+        field_definitions[fieldname]['required'] = field_config['required']
+        raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+        if len(raw_vocabularies) > 0:
+            vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
+            field_definitions[fieldname]['vocabularies'] = vocabularies
+        if entity_type == 'media' and 'file_extensions' in field_config['settings']:
+            field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
+        if entity_type == 'media':
+            field_definitions[fieldname]['media_type'] = bundle_type    
 
-    # We need to get both the field config and the field storage config.
-    field_storage_config_url = config['host'] + '/jsonapi/field_storage_config/field_storage_config'
-    field_storage_config_response = issue_request(config, 'GET', field_storage_config_url, headers)
-    if field_storage_config_response.status_code == 200:
-        field_storage_config = json.loads(field_storage_config_response.text)
-        for item in field_storage_config['data']:
-            field_name = item['attributes']['field_name']
-            if 'target_type' in item['attributes']['settings']:
-                target_type = item['attributes']['settings']['target_type']
-            else:
-                target_type = None
-            if 'max_length' in item['attributes']['settings']:
-                max_length = item['attributes']['settings']['max_length']
-            else:
-                max_length = None
-            field_definitions[field_name] = {
-                'field_type': item['attributes']['field_storage_config_type'],
-                'cardinality': item['attributes']['cardinality'],
-                'target_type': target_type,
-                'max_length': max_length}
-        # Hacky implementation of parsing Drupal's JSON:API pager.
-        offset = 0
-        while 'next' in field_storage_config['links']:
-            offset = offset + 50
-            field_storage_config_response = issue_request(config, 'GET', field_storage_config_url, headers, '', '', {'page[offset]': offset, 'page[limit]': '50'})
-            field_storage_config = json.loads(field_storage_config_response.text)
-            for item in field_storage_config['data']:
-                field_name = item['attributes']['field_name']
-                if 'target_type' in item['attributes']['settings']:
-                    target_type = item['attributes']['settings']['target_type']
-                else:
-                    target_type = None
-                field_definitions[field_name] = {
-                    'field_type': item['attributes']['field_storage_config_type'],
-                    'cardinality': item['attributes']['cardinality'],
-                    'target_type': target_type,
-                    'max_length': max_length}
-            if 'next' not in field_storage_config['links']:
-                break
-
-    field_config_url = config['host'] + '/jsonapi/field_config/field_config'
-    field_config_response = issue_request(config, 'GET', field_config_url, headers)
-    if field_config_response.status_code == 200:
-        field_config = json.loads(field_config_response.text)
-        for item in field_config['data']:
-            field_name = item['attributes']['field_name']
-            if field_name in field_definitions:
-                required = item['attributes']['required']
-                field_definitions[field_name]['required'] = required
-                # E.g., comment, media, node.
-                entity_type = item['attributes']['entity_type']
-                field_definitions[field_name]['entity_type'] = entity_type
-                # If the current field is attached to media, get the bundle and configured file extensions.
-                if item['attributes']['entity_type'] == 'media' and 'file_extensions' in item['attributes']['settings']:
-                    field_definitions[field_name]['file_extensions'] = item['attributes']['settings']['file_extensions']
-                if item['attributes']['entity_type'] == 'media' and 'bundle' in item['attributes']:
-                    field_definitions[field_name]['media_type'] = item['attributes']['bundle']          
-                # If the current field is a taxonomy field, get the referenced taxonomies.
-                if 'config' in item['attributes']['dependencies']:
-                    raw_vocabularies = [x for x in item['attributes']['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
-                    if len(raw_vocabularies) > 0:
-                        vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
-                        field_definitions[field_name]['vocabularies'] = vocabularies
-        # Hacky implementation of parsing Drupal's JSON:API pager.
-        offset = 0
-        while 'next' in field_config['links']:
-            offset = offset + 50
-            field_config_response = issue_request(config, 'GET', field_config_url, headers, '', '', {'page[offset]': offset, 'page[limit]': '50'})
-            field_config = json.loads(field_config_response.text)
-            for item in field_config['data']:
-                field_name = item['attributes']['field_name']
-                if field_name in field_definitions:
-                    required = item['attributes']['required']
-                    field_definitions[field_name]['required'] = required
-                    # E.g., comment, media, node.
-                    entity_type = item['attributes']['entity_type']
-                    field_definitions[field_name]['entity_type'] = entity_type
-                    # If the current field is attached to media, get the bundle and configured file extensions.
-                    if item['attributes']['entity_type'] == 'media' and 'file_extensions' in item['attributes']['settings']:
-                        field_definitions[field_name]['file_extensions'] = item['attributes']['settings']['file_extensions']
-                    if item['attributes']['entity_type'] == 'media' and 'bundle' in item['attributes']:
-                        field_definitions[field_name]['media_type'] = item['attributes']['bundle']                    
-                    # If the current field is a taxonomy field, get the referenced taxonomies.
-                    if 'config' in item['attributes']['dependencies']:
-                        raw_vocabularies = [x for x in item['attributes']['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
-                        if len(raw_vocabularies) > 0:
-                            vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
-                            field_definitions[field_name]['vocabularies'] = vocabularies
-            if 'next' not in field_config['links']:
-                break
-
-    # Base fields include title, promote, status, sticky, etc. Title is required in the CSV file.
-    base_field_override_url = config['host'] + '/jsonapi/base_field_override/base_field_override?filter[type][condition][path]=bundle&filter[type][condition][value]=' + config['content_type']
-    base_field_override_response = issue_request(config, 'GET', base_field_override_url, headers)
-    if base_field_override_response.status_code == 200:
-        field_config = json.loads(base_field_override_response.text)
-        for item in field_config['data']:
-            field_name = item['attributes']['field_name']
-            required = item['attributes']['required']
-            field_type = item['attributes']['field_type']
-            entity_type = item['attributes']['entity_type']
-            field_definitions[field_name] = {
-                'cardinality': 1,
-                'field_type': field_type,
-                'required': required,
-                'entity_type': entity_type
-            }
-        # Hacky implementation of parsing Drupal's JSON:API pager.
-        offset = 0
-        while 'next' in field_config['links']:
-            base_field_override_response = issue_request(config, 'GET', base_field_override_url, headers, '', '', {'page[offset]': offset, 'page[limit]': '50'})
-            field_config = json.loads(base_field_override_response.text)
-            for item in field_config['data']:
-                field_name = item['attributes']['field_name']
-                required = item['attributes']['required']
-                field_type = item['attributes']['field_type']
-                entity_type = item['attributes']['entity_type']
-                field_definitions[field_name] = {
-                    'cardinality': 1,
-                    'field_type': field_type,
-                    'required': required,
-                    'entity_type': entity_type
-                }
-                if 'next' not in field_config['links']:
-                    break
+        raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
+        field_storage = json.loads(raw_field_storage)
+        field_definitions[fieldname]['field_type'] = field_storage['type']        
+        field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
+        if 'max_length' in field_storage['settings']:
+            field_definitions[fieldname]['max_length'] = field_storage['settings']['max_length']
+        else:
+            field_definitions[fieldname]['max_length'] = None
+        if 'target_type' in field_storage['settings']:
+            field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
+        else:
+            field_definitions[fieldname]['target_type'] = None  
 
     return field_definitions
+
+
+def get_entity_fields(config, entity_type, bundle_type):
+    fields_endpoint = config['host'] + '/entity/entity_form_display/' + entity_type + '.' + bundle_type + '.default?_format=json'
+    bundle_type_response = issue_request(config, 'GET', fields_endpoint)
+
+    fields = []
+
+    if bundle_type_response.status_code == 200:
+        node_config_raw = json.loads(bundle_type_response.text)
+        fieldname_prefix = 'field.field.node.' + bundle_type + '.'
+        fieldnames = [field_dependency.replace(fieldname_prefix, '') for field_dependency in node_config_raw['dependencies']['config']]
+        for fieldname in node_config_raw['dependencies']['config']:
+            fieldname_prefix = 'field.field.' + entity_type + '.' + bundle_type + '.'
+            if re.match(fieldname_prefix, fieldname):
+                fieldname = fieldname.replace(fieldname_prefix, '')
+                fields.append(fieldname)
+
+    return fields
+
+
+def get_entity_field_config(config, fieldname, entity_type, bundle_type):
+    field_config_endpoint = config['host'] + '/entity/field_config/' + entity_type + '.' + bundle_type + '.' + fieldname + '?_format=json'
+    field_config_response = issue_request(config, 'GET', field_config_endpoint)
+    if field_config_response.status_code == 200:
+        return field_config_response.text
+
+
+def get_entity_field_storage(config, fieldname, entity_type):
+    field_storage_endpoint = config['host'] + '/entity/field_storage_config/' + entity_type + '.' + fieldname + '?_format=json'
+    field_storage_response = issue_request(config, 'GET', field_storage_endpoint)
+    if field_storage_response.status_code == 200:
+        return field_storage_response.text
 
 
 def check_input(config, args):
@@ -394,6 +333,8 @@ def check_input(config, args):
     logging.info('Starting configuration check for "%s" task using config file %s.', config['task'], args.config)
 
     ping_islandora(config)
+
+    base_fields = ['title', 'status', 'promote', 'sticky']
 
     # Check the config file.
     tasks = ['create', 'update', 'delete', 'add_media', 'delete_media', 'create_from_files']
@@ -553,7 +494,7 @@ def check_input(config, args):
             # Set this so we can validate langcode below.
             langcode_was_present = True
         for csv_column_header in csv_column_headers:
-            if csv_column_header not in drupal_fieldnames:
+            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
                 logging.error("CSV column header %s does not match any Drupal field names.", csv_column_header)
                 sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names.')
         message = 'OK, CSV column headers match Drupal field names.'
@@ -571,7 +512,7 @@ def check_input(config, args):
         for required_drupal_field in required_drupal_fields:
             if required_drupal_field not in csv_column_headers:
                 logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
-                sys.exit('Error: Required Drupal field "' + required_drupal_field + '" is not present in the CSV file.')
+                sys.exit('Error: Field "' + required_drupal_field + '" required for content type "' + config['content_type'] + '" is not present in the CSV file.')
         message = 'OK, required Drupal fields are present in the CSV file.'
         print(message)
         logging.info(message)
@@ -1284,7 +1225,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                 if config['task'] == 'create':
                     message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains more values than the number '
                 if config['task'] == 'update':
-                    message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains more values than the number '                    
+                    message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains more values than the number '      
                 if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
                     message_2 = 'allowed for that field (' + str(field_cardinalities[field_name]) + '). Workbench will add only the first value.'
                     print('Warning: ' + message + message_2)
@@ -1320,7 +1261,7 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                         if config['task'] == 'create':
                             message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'
                         if config['task'] == 'update':
-                            message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'                            
+                            message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'           
                         message_2 = ' than allowed for that field (' + str(field_max_lengths[field_name]) + ' characters). Workbench will truncate this value prior to populating Drupal.'
                         print('Warning: ' + message + message_2)
                         logging.warning(message + message_2)
@@ -1357,7 +1298,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 try:
                     num_vocabs = len(vocabularies)
                 except:
-                    message = 'Workbench cannot get vocabularies linked to field "' + column_name +'". Please confirm that field has at least one vocabulary.'
+                    message = 'Workbench cannot get vocabularies linked to field "' + column_name + '". Please confirm that field has at least one vocabulary.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 all_tids_for_field = []
@@ -1429,7 +1370,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                         # Warn if namespaced term name is not in specified vocab.
                                         if tid is False:
                                             new_term_names_in_csv = True
-                                            validate_term_name_length(field_value, str(count), column_name)                                            
+                                            validate_term_name_length(field_value, str(count), column_name)
                                             message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term ("' + field_value.strip() + '") that is '
                                             message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '"). That term will be created.'
                                             logging.warning(message + message_2)
