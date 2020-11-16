@@ -12,17 +12,7 @@ This tool is not related in any way to the Drupal contrib module called [Workben
    * The [ruamel.yaml](https://yaml.readthedocs.io/en/latest/index.html) library
    * The [Requests](https://2.python-requests.org/en/master/) library
 * An [Islandora 8](https://islandora.ca/) repository
-   * The JSON:API module is not enabled by default. You must enable it manually.
-   * If you want Workbench to validate the existence of taxonomy term IDs/names used in your CSV input file (very much advised), you need to install and enable the [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module.
-   * If you want to be able to create new taxonomy terms by including term names in your CSV data, you need to:
-      * Install and enable the Islandora Workbench Integration module on your target Drupal and
-      * Your target Drupal needs to have its "Taxonomy term" REST endpoint enabled. To do so:
-         * Go to `admin/config/services/rest`
-         * Next to "Taxonomy term" in the list of disabled resource names, click on the "Enable" button.
-         * Set "Granularity" to "Method" and check "GET", "Accepted request formats" to "JSON", and "Authentication providers" to "basic_auth".
-         * Click on the "Save configuration" button.
-
-While installing the Islandora Workbench Integration module is currently optional as described above, it will likely become required in the future.
+* The [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module.
 
 ## Installation
 

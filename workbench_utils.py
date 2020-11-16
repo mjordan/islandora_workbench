@@ -230,27 +230,11 @@ def ping_islandora(config):
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    # Then JSON:API and the credientials.
-    jsonapi_url = '/jsonapi/field_storage_config/field_storage_config'
-    headers = {'Accept': 'Application/vnd.api+json'}
-    try:
-        response = issue_request(config, 'GET', jsonapi_url, headers, None, None)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as error:
-        message = "Workbench cannot connect to Drupal's JSON:API. Please confirm it is enabled, and that the credentials in your config file have access to it."
+    field_definitions = get_field_definitions(config)
+    if len(field_definitions) == 0:
+        message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
         logging.error(message)
         sys.exit('Error: ' + message)
-
-    # JSON:API returns a 200 but an empty 'data' array if credentials are bad.
-    if response.status_code == 200:
-        field_config = json.loads(response.text)
-        if field_config['data'] == []:
-            message = config['host'] + ' does not recognize the username/password combination you have provided.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
-        else:
-            print('OK, ' + config['host'] + ' is accessible using the credentials provided.')
-            logging.info(config['host'] + ' is accessible using the credentials provided.')
 
 
 def get_field_definitions(config):
@@ -309,6 +293,10 @@ def get_entity_fields(config, entity_type, bundle_type):
             if re.match(fieldname_prefix, fieldname):
                 fieldname = fieldname.replace(fieldname_prefix, '')
                 fields.append(fieldname)
+    else:
+        message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
 
     return fields
 
@@ -318,6 +306,10 @@ def get_entity_field_config(config, fieldname, entity_type, bundle_type):
     field_config_response = issue_request(config, 'GET', field_config_endpoint)
     if field_config_response.status_code == 200:
         return field_config_response.text
+    else:
+        message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
 
 
 def get_entity_field_storage(config, fieldname, entity_type):
@@ -325,6 +317,10 @@ def get_entity_field_storage(config, fieldname, entity_type):
     field_storage_response = issue_request(config, 'GET', field_storage_endpoint)
     if field_storage_response.status_code == 200:
         return field_storage_response.text
+    else:
+        message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
 
 
 def check_input(config, args):
@@ -474,7 +470,7 @@ def check_input(config, args):
             drupal_fieldnames.append(drupal_fieldname)
 
         if len(drupal_fieldnames) == 0:
-            message = "Can't retrieve field definitions from Drupal. Please confirm that the JSON:API module is enabled."
+            message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
             logging.error(message)
             sys.exit('Error: ' + message)
 
