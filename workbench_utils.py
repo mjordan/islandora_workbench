@@ -330,7 +330,7 @@ def check_input(config, args):
 
     ping_islandora(config)
 
-    base_fields = ['title', 'status', 'promote', 'sticky']
+    base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
 
     # Check the config file.
     tasks = ['create', 'update', 'delete', 'add_media', 'delete_media', 'create_from_files']

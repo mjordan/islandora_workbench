@@ -26,6 +26,7 @@ def create():
         with open(input_csv) as csvfile:
             csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
             csv_column_headers = csv_data.fieldnames
+            print(csv_column_headers)
 
             node_endpoint = config['host'] + '/node?_format=json'
 
@@ -47,6 +48,21 @@ def create():
                     ]
                 }
 
+                # Some optional base fields....
+                if 'uid' in csv_column_headers:
+                    if len(row['uid']) > 0:
+                        node['uid'] = [{'target_id': row['uid']}]
+                    # Reset it to empty so it doesn't throw a key error in the code
+                    # in the "Assemble Drupal field structures..." section below.
+                    row['uid'] = ''
+
+                if 'created' in csv_column_headers:
+                    if len(row['created']) > 0:
+                        node['created'] = [{'value': row['created']}]
+                    # Reset it to empty so it doesn't throw a key error in the code
+                    # in the "Assemble Drupal field structures..." section below.
+                    row['created'] = ''
+
                 # If a node with an ID that matches the current item's
                 # 'parent_id' value has just been created, make the item
                 # a child of the node.
@@ -58,8 +74,6 @@ def create():
                 custom_fields = list(
                     set(csv_column_headers) - set(required_fields))
                 for custom_field in custom_fields:
-                    if not isinstance(row[custom_field], str):
-                        continue
                     # Skip updating field if value is empty.
                     if len(row[custom_field]) == 0:
                         continue
