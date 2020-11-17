@@ -230,6 +230,7 @@ def ping_islandora(config):
         logging.error(message)
         sys.exit('Error: ' + message)
 
+    print("Retrieving field definitions from Drupal...")
     field_definitions = get_field_definitions(config)
     if len(field_definitions) == 0:
         message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
@@ -512,6 +513,15 @@ def check_input(config, args):
         message = 'OK, required Drupal fields are present in the CSV file.'
         print(message)
         logging.info(message)
+
+        # Validate dates in 'created' field, if present.
+        if 'created' in csv_column_headers:
+            validate_node_created_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_node_created_date(validate_node_created_csv_data)
+        # Validate user IDs in 'uid' field, if present.
+        if 'uid' in csv_column_headers:
+            validate_node_uid_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_node_uid(config, validate_node_uid_csv_data)
 
     if config['task'] == 'update':
         if 'node_id' not in csv_column_headers:
@@ -1274,6 +1284,53 @@ def validate_term_name_length(term_name, row_number, column_name):
         message_3 = " Please reduce the term's length to less than 256 characters."
         logging.error(message + message_2 + message_3)
         sys.exit('Error: ' + message + ' See the Workbench log for more information.')
+
+
+def validate_node_created_date(csv_data):
+    """Checks that date_string is in the format used by Drupal's 'created' node property,
+       e.g., 2020-11-15T23:49:22+00:00. Also check to see if the date is in the future.
+    """
+    for count, row in enumerate(csv_data, start=1):
+        for field_name, field_value in row.items():
+            if field_name == 'created' and len(field_value) > 0:
+                matches = re.match(r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$', field_value)
+                if not matches:
+                    message = 'CSV field "created" in record ' + str(count) + ' contains a date "' + field_value + '" that is not formatted properly.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+
+                now = datetime.datetime.now()
+                # Remove the GMT differential at the end of the time string.
+                date_string_trimmed = re.sub(r'[+-]\d\d:\d\d$', '', field_value)
+                created_date = datetime.datetime.strptime(date_string_trimmed, '%Y-%m-%dT%H:%M:%S')
+                if created_date > now:
+                    message = 'CSV field "created" in record ' + str(count) + ' contains a date "' + field_value + '" that is in the future.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+
+    message = 'OK, dates in the "created" CSV field are all formated correctly and in the future.'
+    print(message)
+    logging.info(message)
+
+
+def validate_node_uid(config, csv_data):
+    """Checks that the user identified in the 'uid' field exists in Drupal. Note that this does not validate
+       any permissions the user may have.
+    """
+    for count, row in enumerate(csv_data, start=1):
+        for field_name, field_value in row.items():
+            if field_name == 'uid' and len(field_value) > 0:
+                # Request to /user/x?_format=json goes here; 200 means the user exists, 404 means they do no.
+                uid_url = config['host'] + '/user/' + str(field_value) + '?_format=json'
+                uid_response = issue_request(config, 'GET', uid_url)
+                if uid_response.status_code == 404:
+                    message = 'CSV field "uid" in record ' + str(count) + ' contains a user ID "' + field_value + '" that does not exist in the target Drupal.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+
+    message = 'OK, user IDs in the "uid" CSV field all exist.'
+    print(message)
+    logging.info(message)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):

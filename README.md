@@ -116,6 +116,8 @@ If you do this, Workbench will check the following and report any errors that re
 * If using the pages from directories configuration:
    * Whether page filenames contain an occurance of the sequence separator.
    * Whether any page directories are empty.
+* If the `created` field is present in your CSV file, whether the values in it are formatted correctly (like "2020-11-15T23:49:22+00:00") and whether the date is in the past (both of which are Drupal requirements).
+* If the `uid` field is present in your CSV file, whether the user IDs in that field exist in the target Drupal. Note that this check does not inspect permissions or roles, only that the user ID exists.
 
 You will probably need to run Workbench using `--check` a few times before you will be ready to run it without `--check` and commit your data to Islandora. For example, you may need to correct errors in taxonomy term IDs or names, fix errors in media filenames, or wrap values in your CSV files in quotation marks.
 
@@ -190,8 +192,8 @@ Base fields are basic node properties, shared by all content types. The base fie
 * `status`: Whether the node is published. Optional. If included, use `1` (published) or `0` (unpublished) as values. If absent, is set to the default value for your content type.
 * `sticky`: Sticky at top of lists. Optional. If included, use `1` (sticky) or `0` (not sticky) as values. If absent, is set to the default value for your content type.
 * `langcode`: The language of the node. Optional. If included, use one of Drupal's language codes as values (common values are 'en', 'fr', and 'es'; the entire list can be seen [here](https://git.drupalcode.org/project/drupal/-/blob/8.8.x/core/lib/Drupal/Core/Language/LanguageManager.php#L224). If absent, Drupal sets the value to the default value for your content type.
-* `uid`: The Drupal user ID to assign to the node. Optional.
-* `created`: The timestamp to use in the node's "created" attribute. Optional, but if present, it must be in format 2020-11-15T23:49:22+00:00 (the +00:00 is the difference to Greenwich time/GMT).
+* `uid`: The Drupal user ID to assign to the node. Optional. Only available in `create` tasks.
+* `created`: The timestamp to use in the node's "created" attribute. Optional, but if present, it must be in format 2020-11-15T23:49:22+00:00 (the +00:00 is the difference to Greenwich time/GMT). Only available in `create` tasks.
 
 #### Single-valued fields
 
