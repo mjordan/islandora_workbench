@@ -26,12 +26,17 @@ def create():
         with open(input_csv) as csvfile:
             csv_data = csv.DictReader(csvfile, delimiter=config['delimiter'])
             csv_column_headers = csv_data.fieldnames
-            print(csv_column_headers)
 
             node_endpoint = config['host'] + '/node?_format=json'
 
             for row in csv_data:
                 row = clean_csv_values(row)
+
+                if config['paged_content_from_directories'] is True:
+                    # Create a copy of the current item's row to pass to the
+                    # create_children_from_directory function.
+                    row_as_parent = copy.deepcopy(row)
+
                 id_field = row[config['id_field']]
 
                 # Add required fields.
@@ -48,7 +53,7 @@ def create():
                     ]
                 }
 
-                # Some optional base fields....
+                # Some optional base fields.
                 if 'uid' in csv_column_headers:
                     if len(row['uid']) > 0:
                         node['uid'] = [{'target_id': row['uid']}]
@@ -310,7 +315,7 @@ def create():
 
                     if config['paged_content_from_directories'] is True:
                         # Console output and logging are done in the create_children_from_directory function.
-                        create_children_from_directory(config, row, node_nid, row['title'])
+                        create_children_from_directory(config, row_as_parent, node_nid, row['title'])
 
 
 def update():

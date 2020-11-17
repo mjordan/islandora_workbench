@@ -1036,8 +1036,6 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
     """
     terms_in_vocab = get_term_pairs(config, vocab_id)
     for tid, term_name in terms_in_vocab.items():
-        # if vocab_id == 'islandora_display':
-            # print(term_name)
         match = compare_strings(term_name, term_name_to_find)
         if match:
             return tid
@@ -1561,6 +1559,15 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             ]
         }
 
+        # Some optional base fields, inherited from the parent object.
+        if 'uid' in parent_csv_record:
+            if len(parent_csv_record['uid']) > 0:
+                node_json['uid'] = [{'target_id': parent_csv_record['uid']}]
+
+        if 'created' in parent_csv_record:
+            if len(parent_csv_record['created']) > 0:
+                node_json['created'] = [{'value': parent_csv_record['created']}]
+
         node_headers = {
             'Content-Type': 'application/json'
         }
@@ -1568,8 +1575,8 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node_json, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
-            print('+ Node for page "' + page_title + '" created at ' + node_uri + '.')
-            logging.info('Node for page "%s" created at %s.', page_title, node_uri)
+            print('+ Node for child "' + page_title + '" created at ' + node_uri + '.')
+            logging.info('Node for child "%s" created at %s.', page_title, node_uri)
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, page_identifier, node_response.text)
         else:
