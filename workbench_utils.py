@@ -924,8 +924,9 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
     return result, cmd.returncode
 
 
-def create_media(config, filename, node_uri):
-    """Logging, etc. happens in caller.
+def create_media(config, filename, node_uri, node_csv_row):
+    """node_csv_row is an OrderedDict, e.g.
+       OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
     """
     file_path = os.path.join(config['input_dir'], filename)
     mimetype = mimetypes.guess_type(file_path)
@@ -947,14 +948,44 @@ def create_media(config, filename, node_uri):
             # A 201 response provides a 'location' header, but a '204' response does not.
             media_uri = media_response.headers['location']
             logging.info("Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
+            media_id = media_uri.rsplit('/', 1)[-1]
+            patch_media_fields(config, media_id, media_type, node_csv_row)
     elif media_response.status_code == 204:
         logging.warning("Media created and linked to node %s, but its URI is not available since its creation returned an HTTP status code of %s", node_uri, media_response.status_code)
+        logging.warning("Media linked to node %s base fields not updated.", node_uri)
     else:
         logging.error('Media not created, PUT request to "%s" returned an HTTP status code of "%s".', media_endpoint, media_response.status_code)
    
     binary_data.close()
 
     return media_response.status_code
+
+def patch_media_fields(config, media_id, media_type, node_csv_row):
+    """Patch the media entity with base fields from the parent node.
+    """
+    media_json = {
+        'bundle': [
+            {'target_id': media_type}
+        ]
+    }
+
+    for field_name, field_value in node_csv_row.items():
+        if field_name == 'created' and len(field_value) > 0:
+            media_json['created'] = [{'value': field_value}]
+        if field_name == 'uid' and len(field_value) > 0:
+            media_json['uid'] = [{'target_id': field_value}]
+
+    # curl -v -H"Content-type: application/json" -X PATCH -d '{"bundle": [{"target_id": "image"}] , "uid": [{"target_id": "1"}], "created": [{"value": "2018-11-18T03:57:40+00:00"}]}' -uadmin:islandora "http://localhost:8000/media/214?_format=json"
+
+    if len(media_json) > 1:
+        endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+        headers = {'Content-Type': 'application/json'}
+        response = issue_request(config, 'PATCH', endpoint, headers, media_json)
+
+        if response.status_code == 200:
+            logging.info("Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id)
+        else:
+            logging.warning("Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id)
 
 
 def remove_media_and_file(config, media_id):
