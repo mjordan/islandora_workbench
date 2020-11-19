@@ -485,6 +485,8 @@ def check_input(config, args):
             csv_column_headers.remove('node_id')
         if 'parent_id' in csv_column_headers:
             csv_column_headers.remove('parent_id')
+        if 'image_alt_text' in csv_column_headers:
+            csv_column_headers.remove('image_alt_text')
         # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')
@@ -950,6 +952,9 @@ def create_media(config, filename, node_uri, node_csv_row):
             logging.info("Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
             media_id = media_uri.rsplit('/', 1)[-1]
             patch_media_fields(config, media_id, media_type, node_csv_row)
+
+            if media_type == 'image':
+                patch_image_alt_text(config, media_id, node_csv_row)
     elif media_response.status_code == 204:
         logging.warning("Media created and linked to node %s, but its URI is not available since its creation returned an HTTP status code of %s", node_uri, media_response.status_code)
         logging.warning("Media linked to node %s base fields not updated.", node_uri)
@@ -986,6 +991,40 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
             logging.info("Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id)
         else:
             logging.warning("Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id)
+
+
+def patch_image_alt_text(config, media_id, node_csv_row):
+    """Patch the alt text value for an image media. Use the parent node's title
+       unless the CSV record contains an image_alt_text field with something in it.
+    """
+    get_endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+    get_headers = {'Content-Type': 'application/json'}
+    get_response = issue_request(config, 'GET', get_endpoint, get_headers)
+    get_response_body = json.loads(get_response.text)
+    field_media_image_target_id = get_response_body['field_media_image'][0]['target_id']
+
+    for field_name, field_value in node_csv_row.items():
+        if field_name == 'title':
+            # Strip out HTML markup to guard against CSRF in alt text.
+            alt_text = re.sub('<[^<]+?>', '', field_value)
+        if field_name == 'image_alt_text' and len(field_value) > 0:
+            alt_text = re.sub('<[^<]+?>', '', field_value)
+
+    media_json = {
+        'bundle': [
+            {'target_id': 'image'}
+        ],
+        'field_media_image': [
+            {"target_id": field_media_image_target_id, "alt": alt_text}
+        ],
+    }
+
+    patch_endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+    patch_headers = {'Content-Type': 'application/json'}
+    patch_response = issue_request(config, 'PATCH', patch_endpoint, patch_headers, media_json)
+
+    if patch_response.status_code != 200:
+        logging.warning("Alt text for image media %s not updated.", config['host'] + '/media/' + media_id)
 
 
 def remove_media_and_file(config, media_id):

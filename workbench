@@ -94,6 +94,10 @@ def create():
                     if custom_field == 'langcode':
                         continue
 
+                    # 'image_alt_text' is a reserved CSV field.
+                    if custom_field == 'image_alt_text':
+                        continue
+
                     # Execute field preprocessor scripts, if any are configured. Note that these scripts
                     # are applied to the entire value from the CSV field and not split field values,
                     # e.g., if a field is multivalued, the preprocesor must split it and then reassemble
