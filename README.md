@@ -345,7 +345,7 @@ IMG_1410.tif,Small boats in Havana Harbour,Some are blue.,/havana_boats
 IMG_2549.jp2,Manhatten Island,Manhatten is part of New York City.,/manhatten
 ```
 
-No other configuration is required. URL aliases must start with a forward slash (`/`). When you run Workbench with its `--check` option, it will check whether each alias starts with this character, and whether it already exists. Also note that this feature is only available in the `create` task.
+No other configuration is required. URL aliases must start with a forward slash (`/`). When you run Workbench with its `--check` option, it will check whether each alias starts with this character, and whether the alias already exists. Also note that this feature is only available in the `create` task.
 
 
 ## Setting media types
@@ -370,7 +370,7 @@ If both `media_type` and `media_types` are included in the config file, the mapp
 
 ## Adding alt text to images
 
-Islandora image media require a value in their "Alternative text" field. This text is used as the image's `alt` text in the HTML markup.
+Islandora image media require a value in their "Alternative text" field. This text is used as the `alt` text in the HTML markup rendering the image.
 
 You can assign alt text values by adding the `image_alt_text` field to you CSV file, like this:
 
@@ -380,7 +380,7 @@ IMG_1410.tif,Small boats in Havana Harbour,They are nice boats.Small boats in Ha
 IMG_2549.jp2,Manhatten Island,It was windy that day.Picture of Manhatten Island.
 ```
 
-The value will only be applied to image media. If you do not include this field in your CSV file, Workbench will use the node's title as the alt text. Note that Workbench strips out an HTML markup within the alt text. Also note that this feature is only available in the `create` task.
+The value will only be applied to image media. If you do not include this field in your CSV file, Workbench will use the node's title as the alt text. Note that Workbench strips out all HTML markup within the alt text. Also note that this feature is only available in the `create` task.
 
 ## Creating paged and compound content
 
