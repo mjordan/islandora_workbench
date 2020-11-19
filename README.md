@@ -118,6 +118,7 @@ If you do this, Workbench will check the following and report any errors that re
    * Whether any page directories are empty.
 * If the `created` field is present in your CSV file, whether the values in it are formatted correctly (like "2020-11-15T23:49:22+00:00") and whether the date is in the past (both of which are Drupal requirements).
 * If the `uid` field is present in your CSV file, whether the user IDs in that field exist in the target Drupal. Note that this check does not inspect permissions or roles, only that the user ID exists.
+* Whether aliases in the `url_alias` field in your CSV already exist, and whether they start with a leading slash (`/`).
 
 You will probably need to run Workbench using `--check` a few times before you will be ready to run it without `--check` and commit your data to Islandora. For example, you may need to correct errors in taxonomy term IDs or names, fix errors in media filenames, or wrap values in your CSV files in quotation marks.
 
@@ -334,6 +335,19 @@ field_coordinates
 
 Notice that these fields need to be wrapped in double quotation marks, unless the `delimiter` key in your configuration file is set to something other than a comma.
 
+## Assigning URL aliases to nodes
+
+You can assign URL aliases to nodes by adding the `url_alias` field to you CSV file, like this:
+
+```
+file,title,field_description,url_alias
+IMG_1410.tif,Small boats in Havana Harbour,Some are blue.,/havana_boats
+IMG_2549.jp2,Manhatten Island,Manhatten is part of New York City.,/manhatten
+```
+
+URL aliases must start with a forward slash (`/`). Also note that this feature is only available in the `create` task.
+
+
 ## Setting media types
 
 The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks. One of the following two configuration options is required.
@@ -366,7 +380,7 @@ IMG_1410.tif,Small boats in Havana Harbour,They are nice boats.Small boats in Ha
 IMG_2549.jp2,Manhatten Island,It was windy that day.Picture of Manhatten Island.
 ```
 
-The value will only be applied to image media. If you do not include this field in your CSV file, Workbench will use the node's title as the alt text. Note that Workbench strips out an HTML markup within the alt text.
+The value will only be applied to image media. If you do not include this field in your CSV file, Workbench will use the node's title as the alt text. Note that Workbench strips out an HTML markup within the alt text. Also note that this feature is only available in the `create` task.
 
 ## Creating paged and compound content
 

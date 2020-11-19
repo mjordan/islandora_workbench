@@ -98,6 +98,10 @@ def create():
                     if custom_field == 'image_alt_text':
                         continue
 
+                    # 'url_alias' is a reserved CSV field.
+                    if custom_field == 'url_alias':
+                        continue                        
+
                     # Execute field preprocessor scripts, if any are configured. Note that these scripts
                     # are applied to the entire value from the CSV field and not split field values,
                     # e.g., if a field is multivalued, the preprocesor must split it and then reassemble
@@ -322,6 +326,10 @@ def create():
                     if config['paged_content_from_directories'] is True:
                         # Console output and logging are done in the create_children_from_directory function.
                         create_children_from_directory(config, row_as_parent, node_nid, row['title'])
+
+                    # If 'url_alias' is in the CSV, create the alias.
+                    if 'url_alias' in row and len(row['url_alias']) > 0:
+                        create_url_alias(config, node_nid, row['url_alias'])
 
 
 def update():

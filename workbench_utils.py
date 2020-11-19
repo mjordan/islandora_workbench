@@ -219,6 +219,14 @@ def ping_node(config, nid):
         return False
 
 
+def ping_url_alias(config, url_alias):
+    """Ping the URL alias to see if it exists. Return the status code.
+    """
+    url = config['host'] + url_alias + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    return response.status_code
+
+
 def ping_islandora(config):
     # First, test host. Surprisingly, using credentials to ping the base URL results in a 403, so we don't
     # go through issue_request(), which always uses credentials.
@@ -460,6 +468,10 @@ def check_input(config, args):
                 print(message)
                 logging.info(message)
 
+        if 'url_alias' in csv_column_headers:
+            validate_url_aliases_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_url_aliases(config, validate_url_aliases_csv_data)
+
         # Specific to creating paged content. Current, if 'parent_id' is present in the CSV file, so must 'field_weight' and 'field_member_of'.
         if 'parent_id' in csv_column_headers:
             if ('field_weight' not in csv_column_headers or 'field_member_of' not in csv_column_headers):
@@ -487,6 +499,8 @@ def check_input(config, args):
             csv_column_headers.remove('parent_id')
         if 'image_alt_text' in csv_column_headers:
             csv_column_headers.remove('image_alt_text')
+        if 'url_alias' in csv_column_headers:
+            csv_column_headers.remove('url_alias')            
         # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')
@@ -1184,9 +1198,7 @@ def create_term(config, vocab_id, term_name):
         }
 
     term_endpoint = config['host'] + '/taxonomy/term?_format=json'
-    headers = {
-        'Content-Type': 'application/json'
-    }
+    headers = {'Content-Type': 'application/json'}
     response = issue_request(config, 'POST', term_endpoint, headers, term, None)
     if response.status_code == 201:
         term_response_body = json.loads(response.text)
@@ -1196,6 +1208,21 @@ def create_term(config, vocab_id, term_name):
     else:
         logging.warning("Term '%s' not created, HTTP response code was %s.", term_name, response.status_code)
         return False
+
+
+def create_url_alias(config, node_id, url_alias):
+    json = {'path': [
+            {'value': '/node/' + str(node_id)}
+        ],
+        'alias':[
+            {'value': url_alias}
+        ]
+    }
+
+    headers = {'Content-Type': 'application/json'}
+    response = issue_request(config, 'POST', config['host'] + '/entity/path_alias?_format=json', headers, json, None)
+    if response.status_code != 201:
+        logging.error("URL alias '%s' not created for node %s, HTTP response code was %s (it might already exist).", url_alias, config['host'] + '/node/' + node_id, response.status_code) 
 
 
 def prepare_term_id(config, vocab_ids, term):
@@ -1377,6 +1404,28 @@ def validate_node_created_date(csv_data):
                     sys.exit('Error: ' + message)
 
     message = 'OK, dates in the "created" CSV field are all formated correctly and in the future.'
+    print(message)
+    logging.info(message)
+
+
+def validate_url_aliases(config, csv_data):
+    """Checks that URL aliases don't already exist.
+    """
+    for count, row in enumerate(csv_data, start=1):
+        for field_name, field_value in row.items():
+            if field_name == 'url_alias' and len(field_value) > 0:
+                if field_value.strip()[0] != '/':
+                    message = 'CSV field "url_alias" in record ' + str(count) + ' contains an alias "' + field_value + '" that is missing its leading /.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)                    
+
+                alias_ping = ping_url_alias(config, field_value)
+                if alias_ping == 200:
+                    message = 'CSV field "url_alias" in record ' + str(count) + ' contains an alias "' + field_value + '" that already exists.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+
+    message = 'OK, URL aliases do not already exist.'
     print(message)
     logging.info(message)
 
