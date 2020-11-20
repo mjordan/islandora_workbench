@@ -10,6 +10,7 @@ import datetime
 import requests
 import subprocess
 import mimetypes
+import urllib.parse
 from ruamel.yaml import YAML
 from functools import lru_cache
 
@@ -1128,6 +1129,26 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
     return False
 
 
+def get_term_id_from_uri(config, uri):
+    """For a given URI, query the Term from URI View created by the Islandora
+       Workbench Integration module.
+    """
+    url = config['host'] + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        response_body_json = response.text
+        response_body = json.loads(response_body_json)
+        if len(response_body) == 0:
+            # URI does not match any term.
+            return False
+        else:
+            tid = response_body[0]['tid'][0]['value']
+            return tid
+
+    # Non-200 response code.
+    return False
+
+
 def create_term(config, vocab_id, term_name):
     """Adds a term to the target vocabulary. Returns the new term's ID
        if successful (or the term already exists) or False if not.
@@ -1227,11 +1248,18 @@ def create_url_alias(config, node_id, url_alias):
 
 def prepare_term_id(config, vocab_ids, term):
     """REST POST and PATCH operations require taxonomy term IDs, not term names. This
-       funtion checks its 'term' arguement to see if it's numeric (i.e., a term ID) and
+       funtion checks its 'term' argument to see if it's numeric (i.e., a term ID) and
        if it is, returns it as is. If it's not (i.e., a term name) it looks for the
        term name in the referenced vocabulary and returns its term ID (existing or
        newly created).
     """
+    # Special case: if the term starts with 'http', assume it's a Linked Data URI
+    # and get its term ID from the URI.
+    if term.startswith('http'):
+        tid_from_uri = get_term_id_from_uri(config, term)
+        if value_is_numeric(tid_from_uri):
+            return tid_from_uri
+
     term = term.strip()
     if value_is_numeric(term):
         return term
