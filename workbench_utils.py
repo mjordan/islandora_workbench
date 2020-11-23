@@ -1168,6 +1168,7 @@ def get_term_id_from_uri(config, uri):
        we need to check both options in the "Term from URI" View.
     """
     # Some vocabuluaries use this View.
+    terms_with_uri = []
     term_from_uri_url = config['host'] + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
     term_from_uri_response = issue_request(config, 'GET', term_from_uri_url)
     if term_from_uri_response.status_code == 200:
@@ -1177,8 +1178,11 @@ def get_term_id_from_uri(config, uri):
             tid = term_from_uri_response_body[0]['tid'][0]['value']
             return tid
         if len(term_from_uri_response_body) > 1:
-            tid = term_from_uri_response_body[0]['tid'][0]['value']            
-            logging.warning('Term URI "%s" is used for more than one term. Worbench is choosing the first term ID (%s)).', uri, tid)
+            for term in term_from_uri_response_body:
+                terms_with_uri.append({term['tid'][0]['value']:term['vid'][0]['target_id']})
+                tid = term_from_uri_response_body[0]['tid'][0]['value']
+            print("Warning: See log for important message about use of term URIs.")
+            logging.warning('Term URI "%s" is used for more than one term (with these term ID/vocabulary ID combinations: ' + str(terms_with_uri) + '). Workbench is choosing the first term ID (%s)).', uri, tid)
             return tid
 
     # And some vocabuluaries use this View.
@@ -1191,8 +1195,11 @@ def get_term_id_from_uri(config, uri):
             tid = term_from_authority_link_response_body[0]['tid'][0]['value']
             return tid            
         elif len(term_from_authority_link_response_body) > 1:
-            tid = term_from_authority_link_response_body[0]['tid'][0]['value']            
-            logging.warning('Term URI "%s" is used for more than one term. Worbench is choosing the first term ID (%s)).', uri, tid)
+            for term in term_from_authority_link_response_body:
+                terms_with_uri.append({term['tid'][0]['value']:term['vid'][0]['target_id']})
+                tid = term_from_authority_link_response_body[0]['tid'][0]['value']
+            print("Warning: See log for important message about use of term URIs.")
+            logging.warning('Term URI "%s" is used for more than one term (with these term ID/vocabulary ID combinations: ' + str(terms_with_uri) + '). Workbench is choosing the first term ID (%s)).', uri, tid)
             return tid
         else:
             # URI does not match any term.
