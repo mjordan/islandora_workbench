@@ -125,6 +125,8 @@ def set_model_from_extension(file_name, config):
     normalized_extension = extension.lower()
     for model_tids in config['models']:
         for tid, extensions in model_tids.items():
+            if tid.startswith('http'):
+                tid = get_term_id_from_uri(config, tid)
             if normalized_extension in extensions:
                 return tid
             # If the file's extension is not listed in the config,

@@ -518,6 +518,17 @@ models:
  - 26: ['mp4']
 ```
 
+You can also use the URIs assigned to terms in the Islandora Model vocabulary, for example:
+
+```
+models:
+ - 'http://purl.org/coar/resource_type/c_1843': ['zip', 'tar', '']
+ - 'https://schema.org/DigitalDocument': ['pdf', 'doc', 'docx', 'ppt', 'pptx']
+ - 'http://purl.org/coar/resource_type/c_c513': ['tif', 'tiff', 'jp2', 'png', 'gif', 'jpg', 'jpeg']
+ - 'http://purl.org/coar/resource_type/c_18cc': ['mp3', 'wav', 'aac']
+ - 'http://purl.org/coar/resource_type/c_12ce': ['mp4']
+ ```
+
 All of the options are used in the `create` task other than `models`, which is a mapping from terms IDs in the "Islandora Models" vocabulary to file extensions. Note that either the  `models` or `model` configuration option is required in the `create_from_files` task. `model` is conventient when all of the objects you are creating are the same Islandora Model.
 
 In the workflow described above, you might want to include the `output_csv` option in the configuration file, since the resulting CSV file can be populated with metadata later and used in an `update` task to add it to the stub nodes.
