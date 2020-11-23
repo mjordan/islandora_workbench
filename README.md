@@ -317,7 +317,7 @@ Error: Term names in multi-vocabulary CSV field "field_tags" require a vocabular
 
 Note that since `:` is a special character when you use term names in multi-vocabulary CSV fields, you can't add a namespaced term that itself contains a `:`. You need to add it manually to Drupal and then use its term ID in your CSV file.
 
-#### Using URIs instead of term IDs
+#### Using term URIs instead of term IDs
 
 Islandora Workbench lets you use URIs assigned to terms instead of term IDs. You can use a term URI in the `media_use_tid` configuration option (for example, `"http://pcdm.org/use#OriginalFile"`) and in taxonomy fields in your metadata CSV file:
 
@@ -327,7 +327,7 @@ https://schema.org/DigitalDocument
 http://purl.org/coar/resource_type/c_18cc
 ```
 
-Workbench will validate during `--check` that URIs correspond to existing taxonomy terms.
+During `--check`, Workbench will validate that URIs correspond to existing taxonomy terms.
 
 Using term URIs has some constraints:
 
