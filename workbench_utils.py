@@ -5,6 +5,7 @@ import csv
 import time
 import string
 import re
+import copy
 import logging
 import datetime
 import requests
@@ -565,6 +566,9 @@ def check_input(config, args):
         print(message)
         logging.info(message)
 
+    if config['task'] == 'add_media' or config['task'] == 'create':
+        validate_media_use_tid(config)
+
     if config['task'] == 'update' or config['task'] == 'create':
         # Validate values in fields that are of type 'typed_relation'. Each value (don't forget multivalued fields) needs to have
         # this pattern: string:string:int.
@@ -920,6 +924,34 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
     pass
 
 
+def validate_media_use_tid(config):
+    """Validate whether the term ID or URI provided in the config value for media_use_tid is
+       in the Islandora Media Use vocabulary.
+    """
+    if value_is_numeric(config['media_use_tid']) is not True and config['media_use_tid'].startswith('http'):
+        media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
+        if media_use_tid is False:
+            message = 'URI "' + config['media_use_tid'] + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+    else:
+        # Confirm the tid exists and is in the islandora_media_use vocabulary
+        term_endpoint = config['host'] + '/taxonomy/term/' + str(config['media_use_tid']) + '?_format=json'
+        headers = {'Content-Type': 'application/json'}
+        response = issue_request(config, 'GET', term_endpoint, headers)
+        if response.status_code == 404:
+            message = 'Term ID "' + str(config['media_use_tid']) + '" used in the "media_use_tid" configuration option is not a term ID (term doesn\'t exist).'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        if response.status_code == 200:         
+            response_body = json.loads(response.text)
+            if 'vid' in response_body:
+                if response_body['vid'][0]['target_id'] != 'islandora_media_use':
+                    message = 'Term ID "' + str(config['media_use_tid']) + '" provided in configuration option "media_use_tid" is not in the Islandora Media Use vocabulary.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+
+
 def preprocess_field_data(subdelimiter, field_value, path_to_script):
     """Executes a field preprocessor script and returns its output and exit status code. The script
        is passed the field subdelimiter as defined in the config YAML and the field's value, and
@@ -1131,19 +1163,40 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
 
 def get_term_id_from_uri(config, uri):
     """For a given URI, query the Term from URI View created by the Islandora
-       Workbench Integration module.
+       Workbench Integration module. Because we don't know which field each
+       taxonomy uses to store URIs (it's either field_external_uri or field_authority_link),
+       we need to check both options in the "Term from URI" View.
     """
-    url = config['host'] + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
-    response = issue_request(config, 'GET', url)
-    if response.status_code == 200:
-        response_body_json = response.text
-        response_body = json.loads(response_body_json)
-        if len(response_body) == 0:
+    # Some vocabuluaries use this View.
+    term_from_uri_url = config['host'] + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
+    term_from_uri_response = issue_request(config, 'GET', term_from_uri_url)
+    if term_from_uri_response.status_code == 200:
+        term_from_uri_response_body_json = term_from_uri_response.text
+        term_from_uri_response_body = json.loads(term_from_uri_response_body_json)
+        if len(term_from_uri_response_body) == 1:
+            tid = term_from_uri_response_body[0]['tid'][0]['value']
+            return tid
+        if len(term_from_uri_response_body) > 1:
+            tid = term_from_uri_response_body[0]['tid'][0]['value']            
+            logging.warning('Term URI "%s" is used for more than one term. Worbench is choosing the first term ID (%s)).', uri, tid)
+            return tid
+
+    # And some vocabuluaries use this View.
+    term_from_authority_link_url = config['host'] + '/term_from_authority_link?_format=json&authority_link=' + uri.replace('#', '%23')
+    term_from_authority_link_response = issue_request(config, 'GET', term_from_authority_link_url)
+    if term_from_authority_link_response.status_code == 200:
+        term_from_authority_link_response_body_json = term_from_authority_link_response.text
+        term_from_authority_link_response_body = json.loads(term_from_authority_link_response_body_json)
+        if len(term_from_authority_link_response_body) == 1:
+            tid = term_from_authority_link_response_body[0]['tid'][0]['value']
+            return tid            
+        elif len(term_from_authority_link_response_body) > 1:
+            tid = term_from_authority_link_response_body[0]['tid'][0]['value']            
+            logging.warning('Term URI "%s" is used for more than one term. Worbench is choosing the first term ID (%s)).', uri, tid)
+            return tid
+        else:
             # URI does not match any term.
             return False
-        else:
-            tid = response_body[0]['tid'][0]['value']
-            return tid
 
     # Non-200 response code.
     return False
@@ -1256,6 +1309,7 @@ def prepare_term_id(config, vocab_ids, term):
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
     if term.startswith('http'):
+        # Note: get_term_from_uri() will return False if the URI doesn't match a term.
         tid_from_uri = get_term_id_from_uri(config, term)
         if value_is_numeric(tid_from_uri):
             return tid_from_uri
@@ -1536,6 +1590,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
                     # regardless of whether config['allow_adding_terms'] is True.
                     if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True:
+                        # URIs are unique so don't need namespacing.
+                        if field_value.startswith('http'):
+                            continue
                         split_field_values = field_value.split(config['subdelimiter'])
                         for split_field_value in split_field_values:
                             namespaced = re.search(':', field_value)
@@ -1547,7 +1604,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 
                                 validate_term_name_length(split_field_value, str(count), column_name)
 
-                    # field_value is s a term ID.
+                    # Check to see if field_value is a member of the field's vocabularies. First,
+                    # check the field_value if it is a term ID.
                     if value_is_numeric(field_value):
                         field_value = field_value.strip()
                         if int(field_value) not in fields_with_vocabularies[column_name]:
@@ -1558,8 +1616,24 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
                             logging.error(message + message_2)
                             sys.exit('Error: ' + message + message_2)
+                    # Then check values that are URIs.
+                    elif field_value.startswith('http'):
+                        tid_from_uri = get_term_id_from_uri(config, field_value)
+                        if value_is_numeric(tid_from_uri):
+                            if tid_from_uri not in fields_with_vocabularies[column_name]:
+                                message = 'CSV field "' + column_name + '" in row ' + str(count) + ' contains a term URI (' + field_value + ') that is '
+                                if len(this_fields_vocabularies) > 1:
+                                    message_2 = 'not in one of the referenced vocabularies (' + this_fields_vocabularies_string + ').'
+                                else:
+                                    message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
+                                logging.error(message + message_2)
+                                sys.exit('Error: ' + message + message_2)
+                        else:               
+                            message = 'Term URI "' + term_to_check_uri + '" used in CSV column "' + column_name + '"" row ' + str(count) + ' does not match any terms.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                    # Finally, check values that string term names.
                     else:
-                        # field_value is a string term name.
                         tid = find_term_in_vocab(config, vocabulary, field_value)
                         if value_is_numeric(tid) is not True:
                             # Single taxonomy fields.

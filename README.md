@@ -111,6 +111,8 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether your Islandora has the [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled.
    * If not, Workbench will recommend that you enable it.
    * If so, Workbench will validate whether taxonomy term IDs or term names (such as those used in `field_model`) exist in the referenced taxonomies.
+* Whether the term ID (or term URI) provided for `media_use_tid` is a member of the "Islandora Media Use" vocabulary.
+* Whether term ID and term URIs used in CSV fields correspond to existing terms.
 * Whether the length of new terms exceeds 255 characters, which is the maximum length for a term name.
 * Whether term names in your CSV require a vocabulary namespace.
 * If using the pages from directories configuration:
@@ -314,6 +316,21 @@ Error: Term names in multi-vocabulary CSV field "field_tags" require a vocabular
 ```
 
 Note that since `:` is a special character when you use term names in multi-taxonomy CSV fields, you can't add a namespaced term that itself contains a `:`. You need to add it manually to Drupal and then use its term ID in your CSV file.
+
+#### Using URIs instead of term IDs
+
+In most places where Islandora Workbench uses a term ID, you can use a term URI instead. These places are:
+
+* in the `media_use_tid` configuration option
+  * For example, `media_use_tid: "http://pcdm.org/use#OriginalFile"` 
+* in fields in your CSV that reference vocabularies
+  * For example:
+```
+field_model
+https://schema.org/DigitalDocument
+```
+
+Workbench will validate during `--check` that URIs correspond to existing taxonomy terms. You cannot create a new term by providing a URI like you can by providing a term name.
 
 ### Geolocation fields
 

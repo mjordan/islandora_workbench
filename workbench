@@ -132,12 +132,16 @@ def create():
                                 delimited_values = row[custom_field].split(config['subdelimiter'])
                                 for delimited_value in delimited_values:
                                     tid = prepare_term_id(config, field_vocabs, delimited_value)
-                                    tid = str(tid)
-                                    prepared_tids.append(tid)
+                                    if value_is_numeric(tid):
+                                        tid = str(tid)
+                                        prepared_tids.append(tid)
+                                    else:
+                                        continue
                                 row[custom_field] = config['subdelimiter'].join(prepared_tids)
                             else:
                                 row[custom_field] = prepare_term_id(config, field_vocabs, row[custom_field])
-                                row[custom_field] = str(row[custom_field])
+                                if value_is_numeric(row[custom_field]):
+                                    row[custom_field] = str(row[custom_field])
 
                         if field_definitions[custom_field]['target_type'] == 'node':
                             target_type = 'node_type'
@@ -379,12 +383,16 @@ def update():
                                 delimited_values = row[custom_field].split(config['subdelimiter'])
                                 for delimited_value in delimited_values:
                                     tid = prepare_term_id(config, field_vocabs, delimited_value)
-                                    tid = str(tid)
-                                    prepared_tids.append(tid)
+                                    if value_is_numeric(tid):
+                                        tid = str(tid)
+                                        prepared_tids.append(tid)
+                                    else:
+                                        continue
                                 row[custom_field] = config['subdelimiter'].join(prepared_tids)
                             else:
                                 row[custom_field] = prepare_term_id(config, field_vocabs, row[custom_field])
-                                row[custom_field] = str(row[custom_field])
+                                if value_is_numeric(row[custom_field]):
+                                    row[custom_field] = str(row[custom_field])
 
                         if field_definitions[custom_field]['target_type'] == 'node':
                             target_type = 'node_type'
