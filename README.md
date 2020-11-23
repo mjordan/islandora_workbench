@@ -65,7 +65,7 @@ The settings defined in a configuration file are:
 | subdelimiter |  | &#124; [pipe]| The subdelimiter used in the CSV file to define multiple values in one field. If omitted, defaults to "&#124;". |
 | drupal_filesystem |  ✔️ | | One of 'fedora://', 'public://', or 'private://'. |
 | output_csv | | | The full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information. |
-| media_use_tid |  ✔️ |  | The term ID for the Media Use term you want to apply to the media. |
+| media_use_tid |  ✔️ |  | The term ID for the Media Use term you want to apply to the media. You can also provide a term URI, for example `"http://pcdm.org/use#OriginalFile"`.|
 | media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). One of `media_type` or `media_types` is required. |
 | media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: one of `media_type` or `media_types` is required. More detail provided in the "Setting Media Types" section below. |
 | allow_missing_files |  | false | Determines if empty `file` values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the `input_data` directory). |
@@ -319,15 +319,12 @@ Note that since `:` is a special character when you use term names in multi-taxo
 
 #### Using URIs instead of term IDs
 
-In most places where Islandora Workbench uses a term ID, you can use a term URI instead. These places are:
+Islandora Workbench lets you use URIs assigned to terms instead of term IDs. You can use a term URI in the `media_use_tid` configuration option (for example, `"http://pcdm.org/use#OriginalFile"`) and in vocabulary fields in your metadata CSV file:
 
-* in the `media_use_tid` configuration option
-  * For example, `media_use_tid: "http://pcdm.org/use#OriginalFile"` 
-* in fields in your CSV that reference vocabularies
-  * For example:
 ```
 field_model
 https://schema.org/DigitalDocument
+http://purl.org/coar/resource_type/c_18cc
 ```
 
 Workbench will validate during `--check` that URIs correspond to existing taxonomy terms. You cannot create a new term by providing a URI like you can by providing a term name.
