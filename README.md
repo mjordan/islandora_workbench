@@ -332,7 +332,7 @@ During `--check`, Workbench will validate that URIs correspond to existing taxon
 Using term URIs has some constraints:
 
 * You cannot create a new term by providing a URI like you can by providing a term name.
-* If the same URI is registered with more than one term, Workbench will choose one and write a warning to the log indicating which term it chose and which terms the URI is registered with.
+* If the same URI is registered with more than one term, Workbench will choose one and write a warning to the log indicating which term it chose and which terms the URI is registered with. However, `--check` will detect that a URI is registered with more than one term and warn you. At that point you can edit your CSV file to use the correct term ID rather than the URI.
 
 ### Geolocation fields
 
