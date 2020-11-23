@@ -125,7 +125,7 @@ def set_model_from_extension(file_name, config):
     normalized_extension = extension.lower()
     for model_tids in config['models']:
         for tid, extensions in model_tids.items():
-            if tid.startswith('http'):
+            if str(tid).startswith('http'):
                 tid = get_term_id_from_uri(config, tid)
             if normalized_extension in extensions:
                 return tid
@@ -1028,8 +1028,6 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
             media_json['created'] = [{'value': field_value}]
         if field_name == 'uid' and len(field_value) > 0:
             media_json['uid'] = [{'target_id': field_value}]
-
-    # curl -v -H"Content-type: application/json" -X PATCH -d '{"bundle": [{"target_id": "image"}] , "uid": [{"target_id": "1"}], "created": [{"value": "2018-11-18T03:57:40+00:00"}]}' -uadmin:islandora "http://localhost:8000/media/214?_format=json"
 
     if len(media_json) > 1:
         endpoint = config['host'] + '/media/' + media_id + '?_format=json'

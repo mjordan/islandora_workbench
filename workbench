@@ -10,6 +10,7 @@ import csv
 import logging
 import datetime
 import argparse
+import collections
 from workbench_utils import *
 
 
@@ -735,7 +736,10 @@ def create_from_files():
 
             file_path = os.path.join(config['input_dir'], file_name)
             media_type = set_media_type(file_path, config)
-            media_response_status_code = create_media(config, file_name, node_uri, None)
+            fake_csv_record = collections.OrderedDict()
+            if media_type == 'image':
+                fake_csv_record['image_alt_text'] = filename_without_extension
+            media_response_status_code = create_media(config, file_name, node_uri, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 print('+ ' + media_type.title() + " media for " + filename_without_extension + " created.")
