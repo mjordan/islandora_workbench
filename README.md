@@ -520,7 +520,7 @@ models:
 
 You can also use the URIs assigned to terms in the Islandora Model vocabulary, for example:
 
-```
+```yaml
 models:
  - 'http://purl.org/coar/resource_type/c_1843': ['zip', 'tar', '']
  - 'https://schema.org/DigitalDocument': ['pdf', 'doc', 'docx', 'ppt', 'pptx']
