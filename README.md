@@ -63,11 +63,12 @@ The settings defined in a configuration file are:
 | id_field |  | id | The name of the field in the CSV that uniquely identifies each record. |
 | delimiter |  | , [comma]| The delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",". |
 | subdelimiter |  | &#124; [pipe]| The subdelimiter used in the CSV file to define multiple values in one field. If omitted, defaults to "&#124;". |
-| drupal_filesystem |  ✔️ | | One of 'fedora://', 'public://', or 'private://'. |
+| nodes_only |  | false | Include this option in `create` tasks if you want to only create nodes and not their accompanying media. See the "Creating nodes but not media" section below for more information. |
+| drupal_filesystem |  ✔️ unless `nodes_only` is true | | One of 'fedora://', 'public://', or 'private://'. |
 | output_csv | | | The full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information. |
-| media_use_tid |  ✔️ |  | The term ID for the term from the "Islandora Media Use" vocabulary you want to apply to the media being created. You can provide a term URI instead of a term ID, for example `"http://pcdm.org/use#OriginalFile"`.|
-| media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). One of `media_type` or `media_types` is required. |
-| media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: one of `media_type` or `media_types` is required. More detail provided in the "Setting Media Types" section below. |
+| media_use_tid |  ✔️ unless `nodes_only` is true |  | The term ID for the term from the "Islandora Media Use" vocabulary you want to apply to the media being created. You can provide a term URI instead of a term ID, for example `"http://pcdm.org/use#OriginalFile"`.|
+| media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). One of `media_type` or `media_types` is required unless `nodes_only` is true. |
+| media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: one of `media_type` or `media_types` is required unless `nodes_only` is true. More detail provided in the "Setting Media Types" section below. |
 | allow_missing_files |  | false | Determines if empty `file` values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the `input_data` directory). |
 | allow_adding_terms |  | false | Determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. See more information in the "Taxonomy fields" section below. |
 | published | | true | Whether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
@@ -100,11 +101,11 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether your CSV column headers correspond to existing Drupal field machine names.
 * Whether all Drupal fields that are configured to be required are present in the CSV file.
 * Whether multivalued fields exceed their allowed number of values.
-* Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: true` is present in your config file for "create" tasks).
+* Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: true` is present in your config file for "create" tasks). If `nodes_only` is true, this check is skipped.
 * If the `langcode` field is present in your CSV, whether values in it are valid Drupal language codes.
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
 * Whether values in text-type fields exceed their configured maximum length.
-* Whether either `media_type` or `media_types` is present in your configuration file.
+* Whether either `media_type` or `media_types` is present in your configuration file. If `nodes_only` is true, this check is skipped.
 * Whether each row contains the same number of columns as there are column headers.
 * Whether the nodes refrenced in `field_member_of` (if that field is present in the CSV) exist.
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
@@ -477,6 +478,10 @@ Some important things to note:
 * The CSV records for children items don't need to come *immediately* after the record for their parent, but they do need to come after that record. This is because Workbench creates nodes in the order their records are in the CSV file (top to bottom). As long as the parent node has already been created when a child node is created, the parent/child relationship via the child's `field_member_of` will be correct.
 * Currently, you must include values in the children's `field_weight` column. It may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/84)).
 * Currently, Islandora model values (e.g. "Paged Content", "Page") are not automatically assigned. You must include the correct "Islandora Models" taxonomy term IDs in your `field_model` column for all parent and child records, as you would for any other Islandora objects you are creating. Like for `field_weight`, it may be possible to automatically generate values for this field (see [this issue](https://github.com/mjordan/islandora_workbench/issues/85)).
+
+## Creating nodes but not media
+
+During a `create` task, if you want to create nodes but not any accompanying media, for example if you are testing your metadata values or creating collection nodes, you can include the `nodes_only: true` option in your configuration file. If this is present, Islandora Workbench will only create nodes and will skip all media creation. During `--check`, it will ignore anything in your CSV's `files` field (in fact, your CSV doesn't even need a `file` column). If `nodes_only` is `true`, your configuration file for the `create` task doesn't need a `media_use_tid`, `drupal_filesystem`, or `media_type`/`media_types` option.
 
 ## Creating nodes from files only
 

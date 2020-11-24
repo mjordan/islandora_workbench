@@ -30,6 +30,11 @@ def create():
 
             node_endpoint = config['host'] + '/node?_format=json'
 
+            if config['nodes_only'] is True:
+                message = '"nodes_only" option in effect. No media will be created.'
+                print(message)
+                logging.info(message)
+
             for row in csv_data:
                 row = clean_csv_values(row)
 
@@ -305,26 +310,26 @@ def create():
                     node_ids[id_field] = node_nid
 
                 # If there is no media file (and we're not creating paged content), move on to the next CSV row.
-                if 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
+                if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                     print('+No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
                     logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
                     continue
 
                 # If there is a media file, add it.
-                if 'file' in row:
+                if config['nodes_only'] is False and 'file' in row:
                     file_path = os.path.join(config['input_dir'], row['file'])
                     media_type = set_media_type(file_path, config)
 
                 if node_response.status_code == 201:
                     # If what is identified in the 'file' field is a file, create the media from it.
-                    if 'file' in row and len(row['file']) != 0 and os.path.isfile(file_path):
+                    if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0 and os.path.isfile(file_path):
                         media_response_status_code = create_media(config, row['file'], node_uri, row_for_media)
                         allowed_media_response_codes = [201, 204]
                         if media_response_status_code in allowed_media_response_codes:
                             print('+' + media_type.title() + " media for " + row['file'] + " created.")
                             logging.info("%s media for %s created.", media_type.title(), row['file'])
 
-                    if 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
+                    if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                         print('+ No file specified in CSV for ' + row['title'])
                         logging.info("No file specified for %s, so no media created.", id_field)
 

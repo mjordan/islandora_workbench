@@ -54,6 +54,8 @@ def set_config_defaults(args):
         config['delete_media_with_nodes'] = True
     if 'allow_adding_terms' not in config:
         config['allow_adding_terms'] = False
+    if 'nodes_only' not in config:
+        config['nodes_only'] = False
     if 'log_json' not in config:
         config['log_json'] = False
     if 'user_agent' not in config:
@@ -242,12 +244,15 @@ def ping_islandora(config):
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    print("Retrieving field definitions from Drupal...")
     field_definitions = get_field_definitions(config)
     if len(field_definitions) == 0:
         message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
         logging.error(message)
         sys.exit('Error: ' + message)
+
+    message = "OK, connection to Drupal verified."
+    print(message)
+    logging.info(message)
 
 
 def get_field_definitions(config):
@@ -360,11 +365,12 @@ def check_input(config, args):
     # keys are not validated.
     optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
                             'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
-                            'validate_title_length', 'media_type', 'media_types', 'pause',
+                            'validate_title_length', 'media_type', 'media_types', 'pause', 'nodes_only',
                             'output_csv', 'delete_media_with_nodes', 'paged_content_from_directories',
                             'paged_content_sequence_seprator', 'paged_content_page_model_tid',
                             'paged_content_page_display_hints', 'paged_content_page_content_type',
-                            'allow_adding_terms', 'log_json', 'user_agent', 'allow_redirects']
+                            'allow_adding_terms', 'log_json', 'user_agent', 'allow_redirects', 'media_use_tid',
+                            'drupal_filesystem']
 
     for optional_config_key in optional_config_keys:
         if optional_config_key in config_keys:
@@ -372,9 +378,22 @@ def check_input(config, args):
 
     # Check for presence of required config keys.
     if config['task'] == 'create':
-        create_options = ['task', 'host', 'username', 'password', 'content_type',
-                          'input_dir', 'input_csv', 'media_use_tid',
-                          'drupal_filesystem', 'id_field']
+        if config['nodes_only'] is False:
+            if 'media_use_tid' not in config:
+                message = '"Configuration option "media_use_tid" is required for the "create" task unless "nodes_only" is set to "true".'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+            if 'drupal_filesystem' not in config:
+                message = '"Configuration option "drupal_filesystem" is required for the "create" task unless "nodes_only" is set to "true".'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
+        if config['nodes_only'] is True:
+            message = '"nodes_only" option in effect. Media files will not be checked/validated.'
+            print(message)
+            logging.info(message)
+
+        create_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir', 'input_csv', 'id_field']
         if not set(config_keys) == set(create_options):
             message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
             logging.error(message)
@@ -457,7 +476,7 @@ def check_input(config, args):
             message = 'For "create" tasks, your CSV file must have a column containing a unique identifier.'
             logging.error(message)
             sys.exit('Error: ' + message)
-        if 'file' not in csv_column_headers and config['paged_content_from_directories'] is False:
+        if config['nodes_only'] is False and 'file' not in csv_column_headers and config['paged_content_from_directories'] is False:
             message = 'For "create" tasks, your CSV file must contain a "file" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
@@ -568,7 +587,7 @@ def check_input(config, args):
         print(message)
         logging.info(message)
 
-    if config['task'] == 'add_media' or config['task'] == 'create':
+    if config['task'] == 'add_media' or config['task'] == 'create' and config['nodes_only'] is False:
         validate_media_use_tid(config)
 
     if config['task'] == 'update' or config['task'] == 'create':
@@ -650,7 +669,7 @@ def check_input(config, args):
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
         file_check_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
-        if config['allow_missing_files'] is False:
+        if config['nodes_only'] is False and config['allow_missing_files'] is False:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
                     message = 'Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
@@ -665,7 +684,7 @@ def check_input(config, args):
             print(message)
             logging.info(message)
         empty_file_values_exist = False
-        if config['allow_missing_files'] is True:
+        if config['nodes_only'] is False and config['allow_missing_files'] is True:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
                     empty_file_values_exist = True
@@ -689,7 +708,7 @@ def check_input(config, args):
          # 'media_type[s]' config option?
 
         # Check that either 'media_type' or 'media_types' are present in the config file.
-        if ('media_type' not in config and 'media_types' not in config):
+        if config['nodes_only'] is False and 'media_type' not in config and 'media_types' not in config:
             message = 'You must configure media type using either the "media_type" or "media_types" option.'
             logging.error(message)
             sys.exit('Error: ' + message)
@@ -768,8 +787,7 @@ def check_input_for_create_from_files(config, args):
             config_keys.remove(optional_config_key)
 
     # Check for presence of required config keys.
-    create_options = ['task', 'host', 'username', 'password', 'content_type',
-                      'input_dir', 'media_use_tid', 'drupal_filesystem']
+    create_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir']
     if not set(config_keys) == set(create_options):
         message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
         logging.error(message)
@@ -979,6 +997,9 @@ def create_media(config, filename, node_uri, node_csv_row):
     """node_csv_row is an OrderedDict, e.g.
        OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
     """
+    if config['nodes_only'] is True:
+        return
+
     file_path = os.path.join(config['input_dir'], filename)
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
