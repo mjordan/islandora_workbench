@@ -698,9 +698,12 @@ If you open a PR, please check your code with pycodestyle:
 
 `pycodestyle --show-source --show-pep8 --ignore=E402 --max-line-length=200 .`
 
-Also provide tests where applicable. Sample tests are available in the `tests` directory. Note that these tests query a live Islandora instance, so you should write them assuming there is one running at localhost:8000. Run tests using the following:
+Also provide tests where applicable. Tests in Workbench fall into two categories:
 
-`python3 -m unittest tests/*.py`
+* those that require a live Islandora instance, which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
+* those that do not, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
+
+Note that some Islandora tests are not idempotent. For example, if a test creates taxonomy terms, those terms are not deleted by the test's `tearDown()` function.
 
 ## License
 
