@@ -373,7 +373,7 @@ node_id,url_alias
 367,/soisthisone
 ```
 
-No other configuration is required. URL aliases must start with a forward slash (`/`). When you run Workbench with its `--check` option, it will check whether each alias starts with this character, and whether the alias already exists. Also note that this feature is only available in the `create` task.
+No other configuration is required. URL aliases must start with a forward slash (`/`). When you run Workbench with its `--check` option, it will check whether each alias starts with this character, and whether the alias already exists.
 
 
 ## Setting media types
