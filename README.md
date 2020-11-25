@@ -28,7 +28,7 @@ If you don't already have the two required libraries installed, clone this repo 
 
 then
 
-`./workbench --config config.yml`  
+`./workbench --config config.yml`
 
 ## The configuration file
 
@@ -51,7 +51,7 @@ id_field: id
 The settings defined in a configuration file are:
 
 | Setting | Required | Default value | Description |
-| --- | --- | --- | --- | 
+| --- | --- | --- | --- |
 | task | ✔️ | | One of 'create', 'create_from_files', update', delete', 'add_media', or 'delete_media' |
 | host | ✔️ | | The hostname, including port number if not 80, of your Islandora repository. |
 | username |  ✔️ | | The username used to authenticate the requests. |
@@ -186,7 +186,7 @@ Single-valued and multi-valued fields of the following types can be added:
 * For the `create` task, `title`, `id` (or whatever field is identified in the `id_field` configuration option), and `file` are required. Empty values in the `file` field are allowed, in which case a node will be created but it will have no attached media.
 * For the `update`, `delete`, and `add_media` tasks, the `node_id` field is required.
 * For the `add_media` task, `file` is required, but for this task, `file` must contain a filename.
- 
+
 #### Base fields
 
 Base fields are basic node properties, shared by all content types. The base fields you can include in your CSV file are:
@@ -275,7 +275,7 @@ By default, if you use a term name in your CSV data that doesn't match a term na
    * It converts all text to lower case.
    * It removes all punctuation.
    * If the term name you provide in the CSV file does not match any existing term names in the vocabulary linked to the field after these normalization rules are applied, it is used to create a new taxonomy term. If it does match, Workbench populates the field in your nodes with the matching term.
-   
+
 Adding new terms has some contraints:
 
 * Creating taxonomy terms by including them in your CSV file adds new terms to the root of the applicable vocabulary. Workbench cannot create a new term that has another term as its parent (i.e. terms below the top leve of a hierarchical taxonomy). However, for existing terms, Workbench doesn't care where they are in a taxonomy's hierarchy.
@@ -458,7 +458,7 @@ Important things to note when using this method:
 
 ### With page/child-level metadata
 
-Using this method, the metadata CSV file contains a row for each parent and all child items. You should use this method when you are creating books, newspaper issues, or other paged content where each page has its own metadata, or when you are creating compound objects of any Islandora model. The files for each page are named explicitly in the `file` column rather than being in a subdirectory. To link the pages to the parent, Workbench establishes parent/child relationships between items with `parent_id` values (the pages/children) with that are the same as the `id` value of another item (the parent). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below). The `id` field is required in all CSV files used to create content, so in this case, your CSV needs both an `id` field and a `parent_id` field. 
+Using this method, the metadata CSV file contains a row for each parent and all child items. You should use this method when you are creating books, newspaper issues, or other paged content where each page has its own metadata, or when you are creating compound objects of any Islandora model. The files for each page are named explicitly in the `file` column rather than being in a subdirectory. To link the pages to the parent, Workbench establishes parent/child relationships between items with `parent_id` values (the pages/children) with that are the same as the `id` value of another item (the parent). For this to work, your CSV file must contain a `parent_id` field plus the standard Islandora fields `field_weight`, `field_member_of`, and `field_model` (the role of these last three fields will be explained below). The `id` field is required in all CSV files used to create content, so in this case, your CSV needs both an `id` field and a `parent_id` field.
 
 The following example illustrates how this works. Here is the raw CSV data:
 
@@ -493,7 +493,7 @@ During a `create` task, if you want to create nodes but not any accompanying med
 
 ## Creating nodes from files only
 
-If you want to ingest some files without a metadata CSV you can do so using the `create_from_files` action. A common application of this ability is in automated workflows where Islandora objects are created from files saved to a watch folder, and metadata is added later.
+If you want to ingest some files without a metadata CSV you can do so using the `create_from_files` task. A common application of this ability is in automated workflows where Islandora objects are created from files saved to a watch folder, and metadata is added later.
 
 Nodes created using this task have only the following properties/fields populated:
 
@@ -502,7 +502,7 @@ Nodes created using this task have only the following properties/fields populate
 * Published: published by default, or overridden in the configuration file using the `published` setting.
 * Model: defined in the configuration file using either the `model` or `models` setting.
 
-The media attached to the nodes is the file, with its type (image, document, audio, video, file) assigned by the `media_types` configuration setting and its Media Use tag defined in the `media_use_tid` setting. 
+The media attached to the nodes is the file, with its type (image, document, audio, video, file) assigned by the `media_types` configuration setting and its Media Use tag defined in the `media_use_tid` setting.
 
 The configuration options for the `create_from_files` task are the same as the options used in the `create` task. The only option specific to this task is `models`, which is a mapping from terms IDs (or term URIs) in the "Islandora Models" vocabulary to file extensions. Note that either the  `models` or `model` configuration option is required in the `create_from_files` task. `model` is conventient when all of the objects you are creating are the same Islandora Model. Here is a sample configuration file for this task:
 
@@ -544,6 +544,13 @@ models:
  ```
 
 In the workflow described at the beginning of this section, you might want to include the `output_csv` option in the configuration file, since the resulting CSV file can be populated with metadata later and used in an `update` task to add it to the stub nodes.
+
+
+## Rolling back nodes and media
+
+In the `create` and `create_from_files` tasks, a `rollback.yml` configuration file and a `rollback.csv` file in the format described in "Deleting nodes", below, are created so you can roll back (i.e., delete) all the nodes and accompanying media you just created. This configuration file runs a `delete` task. See the "Deleting nodes" section below for more information.
+
+Note that the rollback configuration and CSV file overwrites older versions, so they only apply to the most recent `create` and `create_from_files` runs.
 
 ## Updating nodes
 
@@ -670,7 +677,7 @@ This CSV file is suitable as a template for subsequent `update` tasks, since it 
 ## Generating sample Islandora content
 
 `generate_image_files.py` will generate .png images from a list of titles. It and a sample list of titles are available Workbench's `scripts` directory. Running this script will result in a group of images whose filenames are normalized versions of the lines in the sample title file. You can then load this sample content into Islandora using the `create_from_files` task. If you want to have Workbench generate the sample content automatically, configure the `generate_image_files.py` script as a bootstrap script. See the `autogen_content.yml` configuration file for an example of how to do that.
- 
+
 ## Logging
 
 Islandora Workbench writes a log file for all tasks to `workbench.log` in the workbench directory, unless you specify an alternative log file location using the `log_file_path` configuration option, e.g.:

@@ -17,6 +17,8 @@ from workbench_utils import *
 def create():
     """Create new nodes via POST, and add media if there are any.
     """
+    prep_rollback_csv(config)
+
     logging.info('"Create" task started using config file %s', args.config)
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
@@ -309,6 +311,8 @@ def create():
                     node_nid = node_uri.rsplit('/', 1)[-1]
                     node_ids[id_field] = node_nid
 
+                write_rollback_node_id(config, node_nid)
+
                 # If there is no media file (and we're not creating paged content), move on to the next CSV row.
                 if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                     print('+No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
@@ -340,6 +344,8 @@ def create():
                     # If 'url_alias' is in the CSV, create the alias.
                     if 'url_alias' in row and len(row['url_alias']) > 0:
                         create_url_alias(config, node_nid, row['url_alias'])
+
+                    write_rollback_config(config)
 
 
 def update():
@@ -709,6 +715,8 @@ def create_from_files():
     file_dir_path = config['input_dir']
     files = os.listdir(file_dir_path)
 
+    prep_rollback_csv(config)
+
     for file_name in files:
         filename_without_extension = os.path.splitext(file_name)[0]
         if len(filename_without_extension) > 255:
@@ -746,6 +754,9 @@ def create_from_files():
             logging.info('Node for "%s" created at %s.', filename_without_extension, node_uri)
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, '', node_response.text)
+
+            node_nid = node_uri.rsplit('/', 1)[-1]
+            write_rollback_node_id(config, node_nid)
 
             file_path = os.path.join(config['input_dir'], file_name)
             media_type = set_media_type(file_path, config)

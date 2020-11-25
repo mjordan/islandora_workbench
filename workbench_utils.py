@@ -278,11 +278,11 @@ def get_field_definitions(config):
         if entity_type == 'media' and 'file_extensions' in field_config['settings']:
             field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
         if entity_type == 'media':
-            field_definitions[fieldname]['media_type'] = bundle_type    
+            field_definitions[fieldname]['media_type'] = bundle_type
 
         raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
         field_storage = json.loads(raw_field_storage)
-        field_definitions[fieldname]['field_type'] = field_storage['type']        
+        field_definitions[fieldname]['field_type'] = field_storage['type']
         field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
         if 'max_length' in field_storage['settings']:
             field_definitions[fieldname]['max_length'] = field_storage['settings']['max_length']
@@ -291,7 +291,7 @@ def get_field_definitions(config):
         if 'target_type' in field_storage['settings']:
             field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
         else:
-            field_definitions[fieldname]['target_type'] = None  
+            field_definitions[fieldname]['target_type'] = None
 
     return field_definitions
 
@@ -768,7 +768,7 @@ def check_input_for_create_from_files(config, args):
     if config['task'] != 'create_from_files':
         message = 'Your task must be "create_from_files".'
         logging.error(message)
-        sys.exit('Error: ' + message)        
+        sys.exit('Error: ' + message)
 
     logging.info('Starting configuration check for "%s" task using config file %s.', config['task'], args.config)
 
@@ -968,7 +968,7 @@ def validate_media_use_tid(config):
             message = 'Term ID "' + str(config['media_use_tid']) + '" used in the "media_use_tid" configuration option is not a term ID (term doesn\'t exist).'
             logging.error(message)
             sys.exit('Error: ' + message)
-        if response.status_code == 200:         
+        if response.status_code == 200:
             response_body = json.loads(response.text)
             if 'vid' in response_body:
                 if response_body['vid'][0]['target_id'] != 'islandora_media_use':
@@ -1035,7 +1035,7 @@ def create_media(config, filename, node_uri, node_csv_row):
         logging.warning("Media linked to node %s base fields not updated.", node_uri)
     else:
         logging.error('Media not created, PUT request to "%s" returned an HTTP status code of "%s".', media_endpoint, media_response.status_code)
-   
+
     binary_data.close()
 
     return media_response.status_code
@@ -1219,7 +1219,7 @@ def get_term_id_from_uri(config, uri):
         term_from_authority_link_response_body = json.loads(term_from_authority_link_response_body_json)
         if len(term_from_authority_link_response_body) == 1:
             tid = term_from_authority_link_response_body[0]['tid'][0]['value']
-            return tid            
+            return tid
         elif len(term_from_authority_link_response_body) > 1:
             for term in term_from_authority_link_response_body:
                 terms_with_uri.append({term['tid'][0]['value']:term['vid'][0]['target_id']})
@@ -1329,7 +1329,7 @@ def create_url_alias(config, node_id, url_alias):
     headers = {'Content-Type': 'application/json'}
     response = issue_request(config, 'POST', config['host'] + '/entity/path_alias?_format=json', headers, json, None)
     if response.status_code != 201:
-        logging.error("URL alias '%s' not created for node %s, HTTP response code was %s (it might already exist).", url_alias, config['host'] + '/node/' + node_id, response.status_code) 
+        logging.error("URL alias '%s' not created for node %s, HTTP response code was %s (it might already exist).", url_alias, config['host'] + '/node/' + node_id, response.status_code)
 
 
 def prepare_term_id(config, vocab_ids, term):
@@ -1442,7 +1442,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                 if config['task'] == 'create':
                     message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains more values than the number '
                 if config['task'] == 'update':
-                    message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains more values than the number '      
+                    message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains more values than the number '
                 if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
                     message_2 = 'allowed for that field (' + str(field_cardinalities[field_name]) + '). Workbench will add only the first value.'
                     print('Warning: ' + message + message_2)
@@ -1478,7 +1478,7 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                         if config['task'] == 'create':
                             message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'
                         if config['task'] == 'update':
-                            message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'           
+                            message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'
                         message_2 = ' than allowed for that field (' + str(field_max_lengths[field_name]) + ' characters). Workbench will truncate this value prior to populating Drupal.'
                         print('Warning: ' + message + message_2)
                         logging.warning(message + message_2)
@@ -1533,7 +1533,7 @@ def validate_url_aliases(config, csv_data):
                 if field_value.strip()[0] != '/':
                     message = 'CSV field "url_alias" in record ' + str(count) + ' contains an alias "' + field_value + '" that is missing its leading /.'
                     logging.error(message)
-                    sys.exit('Error: ' + message)                    
+                    sys.exit('Error: ' + message)
 
                 alias_ping = ping_url_alias(config, field_value)
                 if alias_ping == 200:
@@ -1662,7 +1662,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
                                 logging.error(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
-                        else:               
+                        else:
                             message = 'Term URI "' + term_to_check_uri + '" used in CSV column "' + column_name + '"" row ' + str(count) + ' does not match any terms.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
@@ -1834,6 +1834,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             logging.info('Node for child "%s" created at %s.', page_title, node_uri)
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, page_identifier, node_response.text)
+
+            node_nid = node_uri.rsplit('/', 1)[-1]
+            write_rollback_node_id(config, node_nid)
         else:
             logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
 
@@ -1842,3 +1845,32 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
         allowed_media_response_codes = [201, 204]
         if media_response_status_code in allowed_media_response_codes:
             logging.info("Media for %s created.", page_file_path)
+
+
+def write_rollback_config(config):
+    path_to_rollback_config_file = os.path.join('rollback.yml')
+    rollback_config_file = open(path_to_rollback_config_file, "w")
+    yaml.dump(
+        {'task': 'delete',
+        'host': config['host'],
+        'username': config['username'],
+        'password': config['password'],
+        'input_dir': config['input_dir'],
+        'input_csv': 'rollback.csv'},
+        rollback_config_file)
+
+
+def prep_rollback_csv(config):
+    path_to_rollback_csv_file = os.path.join(config['input_dir'], 'rollback.csv')
+    if os.path.exists(path_to_rollback_csv_file):
+        os.remove(path_to_rollback_csv_file)
+    rollback_csv_file = open(path_to_rollback_csv_file, "a+")
+    rollback_csv_file.write("node_id" + "\n")
+    rollback_csv_file.close()
+
+
+def write_rollback_node_id(config, node_id):
+    path_to_rollback_csv_file = os.path.join(config['input_dir'], 'rollback.csv')
+    rollback_csv_file = open(path_to_rollback_csv_file, "a+")
+    rollback_csv_file.write(node_id + "\n")
+    rollback_csv_file.close()
