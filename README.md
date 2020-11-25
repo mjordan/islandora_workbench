@@ -63,7 +63,7 @@ The settings defined in a configuration file are:
 | id_field |  | id | The name of the field in the CSV that uniquely identifies each record. |
 | delimiter |  | , [comma]| The delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",". |
 | subdelimiter |  | &#124; [pipe]| The subdelimiter used in the CSV file to define multiple values in one field. If omitted, defaults to "&#124;". |
-| nodes_only |  | false | Include this option in `create` tasks if you want to only create nodes and not their accompanying media. See the "Creating nodes but not media" section below for more information. |
+| nodes_only |  | false | Include this option in `create` tasks, set to `true`, if you want to only create nodes and not their accompanying media. See the "Creating nodes but not media" section below for more information. |
 | drupal_filesystem |  ✔️ unless `nodes_only` is true | | One of 'fedora://', 'public://', or 'private://'. |
 | output_csv | | | The full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information. |
 | media_use_tid |  ✔️ unless `nodes_only` is true |  | The term ID for the term from the "Islandora Media Use" vocabulary you want to apply to the media being created. You can provide a term URI instead of a term ID, for example `"http://pcdm.org/use#OriginalFile"`.|
@@ -548,7 +548,7 @@ In the workflow described at the beginning of this section, you might want to in
 
 ## Rolling back nodes and media
 
-In the `create` and `create_from_files` tasks, a `rollback.yml` configuration file and a `rollback.csv` file in the format described in "Deleting nodes", below, are created so you can roll back (i.e., delete) all the nodes and accompanying media you just created. This configuration file defines a `delete` task. See the "Deleting nodes" section below for more information.
+In the `create` and `create_from_files` tasks, Workbench generates a `rollback.yml` configuration file and a `rollback.csv` file in the format described in "Deleting nodes", below. These files allow you to easily roll back (i.e., delete) all the nodes and accompanying media you just created. Specifically, this configuration file defines a `delete` task. See the "Deleting nodes" section below for more information.
 
 To roll back all the nodes and media you just created, run `./workbench --config rollback.yml`.
 
