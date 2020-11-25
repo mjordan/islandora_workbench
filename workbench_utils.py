@@ -523,7 +523,7 @@ def check_input(config, args):
         if 'image_alt_text' in csv_column_headers:
             csv_column_headers.remove('image_alt_text')
         if 'url_alias' in csv_column_headers:
-            csv_column_headers.remove('url_alias')            
+            csv_column_headers.remove('url_alias')
         # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')
@@ -567,12 +567,17 @@ def check_input(config, args):
             message = 'For "update" tasks, your CSV file must contain a "node_id" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
+        if 'url_alias' in csv_column_headers:
+            validate_url_aliases_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_url_aliases(config, validate_url_aliases_csv_data)
         field_definitions = get_field_definitions(config)
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
         if 'title' in csv_column_headers:
             csv_column_headers.remove('title')
+        if 'url_alias' in csv_column_headers:
+            csv_column_headers.remove('url_alias')
         if 'file' in csv_column_headers:
             message = 'Error: CSV column header "file" is not allowed in update tasks.'
             logging.error(message)
@@ -1421,7 +1426,8 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
     """
     field_cardinalities = dict()
     csv_headers = csv_data.fieldnames
-    csv_headers.remove('title')
+    if 'title' in csv_headers:
+        csv_headers.remove('title')
     for csv_header in csv_headers:
         if csv_header in field_definitions.keys():
             cardinality = field_definitions[csv_header]['cardinality']

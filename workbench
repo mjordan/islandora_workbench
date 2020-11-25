@@ -106,7 +106,7 @@ def create():
 
                     # 'url_alias' is a reserved CSV field.
                     if custom_field == 'url_alias':
-                        continue                        
+                        continue
 
                     # Execute field preprocessor scripts, if any are configured. Note that these scripts
                     # are applied to the entire value from the CSV field and not split field values,
@@ -378,6 +378,10 @@ def update():
                     if len(row[custom_field]) == 0:
                         continue
 
+                    # 'url_alias' is a reserved CSV field.
+                    if custom_field == 'url_alias':
+                        continue
+
                     # Entity reference fields: for taxonomy terms, target_type is 'taxonomy_term';
                     # for nodes, it's 'node_type'.
                     if field_definitions[custom_field]['field_type'] == 'entity_reference':
@@ -604,6 +608,10 @@ def update():
                     print("Node for " + config['host'] + '/node/' +
                           row['node_id'] + " updated.")
                     logging.info("Node for %s updated.", config['host'] + '/node/' + row['node_id'])
+
+                # If 'url_alias' is in the CSV, create the alias.
+                if 'url_alias' in row and len(row['url_alias']) > 0:
+                    create_url_alias(config, row['node_id'], row['url_alias'])
 
 
 def delete():
