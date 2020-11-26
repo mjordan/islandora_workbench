@@ -244,13 +244,6 @@ def ping_islandora(config):
         message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
         logging.error(message)
         sys.exit('Error: ' + message)
-    """
-    field_definitions = get_field_definitions(config)
-    if len(field_definitions) == 0:
-        message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
-        logging.error(message)
-        sys.exit('Error: ' + message)
-    """
 
     message = "OK, connection to Drupal verified."
     print(message)
@@ -363,22 +356,7 @@ def check_input(config, args):
     config_keys = list(config.keys())
     config_keys.remove('check')
 
-    # Dealing with optional config keys. If you introduce a new optional key, add it to this list. Note that optional
-    # keys are not validated.
-    optional_config_keys = ['delimiter', 'subdelimiter', 'log_file_path', 'log_file_mode',
-                            'allow_missing_files', 'preprocessors', 'bootstrap', 'published',
-                            'validate_title_length', 'media_type', 'media_types', 'pause', 'nodes_only',
-                            'output_csv', 'delete_media_with_nodes', 'paged_content_from_directories',
-                            'paged_content_sequence_seprator', 'paged_content_page_model_tid',
-                            'paged_content_page_display_hints', 'paged_content_page_content_type',
-                            'allow_adding_terms', 'log_json', 'user_agent', 'allow_redirects', 'media_use_tid',
-                            'drupal_filesystem']
-
-    for optional_config_key in optional_config_keys:
-        if optional_config_key in config_keys:
-            config_keys.remove(optional_config_key)
-
-    # Check for presence of required config keys.
+    # Check for presence of required config keys, which varies by task.
     if config['task'] == 'create':
         if config['nodes_only'] is False:
             if 'media_use_tid' not in config:
@@ -395,35 +373,40 @@ def check_input(config, args):
             print(message)
             logging.info(message)
 
-        create_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir', 'input_csv', 'id_field']
-        if not set(config_keys) == set(create_options):
-            message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        create_required_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir', 'input_csv', 'id_field']
+        for create_required_option in create_required_options:
+            if create_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
     if config['task'] == 'update':
-        update_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir', 'input_csv']
-        if not set(config_keys) == set(update_options):
-            message = 'Please check your config file for required values: ' + joiner.join(update_options) + '.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        update_required_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir', 'input_csv']
+        for update_required_option in update_required_options:
+            if update_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(update_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
     if config['task'] == 'delete':
-        delete_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv']
-        if not set(config_keys) == set(delete_options):
-            message = 'Please check your config file for required values: ' + joiner.join(delete_options) + '.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        delete_required_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv']
+        for delete_required_option in delete_required_options:
+            if delete_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(delete_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
     if config['task'] == 'add_media':
-        add_media_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'media_use_tid', 'drupal_filesystem']
-        if not set(config_keys) == set(add_media_options):
-            message = 'Please check your config file for required values: ' + joiner.join(add_media_options)  + '.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        add_media_required_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'media_use_tid', 'drupal_filesystem']
+        for add_media_required_option in add_media_required_options:
+            if add_media_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(add_media_required_options)  + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
-        delete_media_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv']
-        if not set(config_keys) == set(delete_media_options):
-            message = 'Please check your config file for required values: ' + joiner.join(delete_media_options) + '.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        delete_media_required_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv']
+        for delete_media_required_option in delete_media_required_options:
+            if delete_media_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(delete_media_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
     message = 'OK, configuration file has all required values (did not check for optional values).'
     print(message)
     logging.info(message)
@@ -481,13 +464,11 @@ def check_input(config, args):
             message = 'For "create" tasks, your CSV file must contain a "title" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
-
         if 'output_csv' in config.keys():
             if os.path.exists(config['output_csv']):
                 message = 'Output CSV already exists at ' + config['output_csv'] + ', records will be appended to it.'
                 print(message)
                 logging.info(message)
-
         if 'url_alias' in csv_column_headers:
             validate_url_aliases_csv_data = get_csv_data(config['input_dir'], config['input_csv'], config['delimiter'])
             validate_url_aliases(config, validate_url_aliases_csv_data)
@@ -715,12 +696,6 @@ def check_input(config, args):
          # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
          # 'media_type[s]' config option?
 
-        # Check that either 'media_type' or 'media_types' are present in the config file.
-        # if config['nodes_only'] is False and 'media_type' not in config and 'media_types' not in config:
-            # message = 'You must configure media type using either the "media_type" or "media_types" option.'
-            # logging.error(message)
-            # sys.exit('Error: ' + message)
-
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
             message = 'If you are creating paged content, you must include "paged_content_page_model_tid" in your configuration.'
@@ -784,22 +759,13 @@ def check_input_for_create_from_files(config, args):
         if option in config_keys:
             config_keys.remove(option)
 
-    # If you introduce a new optional key, add it to this list. Note thatoptional_config_key optional keys are not validated.
-    joiner = ', '
-    optional_config_keys = ['log_file_path', 'log_file_mode', 'preprocessors', 'bootstrap', 'published', 'pause',
-                           'published', 'validate_title_length', 'media_type', 'media_types', 'media_types',
-                           'model', 'models', 'output_csv','log_json', 'user_agent', 'allow_redirects']
-
-    for optional_config_key in optional_config_keys:
-        if optional_config_key in config_keys:
-            config_keys.remove(optional_config_key)
-
     # Check for presence of required config keys.
-    create_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir']
-    if not set(config_keys) == set(create_options):
-        message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
-        logging.error(message)
-        sys.exit('Error: ' + message)
+    create_required_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir']
+    for create_required_option in create_required_options:
+        if create_required_option not in config_keys:
+            message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
 
     # Check existence of input directory.
     if os.path.exists(config['input_dir']):
