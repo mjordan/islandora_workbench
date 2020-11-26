@@ -6,7 +6,6 @@ input_dir: input_data
 input_csv: add_media.csv
 media_use_tid: 17
 drupal_filesystem: "fedora://"
-delimiter: ","
 media_types:
  - file: ['tif', 'tiff', 'jp2', 'zip', 'tar']
  - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx']

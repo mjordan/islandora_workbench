@@ -11,6 +11,7 @@ import datetime
 import requests
 import subprocess
 import mimetypes
+import collections
 import urllib.parse
 from ruamel.yaml import YAML
 from functools import lru_cache
@@ -243,12 +244,13 @@ def ping_islandora(config):
         message = 'Workbench cannot connect to ' + config['host'] + '. Please check the hostname or network.'
         logging.error(message)
         sys.exit('Error: ' + message)
-
+    """
     field_definitions = get_field_definitions(config)
     if len(field_definitions) == 0:
         message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
         logging.error(message)
         sys.exit('Error: ' + message)
+    """
 
     message = "OK, connection to Drupal verified."
     print(message)
@@ -399,30 +401,25 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'update':
-        update_options = ['task', 'host', 'username', 'password',
-                          'content_type', 'input_dir', 'input_csv']
+        update_options = ['task', 'host', 'username', 'password', 'content_type', 'input_dir', 'input_csv']
         if not set(config_keys) == set(update_options):
             message = 'Please check your config file for required values: ' + joiner.join(update_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'delete':
-        delete_options = ['task', 'host', 'username', 'password',
-                          'input_dir', 'input_csv']
+        delete_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_options):
             message = 'Please check your config file for required values: ' + joiner.join(delete_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'add_media':
-        add_media_options = ['task', 'host', 'username', 'password',
-                             'input_dir', 'input_csv', 'media_use_tid',
-                             'drupal_filesystem']
+        add_media_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'media_use_tid', 'drupal_filesystem']
         if not set(config_keys) == set(add_media_options):
             message = 'Please check your config file for required values: ' + joiner.join(add_media_options)  + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
-        delete_media_options = ['task', 'host', 'username', 'password',
-                                'input_dir', 'input_csv']
+        delete_media_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv']
         if not set(config_keys) == set(delete_media_options):
             message = 'Please check your config file for required values: ' + joiner.join(delete_media_options) + '.'
             logging.error(message)
@@ -595,6 +592,12 @@ def check_input(config, args):
     if config['task'] == 'add_media' or config['task'] == 'create' and config['nodes_only'] is False:
         validate_media_use_tid(config)
 
+        # Check that either 'media_type' or 'media_types' are present in the config file.
+        if config['nodes_only'] is False and 'media_type' not in config and 'media_types' not in config:
+            message = 'You must configure media type using either the "media_type" or "media_types" option.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
     if config['task'] == 'update' or config['task'] == 'create':
         # Validate values in fields that are of type 'typed_relation'. Each value (don't forget multivalued fields) needs to have
         # this pattern: string:string:int.
@@ -713,10 +716,10 @@ def check_input(config, args):
          # 'media_type[s]' config option?
 
         # Check that either 'media_type' or 'media_types' are present in the config file.
-        if config['nodes_only'] is False and 'media_type' not in config and 'media_types' not in config:
-            message = 'You must configure media type using either the "media_type" or "media_types" option.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        # if config['nodes_only'] is False and 'media_type' not in config and 'media_types' not in config:
+            # message = 'You must configure media type using either the "media_type" or "media_types" option.'
+            # logging.error(message)
+            # sys.exit('Error: ' + message)
 
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
@@ -1841,7 +1844,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
 
         page_file_path = os.path.join(parent_id, page_file_name)
-        media_response_status_code = create_media(config, page_file_path, node_uri)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['title'] = page_title
+        media_response_status_code = create_media(config, page_file_path, node_uri, fake_csv_record)
         allowed_media_response_codes = [201, 204]
         if media_response_status_code in allowed_media_response_codes:
             logging.info("Media for %s created.", page_file_path)
