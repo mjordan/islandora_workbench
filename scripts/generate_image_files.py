@@ -15,7 +15,7 @@ import re
 # Must exist and be absolute.
 dest_dir = '/tmp/colors'
 # Must exist. Relative to this script
-title_file_path = 'sample_filenames.txt';
+title_file_path = 'sample_filenames.txt'
 num_images_to_generate = 10
 # @todo: Check for path to convert; if not found, bail.
 path_to_convert = '/usr/bin/convert'
@@ -52,9 +52,10 @@ with open(title_file_path) as f:
         first_three_words = words[:3]
         first_three_words_string = '\n'.join(first_three_words)
         color = random.choice(colors)
-        cmd = path_to_convert + ' -size 1000x1000 xc:' + color +  ' ' + os.path.join(dest_dir, filename + '.png') + '; '
+        cmd = path_to_convert + ' -size 1000x1000 xc:' + color + \
+            ' ' + os.path.join(dest_dir, filename + '.png') + '; '
         cmd += path_to_convert + ' -size 1000x1000 xc:' + color
-        cmd += '  -pointsize 100 -fill white -gravity center -annotate +0+0 ' + '"' + first_three_words_string + '"'
-        cmd += ' ' + os.path.join(dest_dir,filename + '.png')
+        cmd += '  -pointsize 100 -fill white -gravity center -annotate +0+0 ' + \
+            '"' + first_three_words_string + '"'
+        cmd += ' ' + os.path.join(dest_dir, filename + '.png')
         subprocess.call(cmd, shell=True)
-    
