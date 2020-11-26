@@ -704,8 +704,6 @@ Also provide tests where applicable. Tests in Workbench fall into two categories
 * those that do not, which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
 * if you want to run the tests within a specific class in one of these files, include the class name like this: `python3 tests/unit_tests.py TestCompareStings`
 
-Note that some tests that interact with are not idempotent. For example, if a test creates taxonomy terms, those terms are not deleted from Islandora by the test's `tearDown()` function.
-
 ## License
 
 The Unlicense.
