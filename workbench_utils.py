@@ -145,7 +145,7 @@ def issue_request(config, method, path, headers=dict(), json='', data='', query=
         if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE']:
             time.sleep(config['pause'])
 
-    headers.update({'User-Agent':config['user_agent']})
+    headers.update({'User-Agent': config['user_agent']})
 
     config['host'] = config['host'].rstrip('/')
     if config['host'] in path:
@@ -397,7 +397,7 @@ def check_input(config, args):
         add_media_required_options = ['task', 'host', 'username', 'password', 'input_dir', 'input_csv', 'media_use_tid', 'drupal_filesystem']
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' + joiner.join(add_media_required_options)  + '.'
+                message = 'Please check your config file for required values: ' + joiner.join(add_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
@@ -692,9 +692,9 @@ def check_input(config, args):
                 print(message)
                 logging.info(message)
 
-         # To do: check that each file's extension is allowed for the current media type usin get_registered_media_extensions().
-         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
-         # 'media_type[s]' config option?
+        # To do: check that each file's extension is allowed for the current media type usin get_registered_media_extensions().
+        # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
+        # 'media_type[s]' config option?
 
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
@@ -754,7 +754,7 @@ def check_input_for_create_from_files(config, args):
 
     config_keys = list(config.keys())
     unwanted_in_create_from_files = ['check', 'delimiter', 'subdelimiter', 'allow_missing_files', 'validate_title_length',
-        'paged_content_from_directories', 'delete_media_with_nodes', 'allow_adding_terms']
+                                     'paged_content_from_directories', 'delete_media_with_nodes', 'allow_adding_terms']
     for option in unwanted_in_create_from_files:
         if option in config_keys:
             config_keys.remove(option)
@@ -1009,6 +1009,7 @@ def create_media(config, filename, node_uri, node_csv_row):
 
     return media_response.status_code
 
+
 def patch_media_fields(config, media_id, media_type, node_csv_row):
     """Patch the media entity with base fields from the parent node.
     """
@@ -1174,10 +1175,11 @@ def get_term_id_from_uri(config, uri):
             return tid
         if len(term_from_uri_response_body) > 1:
             for term in term_from_uri_response_body:
-                terms_with_uri.append({term['tid'][0]['value']:term['vid'][0]['target_id']})
+                terms_with_uri.append({term['tid'][0]['value']: term['vid'][0]['target_id']})
                 tid = term_from_uri_response_body[0]['tid'][0]['value']
             print("Warning: See log for important message about use of term URIs.")
-            logging.warning('Term URI "%s" is used for more than one term (with these term ID/vocabulary ID combinations: ' + str(terms_with_uri) + '). Workbench is choosing the first term ID (%s)).', uri, tid)
+            logging.warning('Term URI "%s" is used for more than one term (with these term ID/vocabulary ID combinations: ' +
+                            str(terms_with_uri) + '). Workbench is choosing the first term ID (%s)).', uri, tid)
             return tid
 
     # And some vocabuluaries use this View.
@@ -1191,10 +1193,11 @@ def get_term_id_from_uri(config, uri):
             return tid
         elif len(term_from_authority_link_response_body) > 1:
             for term in term_from_authority_link_response_body:
-                terms_with_uri.append({term['tid'][0]['value']:term['vid'][0]['target_id']})
+                terms_with_uri.append({term['tid'][0]['value']: term['vid'][0]['target_id']})
                 tid = term_from_authority_link_response_body[0]['tid'][0]['value']
             print("Warning: See log for important message about use of term URIs.")
-            logging.warning('Term URI "%s" is used for more than one term (with these term ID/vocabulary ID combinations: ' + str(terms_with_uri) + '). Workbench is choosing the first term ID (%s)).', uri, tid)
+            logging.warning('Term URI "%s" is used for more than one term (with these term ID/vocabulary ID combinations: ' +
+                            str(terms_with_uri) + '). Workbench is choosing the first term ID (%s)).', uri, tid)
             return tid
         else:
             # URI does not match any term.
@@ -1232,7 +1235,7 @@ def create_term(config, vocab_id, term_name):
                "target_id": vocab_id,
                "target_type": "taxonomy_vocabulary"
            }
-           ],
+             ],
            "status": [
               {
                  "value": True
@@ -1292,8 +1295,8 @@ def create_url_alias(config, node_id, url_alias):
         ],
         'alias':[
             {'value': url_alias}
-        ]
-    }
+            ]
+            }
 
     headers = {'Content-Type': 'application/json'}
     response = issue_request(config, 'POST', config['host'] + '/entity/path_alias?_format=json', headers, json, None)
@@ -1459,7 +1462,8 @@ def validate_term_name_length(term_name, row_number, column_name):
     """
     term_name = term_name.strip()
     if len(term_name) > 255:
-        message = 'CSV field "' + column_name + '" in record ' + row_number + " contains a taxonomy term that exceeds Drupal's limit of 255 characters (length of term is " + str(len(term_name)) + ' characters).'
+        message = 'CSV field "' + column_name + '" in record ' + row_number + \
+            " contains a taxonomy term that exceeds Drupal's limit of 255 characters (length of term is " + str(len(term_name)) + ' characters).'
         message_2 = ' Term provided in CSV is "' + term_name + '".'
         message_3 = " Please reduce the term's length to less than 256 characters."
         logging.error(message + message_2 + message_3)
@@ -1553,7 +1557,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 try:
                     num_vocabs = len(vocabularies)
                 except:
-                    message = 'Workbench cannot get vocabularies linked to field "' + column_name + '". Please confirm that field has at least one vocabulary.'
+                    message = 'Workbench cannot get vocabularies linked to field "' + column_name + \
+                        '". Please confirm that field has at least one vocabulary.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 all_tids_for_field = []
@@ -1563,16 +1568,18 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     if len(terms) == 0:
                         if config['allow_adding_terms'] is True:
                             vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not be enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
+                                '" may not be enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
                             logging.warning(message)
                         else:
                             vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
+                                '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
                             logging.warning(message)
                     vocab_term_ids = list(terms.keys())
                     # If more than one vocab in this field, combine their term IDs into a single list.
                     all_tids_for_field = all_tids_for_field + vocab_term_ids
-                fields_with_vocabularies.update({column_name:all_tids_for_field})
+                fields_with_vocabularies.update({column_name: all_tids_for_field})
                 if vocab_validation_issues is True:
                     print('Warning: Issues detected with validating taxonomy terms used in the CSV column "' + column_name + '". See the Workbench log for important details.')
 
@@ -1823,11 +1830,11 @@ def write_rollback_config(config):
     rollback_config_file = open(path_to_rollback_config_file, "w")
     yaml.dump(
         {'task': 'delete',
-        'host': config['host'],
-        'username': config['username'],
-        'password': config['password'],
-        'input_dir': config['input_dir'],
-        'input_csv': 'rollback.csv'},
+            'host': config['host'],
+            'username': config['username'],
+            'password': config['password'],
+            'input_dir': config['input_dir'],
+            'input_csv': 'rollback.csv'},
         rollback_config_file)
 
 
