@@ -698,11 +698,17 @@ If you open a PR, please check your code with pycodestyle:
 
 `pycodestyle --show-source --show-pep8 --ignore=E402 --max-line-length=200 .`
 
+autopep8 is useful for bringing your code into compliance:
+
+`autopep8 --in-place --aggressive --aggressive workbench_utils.py`
+
 Also provide tests where applicable. Tests in Workbench fall into two categories:
 
-* those that require a live Islandora instance, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
-* those that do not, which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
+* integration tests that require a live Islandora instance, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
+* unit tests (that do not require Islandora) which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
 * if you want to run the tests within a specific class in one of these files, include the class name like this: `python3 tests/unit_tests.py TestCompareStings`
+
+Note that if an Islandora integration test fails, nodes and taxonomy terms created by the test before it fails may not be removed from Islandora.
 
 ## License
 
