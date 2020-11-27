@@ -242,10 +242,10 @@ def ping_url_alias(config, url_alias):
 
 
 def ping_islandora(config):
-    # First, test host. Surprisingly, using credentials to ping the base URL results in a 403, so we don't
-    # go through issue_request(), which always uses credentials.
+    # First, test a known request that requires sufficient permissions.
+    url = config['host'] + '/islandora_workbench_integration/upload_max_filesize'
     try:
-        host_response = requests.head(
+        host_response = requests.get(
             config['host'],
             allow_redirects=config['allow_redirects'],
             headers={
@@ -253,7 +253,16 @@ def ping_islandora(config):
         host_response.raise_for_status()
     except requests.exceptions.RequestException as error:
         message = 'Workbench cannot connect to ' + \
-            config['host'] + '. Please check the hostname or network.'
+            config['host'] + '. Please verify the "host" setting in your configuration ' + \
+            'and check your network connection.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    not_authorized = [401, 403]
+    if host_response.status_code in not_authorized:
+        message = 'Workbench can connect to ' + \
+            config['host'] + ' but the user "' + config['username'] + \
+            ' does not have sufficient permissions to continue.'
         logging.error(message)
         sys.exit('Error: ' + message)
 
