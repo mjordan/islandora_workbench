@@ -1023,8 +1023,6 @@ def create_from_files():
 
 # Main program logic.
 
-ping_islandora(config)
-
 parser = argparse.ArgumentParser()
 parser.add_argument(
     '--config',
@@ -1042,6 +1040,8 @@ logging.basicConfig(
     filemode=config['log_file_mode'],
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%d-%b-%y %H:%M:%S')
+
+ping_islandora(config)
 
 if 'check' in config.keys():
     if config['check']:

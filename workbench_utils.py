@@ -243,7 +243,8 @@ def ping_url_alias(config, url_alias):
 
 def ping_islandora(config):
     # First, test a known request that requires sufficient permissions.
-    url = config['host'] + '/islandora_workbench_integration/upload_max_filesize'
+    url = config['host'] + \
+        '/islandora_workbench_integration/upload_max_filesize'
     try:
         host_response = requests.get(
             config['host'],
@@ -426,8 +427,8 @@ def check_input(config, args):
             'id_field']
         for create_required_option in create_required_options:
             if create_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' + \
-                    joiner.join(create_options) + '.'
+                message = 'Please check your config file for required values: ' \
+                    + joiner.join(create_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'update':
@@ -441,8 +442,8 @@ def check_input(config, args):
             'input_csv']
         for update_required_option in update_required_options:
             if update_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' + \
-                    joiner.join(update_required_options) + '.'
+                message = 'Please check your config file for required values: ' \
+                    + joiner.join(update_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'delete':
@@ -455,8 +456,8 @@ def check_input(config, args):
             'input_csv']
         for delete_required_option in delete_required_options:
             if delete_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' + \
-                    joiner.join(delete_required_options) + '.'
+                message = 'Please check your config file for required values: ' \
+                    + joiner.join(delete_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'add_media':
@@ -471,8 +472,8 @@ def check_input(config, args):
             'drupal_filesystem']
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' + \
-                    joiner.join(add_media_required_options) + '.'
+                message = 'Please check your config file for required values: ' \
+                    + joiner.join(add_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
@@ -485,8 +486,8 @@ def check_input(config, args):
             'input_csv']
         for delete_media_required_option in delete_media_required_options:
             if delete_media_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' + \
-                    joiner.join(delete_media_required_options) + '.'
+                message = 'Please check your config file for required values: ' \
+                    + joiner.join(delete_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     message = 'OK, configuration file has all required values (did not check for optional values).'
@@ -539,8 +540,9 @@ def check_input(config, args):
                      "has more columns than there are headers (" +
                      str(len(csv_column_headers)) +
                      ").")
-    message = "OK, all " + \
-        str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ")."
+    message = "OK, all " \
+        + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + \
+        str(len(csv_column_headers)) + ")."
     print(message)
     logging.info(message)
 
@@ -819,8 +821,8 @@ def check_input(config, args):
                     config['input_dir'], file_check_row['file'])
                 if not os.path.exists(
                         file_path) or not os.path.isfile(file_path):
-                    message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value ' + \
-                        file_check_row[config['id_field']] + ' not found.'
+                    message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value ' \
+                        + file_check_row[config['id_field']] + ' not found.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
             message = 'OK, files named in the CSV "file" column are all present.'
@@ -866,8 +868,8 @@ def check_input(config, args):
             dir_path = os.path.join(
                 config['input_dir'], file_check_row[config['id_field']])
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
-                message = 'Page directory ' + dir_path + ' for CSV record with ID "' + \
-                    file_check_row[config['id_field']] + '"" not found.'
+                message = 'Page directory ' + dir_path + ' for CSV record with ID "' \
+                    + file_check_row[config['id_field']] + '"" not found.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
             page_files = os.listdir(dir_path)
@@ -950,8 +952,8 @@ def check_input_for_create_from_files(config, args):
         'input_dir']
     for create_required_option in create_required_options:
         if create_required_option not in config_keys:
-            message = 'Please check your config file for required values: ' + \
-                joiner.join(create_options) + '.'
+            message = 'Please check your config file for required values: ' \
+                + joiner.join(create_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
 
@@ -1137,8 +1139,8 @@ def validate_media_use_tid(config):
             sys.exit('Error: ' + message)
     else:
         # Confirm the tid exists and is in the islandora_media_use vocabulary
-        term_endpoint = config['host'] + '/taxonomy/term/' + \
-            str(config['media_use_tid']) + '?_format=json'
+        term_endpoint = config['host'] + '/taxonomy/term/' \
+            + str(config['media_use_tid']) + '?_format=json'
         headers = {'Content-Type': 'application/json'}
         response = issue_request(config, 'GET', term_endpoint, headers)
         if response.status_code == 404:
@@ -1334,8 +1336,8 @@ def remove_media_and_file(config, media_id):
             break
 
     # Delete the file first.
-    file_endpoint = config['host'] + '/entity/file/' + \
-        str(file_id) + '?_format=json'
+    file_endpoint = config['host'] + '/entity/file/' \
+        + str(file_id) + '?_format=json'
     file_response = issue_request(config, 'DELETE', file_endpoint)
     if file_response.status_code == 204:
         logging.info("File %s (from media %s) deleted.", file_id, media_id)
@@ -1348,8 +1350,8 @@ def remove_media_and_file(config, media_id):
 
     # Then the media.
     if file_response.status_code == 204:
-        media_endpoint = config['host'] + '/media/' + \
-            str(media_id) + '?_format=json'
+        media_endpoint = config['host'] + '/media/' \
+            + str(media_id) + '?_format=json'
         media_response = issue_request(config, 'DELETE', media_endpoint)
         if media_response.status_code == 204:
             logging.info("Media %s deleted.", media_id)
@@ -1423,8 +1425,8 @@ def get_term_id_from_uri(config, uri):
     """
     # Some vocabuluaries use this View.
     terms_with_uri = []
-    term_from_uri_url = config['host'] + \
-        '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
+    term_from_uri_url = config['host'] \
+        + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
     term_from_uri_response = issue_request(config, 'GET', term_from_uri_url)
     if term_from_uri_response.status_code == 200:
         term_from_uri_response_body_json = term_from_uri_response.text
@@ -1723,8 +1725,8 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                     message = 'CSV field "' + field_name + '" in record with ID ' + \
                         row[config['id_field']] + ' contains more values than the number '
                 if config['task'] == 'update':
-                    message = 'CSV field "' + field_name + '" in record with node ID ' + \
-                        row['node_id'] + ' contains more values than the number '
+                    message = 'CSV field "' + field_name + '" in record with node ID ' \
+                        + row['node_id'] + ' contains more values than the number '
                 if field_cardinalities[field_name] == 1 and len(
                         delimited_field_values) > 1:
                     message_2 = 'allowed for that field (' + str(
@@ -1956,8 +1958,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             if not namespaced:
                                 message = 'Term names in multi-vocabulary CSV field "' + \
                                     column_name + '" require a vocabulary namespace; value '
-                                message_2 = '"' + field_value + '" in row ' + \
-                                    str(count) + ' does not have one.'
+                                message_2 = '"' + field_value + '" in row ' \
+                                    + str(count) + ' does not have one.'
                                 logging.error(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
 
@@ -1973,8 +1975,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             message = 'CSV field "' + column_name + '" in row ' + \
                                 str(count) + ' contains a term ID (' + field_value + ') that is '
                             if len(this_fields_vocabularies) > 1:
-                                message_2 = 'not in one of the referenced vocabularies (' + \
-                                    this_fields_vocabularies_string + ').'
+                                message_2 = 'not in one of the referenced vocabularies (' \
+                                    + this_fields_vocabularies_string + ').'
                             else:
                                 message_2 = 'not in the referenced vocabulary ("' + \
                                     this_fields_vocabularies[0] + '").'
@@ -1989,11 +1991,11 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 message = 'CSV field "' + column_name + '" in row ' + \
                                     str(count) + ' contains a term URI (' + field_value + ') that is '
                                 if len(this_fields_vocabularies) > 1:
-                                    message_2 = 'not in one of the referenced vocabularies (' + \
-                                        this_fields_vocabularies_string + ').'
+                                    message_2 = 'not in one of the referenced vocabularies (' \
+                                        + this_fields_vocabularies_string + ').'
                                 else:
-                                    message_2 = 'not in the referenced vocabulary ("' + \
-                                        this_fields_vocabularies[0] + '").'
+                                    message_2 = 'not in the referenced vocabulary ("' \
+                                        + this_fields_vocabularies[0] + '").'
                                 logging.error(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
                         else:
@@ -2017,15 +2019,15 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                             field_value, str(count), column_name)
                                         message = 'CSV field "' + column_name + '" in row ' + \
                                             str(count) + ' contains a term ("' + field_value.strip() + '") that is '
-                                        message_2 = 'not in the referenced vocabulary ("' + \
-                                            this_fields_vocabularies[0] + '"). That term will be created.'
+                                        message_2 = 'not in the referenced vocabulary ("' \
+                                            + this_fields_vocabularies[0] + '"). That term will be created.'
                                         logging.warning(message + message_2)
                                 else:
                                     new_term_names_in_csv = True
                                     message = 'CSV field "' + column_name + '" in row ' + \
                                         str(count) + ' contains a term ("' + field_value.strip() + '") that is '
-                                    message_2 = 'not in the referenced vocabulary ("' + \
-                                        this_fields_vocabularies[0] + '").'
+                                    message_2 = 'not in the referenced vocabulary ("' \
+                                        + this_fields_vocabularies[0] + '").'
                                     logging.error(message + message_2)
                                     sys.exit('Error: ' + message + message_2)
 
@@ -2041,8 +2043,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     [namespace_vocab_id,
                                      namespaced_term_name] = split_field_value.split(':')
                                     if namespace_vocab_id not in this_fields_vocabularies:
-                                        message = 'CSV field "' + column_name + '" in row ' + \
-                                            str(count) + ' contains a namespaced term name '
+                                        message = 'CSV field "' + column_name + '" in row ' \
+                                            + str(count) + ' contains a namespaced term name '
                                         message_2 = '(' + namespaced_term_name.strip(
                                         ) + '") that specifies a vocabulary not associated with that field.'
                                         logging.error(message + message_2)
@@ -2059,8 +2061,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                             new_term_names_in_csv = True
                                             message = 'CSV field "' + column_name + '" in row ' + \
                                                 str(count) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                            message_2 = 'not in the referenced vocabulary ("' + \
-                                                namespace_vocab_id + '"). That term will be created.'
+                                            message_2 = 'not in the referenced vocabulary ("' \
+                                                + namespace_vocab_id + '"). That term will be created.'
                                             logging.warning(
                                                 message + message_2)
 
@@ -2072,8 +2074,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                         if tid is False:
                                             message = 'CSV field "' + column_name + '" in row ' + \
                                                 str(count) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                            message_2 = 'not in the referenced vocabulary ("' + \
-                                                namespace_vocab_id + '").'
+                                            message_2 = 'not in the referenced vocabulary ("' \
+                                                + namespace_vocab_id + '").'
                                             logging.warning(
                                                 message + message_2)
                                             sys.exit(
