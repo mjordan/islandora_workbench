@@ -241,40 +241,45 @@ def ping_url_alias(config, url_alias):
     return response.status_code
 
 
-def ping_islandora(config):
-    # First, test a known request that requires sufficient permissions.
+def ping_islandora(config, print_message=True):
+    # First, test a known request that requires Administrator-level permissions.
     url = config['host'] + \
         '/islandora_workbench_integration/upload_max_filesize'
     try:
-        host_response = requests.get(
-            config['host'],
-            allow_redirects=config['allow_redirects'],
-            headers={
-                'User-Agent': config['user_agent']})
-        host_response.raise_for_status()
-    except requests.exceptions.RequestException as error:
+        host_response = issue_request(config, 'GET', url)
+    except requests.exceptions.Timeout as err_timeout:
+        message = 'Workbench timed out trying to reach ' + \
+            config['host'] + '. Please verify the "host" setting in your configuration ' + \
+            'and check your network connection.'
+        logging.error(message)
+        logging.error(err_timeout)
+        sys.exit('Error: ' + message)
+    except requests.exceptions.ConnectionError as error_connection:
         message = 'Workbench cannot connect to ' + \
             config['host'] + '. Please verify the "host" setting in your configuration ' + \
             'and check your network connection.'
         logging.error(message)
+        logging.error(error_connection)
         sys.exit('Error: ' + message)
 
     not_authorized = [401, 403]
     if host_response.status_code in not_authorized:
         message = 'Workbench can connect to ' + \
             config['host'] + ' but the user "' + config['username'] + \
-            ' does not have sufficient permissions to continue.'
+            '" does not have sufficient permissions to continue, or the credentials are invalid.'
         logging.error(message)
         sys.exit('Error: ' + message)
 
     message = "OK, connection to Drupal verified."
-    print(message)
     logging.info(message)
+    if print_message is True:
+        print(message)
 
 
 def get_field_definitions(config):
     """Get field definitions from Drupal.
     """
+    ping_islandora(config, print_message=False)
     # For media, entity_type will need to be 'media' and bundle_type will need to be one of
     # 'image', 'document', 'audio', 'video', 'file'
     entity_type = 'node'
@@ -541,8 +546,8 @@ def check_input(config, args):
                      str(len(csv_column_headers)) +
                      ").")
     message = "OK, all " \
-        + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + \
-        str(len(csv_column_headers)) + ")."
+        + str(count) + " rows in the CSV file have the same number of columns as there are headers (" \
+        + str(len(csv_column_headers)) + ")."
     print(message)
     logging.info(message)
 
@@ -926,7 +931,7 @@ def check_input_for_create_from_files(config, args):
         config['task'],
         args.config)
 
-    ping_islandora(config)
+    ping_islandora(config, print_message=False)
 
     config_keys = list(config.keys())
     unwanted_in_create_from_files = [

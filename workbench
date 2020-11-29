@@ -1041,7 +1041,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%d-%b-%y %H:%M:%S')
 
-ping_islandora(config)
+ping_islandora(config, print_message=False)
 
 if 'check' in config.keys():
     if config['check']:
