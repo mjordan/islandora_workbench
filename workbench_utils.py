@@ -1893,6 +1893,10 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     # CSV.
     for column_name in csv_data.fieldnames:
         if column_name in field_definitions:
+            # Do not validate Typed Relation fields here, even though they reference vocabularies.
+            # Issue for validating them is https://github.com/mjordan/islandora_workbench/issues/41.
+            if field_definitions[column_name]['field_type'] == 'typed_relation':
+                continue
             if 'vocabularies' in field_definitions[column_name]:
                 vocabularies = get_field_vocabularies(
                     config, field_definitions, column_name)
