@@ -114,6 +114,7 @@ If you do this, Workbench will check the following and report any errors that re
    * If so, Workbench will validate whether taxonomy term IDs or term names (such as those used in `field_model`) exist in the referenced taxonomies.
 * Whether the term ID (or term URI) provided for `media_use_tid` is a member of the "Islandora Media Use" vocabulary.
 * Whether term ID and term URIs used in CSV fields correspond to existing terms.
+* Whether values used in typed relation fields are in the required format, and whether the term IDs used in the values exist in the vocabularies configured for the field.
 * Whether the length of new terms exceeds 255 characters, which is the maximum length for a term name.
 * Whether term names in your CSV require a vocabulary namespace.
 * If using the pages from directories configuration:
@@ -231,30 +232,6 @@ Drupal strictly enforces the maximum number of values allowed in a field. If the
 
 The subdelimiter character defaults to a pipe (`|`) but can be set in your config file using the `subdelimiter: ";"` option.
 
-#### Typed Relation fields
-
-Unlike most field types, which take a string or an integer as their value in the CSV file, fields that have the "Typed Relation" type take structured values that need to be entered in a specific way in the CSV file. An example of this type of field is the "Linked Agent" field in the Repository Item content type created by the Islandora Defaults module.
-
-The structure of values for this field encode a namespace (indicating the vocabulary the relation is from), a relation type, and a target ID (which identifies what the relation refers to, such as a specific taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an exmple):
-
-![Relations example](docs/images/relators.png)
-
-In the node edit form, this structure is represented as a select list of the types (the namespace is not shown) and, below that, an autocomplete field to indicate the relation target, e.g.:
-
-![Linked agent example](docs/images/linked_agent.png)
-
-To include these kind of values in a CSV field, we need to use a structured string as described above (namespace:relationtype:targetid). For example:
-
-`relators:art:30`
-
-> Note that the structure required for typed relation values in the CSV file is not the same as the structure of the relations configuration depicted in the first screenshot above; the CSV values use only colons to seprate the three parts, but the field configuration uses a colon and then a pipe (|) to structure its values.
-
-In this example of a CSV value, `relators` is the namespace that the relation type `art` is from (the Library of Congress [Relators](http://id.loc.gov/vocabulary/relators.html) vocabulary), and the target taxonomy term ID is `30`. In the screenshot above showing the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Jordan, Mark"):
-
-If you want to include multiple typed relation values in a single field of your CSV file (such as in "field_linked_agent"), separate the three-part values with the same subdelimiter character you use in other fields, e.g. (`|`) (or whatever you have configured as your `subdelimiter`):
-
-`relators:art:30|relators:art:45`
-
 ### Taxonomy fields
 
 In CSV columns for taxonomy fields, you can use either term IDs (integers) or term names (strings). You can even mix IDs and names in the same field:
@@ -334,6 +311,30 @@ Using term URIs has some constraints:
 
 * You cannot create a new term by providing a URI like you can by providing a term name.
 * If the same URI is registered with more than one term, Workbench will choose one and write a warning to the log indicating which term it chose and which terms the URI is registered with. However, `--check` will detect that a URI is registered with more than one term and warn you. At that point you can edit your CSV file to use the correct term ID rather than the URI.
+
+### Typed Relation fields
+
+Unlike most field types, which take a string or an integer as their value in the CSV file, fields that have the "Typed Relation" type take structured values that need to be entered in a specific way in the CSV file. An example of this type of field is the "Linked Agent" field in the Repository Item content type created by the Islandora Defaults module.
+
+The structure of values for this field encode a namespace (indicating the vocabulary the relation is from), a relation type, and a target ID (which identifies what the relation refers to, such as a specific taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an exmple):
+
+![Relations example](docs/images/relators.png)
+
+In the node edit form, this structure is represented as a select list of the types (the namespace is not shown) and, below that, an autocomplete field to indicate the relation target, e.g.:
+
+![Linked agent example](docs/images/linked_agent.png)
+
+To include these kind of values in a CSV field, we need to use a structured string as described above (namespace:relationtype:targetid). For example:
+
+`relators:art:30`
+
+> Note that the structure required for typed relation values in the CSV file is not the same as the structure of the relations configuration depicted in the first screenshot above; the CSV values use only colons to seprate the three parts, but the field configuration uses a colon and then a pipe (|) to structure its values.
+
+In this example of a CSV value, `relators` is the namespace that the relation type `art` is from (the Library of Congress [Relators](http://id.loc.gov/vocabulary/relators.html) vocabulary), and the target taxonomy term ID is `30`. In the screenshot above showing the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Jordan, Mark"):
+
+If you want to include multiple typed relation values in a single field of your CSV file (such as in "field_linked_agent"), separate the three-part values with the same subdelimiter character you use in other fields, e.g. (`|`) (or whatever you have configured as your `subdelimiter`):
+
+`relators:art:30|relators:art:45`
 
 ### Geolocation fields
 
@@ -705,6 +706,7 @@ autopep8 is useful for bringing your code into compliance:
 Also provide tests where applicable. Tests in Workbench fall into two categories:
 
 * integration tests that require a live Islandora instance, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
+   * the [Islandora Playbook](https://github.com/Islandora-Devops/islandora-playbook) is recommended way to deploy the Isladdora used in these tests.
 * unit tests (that do not require Islandora) which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
 * if you want to run the tests within a specific class in one of these files, include the class name like this: `python3 tests/unit_tests.py TestCompareStings`
 

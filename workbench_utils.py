@@ -1130,10 +1130,12 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
        pattern: string:string:int. Also validate that the term ID exists.
        See issue #41.
     """
+    typed_relation_fields_present = False
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
             if field_definitions[field_name]['field_type'] == 'typed_relation' and 'typed_relations' in field_definitions[field_name]:
                 if field_name in row:
+                    typed_relation_fields_present = True
                     delimited_field_values = row[field_name].split(
                         config['subdelimiter'])
                     for field_value in delimited_field_values:
@@ -1152,26 +1154,28 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
                         headers = {'Content-Type': 'application/json'}
                         response = issue_request(config, 'GET', term_endpoint, headers)
                         if response.status_code == 404:
-                            message = 'Term ID "' + str(config['media_use_tid']) + '" used in field ' + \
-                                    field_name + ' in row ' + str(count) + ' (' + field_value + ') does not exist.'
+                            message = 'Term ID "' + str(typed_relation_value_parts[2]) + '" used in field "' + \
+                                field_name + '" in row ' + str(count) + ' (' + field_value + ') does not exist.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
                         if response.status_code == 200:
-                            #### print(field_definitions[field_name])
                             response_body = json.loads(response.text)
                             if 'vid' in response_body:
                                 terms_vocabulary = response_body['vid'][0]['target_id']
-                                if terms_vocabulary not in field_definitions[field_name]['vocabularies']:
-                                    message = 'Term ID "' + str(config['media_use_tid']) + '" used in field ' + \
-                                        field_name + ' in row ' + str(count) + ' (' + field_value + ') is not ' + \
-                                        'in one of the field\'s configured vocabularies.'
+                                this_fields_vocabularies = field_definitions[field_name]['vocabularies']
+                                if terms_vocabulary not in this_fields_vocabularies:
+                                    this_fields_vocabularies_string = ', '.join(this_fields_vocabularies)
+                                    message = 'Term ID "' + str(typed_relation_value_parts[2]) + '" used in field "' + \
+                                        field_name + '" in row ' + str(count) + ' (' + field_value + ') is not ' + \
+                                        'in one of the field\'s configured vocabularies (' + this_fields_vocabularies_string + ').'
                                     logging.error(message)
                                     sys.exit('Error: ' + message)
 
     # All term IDs are in their field's vocabularies.
-    message = "OK, typed relation field values in the CSV file validate."
-    print(message)
-    logging.info(message)
+    if typed_relation_fields_present is True:
+        message = "OK, typed relation field values in the CSV file validate."
+        print(message)
+        logging.info(message)
 
 
 def validate_media_use_tid(config):
