@@ -319,6 +319,8 @@ def get_field_definitions(config):
             field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
         else:
             field_definitions[fieldname]['target_type'] = None
+        if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
+            field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
 
     return field_definitions
 
@@ -713,9 +715,12 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
 
     if config['task'] == 'update' or config['task'] == 'create':
-        # Validate values in fields that are of type 'typed_relation'. Each value (don't forget multivalued fields) needs to have
-        # this pattern: string:string:int.
-        validate_typed_relation_values(config, field_definitions, csv_data)
+        validate_csv_typed_relation_values_csv_data = get_csv_data(
+            config['input_dir'], config['input_csv'], config['delimiter'])
+        validate_typed_relation_values(
+            config,
+            field_definitions,
+            validate_csv_typed_relation_values_csv_data)
 
         validate_csv_field_cardinality_csv_data = get_csv_data(
             config['input_dir'], config['input_csv'], config['delimiter'])
@@ -1122,12 +1127,51 @@ def split_geolocation_string(config, geolocation_string):
 def validate_typed_relation_values(config, field_definitions, csv_data):
     """Validate values in fields that are of type 'typed_relation'.
        Each value (don't forget multivalued fields) must have this
-       pattern: string:string:int.
+       pattern: string:string:int. Also validate that the term ID exists.
+       See issue #41.
     """
-    # @todo: Complete this function: validate that the relations are from
-    # the list configured in the field config, and validate that the target
-    # ID exists in the linked taxonomy. See issue #41.
-    pass
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]['field_type'] == 'typed_relation' and 'typed_relations' in field_definitions[field_name]:
+                if field_name in row:
+                    delimited_field_values = row[field_name].split(
+                        config['subdelimiter'])
+                    for field_value in delimited_field_values:
+                        # First check the required pattern: string:string:int.
+                        if not re.match("^[a-zA-Z]+:[a-zA-Z]+:[0-9]+$", field_value.strip()):
+                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                ' (' + field_value + ') does not use the pattern required for typed relation fields.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+
+                        # Then check to see if the relator string (the first two parts of the
+                        # value) exist in the field_definitions[fieldname]['typed_relations'] list.
+                        typed_relation_value_parts = field_value.split(':')
+                        term_endpoint = config['host'] + '/taxonomy/term/' \
+                            + str(typed_relation_value_parts[2]) + '?_format=json'
+                        headers = {'Content-Type': 'application/json'}
+                        response = issue_request(config, 'GET', term_endpoint, headers)
+                        if response.status_code == 404:
+                            message = 'Term ID "' + str(config['media_use_tid']) + '" used in field ' + \
+                                    field_name + ' in row ' + str(count) + ' (' + field_value + ') does not exist.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                        if response.status_code == 200:
+                            #### print(field_definitions[field_name])
+                            response_body = json.loads(response.text)
+                            if 'vid' in response_body:
+                                terms_vocabulary = response_body['vid'][0]['target_id']
+                                if terms_vocabulary not in field_definitions[field_name]['vocabularies']:
+                                    message = 'Term ID "' + str(config['media_use_tid']) + '" used in field ' + \
+                                        field_name + ' in row ' + str(count) + ' (' + field_value + ') is not ' + \
+                                        'in one of the field\'s configured vocabularies.'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
+
+    # All term IDs are in their field's vocabularies.
+    message = "OK, typed relation field values in the CSV file validate."
+    print(message)
+    logging.info(message)
 
 
 def validate_media_use_tid(config):
@@ -1885,7 +1929,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     """Loop through all fields in field_definitions, and if a field
        is a taxonomy reference field, validate all values in the CSV
        data in that field against term IDs in the taxonomies referenced
-       by the field.
+       by the field. Does not validate Typed Relation fields.
     """
     # Define a dictionary to store CSV field: term IDs mappings.
     fields_with_vocabularies = dict()
