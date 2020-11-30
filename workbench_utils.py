@@ -262,6 +262,12 @@ def ping_islandora(config, print_message=True):
         logging.error(error_connection)
         sys.exit('Error: ' + message)
 
+    if host_response.status_code == 404:
+        message = 'Workbench cannot detect whether the Islandora Workbench Integration module is ' + \
+            'enabled on ' + config['host'] + '. Please ensure it is enabled.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
     not_authorized = [401, 403]
     if host_response.status_code in not_authorized:
         message = 'Workbench can connect to ' + \

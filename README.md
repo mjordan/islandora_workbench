@@ -109,9 +109,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether each row contains the same number of columns as there are column headers.
 * Whether the nodes refrenced in `field_member_of` (if that field is present in the CSV) exist.
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
-* Whether your Islandora has the [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled.
-   * If not, Workbench will recommend that you enable it.
-   * If so, Workbench will validate whether taxonomy term IDs or term names (such as those used in `field_model`) exist in the referenced taxonomies.
+* Whether your Islandora has the required [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled.
 * Whether the term ID (or term URI) provided for `media_use_tid` is a member of the "Islandora Media Use" vocabulary.
 * Whether term ID and term URIs used in CSV fields correspond to existing terms.
 * Whether values used in typed relation fields are in the required format, and whether the term IDs used in the values exist in the vocabularies configured for the field.
