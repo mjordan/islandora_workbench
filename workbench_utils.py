@@ -1146,9 +1146,18 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-                        # Then check to see if the relator string (the first two parts of the
+                        # Then, check to see if the relator string (the first two parts of the
                         # value) exist in the field_definitions[fieldname]['typed_relations'] list.
                         typed_relation_value_parts = field_value.split(':')
+                        relator_string = typed_relation_value_parts[0] + ':' + typed_relation_value_parts[1]
+                        if relator_string not in field_definitions[field_name]['typed_relations']:
+                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                ' contains a relator (' + relator_string + ') that is not configured for that field.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+
+                        # Finally, check to see if the term ID exists and is a member of one of the
+                        # vocabularies referenced by the current field.
                         term_endpoint = config['host'] + '/taxonomy/term/' \
                             + str(typed_relation_value_parts[2]) + '?_format=json'
                         headers = {'Content-Type': 'application/json'}
