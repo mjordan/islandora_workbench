@@ -326,13 +326,15 @@ To include these kind of values in a CSV field, we need to use a structured stri
 
 `relators:art:30`
 
-> Note that the structure required for typed relation values in the CSV file is not the same as the structure of the relations configuration depicted in the first screenshot above; the CSV values use only colons to seprate the three parts, but the field configuration uses a colon and then a pipe (|) to structure its values.
+> Note that the structure required for typed relation values in the CSV file is not the same as the structure of the relations configuration depicted in the first screenshot above; the CSV values use only colons to seprate the three parts, but the field configuration within Drupal uses a colon and then a pipe (|) to structure its values.
 
 In this example of a CSV value, `relators` is the namespace that the relation type `art` is from (the Library of Congress [Relators](http://id.loc.gov/vocabulary/relators.html) vocabulary), and the target taxonomy term ID is `30`. In the screenshot above showing the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Jordan, Mark"):
 
 If you want to include multiple typed relation values in a single field of your CSV file (such as in "field_linked_agent"), separate the three-part values with the same subdelimiter character you use in other fields, e.g. (`|`) (or whatever you have configured as your `subdelimiter`):
 
 `relators:art:30|relators:art:45`
+
+Note that currently you cannot create new values for Typed Relation fields from your CSV data; all values must exist in Drupal already. But, there is an [enhancement request](https://github.com/mjordan/islandora_workbench/issues/110) open for this feature.
 
 ### Geolocation fields
 
