@@ -705,9 +705,9 @@ autopep8 is useful for bringing your code into compliance:
 
 Also provide tests where applicable. Tests in Workbench fall into two categories:
 
-* integration tests that require a live Islandora instance, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
-   * the [Islandora Playbook](https://github.com/Islandora-Devops/islandora-playbook) is recommended way to deploy the Isladdora used in these tests.
 * unit tests (that do not require Islandora) which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
+* integration tests that require a live Islandora instance, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
+   * the [Islandora Playbook](https://github.com/Islandora-Devops/islandora-playbook) is recommended way to deploy the Islandora used in these tests.
 * if you want to run the tests within a specific class in one of these files, include the class name like this: `python3 tests/unit_tests.py TestCompareStings`
 
 Note that if an Islandora integration test fails, nodes and taxonomy terms created by the test before it fails may not be removed from Islandora.
