@@ -508,7 +508,10 @@ def check_input(config, args):
     logging.info(message)
 
     # Check existence of CSV file.
-    input_csv = os.path.join(config['input_dir'], config['input_csv'])
+    if os.path.isabs(config['input_csv']):
+        input_csv = config['input_csv']
+    else:
+        input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
         message = 'OK, CSV file ' + input_csv + ' found.'
         print(message)
@@ -1438,7 +1441,10 @@ def remove_media_and_file(config, media_id):
 def get_csv_data(input_dir, input_csv, delimiter):
     """Read the input CSV file once and cache its contents.
     """
-    input_csv_path = os.path.join(input_dir, input_csv)
+    if os.path.isabs(input_csv):
+        input_csv_path = input_csv
+    else:
+        input_csv_path = os.path.join(input_dir, input_csv)
     if not os.path.exists(input_csv_path):
         messsage = 'Error: CSV file ' + input_csv_path + 'not found.'
         logging.error(message)

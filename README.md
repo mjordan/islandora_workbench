@@ -58,7 +58,7 @@ The settings defined in a configuration file are:
 | password |  ✔️ | | The user's password. |
 | content_type |  ✔️ | | The machine name of the Drupal node content type you are creating or updating. |
 | input_dir |  ✔️ | | The full or relative path to the directory containing the files and metadata CSV file. |
-| input_csv |  ✔️ | | The name of the CSV metadata file, which must be in the directory named in `input_dir`. |
+| input_csv |  ✔️ | | Path to the CSV metadata file. Can be absolute, or if just the filename is provided, will be assumed to be in the directory named in `input_dir`. |
 | log_file_path | | workbench.log | The path to the log file, absolute or relative to `workbench`. See the "Logging" section below for more information. |
 | id_field |  | id | The name of the field in the CSV that uniquely identifies each record. |
 | delimiter |  | , [comma]| The delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",". |
