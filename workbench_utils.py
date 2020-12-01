@@ -548,12 +548,12 @@ def check_input(config, args):
                      str(len(csv_column_headers)) +
                      ").")
         if len(csv_column_headers) < string_field_count:
-            logging.error("Row %s of your CSV file has more columns than there are headers " +
+            logging.error("Row %s of your CSV file has more columns (%s) than there are headers " +
                           "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
             sys.exit("Error: Row " +
                      str(count) +
                      " of your CSV file " +
-                     "has more columns than there are headers (" +
+                     "has more columns (" + str(string_field_count) + ") than there are headers (" +
                      str(len(csv_column_headers)) +
                      ").")
     message = "OK, all " \

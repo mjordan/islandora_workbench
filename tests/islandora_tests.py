@@ -24,7 +24,6 @@ class TestCheckCreate(unittest.TestCase):
 
     def test_create_check(self):
         lines = self.output.splitlines()
-        self.assertEqual(len(lines), 9)
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
 
@@ -37,7 +36,6 @@ class TestCheckUpdate(unittest.TestCase):
 
     def test_create_check(self):
         lines = self.output.splitlines()
-        self.assertEqual(len(lines), 6)
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
 
@@ -50,7 +48,6 @@ class TestCheckDelete(unittest.TestCase):
 
     def test_create_check(self):
         lines = self.output.splitlines()
-        self.assertEqual(len(lines), 5)
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
 
@@ -63,8 +60,37 @@ class TestCheckAddMedia(unittest.TestCase):
 
     def test_create_check(self):
         lines = self.output.splitlines()
-        self.assertEqual(len(lines), 6)
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
+
+
+class TestTypedRelationCheck(unittest.TestCase):
+
+    def test_create_check_fail(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'bad_typed_relation.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        try:
+            output = subprocess.check_output(cmd)
+            output = output.decode().strip()
+            lines = output.splitlines()
+            self.assertRegex(output, 'does not use the pattern required for typed relation fields', '')
+        except subprocess.CalledProcessError as err:
+            pass
+
+
+class TestHeaderColumnMismatch(unittest.TestCase):
+
+    def test_header_column_mismatch_fail(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(current_dir, 'assets', 'header_column_mismatch_test', 'create.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        try:
+            output = subprocess.check_output(cmd)
+            output = output.decode().strip()
+            lines = output.splitlines()
+            self.assertRegex(output, 'Row 2 of your CSV file does not', '')
+        except subprocess.CalledProcessError as err:
+            pass
 
 
 class TestExecuteBootstrapScript(unittest.TestCase):
