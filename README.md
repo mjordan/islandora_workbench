@@ -247,6 +247,7 @@ Note that:
 
 * The URL in the configuration file will need single or double quotes around it, like any other value that contains a colon.
 * The Google spreadsheet must be publicly readable, e.g. with "Anyone on the Internet with this link can view" or "Anyone on the Internet with this link can edit" permission.
+* Spreadsheets work best for descriptive metadata if all cells are formatted as "Plain text" (in Sheets, select all cells, then choose the menu items Format > Number > Plain text).
 * The worksheet that the CSV data is taken from the the first one in the spreadsheet (i.e., the one named in the leftmost tab).
 * All of the columns required in a local CSV file are also required in the Google spreadsheet.
 * The values in the `file` column of the spreadsheet point to files within your local `input_directory`, just like they do in a local CSV input file.
@@ -376,7 +377,10 @@ field_coordinates
 "49.16667,-123.93333|49.25,-124.8"
 ```
 
-Notice that these fields need to be wrapped in double quotation marks, unless the `delimiter` key in your configuration file is set to something other than a comma.
+Note that:
+
+* Geocoordinate fields need to be wrapped in double quotation marks, unless the `delimiter` key in your configuration file is set to something other than a comma.
+* If you are entering geocoordinates into a spreadsheet, a leading `+` will make the spreadsheet application think you are entering a formula. You can work around this by escaping the `+` with a backslash (`\`), e.g., `49.16667,-123.93333` should be `\+49.16667,-123.93333`, and `49.16667,-123.93333|49.25,-124.8` should be `\+49.16667,-123.93333|\+49.25,-124.8`. Workbench will strip the leading `\` before it populates the Drupal fields.
 
 ## Assigning URL aliases to nodes
 
