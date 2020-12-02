@@ -514,7 +514,9 @@ def check_input(config, args):
         input_csv = config['input_csv']
     elif config['input_csv'].startswith('http'):
         input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-        print("Saving data from " + config['input_csv'] + " to " + input_csv + '.')
+        message = "Saving data from " + config['input_csv'] + " to " + input_csv + '.'
+        print(message)
+        logging.info(message)
     else:
         input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
@@ -2355,6 +2357,20 @@ def download_google_sheet(config):
     url_parts = config['input_csv'].split('/')
     url_parts[6] = 'export?gid=0&format=csv'
     csv_url = '/'.join(url_parts)
-    result = requests.get(url=csv_url, allow_redirects=True)
+    response = requests.get(url=csv_url, allow_redirects=True)
+
+    if response.status_code == 404:
+        message = 'Workbench cannot find the Google spreadsheet at ' + \
+            config['input_csv'] + '. Please check the URL.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    not_authorized = [401, 403]
+    if response.status_code in not_authorized:
+        message = 'The Google spreadsheet at ' + config['input_csv'] + \
+            ' is not accessible. Please check its "Share" settings.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
     input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-    open(input_csv_path, 'wb+').write(result.content)
+    open(input_csv_path, 'wb+').write(response.content)
