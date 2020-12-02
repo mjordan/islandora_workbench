@@ -233,7 +233,7 @@ The subdelimiter character defaults to a pipe (`|`) but can be set in your confi
 
 ### Using Google Sheets as input data
 
-Workbench can fetch the CSV version of a Google spreadsheet and use it as its input CSV. You enable this by using the URL to the Google spreadsheet in your configuration file's `input_csv` option, like this:
+Workbench can fetch the CSV version of a Google spreadsheet and use it as its input CSV. To do this, simply procide the URL to the Google spreadsheet in your configuration file's `input_csv` option, like this:
 
 ```yaml
 input_csv: 'https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0'
