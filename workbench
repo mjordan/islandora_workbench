@@ -21,6 +21,7 @@ def create():
 
     logging.info('"Create" task started using config file %s', args.config)
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
+    print(input_csv)
     if os.path.exists(input_csv):
         # Store a dictionary of id_field values: node IDs so we can add child
         # nodes.
