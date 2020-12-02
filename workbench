@@ -1043,6 +1043,9 @@ logging.basicConfig(
 
 ping_islandora(config, print_message=False)
 
+if config['input_csv'].startswith('http') is True:
+    download_google_sheet(config)
+
 if 'check' in config.keys():
     if config['check']:
         if config['task'] == 'create_from_files':

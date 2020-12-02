@@ -59,6 +59,7 @@ The settings defined in a configuration file are:
 | content_type |  ✔️ | | The machine name of the Drupal node content type you are creating or updating. |
 | input_dir |  ✔️ | | The full or relative path to the directory containing the files and metadata CSV file. |
 | input_csv |  ✔️ | | Path to the CSV metadata file. Can be absolute, or if just the filename is provided, will be assumed to be in the directory named in `input_dir`. |
+| google_sheets_csv_filename |  | google_sheet.csv | Local CSV filename for data from a Google spreadsheet. See the "Using Google Sheets as input data" section below for more information. |
 | log_file_path | | workbench.log | The path to the log file, absolute or relative to `workbench`. See the "Logging" section below for more information. |
 | id_field |  | id | The name of the field in the CSV that uniquely identifies each record. |
 | delimiter |  | , [comma]| The delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",". |
@@ -229,6 +230,26 @@ IMG_2549.jp2,Manhatten Island,34|56|28
 Drupal strictly enforces the maximum number of values allowed in a field. If the number of values in your CSV file for a field exceed a field's configured maximum number of fields, Workbench will only populate the field to the field's configured limit.
 
 The subdelimiter character defaults to a pipe (`|`) but can be set in your config file using the `subdelimiter: ";"` option.
+
+### Using Google Sheets as input data
+
+Workbench can fetch the CSV version of a Google spreadsheet and use it a its input CSV. You enable this by using the URL to the Google spreadsheet in your configuration file's `input_csv` option, like this:
+
+```yaml
+input_csv: 'https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0'
+```
+
+Workbench fetches the CSV content of the spreadsheet and writes it to a local file in the directory named in your `input_directory`. The default filename for this CSV file is `google_sheet.csv` but you can change it if you need to by including the `google_sheets_csv_filename` option in your configuration file, e.g., `google_sheets_csv_filename: my_filename.csv`.
+
+Islandora Workbench fetches a new copy of the CSV data every time it runs, so if you make a change to the local version of the data, that change will be overwritten with the data from the Google spreadsheet the next time you run Workbench (even with the `--check` option). If you don't want to overwrite your local copy of the data, rename the local CSV file manually before running Workbench.
+
+Note that:
+
+* The URL will need single or double quotes around it.
+* The Google spreadsheet must be publicly readable, e.g. with "Anyone on the Internet with this link can view" or "Anyone on the Internet with this link can view" permission.
+* The worksheet that the CSV data is taken from the the first one in the spreadsheet (i.e., the one named in the leftmost tab).
+* All of the columns required in a local CSV file are also required in the Google spreadsheet.
+* Your `input_csv` configuration option can use either the URL you copy from your browser's URL field, or the "sharing" URL you copy into your clipboard from within the "Share" dialog box.
 
 ### Taxonomy fields
 
