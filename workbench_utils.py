@@ -29,8 +29,9 @@ def set_config_defaults(args):
         logging.error(message)
         sys.exit(message)
 
-    config_file_contents = open(args.config).read()
-    config_data = yaml.load(config_file_contents)
+    with open(args.config, 'r') as f:
+        config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
 
     config = {}
     for k, v in config_data.items():

@@ -7,6 +7,7 @@ import os
 from ruamel.yaml import YAML
 import tempfile
 import subprocess
+import argparse
 import requests
 import json
 import unittest
@@ -402,6 +403,26 @@ class TestTaxonomies (unittest.TestCase):
         delete_output = delete_output.decode().strip()
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
+
+
+class TestTermFromUri(unittest.TestCase):
+
+    def test_term_from_uri(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(current_dir, 'assets', 'createtest', 'create.yml')
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--config')
+        parser.add_argument('--check')
+        # If we don't add this argument, we get an "unrecognized arguments: TestTermFromUri"
+        # error when running this test class on its own, e.g., python3 tests/islandora_tests.py TestTermFromUri.
+        parser.add_argument('TestTermFromUri')
+        parser.set_defaults(config=config_file_path, check=False)
+        args = parser.parse_args()
+        config = workbench_utils.set_config_defaults(args)
+
+        tid = workbench_utils.get_term_id_from_uri(config, 'http://mozilla.github.io/pdf.js')
+        self.assertEqual(tid, 3)
 
 
 if __name__ == '__main__':
