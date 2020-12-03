@@ -406,6 +406,8 @@ class TestTaxonomies (unittest.TestCase):
 
 
 class TestTermFromUri(unittest.TestCase):
+    # Note: You can't run this test class on its own, e.g.,
+    # python3 tests/islandora_tests.py TestTermFromUri.
 
     def test_term_from_uri(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -414,9 +416,6 @@ class TestTermFromUri(unittest.TestCase):
         parser = argparse.ArgumentParser()
         parser.add_argument('--config')
         parser.add_argument('--check')
-        # If we don't add this argument, we get an "unrecognized arguments: TestTermFromUri"
-        # error when running this test class on its own, e.g., python3 tests/islandora_tests.py TestTermFromUri.
-        parser.add_argument('TestTermFromUri')
         parser.set_defaults(config=config_file_path, check=False)
         args = parser.parse_args()
         config = workbench_utils.set_config_defaults(args)
