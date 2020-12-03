@@ -251,7 +251,7 @@ Note that:
 * All of the columns required in a local CSV file are also required in the Google spreadsheet.
 * The URL in the configuration file needs single or double quotes around it, like any other value that contains a colon.
 * You can use either the URL you copy from your browser when you are viewing the spreadsheet (which ends in "/edit#gid=0" or something similar), or the "sharing" URL you copy into your clipboard from within the "Share" dialog box (which ends in "edit?usp=sharing"). Either is OK.
-* The Google spreadsheet must be publicly readable, e.g. with "Anyone on the Internet with this link can view" or "Anyone on the Internet with this link can edit" permission.
+* The Google spreadsheet must be publicly readable, e.g. with "Anyone on the Internet with this link can view" permission.
 * Spreadsheets work best for descriptive metadata if all cells are formatted as "Plain text". To do this, in Sheets, select all cells, then choose the menu items Format > Number > Plain text *before adding any content to the cells*.
 * The worksheet that the CSV data is taken from is the first one in the spreadsheet (i.e., the one named in the left-most tab).
 * The values in the `file` column of the spreadsheet point to files within your local `input_directory`, just like they do in a local CSV input file.
