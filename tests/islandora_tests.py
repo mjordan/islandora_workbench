@@ -16,6 +16,23 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
 
 
+class TestCheckFunction(unittest.TestCase):
+
+    def test_strings_match(self):
+        res = workbench_utils.compare_strings('foo', 'foo  ')
+        self.assertTrue(res)
+        res = workbench_utils.compare_strings('foo', 'Foo')
+        self.assertTrue(res)
+        res = workbench_utils.compare_strings('foo', 'Foo#~^.')
+        self.assertTrue(res)
+        res = workbench_utils.compare_strings('foo bar baz', 'foo   bar baz')
+        self.assertTrue(res)
+
+    def test_strings_do_not_match(self):
+        res = workbench_utils.compare_strings('foo', 'foot')
+        self.assertFalse(res)
+
+
 class TestCheckCreate(unittest.TestCase):
 
     def setUp(self):
@@ -25,6 +42,19 @@ class TestCheckCreate(unittest.TestCase):
 
     def test_create_check(self):
         lines = self.output.splitlines()
+        self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
+
+
+class TestCheckCreateFromGoogleSpreadsheet(unittest.TestCase):
+
+    def setUp(self):
+        cmd = ["./workbench", "--config", "google_spreadsheet.yml", "--check"]
+        output = subprocess.check_output(cmd)
+        self.output = output.decode().strip()
+
+    def test_create_check(self):
+        lines = self.output.splitlines()
+        self.assertRegex(self.output, 'Saving data from https://docs.google.com', '')
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
 

@@ -19,6 +19,9 @@ def create():
     """
     prep_rollback_csv(config)
 
+    if config['input_csv'].startswith('http') is True:
+        config['input_csv'] = config['google_sheets_csv_filename']
+
     logging.info('"Create" task started using config file %s', args.config)
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
@@ -450,6 +453,9 @@ def update():
        so if we are adding an additional value to a multivalued field, we need
        to include the existing value(s) in our PATCH.
     """
+    if config['input_csv'].startswith('http') is True:
+        config['input_csv'] = config['google_sheets_csv_filename']
+
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
         field_definitions = get_field_definitions(config)
@@ -815,6 +821,9 @@ def update():
 def delete():
     """Delete nodes.
     """
+    if config['input_csv'].startswith('http') is True:
+        config['input_csv'] = config['google_sheets_csv_filename']
+
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
         with open(input_csv) as csvfile:
@@ -867,6 +876,9 @@ def delete():
 def add_media():
     """Add media to existing nodes using PUT.
     """
+    if config['input_csv'].startswith('http') is True:
+        config['input_csv'] = config['google_sheets_csv_filename']
+
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
         with open(input_csv) as csvfile:
@@ -908,6 +920,9 @@ def add_media():
 def delete_media():
     """Delete media.
     """
+    if config['input_csv'].startswith('http') is True:
+        config['input_csv'] = config['google_sheets_csv_filename']
+
     input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
         with open(input_csv) as csvfile:
@@ -1042,6 +1057,9 @@ logging.basicConfig(
     datefmt='%d-%b-%y %H:%M:%S')
 
 ping_islandora(config, print_message=False)
+
+if config['input_csv'].startswith('http') is True:
+    download_google_sheet(config)
 
 if 'check' in config.keys():
     if config['check']:

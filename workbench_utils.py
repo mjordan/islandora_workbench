@@ -64,6 +64,8 @@ def set_config_defaults(args):
         config['user_agent'] = 'Islandora Workbench'
     if 'allow_redirects' not in config:
         config['allow_redirects'] = True
+    if 'google_sheets_csv_filename' not in config:
+        config['google_sheets_csv_filename'] = 'google_sheet.csv'
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -520,6 +522,11 @@ def check_input(config, args):
     # Check existence of CSV file.
     if os.path.isabs(config['input_csv']):
         input_csv = config['input_csv']
+    elif config['input_csv'].startswith('http'):
+        input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+        message = "Saving data from " + config['input_csv'] + " to " + input_csv + '.'
+        print(message)
+        logging.info(message)
     else:
         input_csv = os.path.join(config['input_dir'], config['input_csv'])
     if os.path.exists(input_csv):
@@ -532,10 +539,7 @@ def check_input(config, args):
         sys.exit('Error: ' + message)
 
     # Check column headers in CSV file.
-    csv_data = get_csv_data(
-        config['input_dir'],
-        config['input_csv'],
-        config['delimiter'])
+    csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
     # Check whether each row contains the same number of columns as there are
@@ -595,8 +599,7 @@ def check_input(config, args):
                 print(message)
                 logging.info(message)
         if 'url_alias' in csv_column_headers:
-            validate_url_aliases_csv_data = get_csv_data(
-                config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_url_aliases_csv_data = get_csv_data(config)
             validate_url_aliases(config, validate_url_aliases_csv_data)
 
         # Specific to creating paged content. Current, if 'parent_id' is
@@ -678,13 +681,11 @@ def check_input(config, args):
 
         # Validate dates in 'created' field, if present.
         if 'created' in csv_column_headers:
-            validate_node_created_csv_data = get_csv_data(
-                config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_node_created_csv_data = get_csv_data(config)
             validate_node_created_date(validate_node_created_csv_data)
         # Validate user IDs in 'uid' field, if present.
         if 'uid' in csv_column_headers:
-            validate_node_uid_csv_data = get_csv_data(
-                config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_node_uid_csv_data = get_csv_data(config)
             validate_node_uid(config, validate_node_uid_csv_data)
 
     if config['task'] == 'update':
@@ -693,8 +694,7 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
         if 'url_alias' in csv_column_headers:
-            validate_url_aliases_csv_data = get_csv_data(
-                config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_url_aliases_csv_data = get_csv_data(config)
             validate_url_aliases(config, validate_url_aliases_csv_data)
         field_definitions = get_field_definitions(config)
         drupal_fieldnames = []
@@ -734,22 +734,19 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
 
     if config['task'] == 'update' or config['task'] == 'create':
-        validate_csv_typed_relation_values_csv_data = get_csv_data(
-            config['input_dir'], config['input_csv'], config['delimiter'])
+        validate_csv_typed_relation_values_csv_data = get_csv_data(config)
         validate_typed_relation_values(
             config,
             field_definitions,
             validate_csv_typed_relation_values_csv_data)
 
-        validate_csv_field_cardinality_csv_data = get_csv_data(
-            config['input_dir'], config['input_csv'], config['delimiter'])
+        validate_csv_field_cardinality_csv_data = get_csv_data(config)
         validate_csv_field_cardinality(
             config,
             field_definitions,
             validate_csv_field_cardinality_csv_data)
 
-        validate_csv_field_length_csv_data = get_csv_data(
-            config['input_dir'], config['input_csv'], config['delimiter'])
+        validate_csv_field_length_csv_data = get_csv_data(config)
         validate_csv_field_length(
             config,
             field_definitions,
@@ -765,15 +762,13 @@ def check_input(config, args):
                 'Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
             print('Warning: Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
         else:
-            validate_taxonomy_field_csv_data = get_csv_data(
-                config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_taxonomy_field_csv_data = get_csv_data(config)
             validate_taxonomy_field_values(
                 config, field_definitions, validate_taxonomy_field_csv_data)
 
         # Validate length of 'title'.
         if config['validate_title_length']:
-            validate_title_csv_data = get_csv_data(
-                config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_title_csv_data = get_csv_data(config)
             for count, row in enumerate(validate_title_csv_data, start=1):
                 if len(row['title']) > 255:
                     message = "The 'title' column in row " + \
@@ -783,8 +778,7 @@ def check_input(config, args):
 
         # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
-        validate_field_member_of_csv_data = get_csv_data(
-            config['input_dir'], config['input_csv'], config['delimiter'])
+        validate_field_member_of_csv_data = get_csv_data(config)
         for count, row in enumerate(
                 validate_field_member_of_csv_data, start=1):
             if 'field_member_of' in csv_column_headers:
@@ -801,8 +795,7 @@ def check_input(config, args):
 
         # Validate 'langcode' values if that field exists in the CSV.
         if langcode_was_present:
-            validate_langcode_csv_data = get_csv_data(
-                config['input_dir'], config['input_csv'], config['delimiter'])
+            validate_langcode_csv_data = get_csv_data(config)
             for count, row in enumerate(validate_langcode_csv_data, start=1):
                 langcode_valid = validate_language_code(row['langcode'])
                 if not langcode_valid:
@@ -834,10 +827,7 @@ def check_input(config, args):
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] ==
             'add_media') and config['paged_content_from_directories'] is False:
-        file_check_csv_data = get_csv_data(
-            config['input_dir'],
-            config['input_csv'],
-            config['delimiter'])
+        file_check_csv_data = get_csv_data(config)
         if config['nodes_only'] is False and config['allow_missing_files'] is False:
             for count, file_check_row in enumerate(
                     file_check_csv_data, start=1):
@@ -890,8 +880,7 @@ def check_input(config, args):
             logging.error(
                 'Configuration requires "paged_content_page_model_tid" setting when creating paged content.')
             sys.exit('Error: ' + message)
-        paged_content_from_directories_csv_data = get_csv_data(
-            config['input_dir'], config['input_csv'], config['delimiter'])
+        paged_content_from_directories_csv_data = get_csv_data(config)
         for count, file_check_row in enumerate(
                 paged_content_from_directories_csv_data, start=1):
             dir_path = os.path.join(
@@ -1129,15 +1118,18 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
 
 def split_geolocation_string(config, geolocation_string):
     """Fields of type 'geolocation' are represented in the CSV file using a
-       structured string, specifically lat,lng, e.g. "49.16667, -123.93333".
-       This function takes one of those strings (optionally with a multivalue
-       subdelimiter) and returns a list of dictionaries with 'lat' and 'lng' keys.
+       structured string, specifically lat,lng, e.g. "49.16667, -123.93333"
+       or "+49.16667, -123.93333". This function takes one of those strings
+       (optionally with a multivalue subdelimiter) and returns a list of
+       dictionaries with 'lat' and 'lng' keys required by the 'geolocation'
+       field type.
     """
     return_list = []
     temp_list = geolocation_string.split(config['subdelimiter'])
     for item in temp_list:
         item_list = item.split(',')
-        item_dict = {'lat': item_list[0].strip(), 'lng': item_list[1].strip()}
+        # Remove any leading \ which might be in value if it comes from a spreadsheet.
+        item_dict = {'lat': item_list[0].lstrip('\\').strip(), 'lng': item_list[1].lstrip('\\').strip()}
         return_list.append(item_dict)
 
     return return_list
@@ -1448,19 +1440,23 @@ def remove_media_and_file(config, media_id):
 
 
 # @lru_cache(maxsize=None)
-def get_csv_data(input_dir, input_csv, delimiter):
-    """Read the input CSV file once and cache its contents.
+def get_csv_data(config):
+    """Read the input CSV file.
     """
-    if os.path.isabs(input_csv):
+    if os.path.isabs(config['input_csv']):
         input_csv_path = input_csv
+    if config['input_csv'].startswith('http') is True:
+        input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
     else:
-        input_csv_path = os.path.join(input_dir, input_csv)
+        input_csv_path = os.path.join(config['input_dir'], config['input_csv'])
+
     if not os.path.exists(input_csv_path):
-        messsage = 'Error: CSV file ' + input_csv_path + 'not found.'
+        message = 'Error: CSV file ' + input_csv_path + 'not found.'
         logging.error(message)
         sys.exit(message)
+
     csv_file_handle = open(input_csv_path, 'r')
-    csv_data = csv.DictReader(csv_file_handle, delimiter=delimiter)
+    csv_data = csv.DictReader(csv_file_handle, delimiter=config['delimiter'])
     # Yes, we leave the file open because Python.
     # https://github.com/mjordan/islandora_workbench/issues/74.
     return csv_data
@@ -2369,3 +2365,26 @@ def write_rollback_node_id(config, node_id):
     rollback_csv_file = open(path_to_rollback_csv_file, "a+")
     rollback_csv_file.write(node_id + "\n")
     rollback_csv_file.close()
+
+
+def download_google_sheet(config):
+    url_parts = config['input_csv'].split('/')
+    url_parts[6] = 'export?gid=0&format=csv'
+    csv_url = '/'.join(url_parts)
+    response = requests.get(url=csv_url, allow_redirects=True)
+
+    if response.status_code == 404:
+        message = 'Workbench cannot find the Google spreadsheet at ' + \
+            config['input_csv'] + '. Please check the URL.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    not_authorized = [401, 403]
+    if response.status_code in not_authorized:
+        message = 'The Google spreadsheet at ' + config['input_csv'] + \
+            ' is not accessible. Please check its "Share" settings.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
+    input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+    open(input_csv_path, 'wb+').write(response.content)

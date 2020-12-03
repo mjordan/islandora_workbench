@@ -49,6 +49,13 @@ class TestSplitGeolocationString(unittest.TestCase):
         self.assertDictEqual(res[0], {'lat': '49.16667', 'lng': '-123.93333'})
         self.assertDictEqual(res[1], {'lat': '50.1', 'lng': '-120.5'})
 
+    def test_split_geolocation_string_with_leading_slash(self):
+        config = {'subdelimiter': '@'}
+        res = workbench_utils.split_geolocation_string(
+            config, '\+49.16667, -123.93333@\+50.1,-120.5')
+        self.assertDictEqual(res[0], {'lat': '+49.16667', 'lng': '-123.93333'})
+        self.assertDictEqual(res[1], {'lat': '+50.1', 'lng': '-120.5'})
+
 
 class TestSplitTypedRelationString(unittest.TestCase):
 
