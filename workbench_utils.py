@@ -94,7 +94,7 @@ def set_config_defaults(args):
 
 
 def set_media_type(filepath, config):
-    """Using configuration options, determine which media type to use.
+    """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from
        file extenstion to media type.
     """
@@ -109,7 +109,7 @@ def set_media_type(filepath, config):
             if normalized_extension in extensions:
                 return type
 
-    # If extension isn't in one of the lists, default to 'file'.
+    # If extension isn't in one of the lists, default to 'file' bundle.
     return 'file'
 
 
@@ -147,7 +147,7 @@ def issue_request(
         json='',
         data='',
         query={}):
-    """Issue the REST request to Drupal.
+    """Issue the HTTP request to Drupal.
     """
     if config['check'] is False:
         if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -224,6 +224,7 @@ def ping_node(config, nid):
     """
     url = config['host'] + '/node/' + nid + '?_format=json'
     response = issue_request(config, 'HEAD', url)
+    # @todo: Add 301 and 302 to the allowed status codes?
     if response.status_code == 200:
         return True
     else:
@@ -243,6 +244,8 @@ def ping_url_alias(config, url_alias):
 
 
 def ping_islandora(config, print_message=True):
+    """Connect to Islandora in prep for subsequent HTTP requests.
+    """
     # First, test a known request that requires Administrator-level permissions.
     url = config['host'] + \
         '/islandora_workbench_integration/upload_max_filesize'
@@ -333,6 +336,8 @@ def get_field_definitions(config):
 
 
 def get_entity_fields(config, entity_type, bundle_type):
+    """Get all the fields configured on a bundle.
+    """
     fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
         entity_type + '.' + bundle_type + '.default?_format=json'
     bundle_type_response = issue_request(config, 'GET', fields_endpoint)
@@ -360,6 +365,8 @@ def get_entity_fields(config, entity_type, bundle_type):
 
 
 def get_entity_field_config(config, fieldname, entity_type, bundle_type):
+    """Get a specific fields's configuration.
+    """
     field_config_endpoint = config['host'] + '/entity/field_config/' + \
         entity_type + '.' + bundle_type + '.' + fieldname + '?_format=json'
     field_config_response = issue_request(config, 'GET', field_config_endpoint)
@@ -372,6 +379,8 @@ def get_entity_field_config(config, fieldname, entity_type, bundle_type):
 
 
 def get_entity_field_storage(config, fieldname, entity_type):
+    """Get a specific fields's storage configuration.
+    """
     field_storage_endpoint = config['host'] + '/entity/field_storage_config/' + \
         entity_type + '.' + fieldname + '?_format=json'
     field_storage_response = issue_request(
@@ -790,7 +799,7 @@ def check_input(config, args):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-        # Validate 'langcode' values if that field exists.
+        # Validate 'langcode' values if that field exists in the CSV.
         if langcode_was_present:
             validate_langcode_csv_data = get_csv_data(
                 config['input_dir'], config['input_csv'], config['delimiter'])
@@ -871,7 +880,7 @@ def check_input(config, args):
                 print(message)
                 logging.info(message)
 
-        # To do: check that each file's extension is allowed for the current media type usin get_registered_media_extensions().
+        # @todo: check that each file's extension is allowed for the current media type usin get_registered_media_extensions().
         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
         # 'media_type[s]' config option?
 
@@ -909,7 +918,7 @@ def check_input(config, args):
 
         print('OK, page directories are all present.')
 
-    # If nothing has failed by now, exit with a positive message.
+    # If nothing has failed by now, exit with a positive, upbeat message.
     print("Configuration and input data appear to be valid.")
     logging.info(
         'Configuration checked for "%s" task using config file %s, no problems found.',
@@ -997,8 +1006,7 @@ def check_input_for_create_from_files(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
 
-    # Check that either 'media_type' or 'media_types' are present in the
-    # config file.
+    # Check that either 'media_type' or 'media_types' are present in the config file.
     if ('media_type' not in config and 'media_types' not in config):
         message = 'You must configure media type using either the "media_type" or "media_types" option in your configuration.'
         logging.error(message)
@@ -1050,7 +1058,8 @@ def validate_language_code(langcode):
 
 
 def clean_csv_values(row):
-    """Strip whitespace, etc. from row values.
+    """Strip leading and trailing whitespace from row values. Could be used in the
+       future for other normalization tasks.
     """
     for field in row:
         if isinstance(row[field], str):
@@ -1559,7 +1568,7 @@ def get_term_id_from_uri(config, uri):
 
 def create_term(config, vocab_id, term_name):
     """Adds a term to the target vocabulary. Returns the new term's ID
-       if successful (or the term already exists) or False if not.
+       if successful (if the term already exists) or False if not.
     """
 
     # Check to see if term exists; if so, return its ID, if not, proceed to
@@ -1828,8 +1837,8 @@ def validate_csv_field_length(config, field_definitions, csv_data):
         if csv_header in field_definitions.keys():
             if 'max_length' in field_definitions[csv_header]:
                 max_length = field_definitions[csv_header]['max_length']
-                # We don't care about max_length of None (not applicable or
-                # unlimited)
+                # We don't care about max_length of None (i.e., it's
+                # not applicable or unlimited).
                 if max_length is not None:
                     field_max_lengths[csv_header] = max_length
 
@@ -1917,6 +1926,7 @@ def validate_url_aliases(config, csv_data):
                     sys.exit('Error: ' + message)
 
                 alias_ping = ping_url_alias(config, field_value)
+                # @todo: Add 301 and 302 as acceptable status codes?
                 if alias_ping == 200:
                     message = 'CSV field "url_alias" in record ' + \
                         str(count) + ' contains an alias "' + field_value + '" that already exists.'
@@ -1929,8 +1939,8 @@ def validate_url_aliases(config, csv_data):
 
 
 def validate_node_uid(config, csv_data):
-    """Checks that the user identified in the 'uid' field exists in Drupal. Note that this does not validate
-       any permissions the user may have.
+    """Checks that the user identified in the 'uid' field exists in Drupal. Note that
+       this does not validate any permissions the user may have.
     """
     for count, row in enumerate(csv_data, start=1):
         for field_name, field_value in row.items():

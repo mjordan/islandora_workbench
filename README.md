@@ -277,7 +277,7 @@ dogs:German Shepherd
 If you want to use multiple terms in a single field, you would namespace them both:
 
 ```
-cats:Tuxedo|cats:Misbehaving
+cats:Tuxedo|cats:Misbehaving|dogs:German Shepherd
 ```
 
 Term names containing commas (`,`) in multi-valued, multi-vocabulary fields need special treatment (no surprise there): you need to wrap the entire field in quotation marks (like you would for any other CSV value that contains a comma), and in addition, specify the namespace within each of the values:
@@ -285,13 +285,13 @@ Term names containing commas (`,`) in multi-valued, multi-vocabulary fields need
 ```
 "tags:gum, Bubble|tags:candy, Hard"
 ```
-Using these conventions, Workbench will be certain which taxonomy the term names belong to. Workbench will remind you during its `--check` operation that you need to namespace terms. It determines 1) if the field references multiple vocabularies, and then checks to see 2) if the field's values in the CSV are term IDs or term names. If you use term names in multi-vocabulary fields, and the term names aren't namespaced, Workbench will warn you:
+Using these conventions, Workbench will be certain which vocabulary the term names belong to. Workbench will remind you during its `--check` operation that you need to namespace terms. It determines 1) if the field references multiple vocabularies, and then checks to see 2) if the field's values in the CSV are term IDs or term names. If you use term names in multi-vocabulary fields, and the term names aren't namespaced, Workbench will warn you:
 
 ```
 Error: Term names in multi-vocabulary CSV field "field_tags" require a vocabulary namespace; value "Dogs" in row 4 does not have one.
 ```
 
-Note that since `:` is a special character when you use term names in multi-vocabulary CSV fields, you can't add a namespaced term that itself contains a `:`. You need to add it manually to Drupal and then use its term ID in your CSV file.
+Note that since `:` is a special character when you use term names in multi-vocabulary CSV fields, you can't add a namespaced term that itself contains a `:`. You need to add it manually to Drupal and then use its term ID (or name, or URI) in your CSV file.
 
 #### Using term URIs instead of term IDs
 
