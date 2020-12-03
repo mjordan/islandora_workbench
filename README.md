@@ -243,15 +243,18 @@ That's all you need to do. Every time Workbench runs, it fetches the CSV content
 
 Islandora Workbench fetches a new copy of the CSV data every time it runs (even with the `--check` option), so if you make changes to the contents of that local file, the changes will be overwritten with the data from the Google spreadsheet the next time you run Workbench. If you don't want to overwrite your local copy of the data, rename the local CSV file manually before running Workbench, and update the `input_csv` option in your configuration file accordingly.
 
+An advantage of this constant refreshing of the CSV data is that you can delete all the rows from the Google spreadsheet, repopulate them with new data, and use the same configuration later (or, at least use the same `input_csv` URL).
+
 Note that:
 
-* The URL in the configuration file will need single or double quotes around it, like any other value that contains a colon.
+* You can use a Google spreadsheet in all tasks that use a CSV file as input.
+* All of the columns required in a local CSV file are also required in the Google spreadsheet.
+* The URL in the configuration file needs single or double quotes around it, like any other value that contains a colon.
+* You can use either the URL you copy from your browser when you are viewing the spreadsheet (which ends in "/edit#gid=0" or something similar), or the "sharing" URL you copy into your clipboard from within the "Share" dialog box (which ends in "edit?usp=sharing"). Either is OK.
 * The Google spreadsheet must be publicly readable, e.g. with "Anyone on the Internet with this link can view" or "Anyone on the Internet with this link can edit" permission.
 * Spreadsheets work best for descriptive metadata if all cells are formatted as "Plain text". To do this, in Sheets, select all cells, then choose the menu items Format > Number > Plain text *before adding any content to the cells*.
 * The worksheet that the CSV data is taken from is the first one in the spreadsheet (i.e., the one named in the left-most tab).
-* All of the columns required in a local CSV file are also required in the Google spreadsheet.
 * The values in the `file` column of the spreadsheet point to files within your local `input_directory`, just like they do in a local CSV input file.
-* Your `input_csv` configuration option can use either the URL you copy from your browser when you are viewing the spreadsheet (which ends in "/edit#gid=0" or something similar), or the "sharing" URL you copy into your clipboard from within the "Share" dialog box (which ends in "edit?usp=sharing"). Either is OK.
 
 ### Taxonomy fields
 
