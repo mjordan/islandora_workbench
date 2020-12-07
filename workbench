@@ -495,6 +495,11 @@ def update():
                     if custom_field == 'url_alias':
                         continue
 
+                    # 'image_alt_text' is a reserved CSV field.
+                    # Issue to add alt text in update task is https://github.com/mjordan/islandora_workbench/issues/166.
+                    if custom_field == 'image_alt_text':
+                        continue
+
                     # Entity reference fields: for taxonomy terms, target_type is 'taxonomy_term';
                     # for nodes, it's 'node_type'.
                     if field_definitions[custom_field]['field_type'] == 'entity_reference':

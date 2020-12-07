@@ -704,6 +704,8 @@ def check_input(config, args):
             csv_column_headers.remove('title')
         if 'url_alias' in csv_column_headers:
             csv_column_headers.remove('url_alias')
+        if 'image_alt_text' in csv_column_headers:
+            csv_column_headers.remove('image_alt_text')
         if 'file' in csv_column_headers:
             message = 'Error: CSV column header "file" is not allowed in update tasks.'
             logging.error(message)
