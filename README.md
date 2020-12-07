@@ -528,7 +528,7 @@ If you want to ingest some files without a metadata CSV you can do so using the 
 Nodes created using this task have only the following properties/fields populated:
 
 * Content type: this is defined in the configuration file, using the `content_type` setting.
-* Title: this is derived from the filename minus the extension.
+* Title: this is derived from the filename minus the extension. Spaces are allowed in the filenames.
 * Published: published by default, or overridden in the configuration file using the `published` setting.
 * Model: defined in the configuration file using either the `model` or `models` setting.
 
