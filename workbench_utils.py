@@ -728,8 +728,7 @@ def check_input(config, args):
     if config['task'] == 'add_media' or config['task'] == 'create' and config['nodes_only'] is False:
         validate_media_use_tid(config)
 
-        # Check that either 'media_type' or 'media_types' are present in the
-        # config file.
+        # Check that either 'media_type' or 'media_types' are present in the config file.
         if config['nodes_only'] is False and 'media_type' not in config and 'media_types' not in config:
             message = 'You must configure media type using either the "media_type" or "media_types" option.'
             logging.error(message)
@@ -1457,11 +1456,34 @@ def get_csv_data(config):
         logging.error(message)
         sys.exit(message)
 
-    csv_file_handle = open(input_csv_path, 'r')
-    csv_data = csv.DictReader(csv_file_handle, delimiter=config['delimiter'])
-    # Yes, we leave the file open because Python.
-    # https://github.com/mjordan/islandora_workbench/issues/74.
-    return csv_data
+    if 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
+        # If the config file contains CSV field templates, append them to the CSV data
+        # in the input file and write out the resulting CSV data to a new file. Then,
+        # use that as the input CSV file.
+        csv_reader_file_handle = open(input_csv_path, 'r')
+        csv_writer_file_handle = open(input_csv_path + '.tmp', 'w+')
+        csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
+        csv_reader_fieldnames = csv_reader.fieldnames
+        for template in config['csv_field_templates']:
+            for field_name, field_value in template.items():
+                csv_reader_fieldnames.append(field_name)
+        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
+        csv_writer.writeheader()
+        for row in csv_reader:
+            for template in config['csv_field_templates']:
+                for field_name, field_value in template.items():
+                    row[field_name] = field_value
+            csv_writer.writerow(row)
+        csv_writer_file_handle.close()
+        with_templates_csv_reader_file_handle = open(input_csv_path + '.tmp', 'r')
+        with_templates_csv_reader = csv.DictReader(with_templates_csv_reader_file_handle, delimiter=config['delimiter'])
+        return with_templates_csv_reader
+    else:
+        # If there are no CSV templates in the config file, use the CSV file identified
+        # in the input_csv config option.
+        csv_reader_file_handle = open(input_csv_path, 'r')
+        csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
+        return csv_reader
 
 
 def get_term_pairs(config, vocab_id):
