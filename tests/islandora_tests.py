@@ -188,6 +188,24 @@ class TestCreate(unittest.TestCase):
         os.remove(self.nid_file)
 
 
+class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'create.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        self.output = output.decode().strip()
+
+    def test_create_check(self):
+        lines = self.output.splitlines()
+        self.assertRegex(self.output, 'all 3 rows in the CSV file have the same number of columns as there are headers .6.', '')
+
+    def tearDown(self):
+        templated_csv_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'metadata.csv.with_templates')
+        os.remove(templated_csv_path)
+
+
 class TestCreateFromFiles(unittest.TestCase):
 
     def setUp(self):

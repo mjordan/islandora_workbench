@@ -1,0 +1,13 @@
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: tests/assets/create_with_field_templates_test
+input_csv: metadata.csv
+content_type: islandora_object
+id_field: id
+nodes_only: true
+csv_field_templates:
+ - field_rights: This test is in the public domain.
+ - field_description: Testing CSV field templates.
+ - field_model: 25

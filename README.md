@@ -417,7 +417,9 @@ csv_field_templates:
  - field_tags: 231|257
 ```
 
-If a column with the field name is present in the CSV file, Workbench ignores the template and uses the existing CSV content. Values in CSV field templates are structured the same as field values in your CSV, and are validated against Drupal's configuration in the same way that values present in your CSV are validated.
+Values in CSV field templates are structured the same as field values in your CSV, and are validated against Drupal's configuration in the same way that values present in your CSV are validated.
+
+If a column with the field name is present in the CSV file, Workbench ignores the template and uses the data in the CSV file.
 
 ## Setting media types
 
