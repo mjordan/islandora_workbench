@@ -386,6 +386,22 @@ Note that:
 * Geocoordinate fields need to be wrapped in double quotation marks, unless the `delimiter` key in your configuration file is set to something other than a comma.
 * If you are entering geocoordinates into a spreadsheet, a leading `+` will make the spreadsheet application think you are entering a formula. You can work around this by escaping the `+` with a backslash (`\`), e.g., `49.16667,-123.93333` should be `\+49.16667,-123.93333`, and `49.16667,-123.93333|49.25,-124.8` should be `\+49.16667,-123.93333|\+49.25,-124.8`. Workbench will strip the leading `\` before it populates the Drupal fields.
 
+## Using CSV field templates
+
+In `create` and `update` tasks, you can configure field templates that are applied to each node as if the fields were present in your CSV file. The templates are configured in the `csv_field_templates` option. An example looks like this:
+
+```
+csv_field_templates:
+ - field_rights: "The author of this work dedicate any and all copyright interest to the public domain."
+ - field_member_of: 205
+ - field_model: 25
+ - field_tags: 231|257
+```
+
+Values in CSV field templates are structured the same as field values in your CSV (e.g., in the example above, `field_tags` is multivalued), and are validated against Drupal's configuration in the same way that values present in your CSV are validated.
+
+If a column with the field name used in a template is present in the CSV file, Workbench ignores the template and uses the data in the CSV file.
+
 ## Assigning URL aliases to nodes
 
 In `create` tasks, you can assign URL aliases to nodes by adding the `url_alias` field to you CSV file, like this:
@@ -405,22 +421,6 @@ node_id,url_alias
 ```
 
 No other configuration is required. URL aliases must start with a forward slash (`/`). When you run Workbench with its `--check` option, it will check whether each alias starts with this character, and whether the alias already exists.
-
-## Using CSV field templates
-
-In `create` and `update` tasks, you can configure field templates that are applied to each node as if the fields were present in your CSV file. The templates are configured in the `csv_field_templates` option. An example looks like this:
-
-```
-csv_field_templates:
- - field_rights: "The author of this work dedicate any and all copyright interest to the public domain."
- - field_member_of: 205
- - field_model: 25
- - field_tags: 231|257
-```
-
-Values in CSV field templates are structured the same as field values in your CSV (e.g., in the example above, `field_tags` is multivalued), and are validated against Drupal's configuration in the same way that values present in your CSV are validated.
-
-If a column with the field name is present in the CSV file, Workbench ignores the template and uses the data in the CSV file.
 
 ## Setting media types
 
