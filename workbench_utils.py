@@ -1446,7 +1446,7 @@ def get_csv_data(config):
     """Read the input CSV file.
     """
     if os.path.isabs(config['input_csv']):
-        input_csv_path = input_csv
+        input_csv_path = config['input_csv']
     if config['input_csv'].startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
     else:
