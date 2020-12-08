@@ -87,7 +87,7 @@ The settings defined in a configuration file are:
 | bootstrap |  | | Absolute path to one or more scripts that execute prior to Workbench connecting to Drupal. Scripts can be in any language, and need to be executable. For an example of using this feature to run a script that generates sample Islandora content, see the "Generating sample Islandora content" section below. |
 | model [singular]|  |  | Used in the create_from_files task only. Defines the term ID from the the "Islandora Models" vocabulary for all nodes created using this task. Note: one of `model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
 | models [plural] |  |  | Used in the create_from_files task only. Provides a mapping bewteen file extensions and terms in the "Islandora Models" vocabulary. Note: one of `model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
-| csv_field_templates |  |  | Used in the create and update tasks only. A list of Drupal field machine names and corresponding values to add to every row in your input CSV file. More detail provided in the "Using CSV field templates" section below.|
+| csv_field_templates |  |  | Used in the create and update tasks only. A list of Drupal field machine names and corresponding values to be applied to every row in your input CSV file. More detail provided in the "Using CSV field templates" section below.|
 
 ## Checking configuration and input data
 
@@ -408,7 +408,7 @@ No other configuration is required. URL aliases must start with a forward slash 
 
 ## Using CSV field templates
 
-In `create` and `update` tasks, you can configure field templates that are applied to every row in your CSV file. The templates are configured in the `csv_field_templates` option. Each template is a field name:field value mapping. An example configuration looks like this:
+In `create` and `update` tasks, you can configure field:value templates that are added to each node as if the fields were present in your CSV file. The templates are configured in the `csv_field_templates` option. An example configuration looks like this:
 
 ```
 csv_field_templates:
@@ -417,7 +417,7 @@ csv_field_templates:
  - field_tags: 231|257
 ```
 
-These templates are added to your input CSV only if a column with the field name is not already in the CSV. The field template values are structured the same as if they were present in the CSV, and are validated against Drupal's configuration in the same way that fields present in your CSV are.
+These templates are in fact added to your input CSV file before it is used to create (or update) Drupal nodes. However, if a column with the field name is present in the CSV file, Workbench ignores the template and uses the existing CSV values. Values in CSV field template values are structured the same as values in your CSV, and are validated against Drupal's configuration in the same way that fields present in your CSV are.
 
 ## Setting media types
 
