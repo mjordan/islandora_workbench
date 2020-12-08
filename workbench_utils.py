@@ -1442,7 +1442,7 @@ def remove_media_and_file(config, media_id):
 
 # @lru_cache(maxsize=None)
 def get_csv_data(config):
-    """Read the input CSV file.
+    """Read the input CSV file, adding field templates if they exist.
     """
     if os.path.isabs(config['input_csv']):
         input_csv_path = config['input_csv']
@@ -1456,32 +1456,38 @@ def get_csv_data(config):
         logging.error(message)
         sys.exit(message)
 
-    if 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
+    tasks = ['create', 'update']
+    if config['task'] in tasks and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
         # If the config file contains CSV field templates, append them to the CSV data
         # in the input file and write out the resulting CSV data to a new file. Then,
         # use that as the input CSV file.
-        csv_reader_file_handle = open(input_csv_path, 'r')
-        csv_writer_file_handle = open(input_csv_path + '.tmp', 'w+')
+        csv_reader_file_handle = open(input_csv_path, 'r', newline='')
+        csv_writer_file_handle = open(input_csv_path + '.with_templates', 'w+', newline='')
         csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
         csv_reader_fieldnames = csv_reader.fieldnames
+        # Make a copy of the column headers so we can check it to skip adding templates to
+        # the new CSV. We don't want fields in the source CSV to be stomped on by templates.
+        csv_reader_fieldnames_orig = copy.copy(csv_reader_fieldnames)
         for template in config['csv_field_templates']:
             for field_name, field_value in template.items():
-                csv_reader_fieldnames.append(field_name)
+                if field_name not in csv_reader_fieldnames_orig:
+                    csv_reader_fieldnames.append(field_name)
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
         for row in csv_reader:
             for template in config['csv_field_templates']:
                 for field_name, field_value in template.items():
-                    row[field_name] = field_value
+                    if field_name not in csv_reader_fieldnames_orig:
+                        row[field_name] = field_value
             csv_writer.writerow(row)
         csv_writer_file_handle.close()
-        with_templates_csv_reader_file_handle = open(input_csv_path + '.tmp', 'r')
+        with_templates_csv_reader_file_handle = open(input_csv_path + '.with_templates', 'r')
         with_templates_csv_reader = csv.DictReader(with_templates_csv_reader_file_handle, delimiter=config['delimiter'])
         return with_templates_csv_reader
     else:
         # If there are no CSV templates in the config file, use the CSV file identified
-        # in the input_csv config option.
-        csv_reader_file_handle = open(input_csv_path, 'r')
+        # in the input_csv config option as is.
+        csv_reader_file_handle = open(input_csv_path, 'r', newline='')
         csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
         return csv_reader
 

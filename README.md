@@ -87,6 +87,7 @@ The settings defined in a configuration file are:
 | bootstrap |  | | Absolute path to one or more scripts that execute prior to Workbench connecting to Drupal. Scripts can be in any language, and need to be executable. For an example of using this feature to run a script that generates sample Islandora content, see the "Generating sample Islandora content" section below. |
 | model [singular]|  |  | Used in the create_from_files task only. Defines the term ID from the the "Islandora Models" vocabulary for all nodes created using this task. Note: one of `model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
 | models [plural] |  |  | Used in the create_from_files task only. Provides a mapping bewteen file extensions and terms in the "Islandora Models" vocabulary. Note: one of `model` or `models` is required. More detail provided in the "Creating nodes from files only" section below.|
+| csv_field_templates |  |  | Used in the create and update tasks only. A list of Drupal field machine names and corresponding values to add to every row in your input CSV file. More detail provided in the "Using CSV field templates" section below.|
 
 ## Checking configuration and input data
 
@@ -405,6 +406,18 @@ node_id,url_alias
 
 No other configuration is required. URL aliases must start with a forward slash (`/`). When you run Workbench with its `--check` option, it will check whether each alias starts with this character, and whether the alias already exists.
 
+## Using CSV field templates
+
+In `create` and `update` tasks, you can configure field templates that are applied to every row in your CSV file. The templates are configured in the `csv_field_templates` option. Each template is a field name:field value mapping. An example configuration looks like this:
+
+```
+csv_field_templates:
+ - field_rights: "The author of this work dedicate any and all copyright interest to the public domain."
+ - field_member_of: 205
+ - field_tags: 231|257
+```
+
+These templates are added to your input CSV only if a column with the field name is not already in the CSV. The field template values are structured the same as if they were present in the CSV, and are validated against Drupal's configuration in the same way that fields present in your CSV are.
 
 ## Setting media types
 
