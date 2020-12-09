@@ -58,7 +58,7 @@ The settings defined in a configuration file are:
 | password |  ✔️ | | The user's password. |
 | content_type |  ✔️ | | The machine name of the Drupal node content type you are creating or updating. |
 | input_dir |  ✔️ | | The full or relative path to the directory containing the files and metadata CSV file. |
-| input_csv |  ✔️ | | Path to the CSV metadata file. Can be absolute, or if just the filename is provided, will be assumed to be in the directory named in `input_dir`. Can also be the URL to a Google spreadsheet (see the "Using Google Sheets as input data" section below for more information). |
+| input_csv |  | | Required for all tasks other than 'create_from_files'. Path to the CSV metadata file. Can be absolute, or if just the filename is provided, will be assumed to be in the directory named in `input_dir`. Can also be the URL to a Google spreadsheet (see the "Using Google Sheets as input data" section below for more information). |
 | google_sheets_csv_filename |  | google_sheet.csv | Local CSV filename for data from a Google spreadsheet. See the "Using Google Sheets as input data" section below for more information. |
 | log_file_path | | workbench.log | The path to the log file, absolute or relative to `workbench`. See the "Logging" section below for more information. |
 | id_field |  | id | The name of the field in the CSV that uniquely identifies each record. |
@@ -539,7 +539,7 @@ During a `create` task, if you want to create nodes but not any accompanying med
 
 ## Creating nodes from files only
 
-If you want to ingest some files without a metadata CSV you can do so using the `create_from_files` task. A common application of this ability is in automated workflows where Islandora objects are created from files saved to a watch folder, and metadata is added later.
+If you want to ingest some files without a metadata CSV you can do so using the `create_from_files`. A common application of this ability is in automated workflows where Islandora objects are created from files saved to a watch folder, and metadata is added later.
 
 Nodes created using this task have only the following properties/fields populated:
 
@@ -550,7 +550,7 @@ Nodes created using this task have only the following properties/fields populate
 
 The media attached to the nodes is the file, with its type (image, document, audio, video, file) assigned by the `media_types` configuration setting and its Media Use tag defined in the `media_use_tid` setting.
 
-The configuration options for the `create_from_files` task are the same as the options used in the `create` task. The only option specific to this task is `models`, which is a mapping from terms IDs (or term URIs) in the "Islandora Models" vocabulary to file extensions. Note that either the  `models` or `model` configuration option is required in the `create_from_files` task. `model` is conventient when all of the objects you are creating are the same Islandora Model. Here is a sample configuration file for this task:
+The configuration options for the `create_from_files` task are the same as the options used in the `create` task (with one exception: `input_csv` is not required). The only option specific to this task is `models`, which is a mapping from terms IDs (or term URIs) in the "Islandora Models" vocabulary to file extensions. Note that either the  `models` or `model` configuration option is required in the `create_from_files` task. `model` is conventient when all of the objects you are creating are the same Islandora Model. Here is a sample configuration file for this task:
 
 ```yaml
 task: create_from_files
