@@ -240,7 +240,13 @@ Values in the `file` field in your CSV can be relative to the directory named in
 * absolute: `/tmp/data/myfile.png`
 * URL: `http://example.com/files/myfile.png`
 
-Files identified by URLs must be accessible to the workbench script, which means they must not require a username/password; however, they can be protected by a firewall, ACL, etc. as long as the computer running workbench is allowed to retrieve the files. Also, currently workbench requires that the URLs point directly to a file and not to a script, wrapper page, or other indirect route to the file. Relative, absolute, and URL file locations can exist within the same CSV file.
+Relative, absolute, and URL file locations can exist within the same CSV file.
+
+Things to note about URL paths:
+
+* Workbench downloads files identified by URLs and saves them in the directory named in `input_dir` before processing them further. It does not delete the files after they have been ingested into Islandora.
+* Files identified by URLs must be accessible to the Workbench script, which means they must not require a username/password; however, they can be protected by a firewall, ACL, etc. as long as the computer running Workbench is allowed to retrieve the files without authenticating.
+* Currently Workbench requires that the URLs point directly to a file and not to a script, wrapper page, or other indirect route to the file.
 
 ### Using Google Sheets as input data
 

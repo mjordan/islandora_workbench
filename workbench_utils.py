@@ -1289,10 +1289,14 @@ def create_media(config, filename, node_uri, node_csv_row):
     if config['nodes_only'] is True:
         return
 
-    if os.path.isabs(filename):
+    if filename.startswith('http'):
+        download_remote_file(config, filename)
+        file_path = os.path.join(config['input_dir'], filename.split("/")[-1])
+    elif os.path.isabs(filename):
         file_path = filename
     else:
         file_path = os.path.join(config['input_dir'], filename)
+
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
 
@@ -2458,6 +2462,25 @@ def download_remote_file(config, url):
         logging.error(message)
         return False
 
-    # create_media() will need to reference the path of the downloaded file.
+    '''
+    sections = urllib.parse.urlparse(url)
+    try:
+        response = requests.get(url, allow_redirects=True)
+        return response.status_code
+    except requests.exceptions.Timeout as err_timeout:
+        message = 'Workbench timed out trying to reach ' + \
+            sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
+        logging.error(message)
+        logging.error(err_timeout)
+        sys.exit('Error: ' + message)
+    except requests.exceptions.ConnectionError as error_connection:
+        message = 'Workbench cannot connect to ' + \
+            sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
+        logging.error(message)
+        logging.error(error_connection)
+        sys.exit('Error: ' + message)
+    '''
+
+    # create_media() references the path of the downloaded file.
     downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])
     open(downloaded_file_path, 'wb+').write(response.content)
