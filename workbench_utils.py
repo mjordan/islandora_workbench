@@ -249,8 +249,7 @@ def ping_islandora(config, print_message=True):
     """Connect to Islandora in prep for subsequent HTTP requests.
     """
     # First, test a known request that requires Administrator-level permissions.
-    url = config['host'] + \
-        '/islandora_workbench_integration/upload_max_filesize'
+    url = config['host'] + '/islandora_workbench_integration/upload_max_filesize'
     try:
         host_response = issue_request(config, 'GET', url)
     except requests.exceptions.Timeout as err_timeout:
@@ -286,6 +285,27 @@ def ping_islandora(config, print_message=True):
     logging.info(message)
     if print_message is True:
         print(message)
+
+
+def ping_remote_file(url):
+    '''Logging, exiting, etc. happens in caller, except on requests error.
+    '''
+    sections = urllib.parse.urlparse(url)
+    try:
+        response = requests.head(url, allow_redirects=True)
+        return response.status_code
+    except requests.exceptions.Timeout as err_timeout:
+        message = 'Workbench timed out trying to reach ' + \
+            sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
+        logging.error(message)
+        logging.error(err_timeout)
+        sys.exit('Error: ' + message)
+    except requests.exceptions.ConnectionError as error_connection:
+        message = 'Workbench cannot connect to ' + \
+            sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
+        logging.error(message)
+        logging.error(error_connection)
+        sys.exit('Error: ' + message)
 
 
 def get_field_definitions(config):
@@ -830,21 +850,28 @@ def check_input(config, args):
             'add_media') and config['paged_content_from_directories'] is False:
         file_check_csv_data = get_csv_data(config)
         if config['nodes_only'] is False and config['allow_missing_files'] is False:
-            for count, file_check_row in enumerate(
-                    file_check_csv_data, start=1):
+            for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
-                    message = 'Row ' + \
-                        file_check_row[config['id_field']] + ' contains an empty "file" value.'
+                    message = 'Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
-                file_path = os.path.join(
-                    config['input_dir'], file_check_row['file'])
-                if not os.path.exists(
-                        file_path) or not os.path.isfile(file_path):
-                    message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value ' \
-                        + file_check_row[config['id_field']] + ' not found.'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
+                if file_check_row['file'].startswith('http'):
+                    http_response_code = ping_remote_file(file_check_row['file'])
+                    if http_response_code != 200 or ping_remote_file(file_check_row['file']) is False:
+                        message = 'Remote file ' + file_check_row['file'] + ' identified in CSV "file" column for record with ID field value ' \
+                            + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                if os.path.isabs(file_check_row['file']):
+                    file_path = file_check_row['file']
+                else:
+                    file_path = os.path.join(config['input_dir'], file_check_row['file'])
+                if not file_check_row['file'].startswith('http'):
+                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                        message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value ' \
+                            + file_check_row[config['id_field']] + ' not found.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
             message = 'OK, files named in the CSV "file" column are all present.'
             print(message)
             logging.info(message)
@@ -1262,7 +1289,10 @@ def create_media(config, filename, node_uri, node_csv_row):
     if config['nodes_only'] is True:
         return
 
-    file_path = os.path.join(config['input_dir'], filename)
+    if os.path.isabs(filename):
+        file_path = filename
+    else:
+        file_path = os.path.join(config['input_dir'], filename)
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
 
@@ -2418,3 +2448,16 @@ def download_google_sheet(config):
 
     input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
     open(input_csv_path, 'wb+').write(response.content)
+
+
+def download_remote_file(config, url):
+    response = requests.get(url=csv_url, allow_redirects=True)
+
+    if response.status_code != 200:
+        message = 'Workbench cannot download the remote files at ' + URL + ' (HTTP response ' + response.status_code + ').'
+        logging.error(message)
+        return False
+
+    # create_media() will need to reference the path of the downloaded file.
+    downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])
+    open(downloaded_file_path, 'wb+').write(response.content)

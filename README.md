@@ -103,7 +103,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether your CSV column headers correspond to existing Drupal field machine names.
 * Whether all Drupal fields that are configured to be required are present in the CSV file.
 * Whether multivalued fields exceed their allowed number of values.
-* Whether the files named in the CSV file are present (but this check is skipped if `allow_missing_files: true` is present in your config file for "create" tasks). If `nodes_only` is true, this check is skipped.
+* Whether the files named in the CSV file are present, or in the case of remote files, are accessible (but this check is skipped if `allow_missing_files: true` is present in your config file for "create" tasks). If `nodes_only` is true, this check is skipped.
 * If the `langcode` field is present in your CSV, whether values in it are valid Drupal language codes.
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
 * Whether values in text-type fields exceed their configured maximum length.
@@ -231,6 +231,16 @@ IMG_2549.jp2,Manhatten Island,34|56|28
 Drupal strictly enforces the maximum number of values allowed in a field. If the number of values in your CSV file for a field exceed a field's configured maximum number of fields, Workbench will only populate the field to the field's configured limit.
 
 The subdelimiter character defaults to a pipe (`|`) but can be set in your config file using the `subdelimiter: ";"` option.
+
+### Values in the 'file' field
+
+Values in the `file` field in your CSV can be relative to the directory named in `input_dir`, abolute paths, or URLs. Examples of each:
+
+* relative to directory named in `input_dir`: `myfile.png`
+* absolute: `/tmp/data/myfile.png`
+* URL: `http://example.com/files/myfile.png`
+
+Files identified by URLs must be accessible to the workbench script, which means they must not require a username/password; however, they can be protected by a firewall, ACL, etc. as long as the computer running workbench is allowed to retrieve the files. Also, currently workbench requires that the URLs point directly to a file and not to a script, wrapper page, or other indirect route to the file. Relative, absolute, and URL file locations can exist within the same CSV file.
 
 ### Using Google Sheets as input data
 
