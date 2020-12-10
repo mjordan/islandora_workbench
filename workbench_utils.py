@@ -753,6 +753,9 @@ def check_input(config, args):
         validate_csv_typed_relation_values_csv_data = get_csv_data(config)
         validate_typed_relation_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
 
+        validate_geolocation_values_csv_data = get_csv_data(config)
+        validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
+
         validate_csv_field_cardinality_csv_data = get_csv_data(config)
         validate_csv_field_cardinality(config, field_definitions, validate_csv_field_cardinality_csv_data)
 
@@ -1888,6 +1891,36 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                             field_max_lengths[field_name]) + ' characters). Workbench will truncate this value prior to populating Drupal.'
                         print('Warning: ' + message + message_2)
                         logging.warning(message + message_2)
+
+
+def validate_geolocation_fields(config, field_definitions, csv_data):
+    """Validate lat,long values in fields that are of type 'geolocation'.
+    """
+    geolocation_fields_present = False
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]['field_type'] == 'geolocation':
+                if field_name in row:
+                    geolocation_fields_present = True
+                    delimited_field_values = row[field_name].split(config['subdelimiter'])
+                    for field_value in delimited_field_values:
+                        if not validate_latlong_value(field_value.strip()):
+                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                ' (' + field_value + ') is not a valid lat,long pair.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+
+    if geolocation_fields_present is True:
+        message = "OK, geolocation field values in the CSV file validate."
+        print(message)
+        logging.info(message)
+
+
+def validate_latlong_value(latlong):
+    if re.match(r"^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$", latlong):
+        return True
+    else:
+        return False
 
 
 def validate_term_name_length(term_name, row_number, column_name):

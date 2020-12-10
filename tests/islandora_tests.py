@@ -109,6 +109,21 @@ class TestTypedRelationCheck(unittest.TestCase):
             pass
 
 
+class TestGeolocationCheck(unittest.TestCase):
+
+    def test_create_check_fail(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(current_dir, 'assets', 'geolocation_test', 'bad_geocoordinates.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        try:
+            output = subprocess.check_output(cmd)
+            output = output.decode().strip()
+            lines = output.splitlines()
+            self.assertRegex(output, r'+43.45-123.17', '')
+        except subprocess.CalledProcessError as err:
+            pass
+
+
 class TestHeaderColumnMismatch(unittest.TestCase):
 
     def test_header_column_mismatch_fail(self):

@@ -52,7 +52,7 @@ class TestSplitGeolocationString(unittest.TestCase):
     def test_split_geolocation_string_with_leading_slash(self):
         config = {'subdelimiter': '@'}
         res = workbench_utils.split_geolocation_string(
-            config, '\+49.16667, -123.93333@\+50.1,-120.5')
+            config, r'\+49.16667, -123.93333@\+50.1,-120.5')
         self.assertDictEqual(res[0], {'lat': '+49.16667', 'lng': '-123.93333'})
         self.assertDictEqual(res[1], {'lat': '+50.1', 'lng': '-120.5'})
 
@@ -104,6 +104,21 @@ class TestValidateLanguageCode(unittest.TestCase):
     def test_validate_code_not_in_list(self):
         res = workbench_utils.validate_language_code('foo')
         self.assertFalse(res)
+
+
+class TestValidateLatlongValue(unittest.TestCase):
+
+    def test_validate_good_latlong_values(self):
+        values = ['+90.0, -127.554334', '90.0, -127.554334', '-90,-180', '+50.25,-117.8', '+48.43333,-123.36667']
+        for value in values:
+            res = workbench_utils.validate_latlong_value(value)
+            self.assertTrue(res)
+
+    def test_validate_bad_latlong_values(self):
+        values = ['+90.1 -100.111', '045, 180', '+5025,-117.8', '-123.36667']
+        for value in values:
+            res = workbench_utils.validate_latlong_value(value)
+            self.assertFalse(res)
 
 
 class TestSetMediaType(unittest.TestCase):
