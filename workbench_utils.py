@@ -282,8 +282,8 @@ def ping_islandora(config, print_message=True):
         sys.exit('Error: ' + message)
 
     message = "OK, connection to Drupal verified."
-    logging.info(message)
     if print_message is True:
+        logging.info(message)
         print(message)
 
 
@@ -312,8 +312,8 @@ def get_field_definitions(config):
     """Get field definitions from Drupal.
     """
     ping_islandora(config, print_message=False)
-    # For media, entity_type will need to be 'media' and bundle_type will need to be one of
-    # 'image', 'document', 'audio', 'video', 'file'
+    # For media, entity_type will need to be 'media' and bundle_type will
+    # need to be one of 'image', 'document', 'audio', 'video', 'file'
     entity_type = 'node'
     bundle_type = config['content_type']
 
@@ -423,7 +423,7 @@ def check_input(config, args):
         config['task'],
         args.config)
 
-    ping_islandora(config)
+    ping_islandora(config, print_message=False)
 
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
 
@@ -562,8 +562,7 @@ def check_input(config, args):
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
-    # Check whether each row contains the same number of columns as there are
-    # headers.
+    # Check whether each row contains the same number of columns as there are headers.
     for count, row in enumerate(csv_data, start=1):
         string_field_count = 0
         for field in row:
@@ -622,9 +621,8 @@ def check_input(config, args):
             validate_url_aliases_csv_data = get_csv_data(config)
             validate_url_aliases(config, validate_url_aliases_csv_data)
 
-        # Specific to creating paged content. Current, if 'parent_id' is
-        # present in the CSV file, so must 'field_weight' and
-        # 'field_member_of'.
+        # Specific to creating paged content. Current, if 'parent_id' is present
+        # in the CSV file, so must 'field_weight' and 'field_member_of'.
         if 'parent_id' in csv_column_headers:
             if ('field_weight' not in csv_column_headers or 'field_member_of' not in csv_column_headers):
                 message = 'If your CSV file contains a "parent_id" column, it must also contain "field_weight" and "field_member_of" columns.'
@@ -653,8 +651,7 @@ def check_input(config, args):
             csv_column_headers.remove('image_alt_text')
         if 'url_alias' in csv_column_headers:
             csv_column_headers.remove('url_alias')
-        # langcode is a standard Drupal field but it doesn't show up in any
-        # field configs.
+        # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')
             # Set this so we can validate langcode below.
@@ -676,8 +673,7 @@ def check_input(config, args):
     if config['task'] == 'create':
         required_drupal_fields = []
         for drupal_fieldname in field_definitions:
-            # In the create task, we only check for required fields that apply
-            # to nodes.
+            # In the create task, we only check for required fields that apply to nodes.
             if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[
                     drupal_fieldname]['entity_type'] == 'node':
                 if 'required' in field_definitions[drupal_fieldname] and field_definitions[
@@ -955,7 +951,7 @@ def check_input_for_create_from_files(config, args):
 
     logging.info('Starting configuration check for "%s" task using config file %s.', config['task'], args.config)
 
-    ping_islandora(config, print_message=False)
+    ping_islandora(config, print_message=True)
 
     config_keys = list(config.keys())
     unwanted_in_create_from_files = [
@@ -2000,8 +1996,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     """
     # Define a dictionary to store CSV field: term IDs mappings.
     fields_with_vocabularies = dict()
-    # Get all the term IDs for vocabularies referenced in all fields in the
-    # CSV.
+    # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
         if column_name in field_definitions:
             # Do not validate Typed Relation fields here, even though they reference vocabularies.
@@ -2063,9 +2058,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 # Allow for multiple values in one field.
                 tids_to_check = row[column_name].split(config['subdelimiter'])
                 for field_value in tids_to_check:
-                    # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
-                    # regardless of whether config['allow_adding_terms'] is
-                    # True.
+                    # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name
+                    # pattern, regardless of whether config['allow_adding_terms'] is True.
                     if len(this_fields_vocabularies) > 1 and value_is_numeric(
                             field_value) is not True:
                         # URIs are unique so don't need namespacing.
@@ -2131,8 +2125,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             # Single taxonomy fields.
                             if len(this_fields_vocabularies) == 1:
                                 if config['allow_adding_terms'] is True:
-                                    # Warn if namespaced term name is not in
-                                    # specified vocab.
+                                    # Warn if namespaced term name is not in specified vocab.
                                     if tid is False:
                                         new_term_names_in_csv = True
                                         validate_term_name_length(
@@ -2151,15 +2144,13 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     logging.error(message + message_2)
                                     sys.exit('Error: ' + message + message_2)
 
-                            # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
-                            # regardless of whether
-                            # config['allow_adding_terms'] is True.
+                            # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name
+                            # pattern, regardless of whether config['allow_adding_terms'] is True.
                             if len(this_fields_vocabularies) > 1:
                                 split_field_values = field_value.split(
                                     config['subdelimiter'])
                                 for split_field_value in split_field_values:
-                                    # Check to see if namespaced vocab is
-                                    # referenced by this field.
+                                    # Check to see if namespaced vocab is referenced by this field.
                                     [namespace_vocab_id,
                                      namespaced_term_name] = split_field_value.split(':')
                                     if namespace_vocab_id not in this_fields_vocabularies:
@@ -2175,8 +2166,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                         config, namespace_vocab_id, namespaced_term_name)
 
                                     if config['allow_adding_terms'] is True:
-                                        # Warn if namespaced term name is not
-                                        # in specified vocab.
+                                        # Warn if namespaced term name is not in specified vocab.
                                         if tid is False:
                                             new_term_names_in_csv = True
                                             message = 'CSV field "' + column_name + '" in row ' + \
@@ -2189,8 +2179,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                             validate_term_name_length(
                                                 split_field_value, str(count), column_name)
                                     else:
-                                        # Die if namespaced term name is not
-                                        # specified vocab.
+                                        # Die if namespaced term name is not specified vocab.
                                         if tid is False:
                                             message = 'CSV field "' + column_name + '" in row ' + \
                                                 str(count) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '

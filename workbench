@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# Usage: ./workbench --config config.yml --check
 # Usage: ./workbench --config config.yml
 
 import os
@@ -36,8 +37,7 @@ def create():
     for row in csv_data:
         row = clean_csv_values(row)
 
-        # Create a copy of the current item's row to pass to
-        # create_media().
+        # Create a copy of the current item's row to pass to create_media().
         row_for_media = copy.deepcopy(row)
         if config['paged_content_from_directories'] is True:
             # Create a copy of the current item's row to pass to the
@@ -65,21 +65,18 @@ def create():
             if len(row['uid']) > 0:
                 node['uid'] = [{'target_id': row['uid']}]
             # Reset it to empty so it doesn't throw a key error in the code
-            # in the "Assemble Drupal field structures..." section
-            # below.
+            # in the "Assemble Drupal field structures..." section below.
             row['uid'] = ''
 
         if 'created' in csv_column_headers:
             if len(row['created']) > 0:
                 node['created'] = [{'value': row['created']}]
             # Reset it to empty so it doesn't throw a key error in the code
-            # in the "Assemble Drupal field structures..." section
-            # below.
+            # in the "Assemble Drupal field structures..." section below.
             row['created'] = ''
 
-        # If a node with an ID that matches the current item's
-        # 'parent_id' value has just been created, make the item
-        # a child of the node.
+        # If a node with an ID that matches the current item's 'parent_id'
+        # value has just been created, make the item # a child of the node.
         if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
             row['field_member_of'] = node_ids[row['parent_id']]
 
@@ -137,8 +134,7 @@ def create():
                             sys.exit(message)
 
             # Assemble Drupal field structures for entity reference fields from CSV data. For
-            # taxonomy terms, target_type is 'taxonomy_term'; for
-            # nodes, it's 'node_type'.
+            # taxonomy terms, target_type is 'taxonomy_term'; for nodes, it's 'node_type'.
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
                 if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                     target_type = 'taxonomy_term'
@@ -384,8 +380,7 @@ def create():
         write_rollback_node_id(config, node_nid)
 
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
-        if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and \
-            config['paged_content_from_directories'] is False:
+        if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
             print(
                 '+No media for ' +
                 node_uri +
@@ -592,9 +587,8 @@ def update():
             # Typed relation fields.
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                 # Create a copy of the existing values in the current field so we can compare
-                # them to the incoming values in the CSV file for deduping. To compare these
-                # values with the incoming ones, we need to remove the 'url' and
-                # 'target_uuid' members.
+                # them to the incoming values in the CSV file for deduping. To compare these values
+                # with the incoming ones, we need to remove the 'url' and 'target_uuid' members.
                 node_comparison_values = copy.deepcopy(
                     node_field_values[custom_field])
                 for comparison_value in node_comparison_values:
@@ -614,8 +608,7 @@ def update():
                             config, row[custom_field], target_type)
                         for subvalue in subvalues:
                             field_values.append(subvalue)
-                        node[custom_field] = node_field_values[custom_field] + \
-                            field_values
+                        node[custom_field] = node_field_values[custom_field] + field_values
                     # Append to existing values.
                     else:
                         value = split_typed_relation_string(
@@ -637,8 +630,7 @@ def update():
                         # Slice the incoming values to a length that matches the field's
                         # cardinality minus its existing length. Also log fact that we're
                         # slicing off values.
-                        num_values_to_add = field_definitions[custom_field]['cardinality'] - \
-                            num_existing_values
+                        num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values
                         if num_values_to_add > 0:
                             logging.warning(
                                 "Adding all values in CSV field %s for node %s would exceed maximum number of " +
@@ -727,8 +719,7 @@ def update():
                         log_field_cardinality_violation(
                             custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
 
-            # For non-entity reference and non-typed relation fields
-            # (text, etc.).
+            # For non-entity reference and non-typed relation fields (text, etc.).
             else:
                 if field_definitions[custom_field]['cardinality'] == 1:
                     if custom_field == 'title':
@@ -834,8 +825,7 @@ def delete():
                     media_messages.append(
                         "+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
 
-        node_endpoint = config['host'] + '/node/' + \
-            str(row['node_id']) + '?_format=json'
+        node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
         node_response = issue_request(config, 'DELETE', node_endpoint)
         if node_response.status_code == 204:
             print("Node " +
@@ -911,10 +901,9 @@ def delete_media():
 
 
 def create_from_files():
-    """Create new nodes from files only (no CSV), and add media.
-       These objects will have a title (derived from filename), and a config-defined
-       Islandora model, content type, and status. Media use is derived from config
-       as well.
+    """Create new nodes from files only (no CSV), and add media. The nodes will
+       have a title (derived from filename), and a config-defined Islandora model,
+       content type, and status. Media use is derived from config as well.
     """
     logging.info(
         '"Create from files" task started using config file %s',
