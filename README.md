@@ -97,6 +97,7 @@ You should always (always, [I can't stress that enough](https://www.youtube.com/
 
 If you do this, Workbench will check the following and report any errors that require your attention before proceding:
 
+* Whether your Drupal has the required [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled.
 * Whether your configuration file contains all required values.
 * Whether the `host` you provided will accept the `username` and `password` you provided.
 * Whether your CSV file contains required columns headers, including the field defined as the unique ID for each record (defaults to "id" if the `id_field` key is not in your config file)
@@ -111,10 +112,10 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether each row contains the same number of columns as there are column headers.
 * Whether the nodes refrenced in `field_member_of` (if that field is present in the CSV) exist.
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
-* Whether your Islandora has the required [Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) module enabled.
 * Whether the term ID (or term URI) provided for `media_use_tid` is a member of the "Islandora Media Use" vocabulary.
 * Whether term ID and term URIs used in CSV fields correspond to existing terms.
 * Whether values used in typed relation fields are in the required format, and whether the term IDs used in the values exist in the vocabularies configured for the field.
+* Whether values used in geolocation fields are valid lat,long coordinates.
 * Whether the length of new terms exceeds 255 characters, which is the maximum length for a term name.
 * Whether term names in your CSV require a vocabulary namespace.
 * If using the pages from directories configuration:
