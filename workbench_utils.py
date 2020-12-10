@@ -1947,10 +1947,8 @@ def validate_node_created_date(csv_data):
     for count, row in enumerate(csv_data, start=1):
         for field_name, field_value in row.items():
             if field_name == 'created' and len(field_value) > 0:
-                matches = re.match(
-                    r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$',
-                    field_value)
-                if not matches:
+                # matches = re.match(r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$', field_value)
+                if not validate_node_created_date_string(field_value):
                     message = 'CSV field "created" in record ' + \
                         str(count) + ' contains a date "' + field_value + '" that is not formatted properly.'
                     logging.error(message)
@@ -1971,6 +1969,13 @@ def validate_node_created_date(csv_data):
     message = 'OK, dates in the "created" CSV field are all formated correctly and in the future.'
     print(message)
     logging.info(message)
+
+
+def validate_node_created_date_string(created_date_string):
+    if re.match(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$", created_date_string):
+        return True
+    else:
+        return False
 
 
 def validate_url_aliases(config, csv_data):

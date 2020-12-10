@@ -766,7 +766,7 @@ Also provide tests where applicable. Tests in Workbench fall into two categories
 * Unit tests (that do not require Islandora) which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
 * Integration tests that require a live Islandora instance, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
    * The [Islandora Playbook](https://github.com/Islandora-Devops/islandora-playbook) is recommended way to deploy the Islandora used in these tests. Note that if an Islandora integration test fails, nodes and taxonomy terms created by the test before it fails may not be removed from Islandora.
-   * Some integration tests output text that beings with "Error:." This is normal, it's the text that Workbench outputs when it finds something wrong (which is probably what the test is testing). Successful test runs will exit with "OK".
+   * Some integration tests output text that beings with "Error:." This is normal, it's the text that Workbench outputs when it finds something wrong (which is probably what the test is testing). Successful test (whether they test for success or failure) runs will exit with "OK". If you can figure out how to suppress this output, please visit [this issue](https://github.com/mjordan/islandora_workbench/issues/160).
 * If you want to run the tests within a specific class in one of these files, include the class name like this: `python3 tests/unit_tests.py TestCompareStings`
 
 ## License

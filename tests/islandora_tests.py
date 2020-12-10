@@ -16,23 +16,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
 
 
-class TestCheckFunction(unittest.TestCase):
-
-    def test_strings_match(self):
-        res = workbench_utils.compare_strings('foo', 'foo  ')
-        self.assertTrue(res)
-        res = workbench_utils.compare_strings('foo', 'Foo')
-        self.assertTrue(res)
-        res = workbench_utils.compare_strings('foo', 'Foo#~^.')
-        self.assertTrue(res)
-        res = workbench_utils.compare_strings('foo bar baz', 'foo   bar baz')
-        self.assertTrue(res)
-
-    def test_strings_do_not_match(self):
-        res = workbench_utils.compare_strings('foo', 'foot')
-        self.assertFalse(res)
-
-
 class TestCheckCreate(unittest.TestCase):
 
     def setUp(self):
@@ -172,7 +155,7 @@ class TestCreate(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        create_config_file_path = os.path.join(self.current_dir, 'assets', 'createtest', 'create.yml')
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'create.yml')
         self.create_cmd = ["./workbench", "--config", create_config_file_path]
 
         self.temp_dir = tempfile.gettempdir()
@@ -195,7 +178,7 @@ class TestCreate(unittest.TestCase):
         self.assertEqual(len(nids), 5)
 
     def tearDown(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'createtest', 'delete.yml')
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
         delete_output = subprocess.check_output(delete_cmd)
         delete_output = delete_output.decode().strip()
@@ -265,7 +248,7 @@ class TestDelete(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        create_config_file_path = os.path.join(self.current_dir, 'assets', 'deletetest', 'create.yml')
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'delete_test', 'create.yml')
         self.create_cmd = ["./workbench", "--config", create_config_file_path]
 
         self.temp_dir = tempfile.gettempdir()
@@ -285,7 +268,7 @@ class TestDelete(unittest.TestCase):
                     fh.write(nid + "\n")
 
     def test_delete_check(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'deletetest', 'delete.yml')
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'delete_test', 'delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
         delete_output = subprocess.check_output(delete_cmd)
         delete_output = delete_output.decode().strip()
@@ -514,7 +497,7 @@ class TestTermFromUri(unittest.TestCase):
 
     def test_term_from_uri(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'createtest', 'create.yml')
+        config_file_path = os.path.join(current_dir, 'assets', 'create_test', 'create.yml')
 
         parser = argparse.ArgumentParser()
         parser.add_argument('--config')

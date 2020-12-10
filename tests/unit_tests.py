@@ -121,6 +121,21 @@ class TestValidateLatlongValue(unittest.TestCase):
             self.assertFalse(res)
 
 
+class TestValidateNodeCreatedDateValue(unittest.TestCase):
+
+    def test_validate_good_date_string_values(self):
+        values = ['2020-11-15T23:49:22+00:00']
+        for value in values:
+            res = workbench_utils.validate_node_created_date_string(value)
+            self.assertTrue(res)
+
+    def test_validate_bad_date_string_values(self):
+        values = ['2020-11-15:23:49:22+00:00', '2020-11-15T:23:49:22', '2020-11-15']
+        for value in values:
+            res = workbench_utils.validate_node_created_date_string(value)
+            self.assertFalse(res)
+
+
 class TestSetMediaType(unittest.TestCase):
 
     def setUp(self):
