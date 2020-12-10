@@ -760,10 +760,6 @@ If you open a PR, please check your code with pycodestyle:
 
 `pycodestyle --show-source --show-pep8 --ignore=E402,W504 --max-line-length=200 .`
 
-autopep8 is useful for bringing your code into compliance:
-
-`autopep8 --in-place --aggressive --aggressive workbench_utils.py`
-
 Also provide tests where applicable. Tests in Workbench fall into two categories:
 
 * Unit tests (that do not require Islandora) which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`

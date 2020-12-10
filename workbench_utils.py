@@ -672,8 +672,7 @@ def check_input(config, args):
         print(message)
         logging.info(message)
 
-    # Check that Drupal fields that are required are in the CSV file (create
-    # task only).
+    # Check that Drupal fields that are required are in the CSV file (create task only).
     if config['task'] == 'create':
         required_drupal_fields = []
         for drupal_fieldname in field_definitions:
@@ -756,22 +755,13 @@ def check_input(config, args):
 
     if config['task'] == 'update' or config['task'] == 'create':
         validate_csv_typed_relation_values_csv_data = get_csv_data(config)
-        validate_typed_relation_values(
-            config,
-            field_definitions,
-            validate_csv_typed_relation_values_csv_data)
+        validate_typed_relation_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
 
         validate_csv_field_cardinality_csv_data = get_csv_data(config)
-        validate_csv_field_cardinality(
-            config,
-            field_definitions,
-            validate_csv_field_cardinality_csv_data)
+        validate_csv_field_cardinality(config, field_definitions, validate_csv_field_cardinality_csv_data)
 
         validate_csv_field_length_csv_data = get_csv_data(config)
-        validate_csv_field_length(
-            config,
-            field_definitions,
-            validate_csv_field_length_csv_data)
+        validate_csv_field_length(config, field_definitions, validate_csv_field_length_csv_data)
 
         # Validating values in CSV taxonomy fields requires a View installed by the Islandora Workbench Integration module.
         # If the View is not enabled, Drupal returns a 404. Use a dummy vocabulary ID or we'll get a 404 even if the View
@@ -937,16 +927,12 @@ def check_input(config, args):
 
     # If nothing has failed by now, exit with a positive, upbeat message.
     print("Configuration and input data appear to be valid.")
-    logging.info(
-        'Configuration checked for "%s" task using config file %s, no problems found.',
-        config['task'],
-        args.config)
+    logging.info('Configuration checked for "%s" task using config file %s, no problems found.', config['task'], args.config)
     sys.exit(0)
 
 
 def get_registered_media_extensions(field_definitions):
-    # Unfinished. See
-    # https://github.com/mjordan/islandora_workbench/issues/126.
+    # Unfinished. See https://github.com/mjordan/islandora_workbench/issues/126.
     for field_name, field_def in field_definitions.items():
         print("Field name: " + field_name + ' / ' + str(field_def))
         """
@@ -967,10 +953,7 @@ def check_input_for_create_from_files(config, args):
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    logging.info(
-        'Starting configuration check for "%s" task using config file %s.',
-        config['task'],
-        args.config)
+    logging.info('Starting configuration check for "%s" task using config file %s.', config['task'], args.config)
 
     ping_islandora(config, print_message=False)
 
@@ -1292,6 +1275,7 @@ def create_media(config, filename, node_uri, node_csv_row):
     if filename.startswith('http'):
         download_remote_file(config, filename)
         file_path = os.path.join(config['input_dir'], filename.split("/")[-1])
+        filename = filename.split("/")[-1]
     elif os.path.isabs(filename):
         file_path = filename
     else:
@@ -1300,9 +1284,7 @@ def create_media(config, filename, node_uri, node_csv_row):
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
 
-    media_endpoint_path = ('/media/' +
-                           media_type +
-                           '/' + str(config['media_use_tid']))
+    media_endpoint_path = ('/media/' + media_type + '/' + str(config['media_use_tid']))
     media_endpoint = node_uri + media_endpoint_path
     location = config['drupal_filesystem'] + os.path.basename(filename)
     media_headers = {
@@ -1310,17 +1292,10 @@ def create_media(config, filename, node_uri, node_csv_row):
         'Content-Location': location
     }
     binary_data = open(os.path.join(config['input_dir'], filename), 'rb')
-    media_response = issue_request(
-        config,
-        'PUT',
-        media_endpoint,
-        media_headers,
-        '',
-        binary_data)
+    media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
     if media_response.status_code == 201:
         if 'location' in media_response.headers:
-            # A 201 response provides a 'location' header, but a '204' response
-            # does not.
+            # A 201 response provides a 'location' header, but a '204' response does not.
             media_uri = media_response.headers['location']
             logging.info(
                 "Media (%s) created at %s, linked to node %s.",
@@ -1369,17 +1344,13 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
     if len(media_json) > 1:
         endpoint = config['host'] + '/media/' + media_id + '?_format=json'
         headers = {'Content-Type': 'application/json'}
-        response = issue_request(
-            config, 'PATCH', endpoint, headers, media_json)
-
+        response = issue_request(config, 'PATCH', endpoint, headers, media_json)
         if response.status_code == 200:
             logging.info(
-                "Media %s fields updated to match parent node's.",
-                config['host'] + '/media/' + media_id)
+                "Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id)
         else:
             logging.warning(
-                "Media %s fields not updated to match parent node's.",
-                config['host'] + '/media/' + media_id)
+                "Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id)
 
 
 def patch_image_alt_text(config, media_id, node_csv_row):
@@ -2455,14 +2426,6 @@ def download_google_sheet(config):
 
 
 def download_remote_file(config, url):
-    response = requests.get(url=csv_url, allow_redirects=True)
-
-    if response.status_code != 200:
-        message = 'Workbench cannot download the remote files at ' + URL + ' (HTTP response ' + response.status_code + ').'
-        logging.error(message)
-        return False
-
-    '''
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True)
@@ -2472,14 +2435,13 @@ def download_remote_file(config, url):
             sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
         logging.error(message)
         logging.error(err_timeout)
-        sys.exit('Error: ' + message)
+        print('Error: ' + message)
     except requests.exceptions.ConnectionError as error_connection:
         message = 'Workbench cannot connect to ' + \
             sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
         logging.error(message)
         logging.error(error_connection)
-        sys.exit('Error: ' + message)
-    '''
+        print('Error: ' + message)
 
     # create_media() references the path of the downloaded file.
     downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])

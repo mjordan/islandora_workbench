@@ -383,10 +383,9 @@ def create():
 
         write_rollback_node_id(config, node_nid)
 
-        # If there is no media file (and we're not creating paged
-        # content), move on to the next CSV row.
-        if config['nodes_only'] is False and 'file' in row and len(
-                row['file']) == 0 and config['paged_content_from_directories'] is False:
+        # If there is no media file (and we're not creating paged content), move on to the next CSV row.
+        if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and \
+            config['paged_content_from_directories'] is False:
             print(
                 '+No media for ' +
                 node_uri +
@@ -402,12 +401,9 @@ def create():
             media_type = set_media_type(file_path, config)
 
         if node_response.status_code == 201:
-            # If what is identified in the 'file' field is a file,
-            # create the media from it.
-            if config['nodes_only'] is False and 'file' in row and len(
-                    row['file']) != 0 and os.path.isfile(file_path):
-                media_response_status_code = create_media(
-                    config, row['file'], node_uri, row_for_media)
+            # If there is something in the 'file' field, create the media from it.
+            if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
+                media_response_status_code = create_media(config, row['file'], node_uri, row_for_media)
                 allowed_media_response_codes = [201, 204]
                 if media_response_status_code in allowed_media_response_codes:
                     print(
