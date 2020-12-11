@@ -1904,11 +1904,12 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
                     geolocation_fields_present = True
                     delimited_field_values = row[field_name].split(config['subdelimiter'])
                     for field_value in delimited_field_values:
-                        if not validate_latlong_value(field_value.strip()):
-                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
-                                ' (' + field_value + ') is not a valid lat,long pair.'
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
+                        if len(field_value.strip()):
+                            if not validate_latlong_value(field_value.strip()):
+                                message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                    ' (' + field_value + ') is not a valid lat,long pair.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
 
     if geolocation_fields_present is True:
         message = "OK, geolocation field values in the CSV file validate."
@@ -1917,6 +1918,8 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
 
 
 def validate_latlong_value(latlong):
+    # Remove leading \ that may be present if input CSV is from a spreadsheet.
+    latlong = latlong.lstrip('\\')
     if re.match(r"^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$", latlong):
         return True
     else:
