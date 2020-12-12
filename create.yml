@@ -2,12 +2,6 @@ task: create
 host: "http://localhost:8000"
 username: admin
 password: islandora
-input_dir: input_data
-input_csv: metadata.csv
-media_use_tid: 17
-content_type: islandora_object
-drupal_filesystem: "fedora://"
-id_field: id
 media_types:
  - file: ['tif', 'tiff', 'jp2', 'zip', 'tar']
  - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx']

@@ -32,20 +32,13 @@ then
 
 ## The configuration file
 
-Workbench uses a YAML configuration whose location is indicated in the `--config` parameter. This file defines the various options it will use to create, update, or delete Islandora content (such as which CSV file to use and what directory your images are in). An example configuration file is:
+Workbench uses a YAML configuration whose location is indicated in the `--config` parameter. This file defines the various options it will use to create, update, or delete Islandora content (such as which CSV file to use and what directory your images are in). The simplest configuration file would look like this:
 
 ```yaml
 task: create
 host: "http://localhost:8000"
 username: admin
 password: islandora
-content_type: islandora_object
-input_dir: input_data
-input_csv: metadata.csv
-media_use_tid: 17
-media_type: image
-drupal_filesystem: "fedora://"
-id_field: id
 ```
 
 The settings defined in a configuration file are:
@@ -574,11 +567,7 @@ task: create_from_files
 host: "http://localhost:8000"
 username: admin
 password: islandora
-input_dir: input_files
-media_use_tid: 17
 output_csv: /tmp/output.csv
-content_type: islandora_object
-drupal_filesystem: "fedora://"
 media_types:
  - file: ['tif', 'tiff', 'jp2', 'zip', 'tar']
  - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
@@ -637,9 +626,7 @@ task: update
 validate_title_length: false
 host: "http://localhost:8000"
 username: admin
-content_type: islandora_object
 password: islandora
-input_dir: input_data
 input_csv: update.csv
 ```
 
@@ -663,7 +650,6 @@ task: delete
 host: "http://localhost:8000"
 username: admin
 password: islandora
-input_dir: input_data
 input_csv: delete.csv
 ```
 
@@ -693,10 +679,7 @@ task: add_media
 host: "http://localhost:8000"
 username: admin
 password: islandora
-input_dir: input_data
 input_csv: add_media.csv
-media_use_tid: 14
-drupal_filesystem: "fedora://"
 ```
 
 ## Deleting media
@@ -717,7 +700,6 @@ task: delete_media
 host: "http://localhost:8000"
 username: admin
 password: islandora
-input_dir: input_data
 input_csv: delete_media.csv
 ```
 
