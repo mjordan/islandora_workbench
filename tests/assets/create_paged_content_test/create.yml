@@ -3,10 +3,6 @@ host: "http://localhost:8000"
 username: admin
 password: islandora
 input_dir: "tests/assets/create_paged_content_test"
-input_csv: metadata.csv
-media_use_tid: 17
-content_type: islandora_object
-drupal_filesystem: "fedora://"
 allow_missing_files: true
 id_field: field_local_identifier
 media_type: image

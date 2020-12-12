@@ -3,7 +3,4 @@ host: "http://localhost:8000"
 username: admin
 password: islandora
 input_dir: "tests/assets/header_column_mismatch_test"
-input_csv: metadata.csv
-content_type: islandora_object
-id_field: id
 nodes_only: true

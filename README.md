@@ -56,18 +56,18 @@ The settings defined in a configuration file are:
 | host | ✔️ | | The hostname, including port number if not 80, of your Islandora repository. |
 | username |  ✔️ | | The username used to authenticate the requests. This Drupal user should be a member of the "Administrator" role. If you want to create nodes that are owned by a specific Drupal user, include their numeric user ID in the `uid` column in your CSV. |
 | password |  ✔️ | | The user's password. |
-| content_type |  ✔️ | | The machine name of the Drupal node content type you are creating or updating. |
-| input_dir |  ✔️ | | The full or relative path to the directory containing the files and metadata CSV file. |
-| input_csv |  | | Required for all tasks other than 'create_from_files'. Path to the CSV metadata file. Can be absolute, or if just the filename is provided, will be assumed to be in the directory named in `input_dir`. Can also be the URL to a Google spreadsheet (see the "Using Google Sheets as input data" section below for more information). |
+| content_type |  | islandora_object | The machine name of the Drupal node content type you are creating or updating. |
+| input_dir |  | input_data | The full or relative path to the directory containing the files and metadata CSV file. |
+| input_csv |  | metadata.csv | Path to the CSV metadata file. Can be absolute, or if just the filename is provided, will be assumed to be in the directory named in `input_dir`. Can also be the URL to a Google spreadsheet (see the "Using Google Sheets as input data" section below for more information). |
 | google_sheets_csv_filename |  | google_sheet.csv | Local CSV filename for data from a Google spreadsheet. See the "Using Google Sheets as input data" section below for more information. |
 | log_file_path | | workbench.log | The path to the log file, absolute or relative to `workbench`. See the "Logging" section below for more information. |
 | id_field |  | id | The name of the field in the CSV that uniquely identifies each record. |
 | delimiter |  | , [comma]| The delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",". |
 | subdelimiter |  | &#124; [pipe]| The subdelimiter used in the CSV file to define multiple values in one field. If omitted, defaults to "&#124;". |
-| nodes_only |  | false | Include this option in `create` tasks, set to `true`, if you want to only create nodes and not their accompanying media. See the "Creating nodes but not media" section below for more information. |
-| drupal_filesystem |  ✔️ unless `nodes_only` is true | | One of 'fedora://', 'public://', or 'private://'. |
+| nodes_only |  | false | Include this option in `create` tasks, set to `true`, if you want to only create nodes and not their accompanying media. See the "Creating nodes but not media" section below for more information. 'fedora://'. |
+| drupal_filesystem | | | One of 'fedora://', 'public://', or 'private://'. Default is |
 | output_csv | | | The full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information. |
-| media_use_tid |  ✔️ unless `nodes_only` is true |  | The term ID for the term from the "Islandora Media Use" vocabulary you want to apply to the media being created. You can provide a term URI instead of a term ID, for example `"http://pcdm.org/use#OriginalFile"`.|
+| media_use_tid | | `http://pcdm.org/use#OriginalFile`  | The term ID for the term from the "Islandora Media Use" vocabulary you want to apply to the media being created. You can provide a term URI instead of a term ID, for example `"http://pcdm.org/use#OriginalFile"`. |
 | media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). One of `media_type` or `media_types` is required unless `nodes_only` is true. |
 | media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: one of `media_type` or `media_types` is required unless `nodes_only` is true. More detail provided in the "Setting Media Types" section below. |
 | allow_missing_files |  | false | Determines if empty `file` values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the `input_data` directory). |

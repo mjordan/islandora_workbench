@@ -38,6 +38,18 @@ def set_config_defaults(args):
         config[k] = v
 
     # Set up defaults for some settings.
+    if 'input_dir' not in config:
+        config['input_dir'] = 'input_data'
+    if 'input_csv' not in config:
+        config['input_csv'] = 'metadata.csv'
+    if 'media_use_tid' not in config:
+        config['media_use_tid'] = 'http://pcdm.org/use#OriginalFile'
+    if 'drupal_filesystem' not in config:
+        config['drupal_filesystem'] = 'fedora://'
+    if 'id_field' not in config:
+        config['id_field'] = 'id'
+    if 'content_type' not in config:
+        config['content_type'] = 'islandora_object'
     if 'delimiter' not in config:
         config['delimiter'] = ','
     if 'subdelimiter' not in config:
@@ -446,16 +458,6 @@ def check_input(config, args):
 
     # Check for presence of required config keys, which varies by task.
     if config['task'] == 'create':
-        if config['nodes_only'] is False:
-            if 'media_use_tid' not in config:
-                message = '"Configuration option "media_use_tid" is required for the "create" task unless "nodes_only" is set to "true".'
-                logging.error(message)
-                sys.exit('Error: ' + message)
-            if 'drupal_filesystem' not in config:
-                message = '"Configuration option "drupal_filesystem" is required for the "create" task unless "nodes_only" is set to "true".'
-                logging.error(message)
-                sys.exit('Error: ' + message)
-
         if config['nodes_only'] is True:
             message = '"nodes_only" option in effect. Media files will not be checked/validated.'
             print(message)
@@ -465,11 +467,7 @@ def check_input(config, args):
             'task',
             'host',
             'username',
-            'password',
-            'content_type',
-            'input_dir',
-            'input_csv',
-            'id_field']
+            'password']
         for create_required_option in create_required_options:
             if create_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' \
@@ -481,10 +479,7 @@ def check_input(config, args):
             'task',
             'host',
             'username',
-            'password',
-            'content_type',
-            'input_dir',
-            'input_csv']
+            'password']
         for update_required_option in update_required_options:
             if update_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' \
@@ -496,9 +491,7 @@ def check_input(config, args):
             'task',
             'host',
             'username',
-            'password',
-            'input_dir',
-            'input_csv']
+            'password']
         for delete_required_option in delete_required_options:
             if delete_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' \
@@ -510,11 +503,7 @@ def check_input(config, args):
             'task',
             'host',
             'username',
-            'password',
-            'input_dir',
-            'input_csv',
-            'media_use_tid',
-            'drupal_filesystem']
+            'password']
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' \
@@ -526,9 +515,7 @@ def check_input(config, args):
             'task',
             'host',
             'username',
-            'password',
-            'input_dir',
-            'input_csv']
+            'password']
         for delete_media_required_option in delete_media_required_options:
             if delete_media_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' \
@@ -975,9 +962,7 @@ def check_input_for_create_from_files(config, args):
         'task',
         'host',
         'username',
-        'password',
-        'content_type',
-        'input_dir']
+        'password']
     for create_required_option in create_required_options:
         if create_required_option not in config_keys:
             message = 'Please check your config file for required values: ' \
@@ -1284,7 +1269,7 @@ def create_media(config, filename, node_uri, node_csv_row):
 
     if value_is_numeric(config['media_use_tid']):
         media_use_tid = config['media_use_tid']
-    if config['media_use_tid'].startswith('http'):
+    if not value_is_numeric(config['media_use_tid']) and config['media_use_tid'].startswith('http'):
         media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
 
     media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tid)

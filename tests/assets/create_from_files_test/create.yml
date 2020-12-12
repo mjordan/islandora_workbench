@@ -3,9 +3,6 @@ host: "http://localhost:8000"
 username: admin
 password: islandora
 input_dir: tests/assets/create_from_files_test/files
-media_use_tid: 17
-content_type: islandora_object
-drupal_filesystem: "fedora://"
 media_types:
  - file: ['tif', 'tiff', 'jp2', 'zip', 'tar']
  - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
