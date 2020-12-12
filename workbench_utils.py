@@ -1212,8 +1212,7 @@ def validate_media_use_tid(config):
     """Validate whether the term ID or URI provided in the config value for media_use_tid is
        in the Islandora Media Use vocabulary.
     """
-    if value_is_numeric(
-            config['media_use_tid']) is not True and config['media_use_tid'].startswith('http'):
+    if value_is_numeric(config['media_use_tid']) is not True and config['media_use_tid'].startswith('http'):
         media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
         if media_use_tid is False:
             message = 'URI "' + \
@@ -1283,7 +1282,12 @@ def create_media(config, filename, node_uri, node_csv_row):
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
 
-    media_endpoint_path = ('/media/' + media_type + '/' + str(config['media_use_tid']))
+    if value_is_numeric(config['media_use_tid']):
+        media_use_tid = config['media_use_tid']
+    if config['media_use_tid'].startswith('http'):
+        media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
+
+    media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tid)
     media_endpoint = node_uri + media_endpoint_path
     location = config['drupal_filesystem'] + os.path.basename(filename)
     media_headers = {
