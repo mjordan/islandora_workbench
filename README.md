@@ -453,12 +453,17 @@ If you need to override this default mappping, you can do so in two ways:
    media_types:
     - video: ['mp4', 'ogg']
    ```
-   Use this option if the files in your batch are not to be assigned the same media type, and their extensions are not defined in the default mapping (or are in addition to the extensions in the default mapping, as in this example).
+   Use this option if all of the files in your batch are not to be assigned the same media type, and their extensions are not defined in the default mapping (or are in addition to the extensions in the default mapping, as in this example).
 
 Note that:
 
-* If a file's extension is not in the default mapping, or not defined in the configuration file, the media is assigned the `file` type.
-* If you use the `media_types` configuration option, your mapping replaces all of Workbench's default mappings.
+* If a file's extension is not defined in either the default mapping, or in the `media_type` or `media_types` configuration options, the media is assigned the `file` type.
+* If you use the `media_types` configuration option, your mapping replaces all of Workbench's default mappings. However, you may include multiple entries, e.g.:
+   ```
+   media_types:
+    - video: ['mp4', 'ogg']
+    - image: ['png', 'gif', 'jpg', 'jpeg']
+   ```
 * If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
 
 ## Adding alt text to images
