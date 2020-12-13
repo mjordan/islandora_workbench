@@ -86,7 +86,7 @@ def set_config_defaults(args):
         if 'published' not in config:
             config['published'] = 1
 
-    if config['task'] == 'create' or config['task'] == 'create_from_files':
+    if config['task'] == 'create' or config['task'] == 'add_media' or config['task'] == 'create_from_files':
         if 'preprocessors' in config_data:
             config['preprocessors'] = {}
             for preprocessor in config_data['preprocessors']:
