@@ -61,8 +61,8 @@ The settings defined in a configuration file are:
 | drupal_filesystem | | | One of 'fedora://', 'public://', or 'private://'. Default is |
 | output_csv | | | The full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information. |
 | media_use_tid | | `http://pcdm.org/use#OriginalFile`  | The term ID for the term from the "Islandora Media Use" vocabulary you want to apply to the media being created. You can provide a term URI instead of a term ID, for example `"http://pcdm.org/use#OriginalFile"`. |
-| media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). One of `media_type` or `media_types` is required unless `nodes_only` is true. |
-| media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. Note: one of `media_type` or `media_types` is required unless `nodes_only` is true. More detail provided in the "Setting Media Types" section below. |
+| media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). |
+| media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. More detail provided in the "Setting Media Types" section below. |
 | allow_missing_files |  | false | Determines if empty `file` values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the `input_data` directory). |
 | allow_adding_terms |  | false | Determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. See more information in the "Taxonomy fields" section below. |
 | published | | true | Whether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
@@ -101,7 +101,6 @@ If you do this, Workbench will check the following and report any errors that re
 * If the `langcode` field is present in your CSV, whether values in it are valid Drupal language codes.
 * Whether values in the `title` field exceed Drupal's maximum length for titles of 255 characters (but this check is skipped if `validate_title_length` is set to `False`).
 * Whether values in text-type fields exceed their configured maximum length.
-* Whether either `media_type` or `media_types` is present in your configuration file. If `nodes_only` is true, this check is skipped.
 * Whether each row contains the same number of columns as there are column headers.
 * Whether the nodes refrenced in `field_member_of` (if that field is present in the CSV) exist.
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
@@ -434,23 +433,33 @@ No other configuration is required. URL aliases must start with a forward slash 
 
 ## Setting media types
 
-The media type for a given file (for example, `image`, `file`, `document`, `audio`, or `video`) can be set in two ways in Workbench's configuration for `create` and `add_media` tasks. One of the following two configuration options is required.
+By default (i.e. with no explicit configuration option) Workbench defines the following file extention to media type mapping:
 
-1. Globally, via the `media_type` configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type.
-1. On a per-file basis, via a mapping from file extensions to media types. This is done by including a mapping in the `media_types` option (notice the plural) in your configuration file like this one:
+| File extensions | Media type |
+| --- | --- |
+| png, gif, jpg, jpeg | image |
+| pdf, doc, docx, ppt, pptx | document |
+| tif, tiff, jp2, zip, tar | file |
+| mp3, wav, aac | audio |
+| mp4 | video |
+| txt | extracted_text |
+
+If you need to override this default mappping, you can do so in two ways:
+
+1. Globally, via the `media_type` (singluar) configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type, but their extensions are not defined in the default mapping.
+1. On a per-file extension basis, by including a mapping in the `media_types` option (notice the plural) in your configuration file like this one:
 
    ```
    media_types:
-    - file: ['tif', 'tiff', 'jp2', 'zip', 'tar']
-    - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
-    - image: ['png', 'gif', 'jpg', 'jpeg']
-    - audio: ['mp3', 'wav', 'aac']
-    - video: ['mp4']
-    - extracted_text: ['txt']
+    - video: ['mp4', 'ogg']
    ```
-   Use this option if the files in your batch are not to be assigned the same media type. If a file's extension is not in one of the extension lists, the media is assigned the `file` type.
+   Use this option if the files in your batch are not to be assigned the same media type, and their extensions are not defined in the default mapping (or are in addition to the extensions in the default mapping, as in this example).
 
-If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
+Note that:
+
+* If a file's extension is not in the default mapping, or defined in the configuration file, the media is assigned the `file` type.
+* If you use the `media_types` configuration option, your mapping replaces all of Workbench's default mappings.
+* If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
 
 ## Adding alt text to images
 

@@ -93,6 +93,21 @@ def set_config_defaults(args):
                 for key, value in preprocessor.items():
                     config['preprocessors'][key] = value
 
+        if 'media_types' not in config:
+            config['media_types'] = []
+            image = collections.OrderedDict({'image': ['png', 'gif', 'jpg', 'jpeg']})
+            config['media_types'].append(image)
+            document = collections.OrderedDict({'document': ['pdf', 'doc', 'docx', 'ppt', 'pptx']})
+            config['media_types'].append(document)
+            file = collections.OrderedDict({'file': ['tif', 'tiff', 'jp2', 'zip', 'tar']})
+            config['media_types'].append(file)
+            audio = collections.OrderedDict({'audio': ['mp3', 'wav', 'aac']})
+            config['media_types'].append(audio)
+            video = collections.OrderedDict({'video': ['mp4']})
+            config['media_types'].append(video)
+            extracted_text = collections.OrderedDict({'extracted_text': ['txt']})
+            config['media_types'].append(extracted_text)
+
     if config['task'] == 'create':
         if 'paged_content_sequence_seprator' not in config:
             config['paged_content_sequence_seprator'] = '-'
@@ -730,12 +745,6 @@ def check_input(config, args):
     if config['task'] == 'add_media' or config['task'] == 'create' and config['nodes_only'] is False:
         validate_media_use_tid(config)
 
-        # Check that either 'media_type' or 'media_types' are present in the config file.
-        if config['nodes_only'] is False and 'media_type' not in config and 'media_types' not in config:
-            message = 'You must configure media type using either the "media_type" or "media_types" option.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
-
     if config['task'] == 'update' or config['task'] == 'create':
         validate_csv_typed_relation_values_csv_data = get_csv_data(config)
         validate_typed_relation_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
@@ -989,12 +998,6 @@ def check_input_for_create_from_files(config, args):
                 '" exceeds Drupal\'s maximum length of 255 characters and cannot be used for a node title.'
             logging.error(message)
             sys.exit('Error: ' + message)
-
-    # Check that either 'media_type' or 'media_types' are present in the config file.
-    if ('media_type' not in config and 'media_types' not in config):
-        message = 'You must configure media type using either the "media_type" or "media_types" option in your configuration.'
-        logging.error(message)
-        sys.exit('Error: ' + message)
 
     # Check that either 'model' or 'models' are present in the config file.
     if ('model' not in config and 'models' not in config):
