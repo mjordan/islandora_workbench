@@ -950,7 +950,7 @@ def check_input_for_create_from_files(config, args):
 
     logging.info('Starting configuration check for "%s" task using config file %s.', config['task'], args.config)
 
-    ping_islandora(config, print_message=True)
+    ping_islandora(config, print_message=False)
 
     config_keys = list(config.keys())
     unwanted_in_create_from_files = [

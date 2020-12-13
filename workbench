@@ -914,6 +914,9 @@ def create_from_files():
     prep_rollback_csv(config)
 
     for file_name in files:
+        if file_name == 'rollback.csv':
+            continue
+
         filename_without_extension = os.path.splitext(file_name)[0]
         if len(filename_without_extension) > 255:
             message = 'Truncating the filename "' + filename_without_extension + \
@@ -1014,11 +1017,10 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%d-%b-%y %H:%M:%S')
 
-ping_islandora(config, print_message=False)
-
 if config['task'] != 'create_from_files' and config['input_csv'].startswith('http') is True:
     download_google_sheet(config)
 
+ping_islandora(config, print_message=True)
 if 'check' in config.keys():
     if config['check']:
         if config['task'] == 'create_from_files':
