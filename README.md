@@ -58,11 +58,11 @@ The settings defined in a configuration file are:
 | delimiter |  | , [comma]| The delimiter used in the CSV file, for example, "," or "\t". If omitted, defaults to ",". |
 | subdelimiter |  | &#124; [pipe]| The subdelimiter used in the CSV file to define multiple values in one field. If omitted, defaults to "&#124;". |
 | nodes_only |  | false | Include this option in `create` tasks, set to `true`, if you want to only create nodes and not their accompanying media. See the "Creating nodes but not media" section below for more information. 'fedora://'. |
-| drupal_filesystem | | | One of 'fedora://', 'public://', or 'private://'. Default is |
+| drupal_filesystem | | fedora:// | One of 'fedora://', 'public://', or 'private://'. |
 | output_csv | | | The full or relative path to a CSV file with one record per node created by Workbench. See "The output CSV file" section below for more information. |
 | media_use_tid | | `http://pcdm.org/use#OriginalFile`  | The term ID for the term from the "Islandora Media Use" vocabulary you want to apply to the media being created. You can provide a term URI instead of a term ID, for example `"http://pcdm.org/use#OriginalFile"`. |
-| media_type [singular] |  | | Specifies whether the media being created in the 'create' or 'add_media' task is an image, file, document, audio, or video (or other media type that exists in the target Islandora). |
-| media_types [plural] |  | | Provides a mapping bewteen file extensions and media types. More detail provided in the "Setting Media Types" section below. |
+| media_type [singular] |  | | Overrides, for all media being created, Workbench's default definition of whether the media being created is an image, file, document, audio, or video. Used in the `create`, `add_media`, and `create_from_files` tasks. More detail provided in the "Setting Media Types" section below. |
+| media_types [plural] |  | | Overrides default media type definitions on a per file extension basis. Used in the `create`, `add_media`, and `create_from_files` tasks. More detail provided in the "Setting Media Types" section below. |
 | allow_missing_files |  | false | Determines if empty `file` values are allowed. If set to true, empty file values are allowed and will result in nodes without attached media. Defaults to false (which means all file values must contain the name of a file that exists in the `input_data` directory). |
 | allow_adding_terms |  | false | Determines if Workbench will add taxonomy terms if they do not exist in the target vocabulary. See more information in the "Taxonomy fields" section below. |
 | published | | true | Whether nodes are published or not. Applies to 'create' task only. Set to false if you want the nodes to be unpublished. Note that whether or not a node is published can also be set at a node level in the CSV file in the status base field, as described in the "Base Fields" section below. Values in the CSV override the value of published set here. |
@@ -433,7 +433,7 @@ No other configuration is required. URL aliases must start with a forward slash 
 
 ## Setting media types
 
-By default (i.e. with no explicit configuration option) Workbench defines the following file extention to media type mapping:
+By default Workbench defines the following file extention to media type mapping:
 
 | File extensions | Media type |
 | --- | --- |
@@ -446,8 +446,8 @@ By default (i.e. with no explicit configuration option) Workbench defines the fo
 
 If you need to override this default mappping, you can do so in two ways:
 
-1. Globally, via the `media_type` (singluar) configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type, but their extensions are not defined in the default mapping.
-1. On a per-file extension basis, by including a mapping in the `media_types` option (notice the plural) in your configuration file like this one:
+1. For all media being created, via the `media_type` (singluar) configuration option. If this is present (for example `media_type: document`), all media created by Workbench will be assigned that media type. Use this option if all of the files in your batch are to be assigned the same media type, but their extensions are not defined in the default mapping.
+1. On a per file extension basis, via a mapping in the `media_types` (plural) option in your configuration file like this one:
 
    ```
    media_types:
@@ -457,7 +457,7 @@ If you need to override this default mappping, you can do so in two ways:
 
 Note that:
 
-* If a file's extension is not in the default mapping, or defined in the configuration file, the media is assigned the `file` type.
+* If a file's extension is not in the default mapping, or not defined in the configuration file, the media is assigned the `file` type.
 * If you use the `media_types` configuration option, your mapping replaces all of Workbench's default mappings.
 * If both `media_type` and `media_types` are included in the config file, the mapping is ignored and the media type assigned in `media_type` is used.
 
