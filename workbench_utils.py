@@ -308,7 +308,7 @@ def ping_islandora(config, print_message=True):
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    message = "OK, connection to Drupal verified."
+    message = "OK, connection to Drupal at " + config['host'] + " verified."
     if print_message is True:
         logging.info(message)
         print(message)
@@ -981,7 +981,7 @@ def check_input_for_create_from_files(config, args):
 
     # Check existence of input directory.
     if os.path.exists(config['input_dir']):
-        message = 'OK, input directory "' + config['input_dir'] + '"" found.'
+        message = 'OK, input directory "' + config['input_dir'] + '" found.'
         print(message)
         logging.info(message)
     else:
