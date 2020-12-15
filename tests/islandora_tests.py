@@ -274,7 +274,7 @@ class TestDelete(unittest.TestCase):
         delete_output = delete_output.decode().strip()
         delete_lines = delete_output.splitlines()
 
-        self.assertEqual(len(delete_lines), 5)
+        self.assertEqual(len(delete_lines), 6)
 
     def tearDown(self):
         os.remove(self.nid_file)
