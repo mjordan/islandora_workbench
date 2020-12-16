@@ -1818,29 +1818,35 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
     for csv_header in csv_headers:
         if csv_header in field_definitions.keys():
             cardinality = field_definitions[csv_header]['cardinality']
-            # We don't care about cardinality of -1 (unlimited)
+            # We don't care about cardinality of -1 (unlimited).
             if cardinality > 0:
                 field_cardinalities[csv_header] = cardinality
 
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_cardinalities.keys():
             if field_name in row:
-                delimited_field_values = row[field_name].split(
-                    config['subdelimiter'])
-                if config['task'] == 'create':
-                    message = 'CSV field "' + field_name + '" in record with ID ' + \
-                        row[config['id_field']] + ' contains more values than the number '
-                if config['task'] == 'update':
-                    message = 'CSV field "' + field_name + '" in record with node ID ' \
-                        + row['node_id'] + ' contains more values than the number '
-                if field_cardinalities[field_name] == 1 and len(
-                        delimited_field_values) > 1:
+                delimited_field_values = row[field_name].split(config['subdelimiter'])
+                # debug
+                print(field_name)
+                print(delimited_field_values)
+                if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
+                    if config['task'] == 'create':
+                        message = 'CSV field "' + field_name + '" in (!) record with ID ' + \
+                            row[config['id_field']] + ' contains more values than the number '
+                    if config['task'] == 'update':
+                        message = 'CSV field "' + field_name + '" in record with node ID ' \
+                            + row['node_id'] + ' contains more values than the number '
                     message_2 = 'allowed for that field (' + str(
                         field_cardinalities[field_name]) + '). Workbench will add only the first value.'
                     print('Warning: ' + message + message_2)
                     logging.warning(message + message_2)
-                if field_cardinalities[field_name] > 1 and len(
-                        delimited_field_values) > field_cardinalities[field_name]:
+                if field_cardinalities[field_name] > 1 and len(delimited_field_values) > field_cardinalities[field_name]:
+                    if config['task'] == 'create':
+                        message = 'CSV field "' + field_name + '" in (!) record with ID ' + \
+                            row[config['id_field']] + ' contains more values than the number '
+                    if config['task'] == 'update':
+                        message = 'CSV field "' + field_name + '" in record with node ID ' \
+                            + row['node_id'] + ' contains more values than the number '
                     message_2 = 'allowed for that field (' + str(
                         field_cardinalities[field_name]) + '). Workbench will add only the first ' + str(
                         field_cardinalities[field_name]) + ' values.'
@@ -2085,24 +2091,33 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         for column_name in fields_with_vocabularies:
             this_fields_vocabularies = get_field_vocabularies(
                 config, field_definitions, column_name)
-            this_fields_vocabularies_string = ', '.join(
-                this_fields_vocabularies)
+            this_fields_vocabularies_string = ', '.join(this_fields_vocabularies)
             if len(row[column_name]):
                 # Allow for multiple values in one field.
                 tids_to_check = row[column_name].split(config['subdelimiter'])
                 for field_value in tids_to_check:
                     # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name
                     # pattern, regardless of whether config['allow_adding_terms'] is True.
-                    if len(this_fields_vocabularies) > 1 and value_is_numeric(
-                            field_value) is not True:
+                    if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True:
                         # URIs are unique so don't need namespacing.
                         if field_value.startswith('http'):
                             continue
-                        split_field_values = field_value.split(
-                            config['subdelimiter'])
+                        split_field_values = field_value.split(config['subdelimiter'])
                         for split_field_value in split_field_values:
                             namespaced = re.search(':', field_value)
-                            if not namespaced:
+                            if namespaced:
+                                # If the : is present, validate that the namespace is one of
+                                # the vocabulary IDs referenced by this field (issue 129).
+                                field_value_parts = field_value.split(':')
+                                if field_value_parts[0] not in this_fields_vocabularies:
+                                    message = 'Vocabulary ID ' + field_value_parts[0] + \
+                                        ' used in CSV column "' + column_name + '", row ' + str(count) + \
+                                        ' does not match any of the vocabularies referenced by the' + \
+                                        ' corresponding Drupal field (' + this_fields_vocabularies_string + ').'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
+
+                            else:
                                 message = 'Term names in multi-vocabulary CSV field "' + \
                                     column_name + '" require a vocabulary namespace; value '
                                 message_2 = '"' + field_value + '" in row ' \
@@ -2110,15 +2125,16 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 logging.error(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
 
-                                validate_term_name_length(
-                                    split_field_value, str(count), column_name)
+                            validate_term_name_length(
+                                split_field_value, str(count), column_name)
+
+
 
                     # Check to see if field_value is a member of the field's vocabularies. First,
                     # check the field_value if it is a term ID.
                     if value_is_numeric(field_value):
                         field_value = field_value.strip()
-                        if int(
-                                field_value) not in fields_with_vocabularies[column_name]:
+                        if int(field_value) not in fields_with_vocabularies[column_name]:
                             message = 'CSV field "' + column_name + '" in row ' + \
                                 str(count) + ' contains a term ID (' + field_value + ') that is '
                             if len(this_fields_vocabularies) > 1:
@@ -2150,10 +2166,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 column_name + '"" row ' + str(count) + ' does not match any terms.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
-                    # Finally, check values that string term names.
+                    # Finally, check values that are string term names.
                     else:
-                        tid = find_term_in_vocab(
-                            config, vocabulary, field_value)
+                        tid = find_term_in_vocab(config, vocabulary, field_value)
                         if value_is_numeric(tid) is not True:
                             # Single taxonomy fields.
                             if len(this_fields_vocabularies) == 1:
@@ -2180,8 +2195,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name
                             # pattern, regardless of whether config['allow_adding_terms'] is True.
                             if len(this_fields_vocabularies) > 1:
-                                split_field_values = field_value.split(
-                                    config['subdelimiter'])
+                                split_field_values = field_value.split(config['subdelimiter'])
                                 for split_field_value in split_field_values:
                                     # Check to see if namespaced vocab is referenced by this field.
                                     [namespace_vocab_id,
