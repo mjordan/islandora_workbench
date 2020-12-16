@@ -1813,8 +1813,6 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
     """
     field_cardinalities = dict()
     csv_headers = csv_data.fieldnames
-    if 'title' in csv_headers:
-        csv_headers.remove('title')
     for csv_header in csv_headers:
         if csv_header in field_definitions.keys():
             cardinality = field_definitions[csv_header]['cardinality']
@@ -1825,10 +1823,10 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_cardinalities.keys():
             if field_name in row:
+                # Don't check for the subdelimiter in title.
+                if field_name == 'title':
+                    continue
                 delimited_field_values = row[field_name].split(config['subdelimiter'])
-                # debug
-                print(field_name)
-                print(delimited_field_values)
                 if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
                     if config['task'] == 'create':
                         message = 'CSV field "' + field_name + '" in (!) record with ID ' + \
@@ -2096,8 +2094,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 # Allow for multiple values in one field.
                 tids_to_check = row[column_name].split(config['subdelimiter'])
                 for field_value in tids_to_check:
-                    # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name
-                    # pattern, regardless of whether config['allow_adding_terms'] is True.
+                    # If this is a multi-taxonomy field, all term names must be namespaced
+                    # using the vocab_id:term_name pattern, regardless of whether
+                    # config['allow_adding_terms'] is True.
                     if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True:
                         # URIs are unique so don't need namespacing.
                         if field_value.startswith('http'):
@@ -2127,8 +2126,6 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 
                             validate_term_name_length(
                                 split_field_value, str(count), column_name)
-
-
 
                     # Check to see if field_value is a member of the field's vocabularies. First,
                     # check the field_value if it is a term ID.
@@ -2192,8 +2189,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     logging.error(message + message_2)
                                     sys.exit('Error: ' + message + message_2)
 
-                            # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name
-                            # pattern, regardless of whether config['allow_adding_terms'] is True.
+                            # If this is a multi-taxonomy field, all term names must be namespaced using
+                            # the vocab_id:term_name pattern, regardless of whether
+                            # config['allow_adding_terms'] is True.
                             if len(this_fields_vocabularies) > 1:
                                 split_field_values = field_value.split(config['subdelimiter'])
                                 for split_field_value in split_field_values:
