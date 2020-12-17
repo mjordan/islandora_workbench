@@ -1145,9 +1145,10 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
             if field_definitions[field_name]['field_type'] == 'typed_relation' and 'typed_relations' in field_definitions[field_name]:
                 if field_name in row:
                     typed_relation_fields_present = True
-                    delimited_field_values = row[field_name].split(
-                        config['subdelimiter'])
+                    delimited_field_values = row[field_name].split(config['subdelimiter'])
                     for field_value in delimited_field_values:
+                        if len(field_value) == 0:
+                            continue
                         # First check the required pattern: string:string:int.
                         if not re.match("^[a-zA-Z]+:[a-zA-Z]+:[0-9]+$", field_value.strip()):
                             message = 'Value in field "' + field_name + '" in row ' + str(count) + \
