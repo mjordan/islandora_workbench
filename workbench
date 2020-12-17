@@ -218,7 +218,7 @@ def create():
                         node[custom_field] = field_values
                     else:
                         field_value = split_typed_relation_string(config, row[custom_field], target_type)
-                        print(field_value)
+                        # [{'target_id': 46, 'rel_type': 'relators:act', 'target_type': 'taxonomy_term'}]
                         node[custom_field] = field_value
                 # Cardinality has a limit.
                 elif field_definitions[custom_field]['cardinality'] > 1:
