@@ -769,8 +769,7 @@ def check_input(config, args):
             print('Warning: Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
         else:
             validate_taxonomy_field_csv_data = get_csv_data(config)
-            validate_taxonomy_field_values(
-                config, field_definitions, validate_taxonomy_field_csv_data)
+            validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
 
         # Validate length of 'title'.
         if config['validate_title_length']:
@@ -1095,18 +1094,27 @@ def get_target_ids(node_field_values):
 def split_typed_relation_string(config, typed_relation_string, target_type):
     """Fields of type 'typed_relation' are represented in the CSV file
        using a structured string, specifically namespace:property:id,
-       e.g., 'relators:pht:5'. 'id' is either a term ID or a node ID.
-       This function takes one of those strings (optionally with a multivalue
+       e.g., 'relators:pht:5'. 'id' is either a term ID or a node ID. This
+       function takes one of those strings (optionally with a multivalue
        subdelimiter) and returns a list of dictionaries in the form they
        take in existing node values.
+
+       Also, these values can (but don't need to) have an optional namespace
+       in the term ID segment, which is the vocabulary ID string. These
+       typed relation strings look like 'relators:pht:person:Jordan, Mark'.
+       However, since we split the typed relation strings only on the first
+       two :, we don't need to worry about what's in the third segment.
     """
     return_list = []
     temp_list = typed_relation_string.split(config['subdelimiter'])
     for item in temp_list:
-        item_list = item.split(':')
+        item_list = item.split(':', 2)
+        if value_is_numeric(item_list[2]):
+            target_id = int(item_list[2])
+        else:
+            target_id = item_list[2]
         item_dict = {
-            'target_id': int(
-                item_list[2]),
+            'target_id': target_id,
             'rel_type': item_list[0] + ':' + item_list[1],
             'target_type': target_type}
         return_list.append(item_dict)
@@ -1135,9 +1143,10 @@ def split_geolocation_string(config, geolocation_string):
 
 def validate_typed_relation_values(config, field_definitions, csv_data):
     """Validate values in fields that are of type 'typed_relation'.
-       Each value (don't forget multivalued fields) must have this
-       pattern: string:string:int. Also validate that the term ID exists.
-       See issue #41.
+       Each value (don't forget multivalued fields) must have this pattern:
+       string:string:int or string:string:string, where the last string is
+       either a namespaced term name or an http URI. In all cases, also validate
+       that the term ID exists.
     """
     typed_relation_fields_present = False
     for count, row in enumerate(csv_data, start=1):
@@ -1149,8 +1158,8 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
                     for field_value in delimited_field_values:
                         if len(field_value) == 0:
                             continue
-                        # First check the required pattern: string:string:int.
-                        if not re.match("^[a-zA-Z]+:[a-zA-Z]+:[0-9]+$", field_value.strip()):
+                        # First check the required patterns.
+                        if not re.match("^[a-zA-Z]+:[a-zA-Z]+:.+$", field_value.strip()):
                             message = 'Value in field "' + field_name + '" in row ' + str(count) + \
                                 ' (' + field_value + ') does not use the pattern required for typed relation fields.'
                             logging.error(message)
@@ -1158,7 +1167,7 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
 
                         # Then, check to see if the relator string (the first two parts of the
                         # value) exist in the field_definitions[fieldname]['typed_relations'] list.
-                        typed_relation_value_parts = field_value.split(':')
+                        typed_relation_value_parts = field_value.split(':', 2)
                         relator_string = typed_relation_value_parts[0] + ':' + typed_relation_value_parts[1]
                         if relator_string not in field_definitions[field_name]['typed_relations']:
                             message = 'Value in field "' + field_name + '" in row ' + str(count) + \
@@ -1168,6 +1177,12 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
 
                         # Finally, check to see if the term ID exists and is a member of one of the
                         # vocabularies referenced by the current field.
+                        this_fields_vocabularies = field_definitions[field_name]['vocabularies']
+                        print(str(typed_relation_value_parts[2]))
+                        if not value_is_numeric(typed_relation_value_parts[2]):
+                            # @@@@@@@@ Works, but we don't want to create the term while validating, we want to indicate it will be created.
+                            typed_relation_value_parts[2] = prepare_term_id(config, this_fields_vocabularies, typed_relation_value_parts[2])
+                            # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                         term_endpoint = config['host'] + '/taxonomy/term/' \
                             + str(typed_relation_value_parts[2]) + '?_format=json'
                         headers = {'Content-Type': 'application/json'}
@@ -1181,7 +1196,6 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
                             response_body = json.loads(response.text)
                             if 'vid' in response_body:
                                 terms_vocabulary = response_body['vid'][0]['target_id']
-                                this_fields_vocabularies = field_definitions[field_name]['vocabularies']
                                 if terms_vocabulary not in this_fields_vocabularies:
                                     this_fields_vocabularies_string = ', '.join(this_fields_vocabularies)
                                     message = 'Term ID "' + str(typed_relation_value_parts[2]) + '" used in field "' + \
@@ -1726,18 +1740,18 @@ def prepare_term_id(config, vocab_ids, term):
        term name in the referenced vocabulary and returns its term ID (existing or
        newly created).
     """
+    term = str(term)
+    term = term.strip()
+    if value_is_numeric(term):
+        return term
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
-    if term.startswith('http'):
+    elif term.startswith('http'):
         # Note: get_term_from_uri() will return False if the URI doesn't match
         # a term.
         tid_from_uri = get_term_id_from_uri(config, term)
         if value_is_numeric(tid_from_uri):
             return tid_from_uri
-
-    term = term.strip()
-    if value_is_numeric(term):
-        return term
     else:
         if len(vocab_ids) == 1:
             tid = create_term(config, vocab_ids[0].strip(), term.strip())

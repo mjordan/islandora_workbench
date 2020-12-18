@@ -207,6 +207,7 @@ def create():
 
             # Typed relation fields.
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                this_fields_vocabularies = field_definitions[custom_field]['vocabularies']
                 target_type = field_definitions[custom_field]['target_type']
                 # Cardinality is unlimited.
                 if field_definitions[custom_field]['cardinality'] == -1:
@@ -214,10 +215,16 @@ def create():
                         field_values = []
                         subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                         for subvalue in subvalues:
+                            subvalue['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalue['target_id'])
+                            # print(subvalue)
+                            # {'target_id': 46, 'rel_type': 'relators:act', 'target_type': 'taxonomy_term'}
+                            # {'target_id': 45, 'rel_type': 'relators:aut', 'target_type': 'taxonomy_term'}
                             field_values.append(subvalue)
                         node[custom_field] = field_values
                     else:
                         field_value = split_typed_relation_string(config, row[custom_field], target_type)
+                        field_value[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, field_value[0]['target_id'])
+                        # print(field_value)
                         # [{'target_id': 46, 'rel_type': 'relators:act', 'target_type': 'taxonomy_term'}]
                         node[custom_field] = field_value
                 # Cardinality has a limit.
@@ -227,22 +234,18 @@ def create():
                         subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                         subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                         if len(subvalues) > field_definitions[custom_field]['cardinality']:
-                            log_field_cardinality_violation(
-                                custom_field, id_field, field_definitions[custom_field]['cardinality'])
+                            log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
                         for subvalue in subvalues:
                             field_values.append(subvalue)
                         node[custom_field] = field_values
                     else:
-                        field_value = split_typed_relation_string(
-                            config, row[custom_field], target_type)
+                        field_value = split_typed_relation_string(config, row[custom_field], target_type)
                         node[custom_field] = field_value
                 # Cardinality is 1.
                 else:
-                    field_values = split_typed_relation_string(
-                        config, row[custom_field], target_type)
+                    field_values = split_typed_relation_string(config, row[custom_field], target_type)
                     node[custom_field] = field_value[0]
-                    log_field_cardinality_violation(
-                        custom_field, id_field, '1')
+                    log_field_cardinality_violation(custom_field, id_field, '1')
 
             # Geolocation fields.
             elif field_definitions[custom_field]['field_type'] == 'geolocation':
