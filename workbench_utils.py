@@ -2092,6 +2092,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
         return
 
     typed_relation_fields_present = False
+    new_term_names_in_csv_results = []
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
             if field_definitions[field_name]['field_type'] == 'typed_relation' and 'typed_relations' in field_definitions[field_name]:
@@ -2118,19 +2119,19 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-                    # Iterate throught the CSV and validate each taxonomy fields's values.
-                    new_term_names_in_csv_results = []
+                    # Iterate throught the CSV and validate the taxonomy term/name/URI in each field subvalue.
                     for column_name in fields_with_vocabularies:
                         if len(row[column_name]):
                             delimited_field_values = row[column_name].split(config['subdelimiter'])
+                            delimited_field_values_without_relator_strings = []
                             for field_value in delimited_field_values:
-                                # Strip the relator string out from the value in row[column_name],
-                                # leaving the vocabulary ID and term name.
-                                field_value_parts = field_value.split(':', 3)
-                                print(field_value_parts)
-                                term_to_check = field_value_parts[2] + ':' + field_value_parts[3]
-                                new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, column_name, term_to_check, count)
-                                new_term_names_in_csv_results.append(new_term_names_in_csv)
+                                # Strip the relator string out from field_value, leaving the vocabulary ID and term ID/name/URI.
+                                term_to_check = re.sub('^[a-zA-Z]+:[a-zA-Z]+:', '', field_value)
+                                delimited_field_values_without_relator_strings.append(term_to_check)
+
+                            field_value_to_check = config['subdelimiter'].join(delimited_field_values_without_relator_strings)
+                            new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, column_name, field_value_to_check, count)
+                            new_term_names_in_csv_results.append(new_term_names_in_csv)
 
     if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
         print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
@@ -2181,7 +2182,7 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                 validate_term_name_length(split_field_value, str(record_number), csv_field_name)
 
         # Check to see if field_value is a member of the field's vocabularies. First,
-        # check the field_value if it is a term ID.
+        # check whether field_value is a term ID.
         if value_is_numeric(field_value):
             field_value = field_value.strip()
             if int(field_value) not in fields_with_vocabularies[csv_field_name]:
@@ -2248,7 +2249,7 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                     split_field_values = field_value.split(config['subdelimiter'])
                     for split_field_value in split_field_values:
                         # Check to see if the namespaced vocab is referenced by this field.
-                        [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':')
+                        [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':', 1)
                         if namespace_vocab_id not in this_fields_vocabularies:
                             message = 'CSV field "' + csv_field_name + '" in row ' \
                                 + str(record_number) + ' contains a namespaced term name '
