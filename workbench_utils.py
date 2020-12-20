@@ -1175,35 +1175,10 @@ def validate_typed_relation_values(config, field_definitions, csv_data):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-                        # Finally, check to see if the term ID exists and is a member of one of the
-                        # vocabularies referenced by the current field.
-                        this_fields_vocabularies = field_definitions[field_name]['vocabularies']
-                        print(str(typed_relation_value_parts[2]))
-                        if not value_is_numeric(typed_relation_value_parts[2]):
-                            # @@@@@@@@ Works, but we don't want to create the term while validating, we want to indicate it will be created.
-                            typed_relation_value_parts[2] = prepare_term_id(config, this_fields_vocabularies, typed_relation_value_parts[2])
-                            # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-                        term_endpoint = config['host'] + '/taxonomy/term/' \
-                            + str(typed_relation_value_parts[2]) + '?_format=json'
-                        headers = {'Content-Type': 'application/json'}
-                        response = issue_request(config, 'GET', term_endpoint, headers)
-                        if response.status_code == 404:
-                            message = 'Term ID "' + str(typed_relation_value_parts[2]) + '" used in field "' + \
-                                field_name + '" in row ' + str(count) + ' (' + field_value + ') does not exist.'
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
-                        if response.status_code == 200:
-                            response_body = json.loads(response.text)
-                            if 'vid' in response_body:
-                                terms_vocabulary = response_body['vid'][0]['target_id']
-                                if terms_vocabulary not in this_fields_vocabularies:
-                                    this_fields_vocabularies_string = ', '.join(this_fields_vocabularies)
-                                    message = 'Term ID "' + str(typed_relation_value_parts[2]) + '" used in field "' + \
-                                        field_name + '" in row ' + str(count) + ' (' + field_value + ') is not ' + \
-                                        'in one of the field\'s configured vocabularies (' + this_fields_vocabularies_string + ').'
-                                    logging.error(message)
-                                    sys.exit('Error: ' + message)
+                        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
+
+                        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     # All term IDs are in their field's vocabularies.
     if typed_relation_fields_present is True:
         message = "OK, typed relation field values in the CSV file validate."
@@ -2044,20 +2019,18 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     """Loop through all fields in field_definitions, and if a field
        is a taxonomy reference field, validate all values in the CSV
        data in that field against term IDs in the taxonomies referenced
-       by the field. Does not validate Typed Relation fields.
+       by the field. Does not validate Typed Relation fields
+       (see validate_typed_relation_values()).
     """
     # Define a dictionary to store CSV field: term IDs mappings.
     fields_with_vocabularies = dict()
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
         if column_name in field_definitions:
-            # Do not validate Typed Relation fields here, even though they reference vocabularies.
-            # Issue for validating them is https://github.com/mjordan/islandora_workbench/issues/41.
             if field_definitions[column_name]['field_type'] == 'typed_relation':
                 continue
             if 'vocabularies' in field_definitions[column_name]:
-                vocabularies = get_field_vocabularies(
-                    config, field_definitions, column_name)
+                vocabularies = get_field_vocabularies(config, field_definitions, column_name)
                 # If there are no vocabularies linked to the current field, 'vocabularies'
                 # will be False and will throw a TypeError.
                 try:
@@ -2083,11 +2056,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
                             logging.warning(message)
                     vocab_term_ids = list(terms.keys())
-                    # If more than one vocab in this field, combine their term
-                    # IDs into a single list.
+                    # If more than one vocab in this field, combine their term IDs into a single list.
                     all_tids_for_field = all_tids_for_field + vocab_term_ids
-                fields_with_vocabularies.update(
-                    {column_name: all_tids_for_field})
+                fields_with_vocabularies.update({column_name: all_tids_for_field})
                 if vocab_validation_issues is True:
                     print(
                         'Warning: Issues detected with validating taxonomy terms used in the CSV column "' +
@@ -2099,164 +2070,163 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         return
 
     # Iterate throught the CSV and validate each taxonomy fields's values.
-    new_term_names_in_csv = False
+    new_term_names_in_csv_results = []
     for count, row in enumerate(csv_data, start=1):
         for column_name in fields_with_vocabularies:
-            this_fields_vocabularies = get_field_vocabularies(
-                config, field_definitions, column_name)
-            this_fields_vocabularies_string = ', '.join(this_fields_vocabularies)
             if len(row[column_name]):
-                # Allow for multiple values in one field.
-                tids_to_check = row[column_name].split(config['subdelimiter'])
-                for field_value in tids_to_check:
-                    # If this is a multi-taxonomy field, all term names must be namespaced
-                    # using the vocab_id:term_name pattern, regardless of whether
-                    # config['allow_adding_terms'] is True.
-                    if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True:
-                        # URIs are unique so don't need namespacing.
-                        if field_value.startswith('http'):
-                            continue
-                        split_field_values = field_value.split(config['subdelimiter'])
-                        for split_field_value in split_field_values:
-                            namespaced = re.search(':', field_value)
-                            if namespaced:
-                                # If the : is present, validate that the namespace is one of
-                                # the vocabulary IDs referenced by this field (issue 129).
-                                field_value_parts = field_value.split(':')
-                                if field_value_parts[0] not in this_fields_vocabularies:
-                                    message = 'Vocabulary ID ' + field_value_parts[0] + \
-                                        ' used in CSV column "' + column_name + '", row ' + str(count) + \
-                                        ' does not match any of the vocabularies referenced by the' + \
-                                        ' corresponding Drupal field (' + this_fields_vocabularies_string + ').'
-                                    logging.error(message)
-                                    sys.exit('Error: ' + message)
+                new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, column_name, row[column_name], count)
+                new_term_names_in_csv_results.append(new_term_names_in_csv)
 
-                            else:
-                                message = 'Term names in multi-vocabulary CSV field "' + \
-                                    column_name + '" require a vocabulary namespace; value '
-                                message_2 = '"' + field_value + '" in row ' \
-                                    + str(count) + ' does not have one.'
-                                logging.error(message + message_2)
-                                sys.exit('Error: ' + message + message_2)
-
-                            validate_term_name_length(
-                                split_field_value, str(count), column_name)
-
-                    # Check to see if field_value is a member of the field's vocabularies. First,
-                    # check the field_value if it is a term ID.
-                    if value_is_numeric(field_value):
-                        field_value = field_value.strip()
-                        if int(field_value) not in fields_with_vocabularies[column_name]:
-                            message = 'CSV field "' + column_name + '" in row ' + \
-                                str(count) + ' contains a term ID (' + field_value + ') that is '
-                            if len(this_fields_vocabularies) > 1:
-                                message_2 = 'not in one of the referenced vocabularies (' \
-                                    + this_fields_vocabularies_string + ').'
-                            else:
-                                message_2 = 'not in the referenced vocabulary ("' + \
-                                    this_fields_vocabularies[0] + '").'
-                            logging.error(message + message_2)
-                            sys.exit('Error: ' + message + message_2)
-                    # Then check values that are URIs.
-                    elif field_value.startswith('http'):
-                        tid_from_uri = get_term_id_from_uri(
-                            config, field_value)
-                        if value_is_numeric(tid_from_uri):
-                            if tid_from_uri not in fields_with_vocabularies[column_name]:
-                                message = 'CSV field "' + column_name + '" in row ' + \
-                                    str(count) + ' contains a term URI (' + field_value + ') that is '
-                                if len(this_fields_vocabularies) > 1:
-                                    message_2 = 'not in one of the referenced vocabularies (' \
-                                        + this_fields_vocabularies_string + ').'
-                                else:
-                                    message_2 = 'not in the referenced vocabulary ("' \
-                                        + this_fields_vocabularies[0] + '").'
-                                logging.error(message + message_2)
-                                sys.exit('Error: ' + message + message_2)
-                        else:
-                            message = 'Term URI "' + term_to_check_uri + '" used in CSV column "' + \
-                                column_name + '"" row ' + str(count) + ' does not match any terms.'
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
-                    # Finally, check values that are string term names.
-                    else:
-                        tid = find_term_in_vocab(config, vocabulary, field_value)
-                        if value_is_numeric(tid) is not True:
-                            # Single taxonomy fields.
-                            if len(this_fields_vocabularies) == 1:
-                                if config['allow_adding_terms'] is True:
-                                    # Warn if namespaced term name is not in specified vocab.
-                                    if tid is False:
-                                        new_term_names_in_csv = True
-                                        validate_term_name_length(
-                                            field_value, str(count), column_name)
-                                        message = 'CSV field "' + column_name + '" in row ' + \
-                                            str(count) + ' contains a term ("' + field_value.strip() + '") that is '
-                                        message_2 = 'not in the referenced vocabulary ("' \
-                                            + this_fields_vocabularies[0] + '"). That term will be created.'
-                                        logging.warning(message + message_2)
-                                else:
-                                    new_term_names_in_csv = True
-                                    message = 'CSV field "' + column_name + '" in row ' + \
-                                        str(count) + ' contains a term ("' + field_value.strip() + '") that is '
-                                    message_2 = 'not in the referenced vocabulary ("' \
-                                        + this_fields_vocabularies[0] + '").'
-                                    logging.error(message + message_2)
-                                    sys.exit('Error: ' + message + message_2)
-
-                            # If this is a multi-taxonomy field, all term names must be namespaced using
-                            # the vocab_id:term_name pattern, regardless of whether
-                            # config['allow_adding_terms'] is True.
-                            if len(this_fields_vocabularies) > 1:
-                                split_field_values = field_value.split(config['subdelimiter'])
-                                for split_field_value in split_field_values:
-                                    # Check to see if namespaced vocab is referenced by this field.
-                                    [namespace_vocab_id,
-                                     namespaced_term_name] = split_field_value.split(':')
-                                    if namespace_vocab_id not in this_fields_vocabularies:
-                                        message = 'CSV field "' + column_name + '" in row ' \
-                                            + str(count) + ' contains a namespaced term name '
-                                        message_2 = '(' + namespaced_term_name.strip(
-                                        ) + '") that specifies a vocabulary not associated with that field.'
-                                        logging.error(message + message_2)
-                                        sys.exit(
-                                            'Error: ' + message + message_2)
-
-                                    tid = find_term_in_vocab(
-                                        config, namespace_vocab_id, namespaced_term_name)
-
-                                    if config['allow_adding_terms'] is True:
-                                        # Warn if namespaced term name is not in specified vocab.
-                                        if tid is False:
-                                            new_term_names_in_csv = True
-                                            message = 'CSV field "' + column_name + '" in row ' + \
-                                                str(count) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                            message_2 = 'not in the referenced vocabulary ("' \
-                                                + namespace_vocab_id + '"). That term will be created.'
-                                            logging.warning(
-                                                message + message_2)
-
-                                            validate_term_name_length(
-                                                split_field_value, str(count), column_name)
-                                    else:
-                                        # Die if namespaced term name is not specified vocab.
-                                        if tid is False:
-                                            message = 'CSV field "' + column_name + '" in row ' + \
-                                                str(count) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                            message_2 = 'not in the referenced vocabulary ("' \
-                                                + namespace_vocab_id + '").'
-                                            logging.warning(
-                                                message + message_2)
-                                            sys.exit(
-                                                'Error: ' + message + message_2)
-
-    if new_term_names_in_csv is True and config['allow_adding_terms'] is True:
+    if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
         print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
     else:
         # All term IDs are in their field's vocabularies.
         print("OK, term IDs/names in CSV file exist in their respective taxonomies.")
-        logging.info(
-            "OK, term IDs/names in CSV file exist in their respective taxonomies.")
+        logging.info("OK, term IDs/names in CSV file exist in their respective taxonomies.")
+
+
+def validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, csv_field_name, csv_field_value, record_number):
+    this_fields_vocabularies = get_field_vocabularies(config, field_definitions, csv_field_name)
+    this_fields_vocabularies_string = ', '.join(this_fields_vocabularies)
+
+    new_term_names_in_csv = False
+
+    # Allow for multiple values in one field.
+    terms_to_check = csv_field_value.split(config['subdelimiter'])
+    for field_value in terms_to_check:
+        # If this is a multi-taxonomy field, all term names must be namespaced
+        # using the vocab_id:term_name pattern, regardless of whether
+        # config['allow_adding_terms'] is True.
+        if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True:
+            # URIs are unique so don't need namespacing.
+            if field_value.startswith('http'):
+                continue
+            split_field_values = field_value.split(config['subdelimiter'])
+            for split_field_value in split_field_values:
+                namespaced = re.search(':', field_value)
+                if namespaced:
+                    # If the : is present, validate that the namespace is one of
+                    # the vocabulary IDs referenced by this field (issue 129).
+                    field_value_parts = field_value.split(':')
+                    if field_value_parts[0] not in this_fields_vocabularies:
+                        message = 'Vocabulary ID ' + field_value_parts[0] + \
+                            ' used in CSV column "' + csv_field_name + '", row ' + str(record_number) + \
+                            ' does not match any of the vocabularies referenced by the' + \
+                            ' corresponding Drupal field (' + this_fields_vocabularies_string + ').'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                else:
+                    message = 'Term names in multi-vocabulary CSV field "' + \
+                        csv_field_name + '" require a vocabulary namespace value '
+                    message_2 = '"' + field_value + '" in row ' \
+                        + str(record_number) + ' does not have one.'
+                    logging.error(message + message_2)
+                    sys.exit('Error: ' + message + message_2)
+
+                validate_term_name_length(split_field_value, str(record_number), csv_field_name)
+
+        # Check to see if field_value is a member of the field's vocabularies. First,
+        # check the field_value if it is a term ID.
+        if value_is_numeric(field_value):
+            field_value = field_value.strip()
+            if int(field_value) not in fields_with_vocabularies[csv_field_name]:
+                message = 'CSV field "' + csv_field_name + '" in row ' + \
+                    str(record_number) + ' contains a term ID (' + field_value + ') that is '
+                if len(this_fields_vocabularies) > 1:
+                    message_2 = 'not in one of the referenced vocabularies (' \
+                        + this_fields_vocabularies_string + ').'
+                else:
+                    message_2 = 'not in the referenced vocabulary ("' + \
+                        this_fields_vocabularies[0] + '").'
+                logging.error(message + message_2)
+                sys.exit('Error: ' + message + message_2)
+        # Then check values that are URIs.
+        elif field_value.startswith('http'):
+            tid_from_uri = get_term_id_from_uri(config, field_value)
+            if value_is_numeric(tid_from_uri):
+                if tid_from_uri not in fields_with_vocabularies[csv_field_name]:
+                    message = 'CSV field "' + csv_field_name + '" in row ' + \
+                        str(record_number) + ' contains a term URI (' + field_value + ') that is '
+                    if len(this_fields_vocabularies) > 1:
+                        message_2 = 'not in one of the referenced vocabularies (' \
+                            + this_fields_vocabularies_string + ').'
+                    else:
+                        message_2 = 'not in the referenced vocabulary ("' \
+                            + this_fields_vocabularies[0] + '").'
+                    logging.error(message + message_2)
+                    sys.exit('Error: ' + message + message_2)
+            else:
+                message = 'Term URI "' + term_to_check_uri + '" used in CSV column "' + \
+                    csv_field_name + '"" row ' + str(record_number) + ' does not match any terms.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+        # Finally, check values that are string term names.
+        else:
+            new_terms_to_add = []
+            for vocabulary in this_fields_vocabularies:
+                tid = find_term_in_vocab(config, vocabulary, field_value)
+                if value_is_numeric(tid) is not True:
+                    # Single taxonomy fields.
+                    if len(this_fields_vocabularies) == 1:
+                        if config['allow_adding_terms'] is True:
+                            # Warn if namespaced term name is not in specified vocab.
+                            if tid is False:
+                                new_term_names_in_csv = True
+                                validate_term_name_length(field_value, str(record_number), csv_field_name)
+                                message = 'CSV field "' + csv_field_name + '" in row ' + \
+                                    str(record_number) + ' contains a term ("' + field_value.strip() + '") that is '
+                                message_2 = 'not in the referenced vocabulary ("' \
+                                    + this_fields_vocabularies[0] + '"). That term will be created.'
+                                logging.warning(message + message_2)
+                        else:
+                            new_term_names_in_csv = True
+                            message = 'CSV field "' + csv_field_name + '" in row ' + \
+                                str(record_number) + ' contains a term ("' + field_value.strip() + '") that is '
+                            message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
+                            logging.error(message + message_2)
+                            sys.exit('Error: ' + message + message_2)
+
+                # If this is a multi-taxonomy field, all term names must be namespaced using
+                # the vocab_id:term_name pattern, regardless of whether
+                # config['allow_adding_terms'] is True.
+                if len(this_fields_vocabularies) > 1:
+                    split_field_values = field_value.split(config['subdelimiter'])
+                    for split_field_value in split_field_values:
+                        # Check to see if the namespaced vocab is referenced by this field.
+                        [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':')
+                        if namespace_vocab_id not in this_fields_vocabularies:
+                            message = 'CSV field "' + csv_field_name + '" in row ' \
+                                + str(record_number) + ' contains a namespaced term name '
+                            message_2 = '(' + namespaced_term_name.strip(
+                            ) + '") that specifies a vocabulary not associated with that field.'
+                            logging.error(message + message_2)
+                            sys.exit('Error: ' + message + message_2)
+
+                        tid = find_term_in_vocab(config, namespace_vocab_id, namespaced_term_name)
+
+                        # Warn if namespaced term name is not in specified vocab.
+                        if config['allow_adding_terms'] is True:
+                            if tid is False and split_field_value not in new_terms_to_add:
+                                new_term_names_in_csv = True
+                                message = 'CSV field "' + csv_field_name + '" in row ' + \
+                                    str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
+                                message_2 = 'not in the referenced vocabulary ("' \
+                                    + namespace_vocab_id + '"). That term will be created.'
+                                logging.warning(message + message_2)
+                                new_terms_to_add.append(split_field_value)
+
+                                validate_term_name_length(split_field_value, str(record_number), csv_field_name)
+                        # Die if namespaced term name is not specified vocab.
+                        else:
+                            if tid is False:
+                                message = 'CSV field "' + csv_field_name + '" in row ' + \
+                                    str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
+                                message_2 = 'not in the referenced vocabulary ("' \
+                                    + namespace_vocab_id + '").'
+                                logging.warning(message + message_2)
+                                sys.exit('Error: ' + message + message_2)
+
+    return new_term_names_in_csv
 
 
 def write_to_output_csv(config, id, node_json):
