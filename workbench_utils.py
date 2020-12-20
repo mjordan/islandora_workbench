@@ -746,9 +746,6 @@ def check_input(config, args):
         validate_media_use_tid(config)
 
     if config['task'] == 'update' or config['task'] == 'create':
-        validate_csv_typed_relation_values_csv_data = get_csv_data(config)
-        validate_typed_relation_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
-
         validate_geolocation_values_csv_data = get_csv_data(config)
         validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
 
@@ -770,6 +767,9 @@ def check_input(config, args):
         else:
             validate_taxonomy_field_csv_data = get_csv_data(config)
             validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
+
+        validate_csv_typed_relation_values_csv_data = get_csv_data(config)
+        validate_typed_relation_field_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
 
         # Validate length of 'title'.
         if config['validate_title_length']:
@@ -1139,51 +1139,6 @@ def split_geolocation_string(config, geolocation_string):
         return_list.append(item_dict)
 
     return return_list
-
-
-def validate_typed_relation_values(config, field_definitions, csv_data):
-    """Validate values in fields that are of type 'typed_relation'.
-       Each value (don't forget multivalued fields) must have this pattern:
-       string:string:int or string:string:string, where the last string is
-       either a namespaced term name or an http URI. In all cases, also validate
-       that the term ID exists.
-    """
-    typed_relation_fields_present = False
-    for count, row in enumerate(csv_data, start=1):
-        for field_name in field_definitions.keys():
-            if field_definitions[field_name]['field_type'] == 'typed_relation' and 'typed_relations' in field_definitions[field_name]:
-                if field_name in row:
-                    typed_relation_fields_present = True
-                    delimited_field_values = row[field_name].split(config['subdelimiter'])
-                    for field_value in delimited_field_values:
-                        if len(field_value) == 0:
-                            continue
-                        # First check the required patterns.
-                        if not re.match("^[a-zA-Z]+:[a-zA-Z]+:.+$", field_value.strip()):
-                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
-                                ' (' + field_value + ') does not use the pattern required for typed relation fields.'
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
-
-                        # Then, check to see if the relator string (the first two parts of the
-                        # value) exist in the field_definitions[fieldname]['typed_relations'] list.
-                        typed_relation_value_parts = field_value.split(':', 2)
-                        relator_string = typed_relation_value_parts[0] + ':' + typed_relation_value_parts[1]
-                        if relator_string not in field_definitions[field_name]['typed_relations']:
-                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
-                                ' contains a relator (' + relator_string + ') that is not configured for that field.'
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
-
-                        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-
-
-                        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    # All term IDs are in their field's vocabularies.
-    if typed_relation_fields_present is True:
-        message = "OK, typed relation field values in the CSV file validate."
-        print(message)
-        logging.info(message)
 
 
 def validate_media_use_tid(config):
@@ -2020,7 +1975,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
        is a taxonomy reference field, validate all values in the CSV
        data in that field against term IDs in the taxonomies referenced
        by the field. Does not validate Typed Relation fields
-       (see validate_typed_relation_values()).
+       (see validate_typed_relation_field_values()).
     """
     # Define a dictionary to store CSV field: term IDs mappings.
     fields_with_vocabularies = dict()
@@ -2083,6 +2038,106 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         # All term IDs are in their field's vocabularies.
         print("OK, term IDs/names in CSV file exist in their respective taxonomies.")
         logging.info("OK, term IDs/names in CSV file exist in their respective taxonomies.")
+
+
+def validate_typed_relation_field_values(config, field_definitions, csv_data):
+    """Validate values in fields that are of type 'typed_relation'. Each CSV
+       value must have this pattern: "string:string:int" or "string:string:string".
+       If the last segment is a string, it must be term name, a namespaced term name,
+       or an http URI.
+    """
+    # Define a dictionary to store CSV field: term IDs mappings.
+    fields_with_vocabularies = dict()
+    # Get all the term IDs for vocabularies referenced in all fields in the CSV.
+    for column_name in csv_data.fieldnames:
+        if column_name in field_definitions:
+            if 'vocabularies' in field_definitions[column_name]:
+                vocabularies = get_field_vocabularies(config, field_definitions, column_name)
+                # If there are no vocabularies linked to the current field, 'vocabularies'
+                # will be False and will throw a TypeError.
+                try:
+                    num_vocabs = len(vocabularies)
+                except BaseException:
+                    message = 'Workbench cannot get vocabularies linked to field "' + \
+                        column_name + '". Please confirm that field has at least one vocabulary.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+                all_tids_for_field = []
+                vocab_validation_issues = False
+                for vocabulary in vocabularies:
+                    terms = get_term_pairs(config, vocabulary)
+                    if len(terms) == 0:
+                        if config['allow_adding_terms'] is True:
+                            vocab_validation_issues = True
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
+                                '" may not be enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
+                            logging.warning(message)
+                        else:
+                            vocab_validation_issues = True
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
+                                '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
+                            logging.warning(message)
+                    vocab_term_ids = list(terms.keys())
+                    # If more than one vocab in this field, combine their term IDs into a single list.
+                    all_tids_for_field = all_tids_for_field + vocab_term_ids
+                fields_with_vocabularies.update({column_name: all_tids_for_field})
+                if vocab_validation_issues is True:
+                    print(
+                        'Warning: Issues detected with validating taxonomy terms used in the CSV column "' +
+                        column_name +
+                        '". See the Workbench log for important details.')
+
+    # If none of the CSV fields are taxonomy reference fields, return.
+    if len(fields_with_vocabularies) == 0:
+        return
+
+    typed_relation_fields_present = False
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]['field_type'] == 'typed_relation' and 'typed_relations' in field_definitions[field_name]:
+                if field_name in row:
+                    typed_relation_fields_present = True
+                    delimited_field_values = row[field_name].split(config['subdelimiter'])
+                    for field_value in delimited_field_values:
+                        if len(field_value) == 0:
+                            continue
+                        # First check the required patterns.
+                        if not re.match("^[a-zA-Z]+:[a-zA-Z]+:.+$", field_value.strip()):
+                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                ' (' + field_value + ') does not use the pattern required for typed relation fields.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+
+                        # Then, check to see if the relator string (the first two parts of the
+                        # value) exist in the field_definitions[fieldname]['typed_relations'] list.
+                        typed_relation_value_parts = field_value.split(':', 2)
+                        relator_string = typed_relation_value_parts[0] + ':' + typed_relation_value_parts[1]
+                        if relator_string not in field_definitions[field_name]['typed_relations']:
+                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                ' contains a relator (' + relator_string + ') that is not configured for that field.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+
+                    # Iterate throught the CSV and validate each taxonomy fields's values.
+                    new_term_names_in_csv_results = []
+                    for column_name in fields_with_vocabularies:
+                        if len(row[column_name]):
+                            delimited_field_values = row[column_name].split(config['subdelimiter'])
+                            for field_value in delimited_field_values:
+                                # Strip the relator string out from the value in row[column_name],
+                                # leaving the vocabulary ID and term name.
+                                field_value_parts = field_value.split(':', 3)
+                                print(field_value_parts)
+                                term_to_check = field_value_parts[2] + ':' + field_value_parts[3]
+                                new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, column_name, term_to_check, count)
+                                new_term_names_in_csv_results.append(new_term_names_in_csv)
+
+    if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
+        print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
+    else:
+        # All term IDs are in their field's vocabularies.
+        print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
+        logging.info("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
 
 
 def validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, csv_field_name, csv_field_value, record_number):
