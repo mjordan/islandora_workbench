@@ -350,7 +350,7 @@ Using term URIs has some constraints:
 
 Unlike most field types, which take a string or an integer as their value in the CSV file, fields that have the "Typed Relation" type take structured values that need to be entered in a specific way in the CSV file. An example of this type of field is the "Linked Agent" field in the Repository Item content type created by the Islandora Defaults module.
 
-The structure of values for this field encode a namespace (indicating the vocabulary the relation is from), a relation type, and a target ID (which identifies what the relation refers to, such as a specific taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an exmple):
+The structure of values for this field encode a namespace (indicating the vocabulary the relation is from), a relation type, and a target (which identifies what the relation refers to, such as a specific taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an exmple):
 
 ![Relations example](docs/images/relators.png)
 
@@ -362,7 +362,7 @@ To include these kind of values in a CSV field, we need to use a structured stri
 
 `relators:art:30`
 
-You can also use taxonomy term names:
+You can also use taxonomy term names as targets:
 
 `"relators:art:Jordan, Mark"`
 
@@ -388,11 +388,11 @@ Islandora Workbench allows you to add new typed relation targets while creating 
 
 An example of a CSV value that adds a new target term is:
 
-`relators:art:person:Jordan, Mark`
+`"relators:art:person:Jordan, Mark"`
 
 You can also add multiple new targets:
 
-`relators:art:person:Annez, Melissa|relators:art:person:Jordan, Mark`
+`"relators:art:person:Annez, Melissa|relators:art:person:Jordan, Mark"`
 
 Note that:
 
