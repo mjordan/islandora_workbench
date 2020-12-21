@@ -106,7 +106,7 @@ If you do this, Workbench will check the following and report any errors that re
 * Whether the columns required to create paged content are present (see "Creating paged content" below).
 * Whether the term ID (or term URI) provided for `media_use_tid` is a member of the "Islandora Media Use" vocabulary.
 * Whether term ID and term URIs used in CSV fields correspond to existing terms.
-* Whether values used in typed relation fields are in the required format, and whether the term IDs used in the values exist in the vocabularies configured for the field.
+* Whether values used in typed relation fields are in the required format, whether values are namespaced when they need to be, and whether the term IDs/term names/term URIs used in the values exist in the vocabularies configured for the field.
 * Whether values used in geolocation fields are valid lat,long coordinates.
 * Whether the length of new terms exceeds 255 characters, which is the maximum length for a term name.
 * Whether term names in your CSV require a vocabulary namespace.
@@ -362,6 +362,18 @@ To include these kind of values in a CSV field, we need to use a structured stri
 
 `relators:art:30`
 
+You can also use taxonomy term names:
+
+`"relators:art:Jordan, Mark"`
+
+If the field you are populating references multiple vocabularies, you must include a namespace with your term name:
+
+`"relators:art:person:Jordan, Mark"`
+
+You can also use HTTP URIs as typed relation targets:
+
+`"relators:art:http://markjordan.net`
+
 > Note that the structure required for typed relation values in the CSV file is not the same as the structure of the relations configuration depicted in the first screenshot above; the CSV values use only colons to seprate the three parts, but the field configuration within Drupal uses a colon and then a pipe (|) to structure its values.
 
 In this example of a CSV value, `relators` is the namespace that the relation type `art` is from (the Library of Congress [Relators](http://id.loc.gov/vocabulary/relators.html) vocabulary), and the target taxonomy term ID is `30`. In the screenshot above showing the "Linked Agent" field of a node, the value of the Relationship Type select list is "Artist (art)", and the value of the associated taxonomy term field is the person's name that has the taxonomy term ID "30" (in this case, "Jordan, Mark"):
@@ -370,7 +382,22 @@ If you want to include multiple typed relation values in a single field of your 
 
 `relators:art:30|relators:art:45`
 
-Note that currently you cannot create new values for Typed Relation fields from your CSV data; all values must exist in Drupal already. But, there is an [enhancement request](https://github.com/mjordan/islandora_workbench/issues/110) open for this feature.
+#### Adding new typed relation targets
+
+Islandora Workbench allows you to add new typed relation targets while creating and updating nodes. These targets are taxonomy terms. Your configuration file must include the `allow_adding_terms: true` option to add new targets. In general, adding new typed relation targets is just like adding new taxonomy terms as described above in the "Taxonomy fields" section.
+
+An example of a CSV value that adds a new target term is:
+
+`relators:art:person:Jordan, Mark`
+
+You can also add multiple new targets:
+
+`relators:art:person:Annez, Melissa|relators:art:person:Jordan, Mark`
+
+Note that:
+
+* For multi-vocabulary fields, new typed relator targets must be accommpanied by a vocabulary namespace (`person` in the above examples).
+* You cannot add new relators (e.g. `relators:foo`) in your CSV file, only new target terms.
 
 ### Geolocation fields
 

@@ -2153,16 +2153,14 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
         # If this is a multi-taxonomy field, all term names must be namespaced
         # using the vocab_id:term_name pattern, regardless of whether
         # config['allow_adding_terms'] is True.
-        if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True:
+        if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True and not field_value.startswith('http'):
             # URIs are unique so don't need namespacing.
-            if field_value.startswith('http'):
-                continue
             split_field_values = field_value.split(config['subdelimiter'])
             for split_field_value in split_field_values:
                 namespaced = re.search(':', field_value)
                 if namespaced:
                     # If the : is present, validate that the namespace is one of
-                    # the vocabulary IDs referenced by this field (issue 129).
+                    # the vocabulary IDs referenced by this field.
                     field_value_parts = field_value.split(':')
                     if field_value_parts[0] not in this_fields_vocabularies:
                         message = 'Vocabulary ID ' + field_value_parts[0] + \
@@ -2173,7 +2171,7 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                         sys.exit('Error: ' + message)
                 else:
                     message = 'Term names in multi-vocabulary CSV field "' + \
-                        csv_field_name + '" require a vocabulary namespace value '
+                        csv_field_name + '" require a vocabulary namespace; value '
                     message_2 = '"' + field_value + '" in row ' \
                         + str(record_number) + ' does not have one.'
                     logging.error(message + message_2)
@@ -2212,7 +2210,7 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                     logging.error(message + message_2)
                     sys.exit('Error: ' + message + message_2)
             else:
-                message = 'Term URI "' + term_to_check_uri + '" used in CSV column "' + \
+                message = 'Term URI "' + field_value + '" used in CSV column "' + \
                     csv_field_name + '"" row ' + str(record_number) + ' does not match any terms.'
                 logging.error(message)
                 sys.exit('Error: ' + message)

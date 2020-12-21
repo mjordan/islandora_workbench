@@ -77,17 +77,61 @@ class TestCheckAddMedia(unittest.TestCase):
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
 
-class TestTypedRelationCheck(unittest.TestCase):
+class TestTypedRelationBadRelatorCheck(unittest.TestCase):
 
-    def test_create_check_fail(self):
+    def test_bad_relator_check_fail(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'bad_typed_relation.yml')
+        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'bad_relator.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
             lines = output.splitlines()
             self.assertRegex(output, 'does not use the pattern required for typed relation fields', '')
+        except subprocess.CalledProcessError as err:
+            pass
+
+
+class TestTypedRelationBadUriCheck(unittest.TestCase):
+
+    def test_bad_uri_check_fail(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'bad_uri.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        try:
+            output = subprocess.check_output(cmd)
+            output = output.decode().strip()
+            lines = output.splitlines()
+            self.assertRegex(output, 'example.com', '')
+        except subprocess.CalledProcessError as err:
+            pass
+
+
+class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
+
+    def setUp(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'add_new_typed_relation.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        self.output = output.decode().strip()
+
+    def test_new_typed_relation_check(self):
+        lines = self.output.splitlines()
+        self.assertRegex(self.output, 'and new terms will be created as noted', '')
+
+
+class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
+
+    def test_no_namespace_check_fail(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'no_namespace.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        try:
+            output = subprocess.check_output(cmd)
+            output = output.decode().strip()
+            lines = output.splitlines()
+            self.assertRegex(output, 'require a vocabulary namespace', '')
         except subprocess.CalledProcessError as err:
             pass
 
