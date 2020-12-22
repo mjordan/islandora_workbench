@@ -288,6 +288,60 @@ class TestCreateFromFiles(unittest.TestCase):
             os.remove(self.rollback_file_path)
 
 
+class TestCreateWithNewTypedRelation(unittest.TestCase):
+    # Note: You can't run this test class on its own, e.g.,
+    # python3 tests/islandora_tests.py TestCreateWithNewTypedRelation.
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'create_with_new_typed_relation.yml')
+        self.create_cmd = ["./workbench", "--config", config_file_path]
+
+        self.temp_dir = tempfile.gettempdir()
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatewithnewtypedrelationtestnids.txt')
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--config')
+        parser.add_argument('--check')
+        parser.set_defaults(config=config_file_path, check=False)
+        args = parser.parse_args()
+        config = workbench_utils.set_config_defaults(args)
+        self.config = config
+
+
+    def test_create_with_new_typed_relation(self):
+        nids = list()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+        create_lines = create_output.splitlines()
+        with open(self.nid_file, "a") as fh:
+            fh.write("node_id\n")
+            for line in create_lines:
+                if 'created at' in line:
+                    nid = line.rsplit('/', 1)[-1]
+                    nid = nid.strip('.')
+                    nids.append(nid)
+                    fh.write(nid + "\n")
+
+        self.assertEqual(len(nids), 1)
+
+        self.new_term_id = workbench_utils.find_term_in_vocab(self.config, 'person', 'Kirk, James T.')
+        self.assertTrue(self.new_term_id)
+
+
+    def tearDown(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'create_with_new_typed_relation_delete.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        delete_output = subprocess.check_output(delete_cmd)
+        delete_output = delete_output.decode().strip()
+        delete_lines = delete_output.splitlines()
+        os.remove(self.nid_file)
+
+        term_endpoint = self.config['host'] + '/taxonomy/term/' + str(self.new_term_id) + '?_format=json'
+        delete_term_response = workbench_utils.issue_request(self.config, 'DELETE', term_endpoint)
+
+
+
 class TestDelete(unittest.TestCase):
 
     def setUp(self):
