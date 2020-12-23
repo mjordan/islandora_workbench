@@ -24,11 +24,11 @@ If you don't already have the two required libraries installed, clone this repo 
 
 ## Usage
 
-`./workbench --config config.yml --check`
+`./islandora_workbench --config config.yml --check`
 
 then
 
-`./workbench --config config.yml`
+`./islandora_workbench --config config.yml`
 
 ## The configuration file
 
@@ -86,7 +86,7 @@ The settings defined in a configuration file are:
 
 You should always (always, [I can't stress that enough](https://www.youtube.com/watch?v=2ZgtEdFAg3s)) check your configuration and input prior to creating, updating, or deleting content. You can do this by running Workbench with the `--check` option, e.g.:
 
-`./workbench --config config.yml --check`
+`./islandora_workbench --config config.yml --check`
 
 If you do this, Workbench will check the following and report any errors that require your attention before proceding:
 
@@ -125,7 +125,7 @@ Once you have used `--check` to detect all of the problems with your CSV data, c
 
 ## Creating nodes from the sample data
 
-Using the sample data and configuration file, the output of `./workbench --config create.yml` should look something like:
+Using the sample data and configuration file, the output of `./islandora_workbench --config create.yml` should look something like:
 
 ```
 Node for 'Small boats in Havana Harbour' created at http://localhost:8000/node/52.
@@ -350,7 +350,7 @@ Using term URIs has some constraints:
 
 Unlike most field types, which take a string or an integer as their value in the CSV file, fields that have the "Typed Relation" type take structured values that need to be entered in a specific way in the CSV file. An example of this type of field is the "Linked Agent" field in the Repository Item content type created by the Islandora Defaults module.
 
-The structure of values for this field encode a namespace (indicating the vocabulary the relation is from), a relation type, and a target (which identifies what the relation refers to, such as a specific taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an exmple):
+The structure of values for this field encode a namespace (indicating the vocabulary the relation is from), a relation type, and a target (which identifies what the relation refers to, such as a specific taxonomy term), each separated by a colon (`:`). The first two parts, the namespace and the relation type, come from the "Available Relations" section of the field's configuration, which looks like this (using the "Linked Agent" field's configuration as an example):
 
 ![Relations example](docs/images/relators.png)
 
@@ -636,7 +636,7 @@ In the workflow described at the beginning of this section, you might want to in
 
 In the `create` and `create_from_files` tasks, Workbench generates a `rollback.yml` configuration file and a `rollback.csv` file in the format described in "Deleting nodes", below. These files allow you to easily roll back (i.e., delete) all the nodes and accompanying media you just created. Specifically, this configuration file defines a `delete` task. See the "Deleting nodes" section below for more information.
 
-To roll back all the nodes and media you just created, run `./workbench --config rollback.yml`.
+To roll back all the nodes and media you just created, run `./islandora_workbench --config rollback.yml`.
 
 Note that Workbench overwrites the rollback configuration and CSV files each time it runs, so these files only apply to the most recent `create` and `create_from_files` runs.
 
