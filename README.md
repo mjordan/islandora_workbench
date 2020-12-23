@@ -243,6 +243,8 @@ Things to note about URL paths:
 
 ### Generating a template CSV file
 
+> This section describes creating CSV *file* templates. For information on CSV *field* templates, see the "Using CSV field templates" section below.
+
 You can generate a template CSV file by running Workbench with the `--get_csv_template` argument:
 
 `./workbench --config config.yml ----get_csv_template`
@@ -443,6 +445,8 @@ Note that:
 * If you are entering geocoordinates into a spreadsheet, a leading `+` will make the spreadsheet application think you are entering a formula. You can work around this by escaping the `+` with a backslash (`\`), e.g., `49.16667,-123.93333` should be `\+49.16667,-123.93333`, and `49.16667,-123.93333|49.25,-124.8` should be `\+49.16667,-123.93333|\+49.25,-124.8`. Workbench will strip the leading `\` before it populates the Drupal fields.
 
 ## Using CSV field templates
+
+> This section describes using CSV *field* templates in your configuration file. For information on CSV *file* templates, see the "Generating a template CSV file" section above.
 
 In `create` and `update` tasks, you can configure field templates that are applied to each node as if the fields were present in your CSV file. The templates are configured in the `csv_field_templates` option. An example looks like this:
 
