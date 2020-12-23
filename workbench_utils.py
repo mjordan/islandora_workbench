@@ -119,6 +119,11 @@ def set_config_defaults(args):
     else:
         config['check'] = False
 
+    if args.get_csv_template:
+        config['get_csv_template'] = True
+    else:
+        config['get_csv_template'] = False
+
     return config
 
 
@@ -2313,10 +2318,7 @@ def write_to_output_csv(config, id, node_json):
         node_field_names.remove(field_to_remove)
 
     csvfile = open(config['output_csv'], 'a+')
-    writer = csv.DictWriter(
-        csvfile,
-        fieldnames=node_field_names,
-        lineterminator="\n")
+    writer = csv.DictWriter(csvfile, fieldnames=node_field_names, lineterminator="\n")
 
     # Check for presence of header row, don't add it if it's already there.
     with open(config['output_csv']) as f:
@@ -2519,3 +2521,86 @@ def download_remote_file(config, url):
     # create_media() references the path of the downloaded file.
     downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])
     open(downloaded_file_path, 'wb+').write(response.content)
+
+
+def get_csv_template(config, args):
+    field_definitions = get_field_definitions(config)
+
+    mapping = dict()
+    mapping['string'] = 'Free text'
+    mapping['string_long'] = 'Free text'
+    mapping['text'] = 'Free text'
+    mapping['text_long'] = 'Free text'
+    mapping['geolocation'] = '+49.16,-123.93'
+    mapping['entity_reference'] = '100 [or term name or http://foo.com/someuri]'
+    mapping['edtf'] = '2020-10-28'
+    mapping['typed_relation'] = 'relators:art:30'
+    mapping['integer'] = 100
+
+    sample_data = collections.OrderedDict()
+    sample_data['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'SAMPLE DATA (REMOVE THIS ROW)'
+    sample_data['id'] = '0001'
+    sample_data['file'] = 'myimage.jpg'
+    sample_data['uid'] = '21'
+    sample_data['langcode'] = 'fr'
+    sample_data['created'] = '2020-11-15T23:49:22+00:00'
+    sample_data['title'] = 'Free text'
+
+    for field_name in field_definitions:
+        if field_definitions[field_name]['field_type'] in mapping:
+            sample_data[field_name] = mapping[field_definitions[field_name]['field_type']]
+        else:
+            sample_data[field_name] = ''
+
+    csv_file_path = os.path.join(config['input_dir'], config['input_csv'] + '.csv_file_template')
+    csv_file = open(csv_file_path, 'a+')
+    writer = csv.DictWriter(csv_file, fieldnames=sample_data.keys(), lineterminator="\n")
+    writer.writeheader()
+    writer.writerow(sample_data)
+
+    cardinality = collections.OrderedDict()
+    cardinality['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)'
+    cardinality['id'] = '1'
+    cardinality['file'] = '1'
+    cardinality['uid'] = '1'
+    cardinality['langcode'] = '1'
+    cardinality['created'] = '1'
+    cardinality['title'] = '1'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['cardinality'] == -1:
+            cardinality[field_name] = 'unlimited'
+        else:
+            cardinality[field_name] = field_definitions[field_name]['cardinality']
+    writer.writerow(cardinality)
+
+    docs = dict()
+    docs['string'] = 'Single-valued fields'
+    docs['string_long'] = 'Single-valued fields'
+    docs['text'] = 'Single-valued fields'
+    docs['text_long'] = 'Single-valued fields'
+    docs['geolocation'] = 'Geolocation fields'
+    docs['entity_reference'] = 'Taxonomy fields'
+    docs['edtf'] = ''
+    docs['typed_relation'] = 'Typed Relation fields'
+    docs['integer'] = 'Single-valued fields'
+
+    docs_tips = collections.OrderedDict()
+    docs_tips['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'SECTION IN DOCUMENTATION (REMOVE THIS ROW)'
+    docs_tips['id'] = 'Required fields'
+    docs_tips['file'] = 'Required fields'
+    docs_tips['uid'] = 'Base fields'
+    docs_tips['langcode'] = 'Base fields'
+    docs_tips['created'] = 'Base fields'
+    docs_tips['title'] = 'Base fields'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['field_type'] in docs:
+            doc_reference = docs[field_definitions[field_name]['field_type']]
+            docs_tips[field_name] = doc_reference
+        else:
+            docs_tips[field_name] = ''
+    docs_tips['field_member_of'] = ''
+    writer.writerow(docs_tips)
+
+    csv_file.close()
+    print('CSV template saved at ' + csv_file_path + '.')
+    sys.exit()

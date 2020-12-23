@@ -1006,6 +1006,10 @@ parser.add_argument(
     '--check',
     help='Check input data and exit without creating/updating/etc.',
     action='store_true')
+parser.add_argument(
+    '--get_csv_template',
+    help='Generate a CSV template using the specified configuration file.',
+    action='store_true')
 args = parser.parse_args()
 
 config = set_config_defaults(args)
@@ -1020,6 +1024,11 @@ if config['task'] != 'create_from_files' and config['input_csv'].startswith('htt
     download_google_sheet(config)
 
 ping_islandora(config, print_message=True)
+
+if 'get_csv_template' in config.keys():
+    if config['get_csv_template']:
+        get_csv_template(config, args)
+
 if 'check' in config.keys():
     if config['check']:
         if config['task'] == 'create_from_files':

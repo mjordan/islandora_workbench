@@ -241,6 +241,28 @@ Things to note about URL paths:
 * Files identified by URLs must be accessible to the Workbench script, which means they must not require a username/password; however, they can be protected by a firewall, ACL, etc. as long as the computer running Workbench is allowed to retrieve the files without authenticating.
 * Currently Workbench requires that the URLs point directly to a file and not to a script, wrapper page, or other indirect route to the file.
 
+### Generating a template CSV file
+
+> This section describes creating CSV *file* templates. For information on CSV *field* templates, see the "Using CSV field templates" section below.
+
+You can generate a template CSV file by running Workbench with the `--get_csv_template` argument:
+
+`./workbench --config config.yml ----get_csv_template`
+
+With this option, Workbench will fetch the field definitions for the content type named in your configuration's `content_type` option and save a CSV file with a column for each of the content type's fields. You can then populate this template with values you want to use in a `create` task. The template file is saved in the directory indicated in your configuration's `input_dir` option, using the filename defined in `input_csv` with `.csv_file_template` appended.
+
+The template also contains three additional rows:
+
+* sample data
+* number of values allowed (either a specific maximum number or 'unlimited')
+* the name of the section in the documentation covering the field type
+
+Here is a screenshot of this CSV file template loaded into a spreadsheet application:
+
+![Relations example](docs/images/csv_file_template.png)
+
+Note that the first column, and all the rows other than the field names, should be deleted before you use a popluated version of this CSV file in a `create` task.
+
 ### Using Google Sheets as input data
 
 Workbench can fetch the CSV version of a Google spreadsheet and use it as its input CSV. To do this, simply provide the URL to the Google spreadsheet in your configuration file's `input_csv` option, like this:
@@ -423,6 +445,8 @@ Note that:
 * If you are entering geocoordinates into a spreadsheet, a leading `+` will make the spreadsheet application think you are entering a formula. You can work around this by escaping the `+` with a backslash (`\`), e.g., `49.16667,-123.93333` should be `\+49.16667,-123.93333`, and `49.16667,-123.93333|49.25,-124.8` should be `\+49.16667,-123.93333|\+49.25,-124.8`. Workbench will strip the leading `\` before it populates the Drupal fields.
 
 ## Using CSV field templates
+
+> This section describes using CSV *field* templates in your configuration file. For information on CSV *file* templates, see the "Generating a template CSV file" section above.
 
 In `create` and `update` tasks, you can configure field templates that are applied to each node as if the fields were present in your CSV file. The templates are configured in the `csv_field_templates` option. An example looks like this:
 
