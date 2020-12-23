@@ -241,6 +241,26 @@ Things to note about URL paths:
 * Files identified by URLs must be accessible to the Workbench script, which means they must not require a username/password; however, they can be protected by a firewall, ACL, etc. as long as the computer running Workbench is allowed to retrieve the files without authenticating.
 * Currently Workbench requires that the URLs point directly to a file and not to a script, wrapper page, or other indirect route to the file.
 
+### Generating a template CSV file
+
+You can generate a template CSV file by running Workbench with the `--get_csv_template` argument:
+
+`./workbench --config config.yml ----get_csv_template`
+
+With this option, Workbench will fetch the field definitions for the content type named in your configuration's `content_type` option and save a CSV file with a column for each of the content type's fields, and including three additional rows containing useful information:
+
+* sample data
+* number of values allowed (either a specific value or 'unlimited')
+* the name of the section in the documentation covering the field type
+
+The file is saved in the directory indicated in your configuration's `input_dir` option, using the filename defined in `input_csv` with `.csv_file_template` appended.
+
+Here is a screenshot of this CSV file template loaded into a spreadsheet application:
+
+![Relations example](docs/images/csv_file_template.png)
+
+Note that the first column, and all the rows other than the field names, should be deleted before you run Workbench using this file as input.
+
 ### Using Google Sheets as input data
 
 Workbench can fetch the CSV version of a Google spreadsheet and use it as its input CSV. To do this, simply provide the URL to the Google spreadsheet in your configuration file's `input_csv` option, like this:

@@ -2527,22 +2527,24 @@ def get_csv_template(config, args):
     field_definitions = get_field_definitions(config)
 
     mapping = dict()
-    mapping['string'] = 'Simple text data'
-    mapping['string_long'] = 'Simple text data'
-    mapping['text'] = 'Simple text data'
-    mapping['text_long'] = 'Simple text data'
+    mapping['string'] = 'Free text'
+    mapping['string_long'] = 'Free text'
+    mapping['text'] = 'Free text'
+    mapping['text_long'] = 'Free text'
     mapping['geolocation'] = '+49.16,-123.93'
-    mapping['entity_reference'] = '100'
+    mapping['entity_reference'] = '100 [or term name or http://foo.com/someuri]'
     mapping['edtf'] = '2020-10-28'
     mapping['typed_relation'] = 'relators:art:30'
     mapping['integer'] = 100
 
     sample_data = collections.OrderedDict()
-    sample_data['REMOVE THIS COLUMN'] = 'SAMPLE DATA'
+    sample_data['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'SAMPLE DATA (REMOVE THIS ROW)'
+    sample_data['id'] = '0001'
+    sample_data['file'] = 'myimage.jpg'
     sample_data['uid'] = '21'
     sample_data['langcode'] = 'fr'
     sample_data['created'] = '2020-11-15T23:49:22+00:00'
-    sample_data['title'] = 'I am a sample title'
+    sample_data['title'] = 'Free text'
 
     for field_name in field_definitions:
         if field_definitions[field_name]['field_type'] in mapping:
@@ -2556,26 +2558,44 @@ def get_csv_template(config, args):
     writer.writeheader()
     writer.writerow(sample_data)
 
+    cardinality = collections.OrderedDict()
+    cardinality['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)'
+    cardinality['id'] = '1'
+    cardinality['file'] = '1'
+    cardinality['uid'] = '1'
+    cardinality['langcode'] = '1'
+    cardinality['created'] = '1'
+    cardinality['title'] = '1'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['cardinality'] == -1:
+            cardinality[field_name] = 'unlimited'
+        else:
+            cardinality[field_name] = field_definitions[field_name]['cardinality']
+    writer.writerow(cardinality)
+
     docs = dict()
-    docs['string'] = 'Single-valued fields / Multivalued fields'
-    docs['string_long'] = 'Single-valued fields / Multivalued fields'
-    docs['text'] = 'Single-valued fields / Multivalued fields'
-    docs['text_long'] = 'Single-valued fields / Multivalued fields'
+    docs['string'] = 'Single-valued fields'
+    docs['string_long'] = 'Single-valued fields'
+    docs['text'] = 'Single-valued fields'
+    docs['text_long'] = 'Single-valued fields'
     docs['geolocation'] = 'Geolocation fields'
     docs['entity_reference'] = 'Taxonomy fields'
     docs['edtf'] = ''
     docs['typed_relation'] = 'Typed Relation fields'
-    docs['integer'] = 'Single-valued fields / Multivalued fields'
+    docs['integer'] = 'Single-valued fields'
 
     docs_tips = collections.OrderedDict()
-    docs_tips['REMOVE THIS COLUMN'] = 'SECTION IN DOCUMENTATION'
+    docs_tips['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'SECTION IN DOCUMENTATION (REMOVE THIS ROW)'
+    docs_tips['id'] = 'Required fields'
+    docs_tips['file'] = 'Required fields'
     docs_tips['uid'] = 'Base fields'
     docs_tips['langcode'] = 'Base fields'
     docs_tips['created'] = 'Base fields'
     docs_tips['title'] = 'Base fields'
     for field_name in field_definitions:
         if field_definitions[field_name]['field_type'] in docs:
-            docs_tips[field_name] = docs[field_definitions[field_name]['field_type']]
+            doc_reference = docs[field_definitions[field_name]['field_type']]
+            docs_tips[field_name] = doc_reference
         else:
             docs_tips[field_name] = ''
     docs_tips['field_member_of'] = ''
