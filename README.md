@@ -25,7 +25,7 @@ A command-line tool that allows creation, updating, and deletion of Islandora co
 
 ## Documentation
 
-https://mjordan.github.io/islandora_workbench_docs/
+Complete documentation is [available](https://mjordan.github.io/islandora_workbench_docs/).
 
 ## Current maintainer
 
