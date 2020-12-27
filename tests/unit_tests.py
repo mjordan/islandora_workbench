@@ -136,6 +136,21 @@ class TestValidateNodeCreatedDateValue(unittest.TestCase):
             self.assertFalse(res)
 
 
+class TestValidateEdtfValue(unittest.TestCase):
+
+    def test_validate_good_edtf_values(self):
+        values = ['1900', '2020-10', '2021-10-12', '[1900..1920]', '[1900-12-01..1923]', '2000/2020']
+        for value in values:
+            res, message = workbench_utils.validate_edtf_value(value)
+            self.assertTrue(res)
+
+    def test_validate_bad_edtf_values(self):
+        values = ['190', '2020-1', '1900..1920]', '[1900..923]', '200/2020']
+        for value in values:
+            res, message = workbench_utils.validate_edtf_value(value)
+            self.assertFalse(res)
+
+
 class TestSetMediaType(unittest.TestCase):
 
     def setUp(self):
