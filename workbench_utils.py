@@ -1920,62 +1920,92 @@ def validate_node_created_date(csv_data):
     logging.info(message)
 
 
-def validate_edtf_value(edtf):
-    edtf = edtf.strip()
-    # Currently, Workbench doesn't valdiate UTC dates.
-    if 'T' in edtf:
-        # print("Sorry...")
-        pass
-    # Value contains an EDTF interval, e.g. ‘1964/2008’
-    if '/' in edtf:
-        interval_dates = edtf.split('/', 1)
-        for interval_date in interval_dates:
-            if not validate_single_edtf_date(interval_date):
-                return False, 'Interval date ' + interval_date + ' does not validate.'
-            # If we've made it this far, return True.
-            return True, None
-
-    elif re.match('(,|\.\.)', edtf):
-        if not re.match('^[', edtf):
-            return False, "Interval date " + edtf + " does not contain a leading [."
-        if not re.match(']$', edtf):
-            return False, "Interval date " + edtf + " does not contain a trailing ]."
-
-    # Value contains an EDTF set, e.g. '[1667,1668,1670..1672]'.
-    elif '[' in edtf:
-        edtf = edtf.lstrip('[')
-        edtf = edtf.rstrip(']')
-        if '..' in edtf:
-            set_dates = edtf.split(',')
-            for set_date in set_dates:
-                if '..' in set_date:
-                    set_date_boundaries = set_date.split('..')
-                    for set_date_boundary in set_date_boundaries:
-                        if not validate_single_edtf_date(set_date_boundary):
-                            return False, 'Set date ' + set_date_boundary + ' does not validate.'
-        # If we've made it this far, return True.
-        return True, None
-
-    # Assume value is just a single EDTF date.
-    else:
-        if validate_single_edtf_date(edtf):
-            return True, None
-        else:
-            return False, 'EDTF date ' + edtf + ' does not validate.'
-
-
-def validate_single_edtf_date(single_edtf):
-    if re.match(r'^\d{4}-?(\d\d)?-?(\d\d)?$', single_edtf):
-        return True
-    else:
-        return False
-
-
 def validate_node_created_date_string(created_date_string):
     if re.match(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$", created_date_string):
         return True
     else:
         return False
+
+
+def validate_edtf_value(edtf):
+    edtf = edtf.strip()
+    # Value contains an EDTF interval, e.g. ‘1964/2008’
+    if '/' in edtf:
+        interval_dates = edtf.split('/', 1)
+        for interval_date in interval_dates:
+            result, message = validate_single_edtf_date(interval_date)
+            if result is False:
+                return False, 'Interval date ' + interval_date + ' does not validate.' + ' ' + message
+        # If we've made it this far, return True.
+        return True, None
+
+    elif re.match(r'(,|\.\.)', edtf):
+        if not re.match('^[', edtf):
+            return False, "Date set " + edtf + " does not contain a leading [."
+        if not re.match(']$', edtf):
+            return False, "Date set " + edtf + " does not contain a trailing ]."
+
+    # Value contains an EDTF set, e.g. '[1667,1668,1670..1672]'.
+    elif '[' in edtf:
+        edtf = edtf.lstrip('[')
+        edtf = edtf.rstrip(']')
+        if '..' in edtf or ',' in edtf:
+            # .. is at beginning of set, e.g. ..1760-12-03
+            if edtf.startswith('..'):
+                edtf = edtf.lstrip('..')
+                result, message = validate_single_edtf_date(edtf)
+                if result is False:
+                    return False, 'Set date ' + edtf + ' does not validate.' + ' ' + message
+                else:
+                    return True, None
+            if edtf.endswith('..'):
+                edtf = edtf.rstrip('..')
+                result, message = validate_single_edtf_date(edtf)
+                if result is False:
+                    return False, 'Set date ' + edtf + ' does not validate.' + ' ' + message
+                else:
+                    return True, None
+
+            set_date_boundaries = re.split(r'\.\.|,', edtf)
+            for set_date_boundary in set_date_boundaries:
+                result, message = validate_single_edtf_date(set_date_boundary)
+                if result is False:
+                    return False, 'Set date ' + set_date_boundary + ' does not validate.' + ' ' + message
+            # If we've made it this far, return True.
+            return True, None
+
+    # Assume value is just a single EDTF date.
+    else:
+        result, message = validate_single_edtf_date(edtf)
+        if result is False:
+            return False, 'EDTF date ' + edtf + ' does not validate.' + ' ' + message
+        else:
+            return True, None
+
+
+def validate_single_edtf_date(single_edtf):
+    if 'T' in single_edtf:
+        # if re.search(r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$', single_edtf):
+        if re.search(r'^\d\d\d\d-\d\d-\d\d(T\d\d:\d\d:\d\d)?$', single_edtf):
+            return True, None
+        else:
+            return False, single_edtf + " is an invalid EDTF date and local time value."
+
+    if re.search(r'#|\?|~', single_edtf):
+        parts = single_edtf.split('-')
+        if parts[0] is not None and re.search('~|%', parts[0]):
+            return False, "Invalid date qualifier in " + parts[0] + ", must be a ?."
+        if len(parts) == 2 and re.search(r'\?|%', parts[1]):
+            return False, "Invalid date qualifier in " + parts[1] + ", must be a ~."
+        if len(parts) == 3 and re.search(r'\?|~', parts[2]):
+            return False, "Invalid date qualifier in " + parts[2] + ", must be a %."
+        for symbol in '%~?':
+            single_edtf = single_edtf.replace(symbol, '')
+
+    if re.search(r'^\d{4}-?(\d\d)?-?(\d\d)?$', single_edtf):
+        return True, None
+    else:
+        return False, single_edtf + " is not a valid EDTF date value."
 
 
 def validate_url_aliases(config, csv_data):
