@@ -754,6 +754,9 @@ def check_input(config, args):
         validate_geolocation_values_csv_data = get_csv_data(config)
         validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
 
+        validate_edtf_values_csv_data = get_csv_data(config)
+        validate_edtf_fields(config, field_definitions, validate_edtf_values_csv_data)
+
         validate_csv_field_cardinality_csv_data = get_csv_data(config)
         validate_csv_field_cardinality(config, field_definitions, validate_csv_field_cardinality_csv_data)
 
@@ -1925,6 +1928,31 @@ def validate_node_created_date_string(created_date_string):
         return True
     else:
         return False
+
+
+def validate_edtf_fields(config, field_definitions, csv_data):
+    """Validate values in fields that are of type 'edtf'.
+    """
+    edtf_fields_present = False
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]['field_type'] == 'edtf':
+                if field_name in row:
+                    edtf_fields_present = True
+                    delimited_field_values = row[field_name].split(config['subdelimiter'])
+                    for field_value in delimited_field_values:
+                        if len(field_value.strip()):
+                            result, validation_message = validate_edtf_value(field_value)
+                            if result is False:
+                                message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                    ' (' + field_value + ') is not a valid EDTF date/time.' + ' ' + validation_message
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+
+    if edtf_fields_present is True:
+        message = "OK, ETDF field values in the CSV file validate."
+        print(message)
+        logging.info(message)
 
 
 def validate_edtf_value(edtf):
