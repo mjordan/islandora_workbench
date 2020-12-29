@@ -1967,40 +1967,39 @@ def validate_edtf_value(edtf):
         # If we've made it this far, return True.
         return True, None
 
-    elif re.match(r'(,|\.\.)', edtf):
-        if not re.match('^[', edtf):
-            return False, "Date set " + edtf + " does not contain a leading [."
-        if not re.match(']$', edtf):
-            return False, "Date set " + edtf + " does not contain a trailing ]."
+    # Value is an EDTF set if it contains a , or .., so it must start with a [ and ends with a ].
+    elif edtf.count('.') == 2 or ',' in edtf:
+        if not (edtf.startswith('[') and edtf.endswith(']')):
+            return False, "Date set " + edtf + " does not contain a leading [ and/or trailing ]."
 
-    # Value contains an EDTF set, e.g. '[1667,1668,1670..1672]'.
-    elif '[' in edtf:
-        edtf = edtf.lstrip('[')
-        edtf = edtf.rstrip(']')
-        if '..' in edtf or ',' in edtf:
-            # .. is at beginning of set, e.g. ..1760-12-03
-            if edtf.startswith('..'):
-                edtf = edtf.lstrip('..')
-                result, message = validate_single_edtf_date(edtf)
-                if result is False:
-                    return False, 'Set date ' + edtf + ' does not validate.' + ' ' + message
-                else:
-                    return True, None
-            if edtf.endswith('..'):
-                edtf = edtf.rstrip('..')
-                result, message = validate_single_edtf_date(edtf)
-                if result is False:
-                    return False, 'Set date ' + edtf + ' does not validate.' + ' ' + message
-                else:
-                    return True, None
+        # Value contains an EDTF set, e.g. '[1667,1668,1670..1672]'.
+        if '[' in edtf:
+            edtf = edtf.lstrip('[')
+            edtf = edtf.rstrip(']')
+            if '..' in edtf or ',' in edtf:
+                # .. is at beginning of set, e.g. ..1760-12-03
+                if edtf.startswith('..'):
+                    edtf = edtf.lstrip('..')
+                    result, message = validate_single_edtf_date(edtf)
+                    if result is False:
+                        return False, 'Set date ' + edtf + ' does not validate.' + ' ' + message
+                    else:
+                        return True, None
+                if edtf.endswith('..'):
+                    edtf = edtf.rstrip('..')
+                    result, message = validate_single_edtf_date(edtf)
+                    if result is False:
+                        return False, 'Set date ' + edtf + ' does not validate.' + ' ' + message
+                    else:
+                        return True, None
 
-            set_date_boundaries = re.split(r'\.\.|,', edtf)
-            for set_date_boundary in set_date_boundaries:
-                result, message = validate_single_edtf_date(set_date_boundary)
-                if result is False:
-                    return False, 'Set date ' + set_date_boundary + ' does not validate.' + ' ' + message
-            # If we've made it this far, return True.
-            return True, None
+                set_date_boundaries = re.split(r'\.\.|,', edtf)
+                for set_date_boundary in set_date_boundaries:
+                    result, message = validate_single_edtf_date(set_date_boundary)
+                    if result is False:
+                        return False, 'Set date ' + set_date_boundary + ' does not validate.' + ' ' + message
+                # If we've made it this far, return True.
+                return True, None
 
     # Assume value is just a single EDTF date.
     else:

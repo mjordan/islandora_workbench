@@ -144,8 +144,8 @@ class TestValidateEdtfValue(unittest.TestCase):
                        '2020-10',
                        '2021-01~',
                        '2021-10-12',
-                       '[1900..1920]',
                        '[1899,1902..1909]',
+                       '[1900..1920]',
                        '[1900-12-01..1923]',
                        '2000/2020',
                        '2020-11-15T23:11:05',
@@ -157,7 +157,21 @@ class TestValidateEdtfValue(unittest.TestCase):
             self.assertTrue(res, good_value)
 
     def test_validate_bad_edtf_values(self):
-        bad_values = ['190', '1900..1920]', '2021-01?', '2020-1', '2000~', '[1900..923]', '200/2020', '2020-11-15-23:11:05']
+        bad_values = ['190',
+                      '1900..1920]',
+                      '1900..1920',
+                      '[1900..1920',
+                      '(1900..1920)',
+                      '2021-01?',
+                      '2020-1',
+                      '2000~',
+                      '~2000',
+                      '[1900..923]',
+                      '[1900?..923]',
+                      '[1900?..1923/1926]',
+                      '200/2020',
+                      '2020-11-15-23:11:05'
+                      ]
         for bad_value in bad_values:
             res, message = workbench_utils.validate_edtf_value(bad_value)
             self.assertFalse(res, bad_value)
