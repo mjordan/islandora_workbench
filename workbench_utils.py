@@ -2035,6 +2035,29 @@ def validate_single_edtf_date(single_edtf):
         return False, single_edtf + " is not a valid EDTF date value."
 
 
+def validate_calendar_date(date_to_validate):
+    """Checks to see if date (yyyy, yyy-mm, or yyyy-mm-dd) is a valid calendar date.
+    """
+    parts = str(date_to_validate).split('-')
+    if len(parts) == 3:
+        year = parts[0]
+        month = parts[1]
+        day = parts[2]
+    if len(parts) == 2:
+        year = parts[0]
+        month = parts[1]
+        day = 1
+    if len(parts) == 1:
+        year = parts[0]
+        month = 1
+        day = 1
+    try:
+        datetime.datetime(int(year), int(month), int(day))
+        return True
+    except ValueError:
+        return False
+
+
 def validate_url_aliases(config, csv_data):
     """Checks that URL aliases don't already exist.
     """
