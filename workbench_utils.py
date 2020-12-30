@@ -1945,7 +1945,7 @@ def validate_edtf_fields(config, field_definitions, csv_data):
                             result, validation_message = validate_edtf_value(field_value)
                             if result is False:
                                 message = 'Value in field "' + field_name + '" in row ' + str(count) + \
-                                    ' (' + field_value + ') is not a valid EDTF date/time.' + ' ' + validation_message
+                                    ' ("' + field_value + '") is not a valid EDTF date/time.' + ' ' + validation_message
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -1963,14 +1963,14 @@ def validate_edtf_value(edtf):
         for interval_date in interval_dates:
             result, message = validate_single_edtf_date(interval_date)
             if result is False:
-                return False, 'Interval date ' + interval_date + ' does not validate.' + ' ' + message
+                return False, 'Interval date "' + interval_date + '"" does not validate.' + ' ' + message
         # If we've made it this far, return True.
         return True, None
 
     # Value is an EDTF set if it contains a , or .., so it must start with a [ and ends with a ].
     elif edtf.count('.') == 2 or ',' in edtf:
         if not (edtf.startswith('[') and edtf.endswith(']')):
-            return False, "Date set " + edtf + " does not contain a leading [ and/or trailing ]."
+            return False, 'Date set "' + edtf + '" does not contain a leading [ and/or trailing ].'
 
         # Value contains an EDTF set, e.g. '[1667,1668,1670..1672]'.
         if '[' in edtf:
@@ -1982,14 +1982,14 @@ def validate_edtf_value(edtf):
                     edtf = edtf.lstrip('..')
                     result, message = validate_single_edtf_date(edtf)
                     if result is False:
-                        return False, 'Set date ' + edtf + ' does not validate.' + ' ' + message
+                        return False, 'Set date "' + edtf + '"" does not validate.' + ' ' + message
                     else:
                         return True, None
                 if edtf.endswith('..'):
                     edtf = edtf.rstrip('..')
                     result, message = validate_single_edtf_date(edtf)
                     if result is False:
-                        return False, 'Set date ' + edtf + ' does not validate.' + ' ' + message
+                        return False, 'Set date "' + edtf + '"" does not validate.' + ' ' + message
                     else:
                         return True, None
 
@@ -1997,7 +1997,7 @@ def validate_edtf_value(edtf):
                 for set_date_boundary in set_date_boundaries:
                     result, message = validate_single_edtf_date(set_date_boundary)
                     if result is False:
-                        return False, 'Set date ' + set_date_boundary + ' does not validate.' + ' ' + message
+                        return False, 'Set date "' + set_date_boundary + '"" does not validate.' + ' ' + message
                 # If we've made it this far, return True.
                 return True, None
 
@@ -2005,7 +2005,7 @@ def validate_edtf_value(edtf):
     else:
         result, message = validate_single_edtf_date(edtf)
         if result is False:
-            return False, 'EDTF date ' + edtf + ' does not validate.' + ' ' + message
+            return False, 'EDTF date "' + edtf + '"" does not validate.' + ' ' + message
         else:
             return True, None
 
@@ -2016,27 +2016,31 @@ def validate_single_edtf_date(single_edtf):
         if re.search(r'^\d\d\d\d-\d\d-\d\d(T\d\d:\d\d:\d\d)?$', single_edtf):
             return True, None
         else:
-            return False, single_edtf + " is an invalid EDTF date and local time value."
+            return False, '"' + single_edtf + '" is an invalid EDTF date and local time value.'
 
     if re.search(r'#|\?|~', single_edtf):
         parts = single_edtf.split('-')
         if parts[0] is not None and re.search('~|%', parts[0]):
-            return False, "Invalid date qualifier in " + parts[0] + ", must be a ?."
+            return False, 'Invalid date qualifier in "' + parts[0] + ", must be a ?."
         if len(parts) == 2 and re.search(r'\?|%', parts[1]):
-            return False, "Invalid date qualifier in " + parts[1] + ", must be a ~."
+            return False, 'Invalid date qualifier in "' + parts[1] + ", must be a ~."
         if len(parts) == 3 and re.search(r'\?|~', parts[2]):
-            return False, "Invalid date qualifier in " + parts[2] + ", must be a %."
+            return False, 'Invalid date qualifier in "' + parts[2] + ", must be a %."
         for symbol in '%~?':
             single_edtf = single_edtf.replace(symbol, '')
 
     if re.search(r'^\d{4}-?(\d\d)?-?(\d\d)?$', single_edtf):
+        valid_calendar_date = validate_calendar_date(single_edtf)
+        if valid_calendar_date is False:
+            return False, '"' + single_edtf + '" is not a valid calendar date.'
         return True, None
     else:
         return False, single_edtf + " is not a valid EDTF date value."
 
 
 def validate_calendar_date(date_to_validate):
-    """Checks to see if date (yyyy, yyy-mm, or yyyy-mm-dd) is a valid calendar date.
+    """Checks to see if date (yyyy, yyy-mm, or yyyy-mm-dd) is a
+       valid Gregorian calendar date.
     """
     parts = str(date_to_validate).split('-')
     if len(parts) == 3:
@@ -2052,7 +2056,7 @@ def validate_calendar_date(date_to_validate):
         month = 1
         day = 1
     try:
-        datetime.datetime(int(year), int(month), int(day))
+        datetime.date(int(year), int(month), int(day))
         return True
     except ValueError:
         return False
