@@ -12,6 +12,7 @@ import logging
 import datetime
 import argparse
 import collections
+from progress_bar import InitBar
 from workbench_utils import *
 
 
@@ -22,6 +23,13 @@ def create():
 
     logging.info('"Create" task started using config file %s', args.config)
     node_ids = dict()
+
+    # Apparently, there's no builtin way of getting the lenght of a DictReader,
+    # so we read the CSV file, convert it to a list, and get its length.
+    if config['progress_bar'] is True:
+        csv_data_as_list = list(get_csv_data(config))
+        num_csv_records = len(csv_data_as_list)
+        pbar = InitBar()
 
     field_definitions = get_field_definitions(config)
     csv_data = get_csv_data(config)
@@ -34,6 +42,7 @@ def create():
         print(message)
         logging.info(message)
 
+    row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
 
@@ -216,16 +225,11 @@ def create():
                         subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                         for subvalue in subvalues:
                             subvalue['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalue['target_id'])
-                            # print(subvalue)
-                            # {'target_id': 46, 'rel_type': 'relators:act', 'target_type': 'taxonomy_term'}
-                            # {'target_id': 45, 'rel_type': 'relators:aut', 'target_type': 'taxonomy_term'}
                             field_values.append(subvalue)
                         node[custom_field] = field_values
                     else:
                         field_value = split_typed_relation_string(config, row[custom_field], target_type)
                         field_value[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, field_value[0]['target_id'])
-                        # print(field_value)
-                        # [{'target_id': 46, 'rel_type': 'relators:act', 'target_type': 'taxonomy_term'}]
                         node[custom_field] = field_value
                 # Cardinality has a limit.
                 elif field_definitions[custom_field]['cardinality'] > 1:
@@ -288,8 +292,7 @@ def create():
                     log_field_cardinality_violation(
                         custom_field, id_field, '1')
 
-            # For non-entity reference and non-typed relation fields
-            # (text, integer, boolean etc.).
+            # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
             else:
                 # Cardinality is unlimited.
                 if field_definitions[custom_field]['cardinality'] == -1:
@@ -347,14 +350,15 @@ def create():
             config, 'POST', node_endpoint, node_headers, node, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
-            print(
-                'Node for "' +
-                row['title'] +
-                '" (record ' +
-                id_field +
-                ') created at ' +
-                node_uri +
-                '.')
+            if config['progress_bar'] is False:
+                print(
+                    'Node for "' +
+                    row['title'] +
+                    '" (record ' +
+                    id_field +
+                    ') created at ' +
+                    node_uri +
+                    '.')
             logging.info(
                 "Node for %s (record %s) created at %s.",
                 row['title'],
@@ -376,14 +380,20 @@ def create():
             node_nid = node_uri.rsplit('/', 1)[-1]
             node_ids[id_field] = node_nid
 
+        if config['progress_bar'] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
+
         write_rollback_node_id(config, node_nid)
 
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
         if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
-            print(
-                '+No media for ' +
-                node_uri +
-                ' created since its "file" field in the CSV is empty.')
+            if config['progress_bar'] is False:
+                print(
+                    '+No media for ' +
+                    node_uri +
+                    ' created since its "file" field in the CSV is empty.')
             logging.warning(
                 "No media for %s created since its 'file' field in the CSV is empty.",
                 node_uri)
@@ -400,12 +410,13 @@ def create():
                 media_response_status_code = create_media(config, row['file'], node_uri, row_for_media)
                 allowed_media_response_codes = [201, 204]
                 if media_response_status_code in allowed_media_response_codes:
-                    print(
-                        '+' +
-                        media_type.title() +
-                        " media for " +
-                        row['file'] +
-                        " created.")
+                    if config['progress_bar'] is False:
+                        print(
+                            '+' +
+                            media_type.title() +
+                            " media for " +
+                            row['file'] +
+                            " created.")
                     logging.info(
                         "%s media for %s created.",
                         media_type.title(),
@@ -413,7 +424,8 @@ def create():
 
             if config['nodes_only'] is False and 'file' in row and len(
                     row['file']) == 0 and config['paged_content_from_directories'] is False:
-                print('+ No file specified in CSV for ' + row['title'])
+                if config['progress_bar'] is False:
+                    print('+ No file specified in CSV for ' + row['title'])
                 logging.info(
                     "No file specified for %s, so no media created.", id_field)
 
