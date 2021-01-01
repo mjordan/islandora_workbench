@@ -930,7 +930,7 @@ def check_input(config, args):
         print('OK, page directories are all present.')
 
     # If nothing has failed by now, exit with a positive, upbeat message.
-    print("Configuration and input data appear to be valid.")
+    print("Configuration and input data appear to be valid.", end='')
     logging.info('Configuration checked for "%s" task using config file %s, no problems found.', config['task'], args.config)
     sys.exit(0)
 
