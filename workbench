@@ -24,13 +24,6 @@ def create():
     logging.info('"Create" task started using config file %s', args.config)
     node_ids = dict()
 
-    # Apparently, there's no builtin way of getting the lenght of a DictReader,
-    # so we read the CSV file, convert it to a list, and get its length.
-    if config['progress_bar'] is True:
-        csv_data_as_list = list(get_csv_data(config))
-        num_csv_records = len(csv_data_as_list)
-        pbar = InitBar()
-
     field_definitions = get_field_definitions(config)
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
@@ -451,15 +444,15 @@ def update():
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
+    row_count = 0
     for row in csv_data:
-        row = clean_csv_values(row)
         if not ping_node(config, row['node_id']):
-            print(
-                "Node " +
-                row['node_id'] +
-                " not found or not accessible, skipping update.")
+            if config['progress_bar'] is False:
+                print("Node " + row['node_id'] + " not found or not accessible, skipping update.")
+            logging.warning("Node " + row['node_id'] + " not found or not accessible, skipping update.")
             continue
 
+        row = clean_csv_values(row)
         # Add the target_id field.
         node = {
             'type': [
@@ -472,8 +465,7 @@ def update():
 
         # Add custom (non-required) fields.
         required_fields = ['node_id']
-        custom_fields = list(
-            set(csv_column_headers) - set(required_fields))
+        custom_fields = list(set(csv_column_headers) - set(required_fields))
         for custom_field in custom_fields:
             # Skip updating field if value is empty.
             if len(row[custom_field]) == 0:
@@ -524,18 +516,15 @@ def update():
                     node[custom_field] = [
                         {'target_id': subvalues[0], 'target_type': target_type}]
                     if len(subvalues) > 1:
-                        log_field_cardinality_violation(
-                            custom_field, row['node_id'], '1')
+                        log_field_cardinality_violation(custom_field, row['node_id'], '1')
                 # Cardinality has a limit.
                 elif field_definitions[custom_field]['cardinality'] > 1:
                     # Append to existing values.
-                    existing_target_ids = get_target_ids(
-                        node_field_values[custom_field])
+                    existing_target_ids = get_target_ids(node_field_values[custom_field])
                     num_existing_values = len(existing_target_ids)
                     if config['subdelimiter'] in row[custom_field]:
                         field_values = []
-                        subvalues = row[custom_field].split(
-                            config['subdelimiter'])
+                        subvalues = row[custom_field].split(config['subdelimiter'])
                         for subvalue in subvalues:
                             if subvalue in existing_target_ids:
                                 existing_target_ids.remove(subvalue)
@@ -558,8 +547,7 @@ def update():
                                 row['node_id'],
                                 num_values_to_add)
                             for subvalue in subvalues:
-                                field_values.append(
-                                    {'target_id': subvalue, 'target_type': target_type})
+                                field_values.append({'target_id': subvalue, 'target_type': target_type})
                             node[custom_field] = node_field_values[custom_field] + \
                                 field_values
                         else:
@@ -794,13 +782,19 @@ def update():
             config, 'PATCH', node_endpoint, node_headers, node)
 
         if node_response.status_code == 200:
-            print("Node for " + config['host'] + '/node/' +
-                  row['node_id'] + " updated.")
+            if config['progress_bar'] is False:
+                print("Node for " + config['host'] + '/node/' +
+                      row['node_id'] + " updated.")
             logging.info(
                 "Node for %s updated.",
                 config['host'] +
                 '/node/' +
                 row['node_id'])
+
+        if config['progress_bar'] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
 
         # If 'url_alias' is in the CSV, create the alias.
         if 'url_alias' in row and len(row['url_alias']) > 0:
@@ -813,11 +807,13 @@ def delete():
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
+    row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
         if not ping_node(config, row['node_id']):
-            print("Node " + row['node_id'] + " not found or not " +
-                  "accessible, skipping delete.")
+            if config['progress_bar'] is False:
+                print("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
+            logging.warning("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
             continue
 
         # Delete the node's media first.
@@ -839,20 +835,26 @@ def delete():
         node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
         node_response = issue_request(config, 'DELETE', node_endpoint)
         if node_response.status_code == 204:
-            print("Node " +
-                  config['host'] +
-                  '/node/' +
-                  str(row['node_id']) +
-                  " deleted.")
+            if config['progress_bar'] is False:
+                print("Node " +
+                      config['host'] +
+                      '/node/' +
+                      str(row['node_id']) +
+                      " deleted.")
             logging.info(
                 "Node %s deleted.",
                 config['host'] +
                 '/node/' +
                 row['node_id'])
-        if config['delete_media_with_nodes'] is True:
+        if config['delete_media_with_nodes'] is True and config['progress_bar'] is False:
             if len(media_messages):
                 for media_message in media_messages:
                     print(media_message)
+
+        if config['progress_bar'] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
 
 
 def add_media():
@@ -861,6 +863,7 @@ def add_media():
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
+    row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
         if not ping_node(config, row['node_id']):
@@ -880,17 +883,23 @@ def add_media():
                 config, row['file'], node_uri, None)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
-                print(
-                    media_type.title() +
-                    " media for " +
-                    row['file'] +
-                    " created and added to " +
-                    node_uri)
+                if config['progress_bar'] is False:
+                    print(
+                        media_type.title() +
+                        " media for " +
+                        row['file'] +
+                        " created and added to " +
+                        node_uri)
                 logging.info(
                     "%s media for %s created and added to %s.",
                     media_type.title(),
                     row['file'],
                     node_uri)
+
+        if config['progress_bar'] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
 
 
 def delete_media():
@@ -899,16 +908,23 @@ def delete_media():
     csv_data = csv.DictReader(csvfile)
     csv_column_headers = csv_data.fieldnames
 
+    row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
         media_delete_status_code = remove_media_and_file(
             config, row['media_id'])
         if media_delete_status_code == 204:
-            print("Media " +
-                  config['host'] +
-                  '/media/' +
-                  str(row['media_id']) +
-                  " and associated file deleted.")
+            if config['progress_bar'] is False:
+                print("Media " +
+                      config['host'] +
+                      '/media/' +
+                      str(row['media_id']) +
+                      " and associated file deleted.")
+
+        if config['progress_bar'] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
 
 
 def create_from_files():
@@ -924,6 +940,8 @@ def create_from_files():
 
     prep_rollback_csv(config)
 
+    num_files = len(files)
+    file_count = 0
     for file_name in files:
         if file_name == 'rollback.csv':
             continue
@@ -967,12 +985,13 @@ def create_from_files():
             None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
-            print(
-                'Node for "' +
-                filename_without_extension +
-                '" created at ' +
-                node_uri +
-                '.')
+            if config['progress_bar'] is False:
+                print(
+                    'Node for "' +
+                    filename_without_extension +
+                    '" created at ' +
+                    node_uri +
+                    '.')
             logging.info(
                 'Node for "%s" created at %s.',
                 filename_without_extension,
@@ -992,12 +1011,13 @@ def create_from_files():
                 config, file_name, node_uri, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
-                print(
-                    '+ ' +
-                    media_type.title() +
-                    " media for " +
-                    filename_without_extension +
-                    " created.")
+                if config['progress_bar'] is False:
+                    print(
+                        '+ ' +
+                        media_type.title() +
+                        " media for " +
+                        filename_without_extension +
+                        " created.")
                 logging.info("Media for %s created.", file_path)
         else:
             logging.error(
@@ -1006,6 +1026,11 @@ def create_from_files():
                     config['input_dir'],
                     file_name),
                 node_response.status_code)
+
+        if config['progress_bar'] is True:
+            file_count += 1
+            file_position = get_percentage(file_count, num_files)
+            pbar(file_position)
 
 
 # Main program logic.
@@ -1036,6 +1061,13 @@ if config['task'] != 'create_from_files' and config['input_csv'].startswith('htt
     download_google_sheet(config)
 
 ping_islandora(config, print_message=True)
+
+# Apparently, there's no builtin way of getting the number of items in a
+# DictReader, so we read the CSV file, convert it to a list, and get its length.
+if config['progress_bar'] is True:
+    csv_data_as_list = list(get_csv_data(config))
+    num_csv_records = len(csv_data_as_list)
+    pbar = InitBar()
 
 if 'get_csv_template' in config.keys():
     if config['get_csv_template']:
