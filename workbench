@@ -1032,6 +1032,8 @@ def create_from_files():
             file_position = get_percentage(file_count, num_files)
             pbar(file_position)
 
+    pbar(100)
+
 
 # Main program logic.
 
@@ -1065,8 +1067,9 @@ ping_islandora(config, print_message=True)
 # Apparently, there's no builtin way of getting the number of items in a
 # DictReader, so we read the CSV file, convert it to a list, and get its length.
 if config['progress_bar'] is True:
-    csv_data_as_list = list(get_csv_data(config))
-    num_csv_records = len(csv_data_as_list)
+    if config['task'] != 'create_from_files':
+        csv_data_as_list = list(get_csv_data(config))
+        num_csv_records = len(csv_data_as_list)
     pbar = InitBar()
 
 if 'get_csv_template' in config.keys():

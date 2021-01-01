@@ -1403,7 +1403,7 @@ def get_csv_data(config):
         input_csv_path = os.path.join(config['input_dir'], config['input_csv'])
 
     if not os.path.exists(input_csv_path):
-        message = 'Error: CSV file ' + input_csv_path + 'not found.'
+        message = 'Error: CSV file ' + input_csv_path + ' not found.'
         logging.error(message)
         sys.exit(message)
 
@@ -2744,4 +2744,4 @@ def get_csv_template(config, args):
 
 
 def get_percentage(part, whole):
-  return 100 * float(part)/float(whole)
+    return 100 * float(part) / float(whole)
