@@ -72,6 +72,8 @@ def set_config_defaults(args):
         config['nodes_only'] = False
     if 'log_json' not in config:
         config['log_json'] = False
+    if 'progress_bar' not in config:
+        config['progress_bar'] = False
     if 'user_agent' not in config:
         config['user_agent'] = 'Islandora Workbench'
     if 'allow_redirects' not in config:
@@ -2739,3 +2741,7 @@ def get_csv_template(config, args):
     csv_file.close()
     print('CSV template saved at ' + csv_file_path + '.')
     sys.exit()
+
+
+def get_percentage(part, whole):
+  return 100 * float(part)/float(whole)
