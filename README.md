@@ -15,13 +15,13 @@ A command-line tool that allows creation, updating, and deletion of Islandora co
 * Allows creation of new taxonomy terms from CSV field data
 * Allows the assignment of URL aliases
 * Allows adding alt text to images
-* Cross platform (written in Python)
+* Cross platform (written in Python, tested on Linux, Mac, and Windows)
 * Well tested
 * [Well documented](https://mjordan.github.io/islandora_workbench_docs/)
 * Provides both sensible default [configuration](https://mjordan.github.io/islandora_workbench_docs/configuration/) values and rich configuation options for power users
 * A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), will add a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 
-> This tool is not related in any way to the Drupal contrib module called [Workbench](https://www.drupal.org/project/workbench).
+Note that this tool is not related in any way to the Drupal contrib module called [Workbench](https://www.drupal.org/project/workbench).
 
 ## Documentation
 
