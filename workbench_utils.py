@@ -360,6 +360,7 @@ def get_field_definitions(config):
         field_config = json.loads(raw_field_config)
         field_definitions[fieldname]['entity_type'] = field_config['entity_type']
         field_definitions[fieldname]['required'] = field_config['required']
+        field_definitions[fieldname]['label'] = field_config['label']
         raw_vocabularies = [
             x for x in field_config['dependencies']['config'] if re.match(
                 "^taxonomy.vocabulary.", x)]
@@ -2663,6 +2664,32 @@ def download_remote_file(config, url):
 def get_csv_template(config, args):
     field_definitions = get_field_definitions(config)
 
+    field_labels = collections.OrderedDict()
+    field_labels['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'LABEL (REMOVE THIS ROW)'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['label'] != '':
+            field_labels[field_name] = field_definitions[field_name]['label']
+        else:
+            field_labels[field_name] = ''
+
+    required = collections.OrderedDict()
+    required['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'REQUIRED IN CREATE TASKS (REMOVE THIS ROW)'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['required'] != '':
+            if field_definitions[field_name]['required'] is True:
+                required[field_name] = 'Yes'
+            else:
+                required[field_name] = 'No'
+    required['title'] = 'Yes'
+    required['uid'] = 'No'
+    required['langcode'] = 'No'
+    required['created'] = 'No'
+    required[config['id_field']] = 'Yes'
+    if config['nodes_only'] is True:
+        required['file'] = 'Yes'
+    else:
+        required['file'] = 'No'
+
     mapping = dict()
     mapping['string'] = 'Free text'
     mapping['string_long'] = 'Free text'
@@ -2693,6 +2720,10 @@ def get_csv_template(config, args):
     csv_file = open(csv_file_path, 'a+')
     writer = csv.DictWriter(csv_file, fieldnames=sample_data.keys(), lineterminator="\n")
     writer.writeheader()
+    # We want the labels and required rows to appear as the second and third rows so
+    # add them before we add the sample data.
+    writer.writerow(field_labels)
+    writer.writerow(required)
     writer.writerow(sample_data)
 
     cardinality = collections.OrderedDict()
@@ -2716,8 +2747,8 @@ def get_csv_template(config, args):
     docs['text'] = 'Single-valued fields'
     docs['text_long'] = 'Single-valued fields'
     docs['geolocation'] = 'Geolocation fields'
-    docs['entity_reference'] = 'Taxonomy fields'
-    docs['edtf'] = ''
+    docs['entity_reference'] = 'Taxonomy reference fields'
+    docs['edtf'] = 'EDTF fields'
     docs['typed_relation'] = 'Typed Relation fields'
     docs['integer'] = 'Single-valued fields'
 
