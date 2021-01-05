@@ -214,5 +214,31 @@ class TestSetMediaType(unittest.TestCase):
         self.assertEqual(res, 'barmediatype')
 
 
+class TestGetCsvFromExcel(unittest.TestCase):
+    def setUp(self):
+        self.config = {'input_dir': 'tests/assets/excel_test',
+                       'input_csv': 'test_excel_file.xlsx',
+                       'excel_worksheet': 'Sheet1',
+                       'excel_csv_filename': 'excel_csv.csv'
+                       }
+
+        self.csv_file_path = os.path.join(self.config['input_dir'], self.config['excel_csv_filename'])
+
+    def test_get_csv_from_excel(self):
+        workbench_utils.get_csv_from_excel(self.config)
+        csv_data_fh = open(self.csv_file_path, "r")
+        csv_data = csv_data_fh.readlines()
+        csv_data_fh.close()
+
+        self.assertEqual(len(csv_data), 5)
+
+        fourth_row = csv_data[4]
+        fourth_row_parts = fourth_row.split(',')
+        self.assertEqual(fourth_row_parts[1], 'Title 4')
+
+    def tearDown(self):
+        os.remove(self.csv_file_path)
+
+
 if __name__ == '__main__':
     unittest.main()

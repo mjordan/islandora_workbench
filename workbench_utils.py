@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import csv
+import openpyxl
 import time
 import string
 import re
@@ -80,6 +81,10 @@ def set_config_defaults(args):
         config['allow_redirects'] = True
     if 'google_sheets_csv_filename' not in config:
         config['google_sheets_csv_filename'] = 'google_sheet.csv'
+    if 'excel_worksheet' not in config:
+        config['excel_worksheet'] = 'Sheet1'
+    if 'excel_csv_filename' not in config:
+        config['excel_csv_filename'] = 'excel.csv'
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -1398,8 +1403,10 @@ def get_csv_data(config):
     """
     if os.path.isabs(config['input_csv']):
         input_csv_path = config['input_csv']
-    if config['input_csv'].startswith('http') is True:
+    elif config['input_csv'].startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+    elif config['input_csv'].endswith('xslx') is True:
+        input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
     else:
         input_csv_path = os.path.join(config['input_dir'], config['input_csv'])
 
@@ -2615,7 +2622,7 @@ def write_rollback_node_id(config, node_id):
     rollback_csv_file.close()
 
 
-def download_google_sheet(config):
+def get_csv_from_google_sheet(config):
     url_parts = config['input_csv'].split('/')
     url_parts[6] = 'export?gid=0&format=csv'
     csv_url = '/'.join(url_parts)
@@ -2636,6 +2643,46 @@ def download_google_sheet(config):
 
     input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
     open(input_csv_path, 'wb+').write(response.content)
+
+
+def get_csv_from_excel(config):
+    """Read the input Excel 2010 and up file, adding field templates if they exist.
+    """
+    if os.path.isabs(config['input_csv']):
+        input_excel_path = config['input_csv']
+    else:
+        input_excel_path = os.path.join(config['input_dir'], config['input_csv'])
+
+    if not os.path.exists(input_excel_path):
+        message = 'Error: Excel file ' + input_excel_path + ' not found.'
+        logging.error(message)
+        sys.exit(message)
+
+    excel_file_path = config['input_csv']
+    wb = openpyxl.load_workbook(filename=input_excel_path)
+    ws = wb[config['excel_worksheet']]
+
+    headers = []
+    header_row = ws[1]
+    ws.delete_rows(0)
+    for header_cell in header_row:
+        headers.append(header_cell.value)
+
+    records = []
+    for row in ws:
+        record = {}
+        for x in range(len(header_row)):
+            if headers[x] is not None and row[x] is not None:
+                record[headers[x]] = row[x].value
+        records.append(record)
+
+    input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
+    csv_writer_file_handle = open(input_csv_path, 'w+', newline='')
+    csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
+    csv_writer.writeheader()
+    for record in records:
+        csv_writer.writerow(record)
+    csv_writer_file_handle.close()
 
 
 def download_remote_file(config, url):
