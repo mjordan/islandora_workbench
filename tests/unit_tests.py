@@ -219,7 +219,8 @@ class TestGetCsvFromExcel(unittest.TestCase):
         self.config = {'input_dir': 'tests/assets/excel_test',
                        'input_csv': 'test_excel_file.xlsx',
                        'excel_worksheet': 'Sheet1',
-                       'excel_csv_filename': 'excel_csv.csv'
+                       'excel_csv_filename': 'excel_csv.csv',
+                       'id_field': 'id'
                        }
 
         self.csv_file_path = os.path.join(self.config['input_dir'], self.config['excel_csv_filename'])

@@ -22,7 +22,7 @@ yaml = YAML()
 
 def set_config_defaults(args):
     """Convert the YAML configuration data into an array for easy use.
-       Also set some sensible defaults config values.
+       Also set some sensible default config values.
     """
     # Check existence of configuration file.
     if not os.path.exists(args.config):
@@ -942,7 +942,7 @@ def check_input(config, args):
         print('OK, page directories are all present.')
 
     # If nothing has failed by now, exit with a positive, upbeat message.
-    print("Configuration and input data appear to be valid.", end='')
+    print("Configuration and input data appear to be valid.")
     logging.info('Configuration checked for "%s" task using config file %s, no problems found.', config['task'], args.config)
     sys.exit(0)
 
@@ -2292,9 +2292,10 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
     if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
         print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
     else:
-        # All term IDs are in their field's vocabularies.
-        print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
-        logging.info("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
+        if typed_relation_fields_present is True:
+            # All term IDs are in their field's vocabularies.
+            print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
+            logging.info("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
 
 
 def validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, csv_field_name, csv_field_value, record_number):
@@ -2687,7 +2688,8 @@ def get_csv_from_excel(config):
     csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
     csv_writer.writeheader()
     for record in records:
-        csv_writer.writerow(record)
+        if config['id_field'] in record and record[config['id_field']] is not None:
+            csv_writer.writerow(record)
     csv_writer_file_handle.close()
 
 
