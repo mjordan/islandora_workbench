@@ -2688,7 +2688,7 @@ def get_csv_from_excel(config):
     csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
     csv_writer.writeheader()
     for record in records:
-        if config['id_field'] in record and record[config['id_field']] is not None:
+        if (config['id_field'] in record or 'node_id' in record) and record[config['id_field']] is not None:
             csv_writer.writerow(record)
     csv_writer_file_handle.close()
 
