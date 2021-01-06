@@ -236,6 +236,8 @@ class TestGetCsvFromExcel(unittest.TestCase):
         fourth_row_parts = fourth_row.split(',')
         self.assertEqual(fourth_row_parts[1], 'Title 4')
 
+        # @todo: Test CSV field templates.
+
     def tearDown(self):
         os.remove(self.csv_file_path)
 

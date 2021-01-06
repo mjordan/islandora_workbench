@@ -557,9 +557,15 @@ def check_input(config, args):
     # Check existence of CSV file.
     if os.path.isabs(config['input_csv']):
         input_csv = config['input_csv']
+    # The actual "extraction" is fired over in workbench.
     elif config['input_csv'].startswith('http'):
         input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-        message = "Saving data from " + config['input_csv'] + " to " + input_csv + '.'
+        message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
+        print(message)
+        logging.info(message)
+    elif config['input_csv'].endswith('xlsx'):
+        input_csv = os.path.join(config['input_dir'], config['excel_csv_filename'])
+        message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
         print(message)
         logging.info(message)
     else:
