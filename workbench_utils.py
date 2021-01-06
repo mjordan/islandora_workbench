@@ -2289,7 +2289,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                             new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, column_name, field_value_to_check, count)
                             new_term_names_in_csv_results.append(new_term_names_in_csv)
 
-    if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
+    if typed_relation_fields_present is True and True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
         print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
     else:
         if typed_relation_fields_present is True:
