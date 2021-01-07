@@ -2703,7 +2703,7 @@ def get_csv_template(config, args):
 
     sample_data = collections.OrderedDict()
     sample_data['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'SAMPLE DATA (REMOVE THIS ROW)'
-    sample_data['id'] = '0001'
+    sample_data[config['id_field']] = '0001'
     sample_data['file'] = 'myimage.jpg'
     sample_data['uid'] = '21'
     sample_data['langcode'] = 'fr'
@@ -2728,7 +2728,7 @@ def get_csv_template(config, args):
 
     cardinality = collections.OrderedDict()
     cardinality['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)'
-    cardinality['id'] = '1'
+    cardinality[config['id_field']] = '1'
     cardinality['file'] = '1'
     cardinality['uid'] = '1'
     cardinality['langcode'] = '1'
@@ -2754,7 +2754,7 @@ def get_csv_template(config, args):
 
     docs_tips = collections.OrderedDict()
     docs_tips['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'SECTION IN DOCUMENTATION (REMOVE THIS ROW)'
-    docs_tips['id'] = 'Required fields'
+    docs_tips[config['id_field']] = 'Required fields'
     docs_tips['file'] = 'Required fields'
     docs_tips['uid'] = 'Base fields'
     docs_tips['langcode'] = 'Base fields'
