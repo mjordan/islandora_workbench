@@ -1061,7 +1061,7 @@ logging.basicConfig(
 
 if config['task'] != 'create_from_files' and config['input_csv'].startswith('http') is True:
     get_csv_from_google_sheet(config)
-if config['task'] != 'create_from_files' and config['input_csv'].endswith('xlsx') is True:
+if config['task'] != 'create_from_files' and config['input_csv'].endswith('.xlsx') is True:
     get_csv_from_excel(config)
 
 ping_islandora(config, print_message=True)

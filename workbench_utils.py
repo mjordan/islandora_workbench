@@ -1411,7 +1411,7 @@ def get_csv_data(config):
         input_csv_path = config['input_csv']
     elif config['input_csv'].startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-    elif config['input_csv'].endswith('xslx') is True:
+    elif config['input_csv'].endswith('.xslx') is True:
         input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
     else:
         input_csv_path = os.path.join(config['input_dir'], config['input_csv'])
@@ -1430,8 +1430,9 @@ def get_csv_data(config):
         csv_writer_file_handle = open(input_csv_path + '.with_templates', 'w+', newline='')
         csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
         csv_reader_fieldnames = csv_reader.fieldnames
-        # Make a copy of the column headers so we can check it to skip adding templates to
-        # the new CSV. We don't want fields in the source CSV to be stomped on by templates.
+        # Make a copy of the column headers so we can skip adding templates to the new CSV
+        # if they're present in the source CSV. We don't want fields in the source CSV to be
+        # stomped on by templates.
         csv_reader_fieldnames_orig = copy.copy(csv_reader_fieldnames)
         for template in config['csv_field_templates']:
             for field_name, field_value in template.items():
