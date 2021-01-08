@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import csv
+import openpyxl
 import time
 import string
 import re
@@ -21,7 +22,7 @@ yaml = YAML()
 
 def set_config_defaults(args):
     """Convert the YAML configuration data into an array for easy use.
-       Also set some sensible defaults config values.
+       Also set some sensible default config values.
     """
     # Check existence of configuration file.
     if not os.path.exists(args.config):
@@ -80,6 +81,10 @@ def set_config_defaults(args):
         config['allow_redirects'] = True
     if 'google_sheets_csv_filename' not in config:
         config['google_sheets_csv_filename'] = 'google_sheet.csv'
+    if 'excel_worksheet' not in config:
+        config['excel_worksheet'] = 'Sheet1'
+    if 'excel_csv_filename' not in config:
+        config['excel_csv_filename'] = 'excel.csv'
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -552,9 +557,15 @@ def check_input(config, args):
     # Check existence of CSV file.
     if os.path.isabs(config['input_csv']):
         input_csv = config['input_csv']
+    # The actual "extraction" is fired over in workbench.
     elif config['input_csv'].startswith('http'):
         input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-        message = "Saving data from " + config['input_csv'] + " to " + input_csv + '.'
+        message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
+        print(message)
+        logging.info(message)
+    elif config['input_csv'].endswith('xlsx'):
+        input_csv = os.path.join(config['input_dir'], config['excel_csv_filename'])
+        message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
         print(message)
         logging.info(message)
     else:
@@ -931,7 +942,7 @@ def check_input(config, args):
         print('OK, page directories are all present.')
 
     # If nothing has failed by now, exit with a positive, upbeat message.
-    print("Configuration and input data appear to be valid.", end='')
+    print("Configuration and input data appear to be valid.")
     logging.info('Configuration checked for "%s" task using config file %s, no problems found.', config['task'], args.config)
     sys.exit(0)
 
@@ -1398,8 +1409,10 @@ def get_csv_data(config):
     """
     if os.path.isabs(config['input_csv']):
         input_csv_path = config['input_csv']
-    if config['input_csv'].startswith('http') is True:
+    elif config['input_csv'].startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+    elif config['input_csv'].endswith('.xslx') is True:
+        input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
     else:
         input_csv_path = os.path.join(config['input_dir'], config['input_csv'])
 
@@ -1417,8 +1430,9 @@ def get_csv_data(config):
         csv_writer_file_handle = open(input_csv_path + '.with_templates', 'w+', newline='')
         csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
         csv_reader_fieldnames = csv_reader.fieldnames
-        # Make a copy of the column headers so we can check it to skip adding templates to
-        # the new CSV. We don't want fields in the source CSV to be stomped on by templates.
+        # Make a copy of the column headers so we can skip adding templates to the new CSV
+        # if they're present in the source CSV. We don't want fields in the source CSV to be
+        # stomped on by templates.
         csv_reader_fieldnames_orig = copy.copy(csv_reader_fieldnames)
         for template in config['csv_field_templates']:
             for field_name, field_value in template.items():
@@ -2276,12 +2290,13 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                             new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, column_name, field_value_to_check, count)
                             new_term_names_in_csv_results.append(new_term_names_in_csv)
 
-    if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
+    if typed_relation_fields_present is True and True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
         print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
     else:
-        # All term IDs are in their field's vocabularies.
-        print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
-        logging.info("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
+        if typed_relation_fields_present is True:
+            # All term IDs are in their field's vocabularies.
+            print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
+            logging.info("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
 
 
 def validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, csv_field_name, csv_field_value, record_number):
@@ -2615,7 +2630,7 @@ def write_rollback_node_id(config, node_id):
     rollback_csv_file.close()
 
 
-def download_google_sheet(config):
+def get_csv_from_google_sheet(config):
     url_parts = config['input_csv'].split('/')
     url_parts[6] = 'export?gid=0&format=csv'
     csv_url = '/'.join(url_parts)
@@ -2636,6 +2651,47 @@ def download_google_sheet(config):
 
     input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
     open(input_csv_path, 'wb+').write(response.content)
+
+
+def get_csv_from_excel(config):
+    """Read the input Excel 2010 and up file, adding field templates if they exist.
+    """
+    if os.path.isabs(config['input_csv']):
+        input_excel_path = config['input_csv']
+    else:
+        input_excel_path = os.path.join(config['input_dir'], config['input_csv'])
+
+    if not os.path.exists(input_excel_path):
+        message = 'Error: Excel file ' + input_excel_path + ' not found.'
+        logging.error(message)
+        sys.exit(message)
+
+    excel_file_path = config['input_csv']
+    wb = openpyxl.load_workbook(filename=input_excel_path)
+    ws = wb[config['excel_worksheet']]
+
+    headers = []
+    header_row = ws[1]
+    ws.delete_rows(0)
+    for header_cell in header_row:
+        headers.append(header_cell.value)
+
+    records = []
+    for row in ws:
+        record = {}
+        for x in range(len(header_row)):
+            if headers[x] is not None and row[x] is not None:
+                record[headers[x]] = row[x].value
+        records.append(record)
+
+    input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
+    csv_writer_file_handle = open(input_csv_path, 'w+', newline='')
+    csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
+    csv_writer.writeheader()
+    for record in records:
+        if (config['id_field'] in record or 'node_id' in record) and record[config['id_field']] is not None:
+            csv_writer.writerow(record)
+    csv_writer_file_handle.close()
 
 
 def download_remote_file(config, url):
