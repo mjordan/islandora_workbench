@@ -1411,7 +1411,7 @@ def get_csv_data(config):
         input_csv_path = config['input_csv']
     elif config['input_csv'].startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-    elif config['input_csv'].endswith('.xslx') is True:
+    elif config['input_csv'].endswith('.xlsx') is True:
         input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
     else:
         input_csv_path = os.path.join(config['input_dir'], config['input_csv'])
