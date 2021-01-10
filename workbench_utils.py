@@ -1407,6 +1407,8 @@ def remove_media_and_file(config, media_id):
 def get_csv_data(config):
     """Read the input CSV file, adding field templates if they exist.
     """
+
+
     if os.path.isabs(config['input_csv']):
         input_csv_path = config['input_csv']
     elif config['input_csv'].startswith('http') is True:
@@ -1426,7 +1428,13 @@ def get_csv_data(config):
         # If the config file contains CSV field templates, append them to the CSV data
         # in the input file and write out the resulting CSV data to a new file. Then,
         # use that as the input CSV file.
-        csv_reader_file_handle = open(input_csv_path, 'r', newline='')
+        try:
+            csv_reader_file_handle = open(input_csv_path, 'r', encoding="utf-8", newline='')
+        except (UnicodeDecodeError):
+            message = 'Error: CSV file ' + input_csv_path + ' must be encoded in ASCII or UTF-8.'
+            logging.error(message)
+            sys.exit(message)
+
         csv_writer_file_handle = open(input_csv_path + '.with_templates', 'w+', newline='')
         csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
         csv_reader_fieldnames = csv_reader.fieldnames
@@ -1453,7 +1461,12 @@ def get_csv_data(config):
     else:
         # If there are no CSV templates in the config file, use the CSV file identified
         # in the input_csv config option as is.
-        csv_reader_file_handle = open(input_csv_path, 'r', newline='')
+        try:
+            csv_reader_file_handle = open(input_csv_path, 'r', encoding="utf-8", newline='')
+        except (UnicodeDecodeError):
+            message = 'Error: CSV file ' + input_csv_path + ' must be encoded in ASCII or UTF-8.'
+            logging.error(message)
+            sys.exit(message)
         csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
         return csv_reader
 

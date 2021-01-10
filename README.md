@@ -1,13 +1,13 @@
 # Islandora Workbench
 
-A command-line tool that allows creation, updating, and deletion of Islandora content from CSV data. Islandora Workbench is an alternative to using Drupal's built-in Migrate tools for [ingesting Islandora content from CSV files](https://github.com/Islandora/migrate_islandora_csv). Unlike the Migrate tools, Islandora Workbench can be run anywhere - it does not need to run on the Islandora server. Migrate, however, is much more flexible than Islandora Workbench, and can be extended using plugins in ways that Workbench cannot.
+A command-line tool that allows creation, updating, and deletion of Islandora content from CSV data. Islandora Workbench is an alternative to using Drupal's built-in Migrate tools for [ingesting Islandora content from CSV files](https://github.com/Islandora/migrate_islandora_csv). Unlike the Migrate tools, Islandora Workbench can be run anywhere - it does not need to run on the Islandora server. The Migrate tools, however, are much more flexible than Islandora Workbench, and can be extended using plugins in ways that Workbench cannot.
 
 ## Features
 
 * Allows creation of Islandora nodes and media, updating of nodes, and deletion of nodes and media from CSV files
 * Allows creation of paged/compound content
 * Can run from anywhere - it communicates with Drupal via HTTP interfaces
-* Provides robust [data validation functionality](https://mjordan.github.io/islandora_workbench_docs/check/)
+* Provides robust data validation functionality
 * Supports a variety of Drupal entity field types (text, integer, term reference, typed relation, geolocation)
 * Can provide a CSV file template based on Drupal content type
 * Can use a Google Sheet or an Excel file instead of a local CSV file as input
@@ -18,7 +18,7 @@ A command-line tool that allows creation, updating, and deletion of Islandora co
 * Cross platform (written in Python, tested on Linux, Mac, and Windows)
 * Well tested
 * [Well documented](https://mjordan.github.io/islandora_workbench_docs/)
-* Provides both sensible default [configuration](https://mjordan.github.io/islandora_workbench_docs/configuration/) values and rich configuation options for power users
+* Provides both sensible default configuration values and rich configuation options for power users
 * A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), will add a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 
 Note that this tool is not related in any way to the Drupal contrib module called [Workbench](https://www.drupal.org/project/workbench).
