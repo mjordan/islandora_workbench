@@ -37,7 +37,7 @@ class TestCheckCreateFromGoogleSpreadsheet(unittest.TestCase):
 
     def test_create_check(self):
         lines = self.output.splitlines()
-        self.assertRegex(self.output, 'Saving data from https://docs.google.com', '')
+        self.assertRegex(self.output, 'Extracting CSV data from https://docs.google.com', '')
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
 
@@ -303,6 +303,7 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         parser = argparse.ArgumentParser()
         parser.add_argument('--config')
         parser.add_argument('--check')
+        parser.add_argument('--get_csv_template')
         parser.set_defaults(config=config_file_path, check=False)
         args = parser.parse_args()
         config = workbench_utils.set_config_defaults(args)
@@ -597,6 +598,7 @@ class TestTermFromUri(unittest.TestCase):
         parser = argparse.ArgumentParser()
         parser.add_argument('--config')
         parser.add_argument('--check')
+        parser.add_argument('--get_csv_template')
         parser.set_defaults(config=config_file_path, check=False)
         args = parser.parse_args()
         config = workbench_utils.set_config_defaults(args)

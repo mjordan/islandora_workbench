@@ -1032,7 +1032,8 @@ def create_from_files():
             file_position = get_percentage(file_count, num_files)
             pbar(file_position)
 
-    pbar(100)
+    if config['progress_bar'] is True:
+        pbar(100)
 
 
 # Main program logic.
