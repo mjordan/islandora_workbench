@@ -308,7 +308,6 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         config = workbench_utils.set_config_defaults(args)
         self.config = config
 
-
     def test_create_with_new_typed_relation(self):
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
@@ -328,7 +327,6 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         self.new_term_id = workbench_utils.find_term_in_vocab(self.config, 'person', 'Kirk, James T.')
         self.assertTrue(self.new_term_id)
 
-
     def tearDown(self):
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'create_with_new_typed_relation_delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
@@ -339,7 +337,6 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
 
         term_endpoint = self.config['host'] + '/taxonomy/term/' + str(self.new_term_id) + '?_format=json'
         delete_term_response = workbench_utils.issue_request(self.config, 'DELETE', term_endpoint)
-
 
 
 class TestDelete(unittest.TestCase):
@@ -606,6 +603,66 @@ class TestTermFromUri(unittest.TestCase):
 
         tid = workbench_utils.get_term_id_from_uri(config, 'http://mozilla.github.io/pdf.js')
         self.assertEqual(tid, 3)
+
+
+class TestCreateWithNonLatinText(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'create.yml')
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+
+        yaml = YAML()
+        with open(create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config['host']
+
+        self.temp_dir = tempfile.gettempdir()
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatenonlatintestnids.txt')
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'rollback.csv')
+
+    def test_create_check(self):
+        nids = list()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+        create_lines = create_output.splitlines()
+        with open(self.nid_file, "a") as fh:
+            fh.write("node_id\n")
+            for line in create_lines:
+                if 'created at' in line:
+                    nid = line.rsplit('/', 1)[-1]
+                    nid = nid.strip('.')
+                    nids.append(nid)
+                    fh.write(nid + "\n")
+
+        self.assertEqual(len(nids), 3)
+
+        url = self.islandora_host + '/solr-search/content?search_api_fulltext=一九二四年六月十二日'
+        response = requests.get(url)
+        self.assertIn('一九二四年六月十二日', response.text)
+
+        url = self.islandora_host + '/solr-search/content?search_api_fulltext=ᐊᑕᐅᓯᖅ ᓄᓇ, ᐅᓄᖅᑐᑦ ᓂᐲᑦ'
+        response = requests.get(url)
+        self.assertIn('ᐊᑕᐅᓯᖅ ᓄᓇ, ᐅᓄᖅᑐᑦ ᓂᐲᑦ', response.text)
+
+        url = self.islandora_host + '/solr-search/content?search_api_fulltext=सरकारी दस्तावेज़'
+        response = requests.get(url)
+        self.assertIn('सरकारी दस्तावेज़', response.text)
+
+    def tearDown(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'delete.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        delete_output = subprocess.check_output(delete_cmd)
+        delete_output = delete_output.decode().strip()
+        delete_lines = delete_output.splitlines()
+        os.remove(self.nid_file)
+
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
 
 
 if __name__ == '__main__':

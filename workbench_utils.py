@@ -26,7 +26,7 @@ def set_config_defaults(args):
     """
     # Check existence of configuration file.
     if not os.path.exists(args.config):
-        message = 'Error: Configuration file ' + args.config + 'not found.'
+        message = 'Error: Configuration file ' + args.config + ' not found.'
         logging.error(message)
         sys.exit(message)
 
