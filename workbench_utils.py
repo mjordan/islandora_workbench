@@ -14,7 +14,7 @@ import subprocess
 import mimetypes
 import collections
 import urllib.parse
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
 
 yaml = YAML()
@@ -30,9 +30,23 @@ def set_config_defaults(args):
         logging.error(message)
         sys.exit(message)
 
-    with open(args.config, 'r') as f:
-        config_file_contents = f.read()
-        config_data = yaml.load(config_file_contents)
+    try:
+        with open(args.config, 'r') as f:
+            config_file_contents = f.read()
+            config_data = yaml.load(config_file_contents)
+    except YAMLError as e:
+        # Since the main logger gets its log file location from this YAML file,
+        # we need to define a local logger to write to the default log file location,
+        # 'workbench.log'.
+        logging.basicConfig(
+            filename='workbench.log',
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%d-%b-%y %H:%M:%S')
+
+        message = 'Error: There appears to be a YAML syntax error with the configuration file "' + args.config + '". ' \
+            '\nIf you use an online YAML validator to find the error, *be sure to remove your Drupal hostname and user credentials first.*'
+        logging.exception(message)
+        sys.exit(message + "\n" + str(e))
 
     config = {}
     for k, v in config_data.items():
@@ -1407,8 +1421,6 @@ def remove_media_and_file(config, media_id):
 def get_csv_data(config):
     """Read the input CSV file, adding field templates if they exist.
     """
-
-
     if os.path.isabs(config['input_csv']):
         input_csv_path = config['input_csv']
     elif config['input_csv'].startswith('http') is True:
