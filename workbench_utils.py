@@ -26,7 +26,14 @@ def set_config_defaults(args):
     """
     # Check existence of configuration file.
     if not os.path.exists(args.config):
-        message = 'Error: Configuration file ' + args.config + ' not found.'
+        # Since the main logger gets its log file location from this file, we
+        # need to define a local logger to write to the default log file location,
+        # 'workbench.log'.
+        logging.basicConfig(
+            filename='workbench.log',
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%d-%b-%y %H:%M:%S')
+        message = 'Error: Configuration file "' + args.config + '" not found.'
         logging.error(message)
         sys.exit(message)
 
@@ -35,8 +42,8 @@ def set_config_defaults(args):
             config_file_contents = f.read()
             config_data = yaml.load(config_file_contents)
     except YAMLError as e:
-        # Since the main logger gets its log file location from this YAML file,
-        # we need to define a local logger to write to the default log file location,
+        # Since the main logger gets its log file location from this file, we
+        # need to define a local logger to write to the default log file location,
         # 'workbench.log'.
         logging.basicConfig(
             filename='workbench.log',
