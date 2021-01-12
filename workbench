@@ -1039,17 +1039,9 @@ def create_from_files():
 # Main program logic.
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    '--config',
-    help='Configuration file to use.')
-parser.add_argument(
-    '--check',
-    help='Check input data and exit without creating/updating/etc.',
-    action='store_true')
-parser.add_argument(
-    '--get_csv_template',
-    help='Generate a CSV template using the specified configuration file.',
-    action='store_true')
+parser.add_argument('--config', required=True, help='Configuration file to use.')
+parser.add_argument('--check', help='Check input data and exit without creating/updating/etc.', action='store_true')
+parser.add_argument('--get_csv_template', help='Generate a CSV template using the specified configuration file.', action='store_true')
 args = parser.parse_args()
 
 config = set_config_defaults(args)
