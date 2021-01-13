@@ -873,8 +873,7 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
 
     # Check for existence of files listed in the 'file' column.
-    if (config['task'] == 'create' or config['task'] ==
-            'add_media') and config['paged_content_from_directories'] is False:
+    if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
         file_check_csv_data = get_csv_data(config)
         if config['nodes_only'] is False and config['allow_missing_files'] is False:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
@@ -882,6 +881,7 @@ def check_input(config, args):
                     message = 'Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
+                file_check_row['file'] = file_check_row['file'].strip()
                 if file_check_row['file'].startswith('http'):
                     http_response_code = ping_remote_file(file_check_row['file'])
                     if http_response_code != 200 or ping_remote_file(file_check_row['file']) is False:
@@ -1245,6 +1245,9 @@ def create_media(config, filename, node_uri, node_csv_row):
     """
     if config['nodes_only'] is True:
         return
+
+    filename = filename.strip()
+    print(filename)
 
     if filename.startswith('http'):
         download_remote_file(config, filename)
