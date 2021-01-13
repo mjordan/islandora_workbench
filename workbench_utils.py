@@ -811,10 +811,14 @@ def check_input(config, args):
             print('Warning: Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
         else:
             validate_taxonomy_field_csv_data = get_csv_data(config)
-            validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
+            warn_user_about_taxo_terms = validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
+        if warn_user_about_taxo_terms is True:
+            print('Warning: Issues detected with validating taxonomy field values in the CSV file. See the log for more detail.')
 
         validate_csv_typed_relation_values_csv_data = get_csv_data(config)
-        validate_typed_relation_field_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
+        warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
+        if warn_user_about_typed_relation_terms is True:
+            print('Warning: Issues detected with validating typed relation field values in the CSV file. See the log for more detail.')
 
         # Validate length of 'title'.
         if config['validate_title_length']:
@@ -2172,6 +2176,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     """
     # Define a dictionary to store CSV field: term IDs mappings.
     fields_with_vocabularies = dict()
+    vocab_validation_issues = False
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
         if column_name in field_definitions:
@@ -2189,7 +2194,6 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 all_tids_for_field = []
-                vocab_validation_issues = False
                 for vocabulary in vocabularies:
                     terms = get_term_pairs(config, vocabulary)
                     if len(terms) == 0:
@@ -2207,17 +2211,12 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     # If more than one vocab in this field, combine their term IDs into a single list.
                     all_tids_for_field = all_tids_for_field + vocab_term_ids
                 fields_with_vocabularies.update({column_name: all_tids_for_field})
-                if vocab_validation_issues is True:
-                    print(
-                        'Warning: Issues detected with validating taxonomy terms used in the CSV column "' +
-                        column_name +
-                        '". See the Workbench log for important details.')
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
         return
 
-    # Iterate throught the CSV and validate each taxonomy fields's values.
+    # Iterate through the CSV and validate each taxonomy fields's values.
     new_term_names_in_csv_results = []
     for count, row in enumerate(csv_data, start=1):
         for column_name in fields_with_vocabularies:
@@ -2232,6 +2231,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         print("OK, term IDs/names in CSV file exist in their respective taxonomies.")
         logging.info("OK, term IDs/names in CSV file exist in their respective taxonomies.")
 
+    return vocab_validation_issues
+
 
 def validate_typed_relation_field_values(config, field_definitions, csv_data):
     """Validate values in fields that are of type 'typed_relation'. Each CSV
@@ -2242,6 +2243,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
     # Define a dictionary to store CSV field: term IDs mappings.
     fields_with_vocabularies = dict()
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
+    vocab_validation_issues = False
     for column_name in csv_data.fieldnames:
         if column_name in field_definitions:
             if 'vocabularies' in field_definitions[column_name]:
@@ -2256,7 +2258,6 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 all_tids_for_field = []
-                vocab_validation_issues = False
                 for vocabulary in vocabularies:
                     terms = get_term_pairs(config, vocabulary)
                     if len(terms) == 0:
@@ -2274,11 +2275,6 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                     # If more than one vocab in this field, combine their term IDs into a single list.
                     all_tids_for_field = all_tids_for_field + vocab_term_ids
                 fields_with_vocabularies.update({column_name: all_tids_for_field})
-                if vocab_validation_issues is True:
-                    print(
-                        'Warning: Issues detected with validating taxonomy terms used in the CSV column "' +
-                        column_name +
-                        '". See the Workbench log for important details.')
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
@@ -2312,7 +2308,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-                    # Iterate throught the CSV and validate the taxonomy term/name/URI in each field subvalue.
+                    # Iterate through the CSV and validate the taxonomy term/name/URI in each field subvalue.
                     for column_name in fields_with_vocabularies:
                         if len(row[column_name]):
                             delimited_field_values = row[column_name].split(config['subdelimiter'])
@@ -2333,6 +2329,8 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
             # All term IDs are in their field's vocabularies.
             print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
             logging.info("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies.")
+
+    return vocab_validation_issues
 
 
 def validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, csv_field_name, csv_field_value, record_number):
