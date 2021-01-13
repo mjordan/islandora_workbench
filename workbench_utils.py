@@ -1247,7 +1247,6 @@ def create_media(config, filename, node_uri, node_csv_row):
         return
 
     filename = filename.strip()
-    print(filename)
 
     if filename.startswith('http'):
         download_remote_file(config, filename)
