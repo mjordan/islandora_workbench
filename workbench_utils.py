@@ -102,6 +102,8 @@ def set_config_defaults(args):
         config['allow_redirects'] = True
     if 'google_sheets_csv_filename' not in config:
         config['google_sheets_csv_filename'] = 'google_sheet.csv'
+    if 'google_sheets_gid' not in config:
+        config['google_sheets_gid'] = '0'
     if 'excel_worksheet' not in config:
         config['excel_worksheet'] = 'Sheet1'
     if 'excel_csv_filename' not in config:
@@ -2666,7 +2668,7 @@ def write_rollback_node_id(config, node_id):
 
 def get_csv_from_google_sheet(config):
     url_parts = config['input_csv'].split('/')
-    url_parts[6] = 'export?gid=0&format=csv'
+    url_parts[6] = 'export?gid=' + str(config['google_sheets_gid']) + '&format=csv'
     csv_url = '/'.join(url_parts)
     response = requests.get(url=csv_url, allow_redirects=True)
 
