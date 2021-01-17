@@ -2671,15 +2671,13 @@ def get_csv_from_google_sheet(config):
     response = requests.get(url=csv_url, allow_redirects=True)
 
     if response.status_code == 404:
-        message = 'Workbench cannot find the Google spreadsheet at ' + \
-            config['input_csv'] + '. Please check the URL.'
+        message = 'Workbench cannot find the Google spreadsheet at ' + config['input_csv'] + '. Please check the URL.'
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    not_authorized = [401, 403]
-    if response.status_code in not_authorized:
-        message = 'The Google spreadsheet at ' + config['input_csv'] + \
-            ' is not accessible. Please check its "Share" settings.'
+    # Sheets that aren't publicly readable return a 302 and then a 200 with a bunch of HTML for humans to look at.
+    if response.content.strip().startswith(b'<!DOCTYPE'):
+        message = 'The Google spreadsheet at ' + config['input_csv'] + ' is not accessible.\nPlease check its "Share" settings.'
         logging.error(message)
         sys.exit('Error: ' + message)
 
