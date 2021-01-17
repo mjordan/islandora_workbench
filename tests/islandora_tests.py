@@ -667,5 +667,38 @@ class TestCreateWithNonLatinText(unittest.TestCase):
             os.remove(self.rollback_file_path)
 
 
+class TestGoogleGid(unittest.TestCase):
+
+    def test_preprocessor_script_single_field_value(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_0.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'OK, all 2 rows in the CSV file')
+
+        config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_1867618389.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'OK, all 3 rows in the CSV file')
+
+        config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_390347846.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'OK, all 5 rows in the CSV file')
+
+        config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_953977578.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'OK, all 1 rows in the CSV file')
+
+
 if __name__ == '__main__':
     unittest.main()
