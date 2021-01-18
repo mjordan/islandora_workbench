@@ -1480,7 +1480,10 @@ def get_csv_data(config):
                 for field_name, field_value in template.items():
                     if field_name not in csv_reader_fieldnames_orig:
                         row[field_name] = field_value
-            csv_writer.writerow(row)
+            # Including this for now as per https://github.com/mjordan/islandora_workbench/issues/203#issuecomment-762465447.
+            # Will return to it later.
+            if not list(row.values())[0].startswith('#'):
+                csv_writer.writerow(row)
         csv_writer_file_handle.close()
         with_templates_csv_reader_file_handle = open(input_csv_path + '.with_templates', 'r')
         with_templates_csv_reader = csv.DictReader(with_templates_csv_reader_file_handle, delimiter=config['delimiter'])
