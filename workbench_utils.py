@@ -40,7 +40,13 @@ def set_config_defaults(args):
     try:
         with open(args.config, 'r') as f:
             config_file_contents = f.read()
-            config_data = yaml.load(config_file_contents)
+            original_config_data = yaml.load(config_file_contents)
+            # Convert all keys to lower case.
+            config_data = collections.OrderedDict()
+            for k, v in original_config_data.items():
+                if isinstance(k, str):
+                    k = k.lower()
+                    config_data[k] = v
     except YAMLError as e:
         # Since the main logger gets its log file location from this file, we
         # need to define a local logger to write to the default log file location,
@@ -583,7 +589,7 @@ def check_input(config, args):
     # The actual "extraction" is fired over in workbench.
     elif config['input_csv'].startswith('http'):
         input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-        message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
+        message = "Extracting CSV data from " + config['input_csv'] + " (Sheets gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
         print(message)
         logging.info(message)
     elif config['input_csv'].endswith('xlsx'):
