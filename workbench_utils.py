@@ -1438,7 +1438,15 @@ def remove_media_and_file(config, media_id):
 
 # @lru_cache(maxsize=None)
 def get_csv_data(config):
-    """Read the input CSV file, adding field templates if they exist.
+    """Read the input CSV data and prepare it for use in create, update, etc. tasks.
+
+       This function reads the source CSV file (or the CSV dump from Google Sheets or Excel),
+       applies some prepocessing to each CSV record (specifically, it adds any CSV field
+       templates that are registered in the config file, and it filters out any CSV
+       records or lines in the CSV file that begine with a #), and finally, writes out
+       a version of the CSV data to a file that appends .prepocessed to the input
+       CSV file name. It is this .prepocessed file that is used in create, update, etc.
+       tasks.
     """
     if os.path.isabs(config['input_csv']):
         input_csv_path = config['input_csv']
@@ -1483,14 +1491,14 @@ def get_csv_data(config):
                 for field_name, field_value in template.items():
                     if field_name not in csv_reader_fieldnames_orig:
                         row[field_name] = field_value
-            # We're not interested in CSV records whose first column begin with #.
+            # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
                 csv_writer.writerow(row)
     else:
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
         for row in csv_reader:
-            # We're not interested in CSV records whose first column begin with #.
+            # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
                 csv_writer.writerow(row)
 
