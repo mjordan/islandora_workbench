@@ -589,7 +589,7 @@ def check_input(config, args):
     # The actual "extraction" is fired over in workbench.
     elif config['input_csv'].startswith('http'):
         input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-        message = "Extracting CSV data from " + config['input_csv'] + " (Sheets gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
+        message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
         print(message)
         logging.info(message)
     elif config['input_csv'].endswith('xlsx'):
@@ -1408,8 +1408,7 @@ def remove_media_and_file(config, media_id):
             break
 
     # Delete the file first.
-    file_endpoint = config['host'] + '/entity/file/' \
-        + str(file_id) + '?_format=json'
+    file_endpoint = config['host'] + '/entity/file/' + str(file_id) + '?_format=json'
     file_response = issue_request(config, 'DELETE', file_endpoint)
     if file_response.status_code == 204:
         logging.info("File %s (from media %s) deleted.", file_id, media_id)
@@ -1422,8 +1421,7 @@ def remove_media_and_file(config, media_id):
 
     # Then the media.
     if file_response.status_code == 204:
-        media_endpoint = config['host'] + '/media/' \
-            + str(media_id) + '?_format=json'
+        media_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
         media_response = issue_request(config, 'DELETE', media_endpoint)
         if media_response.status_code == 204:
             logging.info("Media %s deleted.", media_id)
@@ -1456,21 +1454,20 @@ def get_csv_data(config):
         logging.error(message)
         sys.exit(message)
 
+    try:
+        csv_reader_file_handle = open(input_csv_path, 'r', encoding="utf-8", newline='')
+    except (UnicodeDecodeError):
+        message = 'Error: CSV file ' + input_csv_path + ' must be encoded in ASCII or UTF-8.'
+        logging.error(message)
+        sys.exit(message)
+
+    csv_writer_file_handle = open(input_csv_path + '.prepocessed', 'w+', newline='')
+    csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
+    csv_reader_fieldnames = csv_reader.fieldnames
+
     tasks = ['create', 'update']
     if config['task'] in tasks and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
-        # If the config file contains CSV field templates, append them to the CSV data
-        # in the input file and write out the resulting CSV data to a new file. Then,
-        # use that as the input CSV file.
-        try:
-            csv_reader_file_handle = open(input_csv_path, 'r', encoding="utf-8", newline='')
-        except (UnicodeDecodeError):
-            message = 'Error: CSV file ' + input_csv_path + ' must be encoded in ASCII or UTF-8.'
-            logging.error(message)
-            sys.exit(message)
-
-        csv_writer_file_handle = open(input_csv_path + '.with_templates', 'w+', newline='')
-        csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
-        csv_reader_fieldnames = csv_reader.fieldnames
+        # If the config file contains CSV field templates, append them to the CSV data.
         # Make a copy of the column headers so we can skip adding templates to the new CSV
         # if they're present in the source CSV. We don't want fields in the source CSV to be
         # stomped on by templates.
@@ -1486,25 +1483,21 @@ def get_csv_data(config):
                 for field_name, field_value in template.items():
                     if field_name not in csv_reader_fieldnames_orig:
                         row[field_name] = field_value
-            # Including this for now as per https://github.com/mjordan/islandora_workbench/issues/203#issuecomment-762465447.
-            # Will return to it later.
+            # We're not interested in CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
                 csv_writer.writerow(row)
-        csv_writer_file_handle.close()
-        with_templates_csv_reader_file_handle = open(input_csv_path + '.with_templates', 'r')
-        with_templates_csv_reader = csv.DictReader(with_templates_csv_reader_file_handle, delimiter=config['delimiter'])
-        return with_templates_csv_reader
     else:
-        # If there are no CSV templates in the config file, use the CSV file identified
-        # in the input_csv config option as is.
-        try:
-            csv_reader_file_handle = open(input_csv_path, 'r', encoding="utf-8", newline='')
-        except (UnicodeDecodeError):
-            message = 'Error: CSV file ' + input_csv_path + ' must be encoded in ASCII or UTF-8.'
-            logging.error(message)
-            sys.exit(message)
-        csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
-        return csv_reader
+        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
+        csv_writer.writeheader()
+        for row in csv_reader:
+            # We're not interested in CSV records whose first column begin with #.
+            if not list(row.values())[0].startswith('#'):
+                csv_writer.writerow(row)
+
+    csv_writer_file_handle.close()
+    preprocessed_csv_reader_file_handle = open(input_csv_path + '.prepocessed', 'r')
+    preprocessed_csv_reader = csv.DictReader(preprocessed_csv_reader_file_handle, delimiter=config['delimiter'])
+    return preprocessed_csv_reader
 
 
 def get_term_pairs(config, vocab_id):
@@ -2695,7 +2688,7 @@ def get_csv_from_google_sheet(config):
 
 
 def get_csv_from_excel(config):
-    """Read the input Excel 2010 and up file, adding field templates if they exist.
+    """Read the input Excel 2010 (or later) file and write it out as CSV.
     """
     if os.path.isabs(config['input_csv']):
         input_excel_path = config['input_csv']
