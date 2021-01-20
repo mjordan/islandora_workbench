@@ -215,6 +215,9 @@ class TestSetMediaType(unittest.TestCase):
 
 
 class TestGetCsvFromExcel(unittest.TestCase):
+    """Note: this tests the extraction of CSV data from Excel only,
+       not using and Excel file as an input CSV file.
+    """
     def setUp(self):
         self.config = {'input_dir': 'tests/assets/excel_test',
                        'input_csv': 'test_excel_file.xlsx',

@@ -244,7 +244,7 @@ class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
         self.assertRegex(self.output, 'all 3 rows in the CSV file have the same number of columns as there are headers .6.', '')
 
     def tearDown(self):
-        templated_csv_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'metadata.csv.with_templates')
+        templated_csv_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'metadata.csv.prepocessed')
         os.remove(templated_csv_path)
 
 
@@ -698,6 +698,48 @@ class TestGoogleGid(unittest.TestCase):
         output = output.decode().strip()
         lines = output.splitlines()
         self.assertRegex(output, 'OK, all 1 rows in the CSV file')
+
+
+class TestCommentedCsvs(unittest.TestCase):
+
+    def test_raw_csv(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+
+        config_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "raw_csv.yml")
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'all 3 rows in the CSV file', '')
+        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "metadata.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
+        config_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.yml")
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'all 4 rows in the CSV file', '')
+        csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv")
+        if os.path.exists(csv_file_path):
+            os.remove(csv_file_path)
+        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
+        config_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheets.yml")
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'all 5 rows in the CSV file', '')
+        csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv")
+        if os.path.exists(csv_file_path):
+            os.remove(csv_file_path)
+        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
 
 
 if __name__ == '__main__':
