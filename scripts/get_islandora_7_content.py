@@ -72,7 +72,10 @@ def get_child_sequence_number(pid):
         rels_ext_download_response = requests.get(url=rels_ext_url, allow_redirects=True)
         if rels_ext_download_response.status_code == 200:
             rels_ext_xml = rels_ext_download_response.content.decode()
-            parent_pids = re.findall('<fedora:isConstituentOf\s+rdf:resource="info:fedora/(.*)">', rels_ext_xml, re.MULTILINE)
+            matches = re.findall('<(islandora:isPageOf|fedora:isConstituentOf)\s+rdf:resource="info:fedora/(.*)">', rels_ext_xml, re.MULTILINE)
+            # matches contains tuples, but we only want the values from the second value in each tuple,
+            # (PIDs) corresponding to the second set of () in the pattern.
+            parent_pids = [pids[1] for pids in matches]
             if len(parent_pids) > 0:
                 parent_pid = parent_pids[0].replace(':', '_')
                 sequence_numbers = re.findall('<islandora:isSequenceNumberOf' + parent_pid + '>(\d+)', rels_ext_xml, re.MULTILINE)
