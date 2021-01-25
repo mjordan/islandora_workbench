@@ -32,7 +32,7 @@ log_file_path = 'islandora_content.log'
 # if multiple namespaces start with the same characters). Valid valudes for the
 # 'namespace' varialbe are a single namespace, a right-truncated string (island*),
 # or an ansterisk (*).
-namespace = 'islandora'
+namespace = 'testing'
 # 'field_pattern' is a regex pattern that matches Solr field names to include in the
 # CSV. For example,  'mods_.*(_s|_ms)$' will include fields that start with mods_ and
 # end with _s or _ms.
@@ -40,7 +40,7 @@ field_pattern = 'mods_.*(_s|_ms)$'
 # 'field_pattern_do_not_want' is a negative regex pattern that matches Solr field names
 # to not include in the CSV. For example, '(SFU_custom_metadata|marcrelator)' will remove
 # fieldnames that contain 'SFU_custom_metadata' or the string 'marcrelator.
-field_pattern_do_not_want = '(SFU_custom_metadata|marcrelator)'
+field_pattern_do_not_want = '(SFU_custom_metadata|marcrelator|isSequenceNumberOf)'
 # 'standard_fields' is a list of fieldnames we always want in fields list. They are
 # added added to the field list after list is filtered down using 'field_pattern'.
 # Columns for these fields will appear at the start of the CSV.
@@ -52,9 +52,9 @@ standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollect
 ##############
 
 def get_extension_from_mimetype(mimetype):
-    # @todo: add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
-    # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our
-    # own MIMETYPE to extension mapping for commone types, then let Python guess at others.
+    # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
+    # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
+    #  MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
     map = {'image/jpeg': '.jpg',
         'image/jp2': '.jp2',
         'image/png': '.png'
@@ -63,6 +63,29 @@ def get_extension_from_mimetype(mimetype):
         return map[mimetype]
     else:
         return mimetypes.guess_extension(mimetype)
+
+def get_child_sequence_number(pid):
+    '''Assumes child objects are only children of a single parent.
+    '''
+    rels_ext_url = islandora_base_url + '/islandora/object/' + pid + '/datastream/RELS-EXT/download'
+    try:
+        rels_ext_download_response = requests.get(url=rels_ext_url, allow_redirects=True)
+        if rels_ext_download_response.status_code == 200:
+            rels_ext_xml = rels_ext_download_response.content.decode()
+            parent_pids = re.findall('<fedora:isConstituentOf\s+rdf:resource="info:fedora/(.*)">', rels_ext_xml, re.MULTILINE)
+            if len(parent_pids) > 0:
+                parent_pid = parent_pids[0].replace(':', '_')
+                sequence_numbers = re.findall('<islandora:isSequenceNumberOf' + parent_pid + '>(\d+)', rels_ext_xml, re.MULTILINE)
+                if len(sequence_numbers) > 0:
+                    return sequence_numbers[0]
+                else:
+                    logging.warning("Can't get sequence number for " + pid)
+                    return ''
+            else:
+                logging.warning("Can't get parent PID for " + pid)
+                return ''
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
 
 def get_percentage(part, whole):
     return 100 * float(part) / float(whole)
@@ -109,9 +132,9 @@ except requests.exceptions.RequestException as e:
     raise SystemExit(e)
 
 csv_output = list()
-# csv_header_row = ','.join(filtered_field_list)
 rows = metadata_solr_response.content.decode().splitlines()
-rows[0] = 'file,' + rows[0]
+# We add a 'sequence' column to store the Islandora 7.x property "isSequenceNumberOfxxx".
+rows[0] = 'file,' + rows[0] + ',sequence'
 
 if fetch_files is True:
     if not os.path.exists(obj_directory):
@@ -123,6 +146,8 @@ csv_header_row = rows.pop(0)
 num_csv_rows = len(rows)
 for row in rows:
     pid = row.split(',')[0]
+    sequence_number = get_child_sequence_number(pid)
+    row = row + ',' + sequence_number
     if fetch_files is True:
         obj_url = islandora_base_url + '/islandora/object/' + pid + '/datastream/OBJ/download'
         row_count += 1
