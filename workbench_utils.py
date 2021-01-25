@@ -2740,7 +2740,6 @@ def download_remote_file(config, url):
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True)
-        return response.status_code
     except requests.exceptions.Timeout as err_timeout:
         message = 'Workbench timed out trying to reach ' + \
             sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
