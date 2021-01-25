@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 '''Script for exporting Islandora 7 content (metadata and OBJ datastreams).
-   Note: this script currently does not include sequence numbers for child
-   objects. See https://github.com/mjordan/islandora_workbench/issues/210.
 '''
 
 import os
