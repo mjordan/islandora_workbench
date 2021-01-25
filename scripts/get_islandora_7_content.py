@@ -44,7 +44,7 @@ field_pattern_do_not_want = '(SFU_custom_metadata|marcrelator|isSequenceNumberOf
 # 'standard_fields' is a list of fieldnames we always want in fields list. They are
 # added added to the field list after list is filtered down using 'field_pattern'.
 # Columns for these fields will appear at the start of the CSV.
-standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms']
+standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms', 'RELS_EXT_isPageOf_uri_ms']
 
 
 ##############
