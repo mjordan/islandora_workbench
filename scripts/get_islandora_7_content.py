@@ -27,8 +27,8 @@ log_file_path = 'islandora_content.log'
 
 # Solr filter criteria. 'namespace' allows you to limit the metadata retrieved
 # from Solr to be limtited to objects with a specific namespace (or namespaces
-# if multiple namespaces start with the same characters). Valid valudes for the
-# 'namespace' varialbe are a single namespace, a right-truncated string (island*),
+# if multiple namespaces start with the same characters). Valid values for the
+# 'namespace' variabe are a single namespace, a right-truncated string (e.g., island*),
 # or an ansterisk (*).
 namespace = 'testing'
 # 'field_pattern' is a regex pattern that matches Solr field names to include in the
@@ -43,7 +43,6 @@ field_pattern_do_not_want = '(SFU_custom_metadata|marcrelator|isSequenceNumberOf
 # added added to the field list after list is filtered down using 'field_pattern'.
 # Columns for these fields will appear at the start of the CSV.
 standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms', 'RELS_EXT_isPageOf_uri_ms']
-
 
 ##############
 # Functions. #
@@ -63,7 +62,9 @@ def get_extension_from_mimetype(mimetype):
         return mimetypes.guess_extension(mimetype)
 
 def get_child_sequence_number(pid):
-    '''Assumes child objects are only children of a single parent.
+    '''For a given Islandora 7.x PID, get the object's sequence number in relation
+       to its parent from the RELS-EXT datastream. Assumes child objects are only
+       children of a single parent.
     '''
     rels_ext_url = islandora_base_url + '/islandora/object/' + pid + '/datastream/RELS-EXT/download'
     try:
@@ -77,6 +78,10 @@ def get_child_sequence_number(pid):
             if len(parent_pids) > 0:
                 parent_pid = parent_pids[0].replace(':', '_')
                 sequence_numbers = re.findall('<islandora:isSequenceNumberOf' + parent_pid + '>(\d+)', rels_ext_xml, re.MULTILINE)
+                # Paged content stores sequence values in <islandora:isSequenceNumber>, so we look there
+                # if we didn't get any in isSequenceNumberOfxxx.
+                if len(sequence_numbers) == 0:
+                    sequence_numbers = re.findall('<islandora:isSequenceNumber>(\d+)', rels_ext_xml, re.MULTILINE)
                 if len(sequence_numbers) > 0:
                     return sequence_numbers[0]
                 else:
@@ -90,7 +95,6 @@ def get_child_sequence_number(pid):
 
 def get_percentage(part, whole):
     return 100 * float(part) / float(whole)
-
 
 #######################
 # Main program logic. #
@@ -107,7 +111,7 @@ logging.basicConfig(
 fields_solr_query = '/select?q=*:*&wt=csv&rows=0&fl=*'
 fields_solr_url = solr_base_url + fields_solr_query
 
-# Get field list from Solr, filter it. The field list is then used in the query
+# Get field list from Solr and filter it. The field list is then used in the query
 # to Solr to get the CSV data from Solr.
 try:
     field_list_response = requests.get(url=fields_solr_url, allow_redirects=True)
@@ -115,11 +119,11 @@ try:
 except requests.exceptions.RequestException as e:
     raise SystemExit(e)
 
-
 field_list = raw_field_list.split(',')
 filtered_field_list = [keep for keep in field_list if re.search(field_pattern, keep)]
 filtered_field_list = [discard for discard in filtered_field_list if not re.search(field_pattern_do_not_want, discard)]
 
+# Add required fieldnames.
 standard_fields.reverse()
 for standard_field in standard_fields:
     filtered_field_list.insert(0, standard_field)
@@ -134,7 +138,8 @@ except requests.exceptions.RequestException as e:
 
 csv_output = list()
 rows = metadata_solr_response.content.decode().splitlines()
-# We add a 'sequence' column to store the Islandora 7.x property "isSequenceNumberOfxxx".
+# We add a 'sequence' column to store the Islandora 7.x property
+# "isSequenceNumberOfxxx"/"isSequenceNumber".
 rows[0] = 'file,' + rows[0] + ',sequence'
 
 if fetch_files is True:
