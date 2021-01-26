@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-'''Script for exporting Islandora 7 content (metadata and OBJ datastreams).
+'''Script for exporting Islandora 7 content (metadata and OBJ datastreams). See
+   https://mjordan.github.io/islandora_workbench_docs/exporting_islandora_7_content/
+   for more info.
 '''
 
 import os
@@ -35,7 +37,7 @@ namespace = 'testing'
 # CSV. For example,  'mods_.*(_s|_ms)$' will include fields that start with mods_ and
 # end with _s or _ms.
 field_pattern = 'mods_.*(_s|_ms)$'
-# 'field_pattern_do_not_want' is a negative regex pattern that matches Solr field names
+# 'field_pattern_do_not_want' is a regex pattern that matches Solr field names
 # to not include in the CSV. For example, '(SFU_custom_metadata|marcrelator)' will remove
 # fieldnames that contain 'SFU_custom_metadata' or the string 'marcrelator.
 field_pattern_do_not_want = '(SFU_custom_metadata|marcrelator|isSequenceNumberOf)'
@@ -73,7 +75,7 @@ def get_child_sequence_number(pid):
             rels_ext_xml = rels_ext_download_response.content.decode()
             matches = re.findall('<(islandora:isPageOf|fedora:isConstituentOf)\s+rdf:resource="info:fedora/(.*)">', rels_ext_xml, re.MULTILINE)
             # matches contains tuples, but we only want the values from the second value in each tuple,
-            # (PIDs) corresponding to the second set of () in the pattern.
+            # pids corresponding to the second set of () in the pattern.
             parent_pids = [pids[1] for pids in matches]
             if len(parent_pids) > 0:
                 parent_pid = parent_pids[0].replace(':', '_')
@@ -111,8 +113,8 @@ logging.basicConfig(
 fields_solr_query = '/select?q=*:*&wt=csv&rows=0&fl=*'
 fields_solr_url = solr_base_url + fields_solr_query
 
-# Get field list from Solr and filter it. The field list is then used in the query
-# to Solr to get the CSV data from Solr.
+# Get the complete field list from Solr and filter it. The filtered field list is
+# then used in another query to get the populated CSV data.
 try:
     field_list_response = requests.get(url=fields_solr_url, allow_redirects=True)
     raw_field_list = field_list_response.content.decode()
@@ -138,8 +140,7 @@ except requests.exceptions.RequestException as e:
 
 csv_output = list()
 rows = metadata_solr_response.content.decode().splitlines()
-# We add a 'sequence' column to store the Islandora 7.x property
-# "isSequenceNumberOfxxx"/"isSequenceNumber".
+# We add a 'sequence' column to store the Islandora 7.x property "isSequenceNumberOfxxx"/"isSequenceNumber".
 rows[0] = 'file,' + rows[0] + ',sequence'
 
 if fetch_files is True:
@@ -177,7 +178,7 @@ for row in rows:
             logging.info(e)
             continue
     else:
-        # If we're not fetching files, add an empty file' column.
+        # If we're not fetching files, add an empty 'file' column.
         row = ',' + row
     csv_output.append(row)
 
