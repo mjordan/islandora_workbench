@@ -332,8 +332,8 @@ class TestCreateFromFiles(unittest.TestCase):
                     nids.append(nid)
                     fh.write(nid + "\n")
 
-        self.assertEqual(len(nids), 2)
-
+        self.assertEqual(len(nids), 3)
+'''
     def tearDown(self):
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
@@ -343,7 +343,7 @@ class TestCreateFromFiles(unittest.TestCase):
         self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'files', 'rollback.csv')
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
-
+'''
 
 class TestCreateWithNewTypedRelation(unittest.TestCase):
     # Note: You can't run this test class on its own, e.g.,
