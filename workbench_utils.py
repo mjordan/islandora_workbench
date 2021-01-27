@@ -14,6 +14,7 @@ import subprocess
 import mimetypes
 import collections
 import urllib.parse
+import magic
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
 
@@ -1261,7 +1262,7 @@ def create_media(config, filename, node_uri, node_csv_row):
     filename = filename.strip()
 
     if filename.startswith('http'):
-        download_remote_file(config, filename)
+        filename = download_remote_file(config, filename, node_csv_row['title'])
         file_path = os.path.join(config['input_dir'], filename.split("/")[-1])
         filename = filename.split("/")[-1]
     elif os.path.isabs(filename):
@@ -2754,7 +2755,7 @@ def get_csv_from_excel(config):
     csv_writer_file_handle.close()
 
 
-def download_remote_file(config, url):
+def download_remote_file(config, url, filename = ''):
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True)
@@ -2772,8 +2773,22 @@ def download_remote_file(config, url):
         print('Error: ' + message)
 
     # create_media() references the path of the downloaded file.
-    downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])
+    if config["use_node_title_for_media"]:
+        downloaded_file_path = os.path.join(config['input_dir'], filename)
+    else:
+        downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])
+
+    file_extension = os.path.splitext(url)[1]
     open(downloaded_file_path, 'wb+').write(response.content)
+    mime = magic.from_file(downloaded_file_path, mime=True)
+    ext = mimetypes.guess_extension(mime)
+    if ext == '.jpe':
+        ext = '.jpg'
+    if file_extension =='':
+        os.rename(downloaded_file_path, downloaded_file_path + ext)
+        downloaded_file_path = downloaded_file_path + ext
+
+    return downloaded_file_path
 
 
 def get_csv_template(config, args):
