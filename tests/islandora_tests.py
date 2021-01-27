@@ -29,13 +29,15 @@ class TestCheckCreate(unittest.TestCase):
 
 
 class TestCheckCreateFromGoogleSpreadsheet(unittest.TestCase):
+    """Note: This test fetches data from https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0.
+    """
 
     def setUp(self):
         cmd = ["./workbench", "--config", "google_spreadsheet.yml", "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
-    def test_create_check(self):
+    def test_create_from_google_spreadsheet_check(self):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'Extracting CSV data from https://docs.google.com', '')
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
@@ -48,7 +50,7 @@ class TestCheckUpdate(unittest.TestCase):
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
-    def test_create_check(self):
+    def test_update_check(self):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
@@ -60,7 +62,7 @@ class TestCheckDelete(unittest.TestCase):
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
-    def test_create_check(self):
+    def test_delete_check(self):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
@@ -72,7 +74,7 @@ class TestCheckAddMedia(unittest.TestCase):
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
-    def test_create_check(self):
+    def test_add_media_check(self):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
@@ -80,8 +82,8 @@ class TestCheckAddMedia(unittest.TestCase):
 class TestTypedRelationBadRelatorCheck(unittest.TestCase):
 
     def test_bad_relator_check_fail(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'bad_relator.yml')
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'bad_relator.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
@@ -91,12 +93,21 @@ class TestTypedRelationBadRelatorCheck(unittest.TestCase):
         except subprocess.CalledProcessError as err:
             pass
 
+    def tearDown(self):
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_typed_relation_fail.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
 
 class TestTypedRelationBadUriCheck(unittest.TestCase):
 
     def test_bad_uri_check_fail(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'bad_uri.yml')
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'bad_uri.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
@@ -106,12 +117,21 @@ class TestTypedRelationBadUriCheck(unittest.TestCase):
         except subprocess.CalledProcessError as err:
             pass
 
+    def tearDown(self):
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_uri_fail.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
 
 class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
 
     def setUp(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'add_new_typed_relation.yml')
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'add_new_typed_relation.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
@@ -120,12 +140,21 @@ class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'and new terms will be created as noted', '')
 
+    def tearDown(self):
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "new_typed_relation.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
 
 class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
 
     def test_no_namespace_check_fail(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'typed_relation_test', 'no_namespace.yml')
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'no_namespace.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
@@ -135,12 +164,21 @@ class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
         except subprocess.CalledProcessError as err:
             pass
 
+    def tearDown(self):
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "no_namespace.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
 
 class TestGeolocationCheck(unittest.TestCase):
 
-    def test_create_check_fail(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'geolocation_test', 'bad_geocoordinates.yml')
+    def test_geolocation_check(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'geolocation_test', 'bad_geocoordinates.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
@@ -150,12 +188,17 @@ class TestGeolocationCheck(unittest.TestCase):
         except subprocess.CalledProcessError as err:
             pass
 
+    def tearDown(self):
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "geolocation_test", "input_data", "bad_geocoorindates_fail.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
 
 class TestHeaderColumnMismatch(unittest.TestCase):
 
     def test_header_column_mismatch_fail(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'header_column_mismatch_test', 'create.yml')
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'header_column_mismatch_test', 'create.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
@@ -164,6 +207,15 @@ class TestHeaderColumnMismatch(unittest.TestCase):
             self.assertRegex(output, 'Row 2 of your CSV file does not', '')
         except subprocess.CalledProcessError as err:
             pass
+
+    def tearDown(self):
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'header_column_mismatch_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "header_column_mismatch_test", "metadata.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
 
 
 class TestExecuteBootstrapScript(unittest.TestCase):
@@ -174,7 +226,7 @@ class TestExecuteBootstrapScript(unittest.TestCase):
         self.script_path = os.path.join(dir_path, 'assets', 'execute_bootstrap_script_test', 'script.py')
         self.config_file_path = os.path.join(dir_path, 'assets', 'execute_bootstrap_script_test', 'config.yml')
 
-    def test_python_script(self):
+    def test_execute_python_script(self):
         output, return_code = workbench_utils.execute_bootstrap_script(self.script_path, self.config_file_path)
         self.assertEqual(output.strip(), b'Hello')
 
@@ -205,7 +257,7 @@ class TestCreate(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
         self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatetestnids.txt')
 
-    def test_create_check(self):
+    def test_create(self):
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -229,6 +281,14 @@ class TestCreate(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'metadata.csv.prepocessed')
+        if os.path.exists(self.preprocessed_file_path):
+            os.remove(self.preprocessed_file_path)
+
 
 class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
 
@@ -239,7 +299,7 @@ class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
-    def test_create_check(self):
+    def test_create_with_field_templates_check(self):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'all 3 rows in the CSV file have the same number of columns as there are headers .6.', '')
 
@@ -258,11 +318,7 @@ class TestCreateFromFiles(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
         self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatefromfilestestnids.txt')
 
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'files', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-    def test_create_check(self):
+    def test_create_from_files(self):
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -284,6 +340,7 @@ class TestCreateFromFiles(unittest.TestCase):
         delete_output = subprocess.check_output(delete_cmd)
         os.remove(self.nid_file)
 
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'files', 'rollback.csv')
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
@@ -291,6 +348,8 @@ class TestCreateFromFiles(unittest.TestCase):
 class TestCreateWithNewTypedRelation(unittest.TestCase):
     # Note: You can't run this test class on its own, e.g.,
     # python3 tests/islandora_tests.py TestCreateWithNewTypedRelation.
+    # because passing "TestCreateWithNewTypedRelation" as an argument
+    # will cause the argparse parser to fail.
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -336,6 +395,10 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'create_with_new_typed_relation.csv.prepocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
         term_endpoint = self.config['host'] + '/taxonomy/term/' + str(self.new_term_id) + '?_format=json'
         delete_term_response = workbench_utils.issue_request(self.config, 'DELETE', term_endpoint)
 
@@ -363,7 +426,7 @@ class TestDelete(unittest.TestCase):
                     nids.append(nid)
                     fh.write(nid + "\n")
 
-    def test_delete_check(self):
+    def test_delete(self):
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'delete_test', 'delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
         delete_output = subprocess.check_output(delete_cmd)
@@ -441,8 +504,16 @@ class TestCreatePagedContent(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_test', 'metadata.csv.prepocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
 
-class TestCreatePagedContentFromDirectories (unittest.TestCase):
+        rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_test', 'rollback.csv')
+        if os.path.exists(rollback_file_path):
+            os.remove(rollback_file_path)
+
+
+class TestCreatePagedContentFromDirectories(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -507,6 +578,14 @@ class TestCreatePagedContentFromDirectories (unittest.TestCase):
         delete_output = delete_output.decode().strip()
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
+
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'metadata.csv.prepocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'rollback.csv')
+        if os.path.exists(rollback_file_path):
+            os.remove(rollback_file_path)
 
 
 class TestTaxonomies (unittest.TestCase):
@@ -586,10 +665,28 @@ class TestTaxonomies (unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
+        rollback_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'rollback.csv')
+        if os.path.exists(rollback_file_path):
+            os.remove(rollback_file_path)
+
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'metadata.csv.prepocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_id_not_in_taxonomy.csv.prepocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_name_not_in_taxonomy.csv.prepocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
 
 class TestTermFromUri(unittest.TestCase):
     # Note: You can't run this test class on its own, e.g.,
     # python3 tests/islandora_tests.py TestTermFromUri.
+    # because passing "TestTermFromUri" as an argument
+    # will cause the argparse parser to fail.
 
     def test_term_from_uri(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -627,7 +724,7 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatenonlatintestnids.txt')
         self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'rollback.csv')
 
-    def test_create_check(self):
+    def test_create_with_non_latin_text(self):
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -666,10 +763,14 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'metadata.csv.prepocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
 
 class TestGoogleGid(unittest.TestCase):
 
-    def test_preprocessor_script_single_field_value(self):
+    def test_google_gid(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_0.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
@@ -702,7 +803,7 @@ class TestGoogleGid(unittest.TestCase):
 
 class TestCommentedCsvs(unittest.TestCase):
 
-    def test_raw_csv(self):
+    def test_commented_csv(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
 
         config_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "raw_csv.yml")

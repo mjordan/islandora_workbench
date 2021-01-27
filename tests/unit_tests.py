@@ -152,6 +152,9 @@ class TestValideCalendarDate(unittest.TestCase):
         bad_values = ['1900-05-45',
                       '1900-13-01',
                       '1900-02-31',
+                      '1900-00-31',
+                      '1900-00',
+                      '19000'
                       ]
         for bad_value in bad_values:
             res = workbench_utils.validate_calendar_date(bad_value)
@@ -165,19 +168,13 @@ class TestSetMediaType(unittest.TestCase):
         dir_path = os.path.dirname(os.path.realpath(__file__))
 
         # Media types are mapped from extensions.
-        types_config_file_path = os.path.join(
-            dir_path, 'assets', 'set_media_type_test', 'multi_types_config.yml')
+        types_config_file_path = os.path.join(dir_path, 'assets', 'set_media_type_test', 'multi_types_config.yml')
         with open(types_config_file_path, 'r') as f:
             multi_types_config_file_contents = f.read()
-        self.multi_types_config_yaml = yaml.load(
-            multi_types_config_file_contents)
+        self.multi_types_config_yaml = yaml.load(multi_types_config_file_contents)
 
         # Media type is set for all media.
-        type_config_file_path = os.path.join(
-            dir_path,
-            'assets',
-            'set_media_type_test',
-            'single_type_config.yml')
+        type_config_file_path = os.path.join(dir_path, 'assets', 'set_media_type_test', 'single_type_config.yml')
         with open(type_config_file_path, 'r') as f:
             single_type_config_file_contents = f.read()
         self.single_type_config_yaml = yaml.load(
@@ -216,7 +213,8 @@ class TestSetMediaType(unittest.TestCase):
 
 class TestGetCsvFromExcel(unittest.TestCase):
     """Note: this tests the extraction of CSV data from Excel only,
-       not using and Excel file as an input CSV file.
+       not using an Excel file as an input CSV file. That is tested
+       in TestCommentedCsvs in islandora_tests.py.
     """
     def setUp(self):
         self.config = {'input_dir': 'tests/assets/excel_test',
@@ -239,8 +237,6 @@ class TestGetCsvFromExcel(unittest.TestCase):
         fourth_row = csv_data[4]
         fourth_row_parts = fourth_row.split(',')
         self.assertEqual(fourth_row_parts[1], 'Title 4')
-
-        # @todo: Test CSV field templates.
 
     def tearDown(self):
         os.remove(self.csv_file_path)

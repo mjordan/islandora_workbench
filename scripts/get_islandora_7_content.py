@@ -53,7 +53,7 @@ standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollect
 def get_extension_from_mimetype(mimetype):
     # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
     # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
-    #  MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
+    # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
     map = {'image/jpeg': '.jpg',
         'image/jp2': '.jp2',
         'image/png': '.png'

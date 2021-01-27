@@ -1486,21 +1486,39 @@ def get_csv_data(config):
                     csv_reader_fieldnames.append(field_name)
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
+        row_num = 0
         for row in csv_reader:
+            row_num += 1
             for template in config['csv_field_templates']:
                 for field_name, field_value in template.items():
                     if field_name not in csv_reader_fieldnames_orig:
                         row[field_name] = field_value
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
-                csv_writer.writerow(row)
+                try:
+                    csv_writer.writerow(row)
+                except (ValueError):
+                    message = "Error: Row " + str(row_num) + ' in your CSV file ' + \
+                              "has more columns (" + str(len(row)) + ") than there are headers (" + \
+                              str(len(csv_reader.fieldnames)) + ').'
+                    logging.error(message)
+                    sys.exit(message)
     else:
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
+        row_num = 0
         for row in csv_reader:
+            row_num += 1
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
-                csv_writer.writerow(row)
+                try:
+                    csv_writer.writerow(row)
+                except (ValueError):
+                    message = "Error: Row " + str(row_num) + ' in your CSV file ' + \
+                              "has more columns (" + str(len(row)) + ") than there are headers (" + \
+                              str(len(csv_reader.fieldnames)) + ').'
+                    logging.error(message)
+                    sys.exit(message)
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(input_csv_path + '.prepocessed', 'r')
