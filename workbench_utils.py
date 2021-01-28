@@ -2774,6 +2774,9 @@ def download_remote_file(config, url, filename = ''):
 
     # create_media() references the path of the downloaded file.
     if config["use_node_title_for_media"]:
+        filename = re.sub('[^A-Za-z0-9]+', '_', filename)
+        if filename[-1] == '_':
+            filename = filename[:-1]
         downloaded_file_path = os.path.join(config['input_dir'], filename)
     else:
         downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])
