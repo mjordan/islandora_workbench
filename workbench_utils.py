@@ -15,6 +15,7 @@ import mimetypes
 import collections
 import urllib.parse
 import magic
+from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
 
@@ -1262,9 +1263,8 @@ def create_media(config, filename, node_uri, node_csv_row):
     filename = filename.strip()
 
     if filename.startswith('http'):
-        filename = download_remote_file(config, filename, node_csv_row['title'])
-        file_path = os.path.join(config['input_dir'], filename.split("/")[-1])
-        filename = filename.split("/")[-1]
+        file_path = download_remote_file(config, filename, node_csv_row)
+        filename = file_path.split("/")[-1]
     elif os.path.isabs(filename):
         file_path = filename
     else:
@@ -1285,7 +1285,7 @@ def create_media(config, filename, node_uri, node_csv_row):
         'Content-Type': mimetype[0],
         'Content-Location': location
     }
-    binary_data = open(os.path.join(config['input_dir'], filename), 'rb')
+    binary_data = open(file_path, 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
     if media_response.status_code == 201:
         if 'location' in media_response.headers:
@@ -2755,7 +2755,7 @@ def get_csv_from_excel(config):
     csv_writer_file_handle.close()
 
 
-def download_remote_file(config, url, filename = ''):
+def download_remote_file(config, url, node_csv_row):
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True)
@@ -2773,16 +2773,21 @@ def download_remote_file(config, url, filename = ''):
         print('Error: ' + message)
 
     # create_media() references the path of the downloaded file.
+    subdir = config['input_dir'] + '/' + re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']])
+    Path(subdir).mkdir(parents=True, exist_ok=True)
+
     if config["use_node_title_for_media"]:
-        filename = re.sub('[^A-Za-z0-9]+', '_', filename)
+        filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
         if filename[-1] == '_':
             filename = filename[:-1]
-        downloaded_file_path = os.path.join(config['input_dir'], filename)
+        downloaded_file_path = os.path.join(subdir, filename)
     else:
-        downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])
+        downloaded_file_path = os.path.join(subdir, url.split("/")[-1])
 
     file_extension = os.path.splitext(url)[1]
-    open(downloaded_file_path, 'wb+').write(response.content)
+    f = open(downloaded_file_path, 'wb+')
+    f.write(response.content)
+    f.close
     mime = magic.from_file(downloaded_file_path, mime=True)
     ext = mimetypes.guess_extension(mime)
     if ext == '.jpe':
