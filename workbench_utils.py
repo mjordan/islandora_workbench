@@ -1913,8 +1913,7 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                     config['subdelimiter'])
                 for field_value in delimited_field_values:
                     field_value_length = len(field_value)
-                    if field_name in field_max_lengths and len(
-                            field_value) > field_max_lengths[field_name]:
+                    if field_name in field_max_lengths and len(field_value) > int(field_max_lengths[field_name]):
                         if config['task'] == 'create':
                             message = 'CSV field "' + field_name + '" in record with ID ' + \
                                 row[config['id_field']] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'
