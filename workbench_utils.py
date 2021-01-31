@@ -116,6 +116,8 @@ def set_config_defaults(args):
         config['excel_worksheet'] = 'Sheet1'
     if 'excel_csv_filename' not in config:
         config['excel_csv_filename'] = 'excel.csv'
+    if 'use_node_title_for_media' not in config:
+        config['use_node_title_for_media'] = False
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -1488,6 +1490,7 @@ def get_csv_data(config):
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
         row_num = 0
+        unique_identifiers = []
         for row in csv_reader:
             row_num += 1
             for template in config['csv_field_templates']:
@@ -1497,6 +1500,7 @@ def get_csv_data(config):
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
                 try:
+                    unique_identifiers.append(row[config['id_field']])
                     csv_writer.writerow(row)
                 except (ValueError):
                     message = "Error: Row " + str(row_num) + ' in your CSV file ' + \
@@ -1504,6 +1508,11 @@ def get_csv_data(config):
                               str(len(csv_reader.fieldnames)) + ').'
                     logging.error(message)
                     sys.exit(message)
+        repeats = set(([x for x in unique_identifiers if unique_identifiers.count(x) > 1]))
+        if len(repeats) > 0:
+            message = "duplicated identifiers found: " + str(repeats)
+            logging.error(message)
+            sys.exit(message)
     else:
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
@@ -2781,10 +2790,11 @@ def download_remote_file(config, url, node_csv_row):
         if filename[-1] == '_':
             filename = filename[:-1]
         downloaded_file_path = os.path.join(subdir, filename)
+        file_extension = os.path.splitext(downloaded_file_path)[1]
     else:
         downloaded_file_path = os.path.join(subdir, url.split("/")[-1])
+        file_extension = os.path.splitext(url)[1]
 
-    file_extension = os.path.splitext(url)[1]
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)
     f.close
