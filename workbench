@@ -22,8 +22,9 @@ def create():
     prep_rollback_csv(config)
 
     logging.info('"Create" task started using config file %s', args.config)
+    temp = config
+    csv_path = os.path.join(config['input_dir'], config['input_csv'])
     node_ids = dict()
-
     field_definitions = get_field_definitions(config)
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
