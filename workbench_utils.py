@@ -2801,7 +2801,7 @@ def download_remote_file(config, url, node_csv_row):
     ext = mimetypes.guess_extension(mime)
     if ext == '.jpe':
         ext = '.jpg'
-    if file_extension =='':
+    if file_extension == '':
         os.rename(downloaded_file_path, downloaded_file_path + ext)
         downloaded_file_path = downloaded_file_path + ext
 
