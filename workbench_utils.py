@@ -14,6 +14,8 @@ import subprocess
 import mimetypes
 import collections
 import urllib.parse
+import magic
+from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
 
@@ -114,6 +116,8 @@ def set_config_defaults(args):
         config['excel_worksheet'] = 'Sheet1'
     if 'excel_csv_filename' not in config:
         config['excel_csv_filename'] = 'excel.csv'
+    if 'use_node_title_for_media' not in config:
+        config['use_node_title_for_media'] = False
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -1261,9 +1265,8 @@ def create_media(config, filename, node_uri, node_csv_row):
     filename = filename.strip()
 
     if filename.startswith('http'):
-        download_remote_file(config, filename)
-        file_path = os.path.join(config['input_dir'], filename.split("/")[-1])
-        filename = filename.split("/")[-1]
+        file_path = download_remote_file(config, filename, node_csv_row)
+        filename = file_path.split("/")[-1]
     elif os.path.isabs(filename):
         file_path = filename
     else:
@@ -1284,7 +1287,7 @@ def create_media(config, filename, node_uri, node_csv_row):
         'Content-Type': mimetype[0],
         'Content-Location': location
     }
-    binary_data = open(os.path.join(config['input_dir'], filename), 'rb')
+    binary_data = open(file_path, 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
     if media_response.status_code == 201:
         if 'location' in media_response.headers:
@@ -1487,6 +1490,7 @@ def get_csv_data(config):
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
         row_num = 0
+        unique_identifiers = []
         for row in csv_reader:
             row_num += 1
             for template in config['csv_field_templates']:
@@ -1496,6 +1500,7 @@ def get_csv_data(config):
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
                 try:
+                    unique_identifiers.append(row[config['id_field']])
                     csv_writer.writerow(row)
                 except (ValueError):
                     message = "Error: Row " + str(row_num) + ' in your CSV file ' + \
@@ -1503,6 +1508,11 @@ def get_csv_data(config):
                               str(len(csv_reader.fieldnames)) + ').'
                     logging.error(message)
                     sys.exit(message)
+        repeats = set(([x for x in unique_identifiers if unique_identifiers.count(x) > 1]))
+        if len(repeats) > 0:
+            message = "duplicated identifiers found: " + str(repeats)
+            logging.error(message)
+            sys.exit(message)
     else:
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
@@ -2753,7 +2763,7 @@ def get_csv_from_excel(config):
     csv_writer_file_handle.close()
 
 
-def download_remote_file(config, url):
+def download_remote_file(config, url, node_csv_row):
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True)
@@ -2771,8 +2781,31 @@ def download_remote_file(config, url):
         print('Error: ' + message)
 
     # create_media() references the path of the downloaded file.
-    downloaded_file_path = os.path.join(config['input_dir'], url.split("/")[-1])
-    open(downloaded_file_path, 'wb+').write(response.content)
+    subdir = config['input_dir'] + '/' + re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']])
+    Path(subdir).mkdir(parents=True, exist_ok=True)
+
+    if config["use_node_title_for_media"]:
+        filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
+        if filename[-1] == '_':
+            filename = filename[:-1]
+        downloaded_file_path = os.path.join(subdir, filename)
+        file_extension = os.path.splitext(downloaded_file_path)[1]
+    else:
+        downloaded_file_path = os.path.join(subdir, url.split("/")[-1])
+        file_extension = os.path.splitext(url)[1]
+
+    f = open(downloaded_file_path, 'wb+')
+    f.write(response.content)
+    f.close
+    mime = magic.from_file(downloaded_file_path, mime=True)
+    ext = mimetypes.guess_extension(mime)
+    if ext == '.jpe':
+        ext = '.jpg'
+    if file_extension =='':
+        os.rename(downloaded_file_path, downloaded_file_path + ext)
+        downloaded_file_path = downloaded_file_path + ext
+
+    return downloaded_file_path
 
 
 def get_csv_template(config, args):
