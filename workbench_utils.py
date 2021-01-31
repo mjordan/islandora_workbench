@@ -88,6 +88,8 @@ def set_config_defaults(args):
         config['log_file_mode'] = 'a'
     if 'allow_missing_files' not in config:
         config['allow_missing_files'] = False
+    if 'update_mode' not in config:
+        config['update_mode'] = 'replace'
     if 'validate_title_length' not in config:
         config['validate_title_length'] = True
     if 'paged_content_from_directories' not in config:
