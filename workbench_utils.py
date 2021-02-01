@@ -395,15 +395,12 @@ def get_field_definitions(config):
     fields = get_entity_fields(config, entity_type, bundle_type)
     for fieldname in fields:
         field_definitions[fieldname] = {}
-        raw_field_config = get_entity_field_config(
-            config, fieldname, entity_type, bundle_type)
+        raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
         field_config = json.loads(raw_field_config)
         field_definitions[fieldname]['entity_type'] = field_config['entity_type']
         field_definitions[fieldname]['required'] = field_config['required']
         field_definitions[fieldname]['label'] = field_config['label']
-        raw_vocabularies = [
-            x for x in field_config['dependencies']['config'] if re.match(
-                "^taxonomy.vocabulary.", x)]
+        raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
         if len(raw_vocabularies) > 0:
             vocabularies = [x.replace("taxonomy.vocabulary.", '')
                             for x in raw_vocabularies]
@@ -413,8 +410,7 @@ def get_field_definitions(config):
         if entity_type == 'media':
             field_definitions[fieldname]['media_type'] = bundle_type
 
-        raw_field_storage = get_entity_field_storage(
-            config, fieldname, entity_type)
+        raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
         field_storage = json.loads(raw_field_storage)
         field_definitions[fieldname]['field_type'] = field_storage['type']
         field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
@@ -429,6 +425,7 @@ def get_field_definitions(config):
         if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
             field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
 
+    field_definitions['title'] = {'entity_type': 'node', 'required': True, 'label': 'Title', 'field_type': 'string', 'cardinality': 1, 'max_length': 255, 'target_type': None}
     return field_definitions
 
 

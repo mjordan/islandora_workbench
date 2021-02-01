@@ -78,18 +78,11 @@ class Simple():
             custom_field : string
                 The Drupal fieldname/CSV column header.
             node_field_values : list
-                List of values for custom_field present in the node being updated.
+                List of dictionaries containing value(s) for custom_field in the node being updated.
             Returns
             -------
             dictionary
                 A dictionary represeting the node that is POSTed to Drupal as JSON.
-        """
-        """
-        if config['update_mode'] == 'replace':
-            pass
-        if config['update_mode'] == 'append':
-            pass
-        pass
         """
         if field_definitions[custom_field]['cardinality'] == 1:
             # Fields with cardinality of 1 are always replaced with incoming values, they are never appended to.
@@ -102,33 +95,60 @@ class Simple():
                 if len(subvalues) > 1:
                     log_field_cardinality_violation(custom_field, row['node_id'], '1')
         elif field_definitions[custom_field]['cardinality'] > 1:
-            # Append to existing values.
-            if config['subdelimiter'] in row[custom_field]:
-                field_values = []
-                subvalues = row[custom_field].split(config['subdelimiter'])
-                if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
-                    log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
-                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
-                for subvalue in subvalues:
-                    subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
-                    field_values.append({'value': subvalue})
-                    node[custom_field] = node_field_values[custom_field] + field_values
-            else:
-                row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
-                node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
+            if config['update_mode'] == 'append':
+                # Append to existing values.
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    subvalues = row[custom_field].split(config['subdelimiter'])
+                    for subvalue in subvalues:
+                        subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
+                        field_values.append({'value': subvalue})
+                    node[custom_field] = node_field_values + field_values
+                    if len(node[custom_field]) > int(field_definitions[custom_field]['cardinality']):
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                        node[custom_field] = node[custom_field][:field_definitions[custom_field]['cardinality']]
+                else:
+                    row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
+                    node[custom_field] = node_field_values + [{'value': row[custom_field]}]
+            if config['update_mode'] == 'replace':
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    subvalues = row[custom_field].split(config['subdelimiter'])
+                    if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                    subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                    for subvalue in subvalues:
+                        subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
+                        field_values.append({'value': subvalue})
+                        node[custom_field] = field_values
+                else:
+                    row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
+                    node[custom_field] = [{'value': row[custom_field]}]
         # Cardinatlity is unlimited.
         else:
-            # Append to existing values.
-            if config['subdelimiter'] in row[custom_field]:
-                field_values = []
-                subvalues = row[custom_field].split(config['subdelimiter'])
-                for subvalue in subvalues:
-                    subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
-                    field_values.append({'value': subvalue})
-                    node[custom_field] = node_field_values[custom_field] + field_values
-            else:
-                row[custom_field] = truncate_csv_value(
-                    custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
-                node[custom_field] = node_field_values[custom_field] + [{'value': row[custom_field]}]
+            if config['update_mode'] == 'append':
+                # Append to existing values.
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    subvalues = row[custom_field].split(config['subdelimiter'])
+                    for subvalue in subvalues:
+                        subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
+                        field_values.append({'value': subvalue})
+                        node[custom_field] = node_field_values + field_values
+                else:
+                    row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
+                    node[custom_field] = node_field_values + [{'value': row[custom_field]}]
+            if config['update_mode'] == 'replace':
+                # Replace existing values.
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    subvalues = row[custom_field].split(config['subdelimiter'])
+                    for subvalue in subvalues:
+                        subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
+                        field_values.append({'value': subvalue})
+                        node[custom_field] = field_values
+                else:
+                    row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
+                    node[custom_field] = [{'value': row[custom_field]}]
 
         return node
