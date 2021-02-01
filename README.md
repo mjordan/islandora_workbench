@@ -2,6 +2,8 @@
 
 A command-line tool that allows creation, updating, and deletion of Islandora content from CSV data. Islandora Workbench is an alternative to using Drupal's built-in Migrate tools for [ingesting Islandora content from CSV files](https://github.com/Islandora/migrate_islandora_csv). Unlike the Migrate tools, Islandora Workbench can be run anywhere - it does not need to run on the Islandora server. The Migrate tools, however, are much more flexible than Islandora Workbench, and can be extended using plugins in ways that Workbench cannot.
 
+Note that this tool is not related in any way to the Drupal contrib module called [Workbench](https://www.drupal.org/project/workbench).
+
 ## Features
 
 * Allows creation of Islandora nodes and media, updating of nodes, and deletion of nodes and media from CSV files
@@ -17,11 +19,9 @@ A command-line tool that allows creation, updating, and deletion of Islandora co
 * Allows adding alt text to images
 * Cross platform (written in Python, tested on Linux, Mac, and Windows)
 * Well tested
-* [Well documented](https://mjordan.github.io/islandora_workbench_docs/)
+* Well documented
 * Provides both sensible default configuration values and rich configuation options for power users
 * A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), will add a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
-
-Note that this tool is not related in any way to the Drupal contrib module called [Workbench](https://www.drupal.org/project/workbench).
 
 ## Documentation
 
@@ -42,9 +42,10 @@ If you open a PR, please check your code with pycodestyle:
 Also provide tests where applicable. Tests in Workbench fall into two categories:
 
 * Unit tests (that do not require Islandora) which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
+   * Unit tests on Workbench's Drupal fields handlers (these also does not require Islandora) are in `tests/field_tests.py` and can be run with `python3 tests/field_tests.py`
 * Integration tests that require a live Islandora instance running at `http://localhost:8000`, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
    * The [Islandora Playbook](https://github.com/Islandora-Devops/islandora-playbook) is recommended way to deploy the Islandora used in these tests. Note that if an Islandora integration test fails, nodes and taxonomy terms created by the test before it fails may not be removed from Islandora.
-   * Some integration tests output text that beings with "Error:." This is normal, it's the text that Workbench outputs when it finds something wrong (which is probably what the test is testing). Successful test (whether they test for success or failure) runs will exit with "OK". If you can figure out how to suppress this output, please visit [this issue](https://github.com/mjordan/islandora_workbench/issues/160).
+   * Some integration and field tests output text that beings with "Error:." This is normal, it's the text that Workbench outputs when it finds something wrong (which is probably what the test is testing). Successful test (whether they test for success or failure) runs will exit with "OK". If you can figure out how to suppress this output, please visit [this issue](https://github.com/mjordan/islandora_workbench/issues/160).
 * If you want to run the tests within a specific class in one of these files, include the class name like this: `python3 tests/unit_tests.py TestCompareStings`
 
 ## Contributing to documentation
