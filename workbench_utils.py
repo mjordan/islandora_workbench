@@ -1292,9 +1292,9 @@ def create_media(config, filename, node_uri, node_csv_row):
     }
     binary_data = open(file_path, 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
-    if is_remote and config['delete_tmp_upload'] == True:
-        containing_folder = os.path.join(config['input_dir'],re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
-        shutil.rmtree (containing_folder)
+    if is_remote and config['delete_tmp_upload'] is True:
+        containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+        shutil.rmtree(containing_folder)
 
     if media_response.status_code == 201:
         if 'location' in media_response.headers:
@@ -2789,7 +2789,7 @@ def download_remote_file(config, url, node_csv_row):
         print('Error: ' + message)
 
     # create_media() references the path of the downloaded file.
-    subdir = os.path.join(config['input_dir'],re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+    subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
     Path(subdir).mkdir(parents=True, exist_ok=True)
 
     if config["use_node_title_for_media"]:
@@ -2809,7 +2809,7 @@ def download_remote_file(config, url, node_csv_row):
     ext = mimetypes.guess_extension(mime)
     if ext == '.jpe':
         ext = '.jpg'
-    if file_extension =='':
+    if file_extension == '':
         os.rename(downloaded_file_path, downloaded_file_path + ext)
         downloaded_file_path = downloaded_file_path + ext
 
