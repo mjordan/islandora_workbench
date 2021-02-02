@@ -188,7 +188,41 @@ class GeolocationField():
             dictionary
                 A dictionary represeting the node that is POSTed to Drupal as JSON.
         """
-        pass
+        id_field = row[config['id_field']]
+        # Cardinality is unlimited.
+        if field_definitions[custom_field]['cardinality'] == -1:
+            if config['subdelimiter'] in row[custom_field]:
+                field_values = []
+                subvalues = split_geolocation_string(config, row[custom_field])
+                for subvalue in subvalues:
+                    field_values.append(subvalue)
+                node[custom_field] = field_values
+            else:
+                field_value = split_geolocation_string(config, row[custom_field])
+                node[custom_field] = field_value
+        # Cardinality has a limit.
+        elif field_definitions[custom_field]['cardinality'] > 1:
+            if config['subdelimiter'] in row[custom_field]:
+                field_values = []
+                subvalues = split_geolocation_string(config, row[custom_field])
+                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
+                    log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
+                for subvalue in subvalues:
+                    field_values.append(subvalue)
+                node[custom_field] = field_values
+            else:
+                field_value = split_geolocation_string(config, row[custom_field])
+                node[custom_field] = field_value
+        # Cardinality is 1.
+        else:
+            field_values = split_geolocation_string(config, row[custom_field])
+            if len(field_values) > 1:
+                log_field_cardinality_violation(custom_field, id_field, '1')
+                field_values = field_values[:1]
+            node[custom_field] = field_values
+
+        return node
 
     def update(self, config, field_definitions, node, row, custom_field, node_field_values):
         """Note: this method both adds incoming CSV values to existing values and replaces entire
