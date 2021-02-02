@@ -131,8 +131,7 @@ def create():
                                 preprocessor_input,
                                 output.decode().strip())
                         else:
-                            message = 'Preprocess command ' + command + \
-                                ' failed with return code ' + str(return_code)
+                            message = 'Preprocess command ' + command + ' failed with return code ' + str(return_code)
                             logging.error(message)
                             sys.exit(message)
 
@@ -267,7 +266,7 @@ def create():
 
             # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
             else:
-                simple_field = workbench_fields.Simple()
+                simple_field = workbench_fields.SimpleField()
                 node = simple_field.create(config, field_definitions, node, row, custom_field)
 
         node_headers = {'Content-Type': 'application/json'}
@@ -650,7 +649,7 @@ def update():
 
             # For non-entity reference and non-typed relation fields (text, etc.).
             else:
-                simple_field = workbench_fields.Simple()
+                simple_field = workbench_fields.SimpleField()
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
         node_endpoint = config['host'] + \

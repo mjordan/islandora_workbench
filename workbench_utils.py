@@ -546,6 +546,13 @@ def check_input(config, args):
                     + joiner.join(update_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+        update_mode_options = ['replace', 'append', 'delete']
+        if config['update_mode'] not in update_mode_options:
+            message = 'Your "update_mode" config option must be one of the following: ' \
+                + joiner.join(update_mode_options) + '.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
     if config['task'] == 'delete':
         delete_required_options = [
             'task',
