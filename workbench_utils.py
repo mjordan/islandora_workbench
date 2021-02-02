@@ -18,7 +18,7 @@ import magic
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
-
+import shutil
 yaml = YAML()
 
 
@@ -118,6 +118,8 @@ def set_config_defaults(args):
         config['excel_csv_filename'] = 'excel.csv'
     if 'use_node_title_for_media' not in config:
         config['use_node_title_for_media'] = False
+    if 'delete_tmp_upload' not in config:
+        config['delete_tmp_upload'] = False
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -1261,12 +1263,13 @@ def create_media(config, filename, node_uri, node_csv_row):
     """
     if config['nodes_only'] is True:
         return
-
+    is_remote = False
     filename = filename.strip()
 
     if filename.startswith('http'):
         file_path = download_remote_file(config, filename, node_csv_row)
         filename = file_path.split("/")[-1]
+        is_remote = True
     elif os.path.isabs(filename):
         file_path = filename
     else:
@@ -1289,6 +1292,10 @@ def create_media(config, filename, node_uri, node_csv_row):
     }
     binary_data = open(file_path, 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
+    if is_remote and config['delete_tmp_upload'] is True:
+        containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+        shutil.rmtree(containing_folder)
+
     if media_response.status_code == 201:
         if 'location' in media_response.headers:
             # A 201 response provides a 'location' header, but a '204' response does not.
@@ -2781,7 +2788,7 @@ def download_remote_file(config, url, node_csv_row):
         print('Error: ' + message)
 
     # create_media() references the path of the downloaded file.
-    subdir = config['input_dir'] + '/' + re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']])
+    subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
     Path(subdir).mkdir(parents=True, exist_ok=True)
 
     if config["use_node_title_for_media"]:
