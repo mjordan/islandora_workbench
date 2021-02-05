@@ -1127,7 +1127,7 @@ def truncate_csv_value(field_name, record_id, field_config, value):
     """
     if isinstance(value, str) and 'max_length' in field_config:
         max_length = field_config['max_length']
-        if max_length is not None and len(value) > max_length:
+        if max_length is not None and len(value) > int(max_length):
             original_value = value
             value = value[:max_length]
             logging.warning(
@@ -1878,7 +1878,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
         if csv_header in field_definitions.keys():
             cardinality = field_definitions[csv_header]['cardinality']
             # We don't care about cardinality of -1 (unlimited).
-            if cardinality > 0:
+            if int(cardinality) > 0:
                 field_cardinalities[csv_header] = cardinality
 
     for count, row in enumerate(csv_data, start=1):
@@ -1899,7 +1899,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                         field_cardinalities[field_name]) + '). Workbench will add only the first value.'
                     print('Warning: ' + message + message_2)
                     logging.warning(message + message_2)
-                if field_cardinalities[field_name] > 1 and len(delimited_field_values) > field_cardinalities[field_name]:
+                if int(field_cardinalities[field_name]) > 1 and len(delimited_field_values) > field_cardinalities[field_name]:
                     if config['task'] == 'create':
                         message = 'CSV field "' + field_name + '" in (!) record with ID ' + \
                             row[config['id_field']] + ' contains more values than the number '
