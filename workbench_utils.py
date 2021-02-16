@@ -1861,8 +1861,6 @@ def compare_strings(known, unknown):
     # Replaces whitespace with a single space.
     known = " ".join(known.split())
     unknown = " ".join(unknown.split())
-    print(known)
-    print(unknown)
 
     if unknown == known:
         return True
