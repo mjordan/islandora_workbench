@@ -1855,11 +1855,14 @@ def compare_strings(known, unknown):
     known = known.lower()
     unknown = unknown.lower()
     # Remove all punctuation.
-    known = known.translate(str.maketrans('', '', string.punctuation))
-    unknown = unknown.translate(str.maketrans('', '', string.punctuation))
+    for p in string.punctuation:
+        known = known.replace(p, ' ')
+        unknown = unknown.replace(p, ' ')
     # Replaces whitespace with a single space.
     known = " ".join(known.split())
     unknown = " ".join(unknown.split())
+    print(known)
+    print(unknown)
 
     if unknown == known:
         return True

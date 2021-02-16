@@ -21,6 +21,10 @@ class TestCompareStings(unittest.TestCase):
         self.assertTrue(res)
         res = workbench_utils.compare_strings('foo bar baz', 'foo   bar baz')
         self.assertTrue(res)
+        res = workbench_utils.compare_strings('Lastname,Firstname', 'Lastname, Firstname')
+        self.assertTrue(res)
+        res = workbench_utils.compare_strings('لدولي العاشر ليونيكود--', 'لدولي, العاشر []ليونيكود')
+        self.assertTrue(res)
 
     def test_strings_do_not_match(self):
         res = workbench_utils.compare_strings('foo', 'foot')
