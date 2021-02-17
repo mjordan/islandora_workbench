@@ -4,6 +4,7 @@
 import sys
 import os
 from ruamel.yaml import YAML
+import collections
 import unittest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,6 +30,18 @@ class TestCompareStings(unittest.TestCase):
     def test_strings_do_not_match(self):
         res = workbench_utils.compare_strings('foo', 'foot')
         self.assertFalse(res)
+
+
+class TestCsvRecordHasher(unittest.TestCase):
+
+    def test_hasher(self):
+        csv_record = collections.OrderedDict()
+        csv_record['one'] = 'eijco87we '
+        csv_record['two'] = 'jjjclsle300sloww'
+        csv_record['three'] = 'pppzzffr46wkkw'
+
+        md5hash = workbench_utils.get_csv_record_hash(csv_record)
+        self.assertEqual(md5hash, 'de57ceef6632bf36bafc88767c3b8e32')
 
 
 class TestSplitGeolocationString(unittest.TestCase):

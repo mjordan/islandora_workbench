@@ -11,6 +11,7 @@ import logging
 import datetime
 import requests
 import subprocess
+import hashlib
 import mimetypes
 import collections
 import urllib.parse
@@ -1866,6 +1867,23 @@ def compare_strings(known, unknown):
         return True
     else:
         return False
+
+
+def get_csv_record_hash(row):
+    """Concatenate values in the CSV record and get an MD5 hash on the
+       resulting string.
+    """
+    serialized_row = ''
+    for field in row:
+        if isinstance(row[field], str):
+            row_value = row[field].strip()
+            row_value = " ".join(row_value.split())
+            serialized_row = serialized_row + row_value + " "
+
+    serialized_row = bytes(serialized_row.strip().lower(), 'utf-8')
+    print(serialized_row)
+    hash_object = hashlib.md5(serialized_row)
+    return hash_object.hexdigest()
 
 
 def validate_csv_field_cardinality(config, field_definitions, csv_data):
