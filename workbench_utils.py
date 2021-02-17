@@ -2652,36 +2652,23 @@ def create_children_from_directory(
             None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
-            print(
-                '+ Node for child "' +
-                page_title +
-                '" created at ' +
-                node_uri +
-                '.')
-            logging.info(
-                'Node for child "%s" created at %s.',
-                page_title,
-                node_uri)
+            print('+ Node for child "' + page_title + '" created at ' + node_uri + '.')
+            logging.info('Node for child "%s" created at %s.', page_title, node_uri)
             if 'output_csv' in config.keys():
-                write_to_output_csv(
-                    config, page_identifier, node_response.text)
+                write_to_output_csv(config, page_identifier, node_response.text)
 
             node_nid = node_uri.rsplit('/', 1)[-1]
             write_rollback_node_id(config, node_nid)
-        else:
-            logging.warning(
-                'Node for page "%s" not created, HTTP response code was %s.',
-                page_identifier,
-                node_response.status_code)
 
-        page_file_path = os.path.join(parent_id, page_file_name)
-        fake_csv_record = collections.OrderedDict()
-        fake_csv_record['title'] = page_title
-        media_response_status_code = create_media(
-            config, page_file_path, node_uri, fake_csv_record)
-        allowed_media_response_codes = [201, 204]
-        if media_response_status_code in allowed_media_response_codes:
-            logging.info("Media for %s created.", page_file_path)
+            page_file_path = os.path.join(parent_id, page_file_name)
+            fake_csv_record = collections.OrderedDict()
+            fake_csv_record['title'] = page_title
+            media_response_status_code = create_media(config, page_file_path, node_uri, fake_csv_record)
+            allowed_media_response_codes = [201, 204]
+            if media_response_status_code in allowed_media_response_codes:
+                logging.info("Media for %s created.", page_file_path)
+        else:
+            logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
 
 
 def write_rollback_config(config):
