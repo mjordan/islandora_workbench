@@ -1875,7 +1875,9 @@ def get_csv_record_hash(row):
     """
     serialized_row = ''
     for field in row:
-        if isinstance(row[field], str):
+        if isinstance(row[field], str) or isinstance(row[field], int):
+            if isinstance(row[field], int):
+                row[field] = str(row[field])
             row_value = row[field].strip()
             row_value = " ".join(row_value.split())
             serialized_row = serialized_row + row_value + " "
