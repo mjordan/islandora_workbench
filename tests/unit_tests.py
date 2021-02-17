@@ -39,9 +39,10 @@ class TestCsvRecordHasher(unittest.TestCase):
         csv_record['one'] = 'eijco87we '
         csv_record['two'] = 'jjjclsle300sloww'
         csv_record['three'] = 'pppzzffr46wkkw'
+        csv_record['four'] = 'لدولي, العاشر []ليونيكود'
 
         md5hash = workbench_utils.get_csv_record_hash(csv_record)
-        self.assertEqual(md5hash, 'de57ceef6632bf36bafc88767c3b8e32')
+        self.assertEqual(md5hash, 'ff450b189ed190e8d4ee08be7f7a22d5')
 
 
 class TestSplitGeolocationString(unittest.TestCase):

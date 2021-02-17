@@ -1881,7 +1881,6 @@ def get_csv_record_hash(row):
             serialized_row = serialized_row + row_value + " "
 
     serialized_row = bytes(serialized_row.strip().lower(), 'utf-8')
-    print(serialized_row)
     hash_object = hashlib.md5(serialized_row)
     return hash_object.hexdigest()
 
