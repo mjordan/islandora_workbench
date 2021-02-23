@@ -1210,6 +1210,23 @@ def split_geolocation_string(config, geolocation_string):
     return return_list
 
 
+def split_link_string(config, link_string):
+    """Fields of type 'link' are represented in the CSV file using a structured string,
+       specifically uri%%title, e.g. "https://www.lib.sfu.ca%%SFU Library Website".
+       This function takes one of those strings (optionally with a multivalue subdelimiter)
+       and returns a list of dictionaries with 'uri' and 'title' keys required by the
+       'link' field type.
+    """
+    return_list = []
+    temp_list = link_string.split(config['subdelimiter'])
+    for item in temp_list:
+        item_list = item.split('%%')
+        item_dict = {'uri': item_list[0].strip(), 'title': item_list[1].strip()}
+        return_list.append(item_dict)
+
+    return return_list
+
+
 def validate_media_use_tid(config):
     """Validate whether the term ID or URI provided in the config value for media_use_tid is
        in the Islandora Media Use vocabulary.
