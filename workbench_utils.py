@@ -2595,11 +2595,7 @@ def write_to_output_csv(config, id, node_json):
     csvfile.close()
 
 
-def create_children_from_directory(
-        config,
-        parent_csv_record,
-        parent_node_id,
-        parent_title):
+def create_children_from_directory(config, parent_csv_record, parent_node_id, parent_title):
     # These objects will have a title (derived from filename), an ID based on the parent's
     # id, and a config-defined Islandora model. Content type and status are inherited
     # as is from parent. The weight assigned to the page is the last segment in the filename,
@@ -2642,12 +2638,11 @@ def create_children_from_directory(
             ],
             'field_weight': [
                 {'value': weight}
-            ],
-            'field_display_hints': [
-                {'target_id': parent_csv_record['field_display_hints'],
-                 'target_type': 'taxonomy_term'}
             ]
         }
+
+        if 'field_display_hints' in parent_csv_record:
+            node_json['field_display_hints'] = [{'target_id': parent_csv_record['field_display_hints'], 'target_type': 'taxonomy_term'}]
 
         # Some optional base fields, inherited from the parent object.
         if 'uid' in parent_csv_record:
