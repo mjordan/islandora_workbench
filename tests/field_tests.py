@@ -915,6 +915,7 @@ class TestGeolocationField(unittest.TestCase):
         self.assertDictEqual(node103, expected_node)
 
         # Update a node with a geolocation field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
+        '''
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -945,6 +946,7 @@ class TestGeolocationField(unittest.TestCase):
             ]
         }
         self.assertDictEqual(node104, expected_node)
+        '''
 
         # Update a node with a geolocation field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
         '''

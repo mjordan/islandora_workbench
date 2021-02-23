@@ -303,8 +303,6 @@ class GeolocationField():
                 if len(field_values) > 1:
                     log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
 
-        print(row['node_id'])
-        print(node)
         return node
 
 
