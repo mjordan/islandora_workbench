@@ -1084,7 +1084,8 @@ def check_input_for_create_from_files(config, args):
 def log_field_cardinality_violation(field_name, record_id, cardinality):
     """Writes an entry to the log during create/update tasks if any field values
        are sliced off. Workbench does this if the number of values in a field
-       exceeds the field's cardinality.
+       exceeds the field's cardinality. record_id could be a value from the
+       configured id_field or a node ID.
     """
     logging.warning(
         "Adding all values in CSV field %s for record %s would exceed maximum " +
