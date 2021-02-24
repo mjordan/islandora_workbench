@@ -20,7 +20,6 @@ class TestSimpleField(unittest.TestCase):
             'update_mode': 'replace'
         }
 
-
     def test_create_with_simple_field(self):
         existing_node = {
             'type': [
@@ -831,7 +830,7 @@ class TestGeolocationField(unittest.TestCase):
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 101
             csv_record['field_foo'] = "50.16667,-123.93333|46.16667,-113.93333"
-            node_field_values = [{"lat" : "49.16667", "lng": "-122.93333"}]
+            node_field_values = [{"lat": "49.16667", "lng": "-122.93333"}]
             node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
             expected_node = {
                 'type': [
@@ -983,6 +982,203 @@ class TestGeolocationField(unittest.TestCase):
         # Update a node with a geolocation field of cardinality limited, with subdelimiters. update_mode is 'append'.
         # Update a node with update_mode of 'delete'.
         pass
+
+
+class TestLinkField(unittest.TestCase):
+
+    def setUp(self):
+        self.config = {
+            'subdelimiter': '|',
+            'id_field': 'id',
+            'update_mode': 'replace'
+        }
+
+    def test_create_with_geolocation_field(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
+        # Create a node with a link field of cardinality 1, no subdelimiters.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+            }
+        }
+
+        field = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "link_001"
+        csv_record['field_foo'] = "http://www.foo.com%%Foo's website"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://www.foo.com', 'title': "Foo's website"}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a link field of cardinality 1, with subdelimiters.
+        with self.assertLogs() as message:
+            field = workbench_fields.LinkField()
+            csv_record = collections.OrderedDict()
+            csv_record['id'] = "link_002"
+            csv_record['field_foo'] = "http://bar.com%%Bar webiste|http://biz.com%%Biz website"
+            node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object',
+                     'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'uri': 'http://bar.com', 'title': 'Bar webiste'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), 'for record link_002 would exceed maximum number of allowed values.+1')
+
+        # Create a node with a link field of cardinality unlimited, no subdelimiters.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+            }
+        }
+
+        field = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "link_003"
+        csv_record['field_foo'] = "http://geo003.net%%Geo 3 Blog"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://geo003.net', 'title': 'Geo 3 Blog'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a link field of cardinality unlimited, with subdelimiters.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+            }
+        }
+
+        field = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "link_004"
+        csv_record['field_foo'] = "http://link4-1.net%%Link 004-1 website|http://link4-2.net%%Link 004-2 website"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://link4-1.net', 'title': 'Link 004-1 website'},
+                {'uri': 'http://link4-2.net', 'title': 'Link 004-2 website'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a link field of cardinality limited, no subdelimiters.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        field = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "link_005"
+        csv_record['field_foo'] = "http://link5.net%%Link 005 website"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://link5.net', 'title': 'Link 005 website'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a link field of cardinality limited, with subdelimiters.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        field = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "link_006"
+        csv_record['field_foo'] = "http://link6-1.net%%Link 006-1 website|http://link6-2.net%%Link 006-2 website|http://link6-3.net%%Link 006-3 website"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://link6-1.net', 'title': 'Link 006-1 website'},
+                {'uri': 'http://link6-2.net', 'title': 'Link 006-2 website'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
 
 
 class TestTypedRelationField(unittest.TestCase):
