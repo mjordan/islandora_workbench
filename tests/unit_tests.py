@@ -90,6 +90,17 @@ class TestSplitLinkString(unittest.TestCase):
         self.assertDictEqual(res[0], {'uri': 'http://foobar.net', 'title': 'Foobardotnet website'})
         self.assertDictEqual(res[1], {'uri': 'http://baz.com', 'title': 'Baz website'})
 
+    def test_split_link_string_no_title_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_link_string(config, 'http://www.foo.bar')
+        self.assertDictEqual(res[0], {'uri': 'http://www.foo.bar', 'title': 'http://www.foo.bar'})
+
+    def test_split_geolocation_string_no_title_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_link_string(config, 'http://foobar.net|http://baz.com%%Baz website')
+        self.assertDictEqual(res[0], {'uri': 'http://foobar.net', 'title': 'http://foobar.net'})
+        self.assertDictEqual(res[1], {'uri': 'http://baz.com', 'title': 'Baz website'})
+
 
 class TestSplitTypedRelationString(unittest.TestCase):
 

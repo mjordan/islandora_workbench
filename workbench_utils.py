@@ -1220,9 +1220,14 @@ def split_link_string(config, link_string):
     return_list = []
     temp_list = link_string.split(config['subdelimiter'])
     for item in temp_list:
-        item_list = item.split('%%')
-        item_dict = {'uri': item_list[0].strip(), 'title': item_list[1].strip()}
-        return_list.append(item_dict)
+        if '%%' in item:
+            item_list = item.split('%%')
+            item_dict = {'uri': item_list[0].strip(), 'title': item_list[1].strip()}
+            return_list.append(item_dict)
+        else:
+            # If there is no %% and title, use the URL as the title.
+            item_dict = {'uri': item.strip(), 'title': item.strip()}
+            return_list.append(item_dict)
 
     return return_list
 
