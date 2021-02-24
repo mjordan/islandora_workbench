@@ -3,7 +3,7 @@ FROM python:3
 
 # Run this
 # $ docker build -t workbench-docker .
-# docker run -it --rm --name my-running-workbench workbench-docker bash -lc "(./workbench --config hackdoc_demo.yml --check)"
+# $ docker run -it --rm --name my-running-workbench workbench-docker bash -lc "(./workbench --config hackdoc_demo.yml --check)"
 
 ADD . /
 
