@@ -993,7 +993,7 @@ class TestLinkField(unittest.TestCase):
             'update_mode': 'replace'
         }
 
-    def test_create_with_geolocation_field(self):
+    def test_create_with_link_field(self):
         existing_node = {
             'type': [
                 {'target_id': 'islandora_object',
@@ -1178,6 +1178,95 @@ class TestLinkField(unittest.TestCase):
             ]
         }
         self.assertDictEqual(node, expected_node)
+
+
+    def test_update_with_link_field(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
+        # Update a node with a link field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
+        # always replaced with incoming values, they are never appended to.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+            }
+        }
+
+        geolocation = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 100
+        csv_record['field_foo'] = "http://update1replacement.net%%Update 1 replacement's website"
+        node_field_values = [{"uri": "http://update1original.net", "title": "Update 1 original's website"}]
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://update1replacement.net', 'title': "Update 1 replacement's website"}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Update a node with a link field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
+        # always replaced with incoming values, they are never appended to.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+            }
+        }
+
+        with self.assertLogs() as message:
+            geolocation = workbench_fields.LinkField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 101
+            csv_record['field_foo'] = "http://update2replacement.net%%Update 2 replacement's website|http://update2-1replacement.net%%Update 2-1 replacement's website"
+            node_field_values = [{"uri": "http://update2original.net", "title": "Update 2 original's website"}]
+            node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object',
+                     'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'uri': 'http://update2replacement.net', 'title': "Update 2 replacement's website"}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), 'for record 101 would exceed maximum number of allowed values.+1')
+
+        # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
+        # Update a node with a link field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+        # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
+        # Update a node with a link field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
+        # Update a node with a link field of cardinality limited, no subdelimiters. update_mode is 'replace'.
+        # Update a node with a link field of cardinality limited, no subdelimiters. update_mode is 'append'.
+        # Update a node with a link field of cardinality limited, with subdelimiters. update_mode is 'replace'.
+        # Update a node with a link field of cardinality limited, with subdelimiters. update_mode is 'append'.
+        # Update a node with update_mode of 'delete'.
 
 
 
