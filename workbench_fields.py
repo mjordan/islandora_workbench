@@ -89,6 +89,10 @@ class SimpleField():
             dictionary
                 A dictionary represeting the node that is POSTed to Drupal as JSON.
         """
+        if config['update_mode'] == 'delete':
+            node[custom_field] = []
+            return node
+
         if field_definitions[custom_field]['cardinality'] == 1:
             # Fields with cardinality of 1 are always replaced with incoming values, they are never appended to.
             if custom_field == 'title':
@@ -160,8 +164,6 @@ class SimpleField():
                 else:
                     row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
                     node[custom_field] = [{'value': row[custom_field]}]
-            if config['update_mode'] == 'delete':
-                node[custom_field] = []
 
         return node
 
@@ -250,6 +252,10 @@ class GeolocationField():
             dictionary
                 A dictionary represeting the node that is POSTed to Drupal as JSON.
         """
+        if config['update_mode'] == 'delete':
+            node[custom_field] = []
+            return node
+
         # Cardinality is unlimited.
         if field_definitions[custom_field]['cardinality'] == -1:
             if config['update_mode'] == 'replace':
@@ -296,13 +302,10 @@ class GeolocationField():
                 node[custom_field] = field_value
         # Cardinality is 1.
         else:
-            if config['update_mode'] == 'delete':
-                    node[custom_field] = []
-            else:
-                field_values = split_geolocation_string(config, row[custom_field])
-                node[custom_field] = [field_values[0]]
-                if len(field_values) > 1:
-                    log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+            field_values = split_geolocation_string(config, row[custom_field])
+            node[custom_field] = [field_values[0]]
+            if len(field_values) > 1:
+                log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
 
         return node
 
@@ -391,6 +394,10 @@ class LinkField():
             dictionary
                 A dictionary represeting the node that is POSTed to Drupal as JSON.
         """
+        if config['update_mode'] == 'delete':
+            node[custom_field] = []
+            return node
+
         # Cardinality is unlimited.
         if field_definitions[custom_field]['cardinality'] == -1:
             if config['update_mode'] == 'replace':
@@ -410,42 +417,45 @@ class LinkField():
                     for subvalue in subvalues:
                         field_values.append(subvalue)
                     if custom_field in node:
-                        node[custom_field] + field_values
-                    else:
-                        node[custom_field] = field_values
+                        for field_subvalue in field_values:
+                            node_field_values.append(field_subvalue)
+                        node[custom_field] = node_field_values
                 else:
                     field_value = split_link_string(config, row[custom_field])
                     if custom_field in node:
                         for field_subvalue in field_value:
                             node_field_values.append(field_subvalue)
-                            node[custom_field] = node_field_values
-                    else:
-                        node[custom_field] = field_value
+                        node[custom_field] = node_field_values
             if config['update_mode'] == 'delete':
                 node[custom_field] = []
         # Cardinality has a limit.
         elif int(field_definitions[custom_field]['cardinality']) > 1:
-            if config['subdelimiter'] in row[custom_field]:
-                field_values = []
+            if config['update_mode'] == 'replace':
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    subvalues = split_link_string(config, row[custom_field])
+                    if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                    subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                    for subvalue in subvalues:
+                        field_values.append(subvalue)
+                    node[custom_field] = field_values
+                else:
+                    field_value = split_link_string(config, row[custom_field])
+                    node[custom_field] = field_value
+            if config['update_mode'] == 'append':
                 subvalues = split_link_string(config, row[custom_field])
-                if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
-                    log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
-                subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                 for subvalue in subvalues:
-                    field_values.append(subvalue)
-                node[custom_field] = field_values
-            else:
-                field_value = split_link_string(config, row[custom_field])
-                node[custom_field] = field_value
+                    node_field_values.append(subvalue)
+                node[custom_field] = node_field_values[:field_definitions[custom_field]['cardinality']]
+                if len(node[custom_field]) > int(field_definitions[custom_field]['cardinality']):
+                    log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
         # Cardinality is 1.
         else:
-            if config['update_mode'] == 'delete':
-                    node[custom_field] = []
-            else:
-                field_values = split_link_string(config, row[custom_field])
-                node[custom_field] = [field_values[0]]
-                if len(field_values) > 1:
-                    log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+            field_values = split_link_string(config, row[custom_field])
+            node[custom_field] = [field_values[0]]
+            if len(field_values) > 1:
+                log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
 
         return node
 
