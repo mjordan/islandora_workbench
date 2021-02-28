@@ -580,6 +580,7 @@ class TestSimpleField(unittest.TestCase):
 class TestGeolocationField(unittest.TestCase):
 
     def setUp(self):
+        self.maxDiff = None
         self.config = {
             'subdelimiter': '|',
             'id_field': 'id',
@@ -851,6 +852,7 @@ class TestGeolocationField(unittest.TestCase):
             self.assertRegex(str(message.output), 'for record 101 would exceed maximum number of allowed values.+1')
 
         # Update a node with a geolocation field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
+        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -859,7 +861,6 @@ class TestGeolocationField(unittest.TestCase):
 
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 102
         csv_record['field_foo'] = "55.26667,-113.93333"
         node_field_values = [{"lat": "49.16667", "lng": "-122.93333"}]
@@ -882,6 +883,7 @@ class TestGeolocationField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with a geolocation field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -890,7 +892,6 @@ class TestGeolocationField(unittest.TestCase):
 
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 103
         csv_record['field_foo'] = "55.26661,-113.93331|51.26667,-111.93333"
         node_field_values = [{"lat": "49.16667", "lng": "-122.93333"}]
@@ -914,7 +915,7 @@ class TestGeolocationField(unittest.TestCase):
         self.assertDictEqual(node103, expected_node)
 
         # Update a node with a geolocation field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
-        '''
+        self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -923,10 +924,9 @@ class TestGeolocationField(unittest.TestCase):
 
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'append'
         csv_record['node_id'] = 104
         csv_record['field_foo'] = "35.2,-99.9"
-        node_field_values = [{"lat": "49.1" , "lng": "-122.9"}]
+        node_field_values = [{"lat": "49.1", "lng": "-122.9"}]
         node104 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
         expected_node = {
             'type': [
@@ -945,16 +945,14 @@ class TestGeolocationField(unittest.TestCase):
             ]
         }
         self.assertDictEqual(node104, expected_node)
-        '''
 
         # Update a node with a geolocation field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
-        '''
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
         self.config['update_mode'] = 'append'
         csv_record['node_id'] = 105
         csv_record['field_foo'] = "56.2,-113.9|51.2,-100.9"
-        node_field_values = [{"49.1,-122.9"}]
+        node_field_values = [{'lat': "49.1", 'lng': "-122.9"}]
         node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
         expected_node = {
             'type': [
@@ -969,19 +967,230 @@ class TestGeolocationField(unittest.TestCase):
             ],
             'field_foo': [
                 {'lat': '49.1', 'lng': '-122.9'},
-                {'lat': '55.2', 'lng': '-113.9'},
+                {'lat': '56.2', 'lng': '-113.9'},
                 {'lat': '51.2', 'lng': '-100.9'}
             ]
         }
         self.assertDictEqual(node, expected_node)
-        '''
 
         # Update a node with a geolocation field of cardinality limited, no subdelimiters. update_mode is 'replace'.
+        self.config['update_mode'] = 'replace'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        geolocation = workbench_fields.GeolocationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 106
+        csv_record['field_foo'] = "53.26667,-133.93333"
+        node_field_values = [{"lat": "43.16667", "lng": "-123.63"}]
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'lat': '53.26667', 'lng': '-133.93333'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        self.config['update_mode'] = 'replace'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        geolocation = workbench_fields.GeolocationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 106
+        csv_record['field_foo'] = "53.26667,-133.93333|51.34,-111.1|51.51,-111.999"
+        node_field_values = [{"lat": "43.16667", "lng": "-123.63"}]
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'lat': '53.26667', 'lng': '-133.93333'},
+                {'lat': '51.34', 'lng': '-111.1'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with a geolocation field of cardinality limited, no subdelimiters. update_mode is 'append'.
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        geolocation = workbench_fields.GeolocationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 107
+        csv_record['field_foo'] = "57.2,-133.7"
+        node_field_values = [{"lat": "47.1", "lng": "-127.6"}]
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'lat': '47.1', 'lng': '-127.6'},
+                {'lat': '57.2', 'lng': '-133.7'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 3,
+            }
+        }
+
+        geolocation = workbench_fields.GeolocationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 107
+        csv_record['field_foo'] = "57.2,-133.7"
+        node_field_values = [{"lat": "47.1", "lng": "-127.6"}, {"lat": "47.11", "lng": "-127.61"}]
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'lat': '47.1', 'lng': '-127.6'},
+                {'lat': '47.11', 'lng': '-127.61'},
+                {'lat': '57.2', 'lng': '-133.7'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with a geolocation field of cardinality limited, with subdelimiters. update_mode is 'replace'.
+        self.config['update_mode'] = 'replace'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        geolocation = workbench_fields.GeolocationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 108
+        csv_record['field_foo'] = "55.80,-113.80|55.82,-113.82|55.83,-113.83"
+        node_field_values = [{"lat": "49.16667", "lng": "-122.93333"}]
+        node103 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'lat': '55.80', 'lng': '-113.80'},
+                {'lat': '55.82', 'lng': '-113.82'}
+            ]
+        }
+        self.assertDictEqual(node103, expected_node)
+
         # Update a node with a geolocation field of cardinality limited, with subdelimiters. update_mode is 'append'.
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        geolocation = workbench_fields.GeolocationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 109
+        csv_record['field_foo'] = "55.90,-113.90|55.92,-113.92|55.93,-113.93"
+        node_field_values = [{"lat": "49.9", "lng": "-122.9"}]
+        node103 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'lat': '49.9', 'lng': '-122.9'},
+                {'lat': '55.90', 'lng': '-113.90'}
+            ]
+        }
+        self.assertDictEqual(node103, expected_node)
+
         # Update a node with update_mode of 'delete'.
-        pass
+        self.config['update_mode'] = 'delete'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        geolocation = workbench_fields.GeolocationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 109
+        csv_record['field_foo'] = "55.90,-113.90|55.92,-113.92|55.93,-113.93"
+        node_field_values = [{"lat": "49.9", "lng": "-122.9"}]
+        node103 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': []
+        }
+        self.assertDictEqual(node103, expected_node)
 
 
 class TestLinkField(unittest.TestCase):
@@ -1260,6 +1469,7 @@ class TestLinkField(unittest.TestCase):
             self.assertRegex(str(message.output), 'for record 101 would exceed maximum number of allowed values.+1')
 
         # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
+        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -1268,7 +1478,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 102
         csv_record['field_foo'] = "http://updatenode102replace.net%%Update to node 102 replacement's website"
         node_field_values = [{"uri": "http://updatenode102original.net", "title": "Update node 102 original's website"}]
@@ -1291,6 +1500,7 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with a link field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -1299,7 +1509,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 103
         csv_record['field_foo'] = "http://updatenode103replace1.net%%103 replacement 1|http://updatenode103replacement2.net%%103 replacement 2"
         node_field_values = [{"uri": "http://updatenode103original.net", "title": "Update node 103 original's website"}]
@@ -1323,6 +1532,7 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
+        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -1336,7 +1546,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 104
         csv_record['field_foo'] = "http://node104a.net%%Node 104 a"
         node_field_values = [{"uri": "http://node104o.net", "title": "Node 104 o"}]
@@ -1360,6 +1569,7 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with a link field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
+        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -1373,7 +1583,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 105
         csv_record['field_foo'] = "http://node105-1.net%%Node 105-1|http://node105-2.net%%Node 105-2"
         node_field_values = [{"uri": "http://node105original.net", "title": "Node 105 original"}]
@@ -1398,6 +1607,7 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with a link field of cardinality limited, no subdelimiters. update_mode is 'replace'.
+        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -1406,7 +1616,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 106
         csv_record['field_foo'] = "http://node06r.net%%Node 106 replacement"
         node_field_values = [{"uri": "http://106o-1.net", "title": "Node 106 1 original"}, {"uri": "http://106o-2.net", "title": "Node 106 2 original"}]
@@ -1429,6 +1638,7 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with a link field of cardinality limited, no subdelimiters. update_mode is 'append'.
+        self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -1437,7 +1647,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'append'
         csv_record['node_id'] = 107
         csv_record['field_foo'] = "http://node07a.net%%Node 107 appended"
         node_field_values = [{"uri": "http://107o-1.net", "title": "Node 107 1 original"}, {"uri": "http://107o-2.net", "title": "Node 107 2 original"}]
@@ -1461,6 +1670,7 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with a link field of cardinality limited, with subdelimiters. update_mode is 'append'.
+        self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -1469,7 +1679,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'append'
         csv_record['node_id'] = 108
         csv_record['field_foo'] = "http://08a-1.net%%Node 108 1 appended|http://108a-2.net%%Node 108 2 appended"
         node_field_values = [{"uri": "http://108o-1.net", "title": "Node 108 1 original"}, {"uri": "http://108o-2.net", "title": "Node 108 2 original"}]
@@ -1500,7 +1709,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'append'
         csv_record['node_id'] = 109
         csv_record['field_foo'] = "http://09a-1.net%%Node 109 1 appended|http://109a-2.net%%Node 109 2 appended"
         node_field_values = [{"uri": "http://109o-1.net", "title": "Node 109 1 original"}, {"uri": "http://109o-2.net", "title": "Node 109 2 original"}]
@@ -1525,6 +1733,7 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with a link field of cardinality limited, with subdelimiters. update_mode is 'replace'.
+        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -1533,7 +1742,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 110
         csv_record['field_foo'] = "http://110r-1.net%%Node 110 1 replaced|http://110r-2.net%%Node 110 2 replaced"
         node_field_values = [{"uri": "http://110o-1.net", "title": "Node 110 1 original"}, {"uri": "http://110o-2.net", "title": "Node 110 2 original"}]
@@ -1564,7 +1772,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'replace'
         csv_record['node_id'] = 111
         csv_record['field_foo'] = "http://111r-1.net%%Node 111 1 replaced|http://111r-2.net%%Node 111 2 replaced"
         node_field_values = [{"uri": "http://111o-1.net", "title": "Node 111 1 original"}, {"uri": "http://111o-2.net", "title": "Node 111 2 original"}]
@@ -1588,6 +1795,7 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Update a node with update_mode of 'delete'.
+        self.config['update_mode'] = 'delete'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
@@ -1596,7 +1804,6 @@ class TestLinkField(unittest.TestCase):
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
-        self.config['update_mode'] = 'delete'
         csv_record['node_id'] = 112
         csv_record['field_foo'] = "http://112r-1.net%%Node 112 1 replaced|http://112r-2.net%%Node 112 2 replaced"
         node_field_values = [{"uri": "http://112o-1.net", "title": "Node 112 1 original"}, {"uri": "http://112o-2.net", "title": "Node 112 2 original"}]
