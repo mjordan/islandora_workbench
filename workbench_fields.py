@@ -1,4 +1,5 @@
 import json
+import copy
 from workbench_utils import *
 
 
@@ -415,7 +416,9 @@ class LinkField():
                 else:
                     field_value = split_link_string(config, row[custom_field])
                     if custom_field in node:
-                        node[custom_field] = node[custom_field] + field_value
+                        for field_subvalue in field_value:
+                            node_field_values.append(field_subvalue)
+                            node[custom_field] = node_field_values
                     else:
                         node[custom_field] = field_value
             if config['update_mode'] == 'delete':

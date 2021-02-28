@@ -1259,8 +1259,107 @@ class TestLinkField(unittest.TestCase):
             self.assertRegex(str(message.output), 'for record 101 would exceed maximum number of allowed values.+1')
 
         # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+            }
+        }
+
+        geolocation = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        self.config['update_mode'] = 'replace'
+        csv_record['node_id'] = 102
+        csv_record['field_foo'] = "http://updatenode102replace.net%%Update to node 102 replacement's website"
+        node_field_values = [{"uri": "http://updatenode102original.net", "title": "Update node 102 original's website"}]
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://updatenode102replace.net', 'title': "Update to node 102 replacement's website"}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with a link field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+            }
+        }
+
+        geolocation = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        self.config['update_mode'] = 'replace'
+        csv_record['node_id'] = 103
+        csv_record['field_foo'] = "http://updatenode103replace1.net%%103 replacement 1|http://updatenode103replacement2.net%%103 replacement 2"
+        node_field_values = [{"uri": "http://updatenode103original.net", "title": "Update node 103 original's website"}]
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://updatenode103replace1.net', 'title': "103 replacement 1"},
+                {'uri': 'http://updatenode103replacement2.net', 'title': "103 replacement 2"}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+            }
+        }
+        config = {
+            'subdelimiter': '|',
+            'id_field': 'id',
+            'update_mode': 'append'
+        }
+
+        geolocation = workbench_fields.LinkField()
+        csv_record = collections.OrderedDict()
+        self.config['update_mode'] = 'replace'
+        csv_record['node_id'] = 104
+        csv_record['field_foo'] = "http://node104appended.net%%Node 104 appended"
+        node_field_values = [{"uri": "http://node104original.net", "title": "Node 104 original"}]
+        node = geolocation.update(config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'uri': 'http://node104original.net', 'title': "Node 104 original"},
+                {'uri': 'http://node104appended.net', 'title': "Node 104 appended"}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # @todo: Add test where field in node does not have any values ()
+
         # Update a node with a link field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
         # Update a node with a link field of cardinality limited, no subdelimiters. update_mode is 'replace'.
         # Update a node with a link field of cardinality limited, no subdelimiters. update_mode is 'append'.
