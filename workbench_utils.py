@@ -810,6 +810,9 @@ def check_input(config, args):
         validate_geolocation_values_csv_data = get_csv_data(config)
         validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
 
+        validate_link_values_csv_data = get_csv_data(config)
+        validate_link_fields(config, field_definitions, validate_link_values_csv_data)
+
         validate_edtf_values_csv_data = get_csv_data(config)
         validate_edtf_fields(config, field_definitions, validate_edtf_values_csv_data)
 
@@ -843,9 +846,8 @@ def check_input(config, args):
         if config['validate_title_length']:
             validate_title_csv_data = get_csv_data(config)
             for count, row in enumerate(validate_title_csv_data, start=1):
-                if len(row['title']) > 255:
-                    message = "The 'title' column in row " + \
-                        str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
+                if 'title' in row and len(row['title']) > 255:
+                    message = "The 'title' column in row " + str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -2016,10 +2018,41 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
         logging.info(message)
 
 
+def validate_link_fields(config, field_definitions, csv_data):
+    """Validate lat,long values in fields that are of type 'geolocation'.
+    """
+    link_fields_present = False
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]['field_type'] == 'link':
+                if field_name in row:
+                    link_fields_present = True
+                    delimited_field_values = row[field_name].split(config['subdelimiter'])
+                    for field_value in delimited_field_values:
+                        if len(field_value.strip()):
+                            if not validate_link_value(field_value.strip()):
+                                message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                    ' (' + field_value + ') is not a valid link field value.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+
+    if link_fields_present is True:
+        message = "OK, link field values in the CSV file validate."
+        print(message)
+        logging.info(message)
+
+
 def validate_latlong_value(latlong):
     # Remove leading \ that may be present if input CSV is from a spreadsheet.
     latlong = latlong.lstrip('\\')
     if re.match(r"^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$", latlong):
+        return True
+    else:
+        return False
+
+
+def validate_link_value(link_value):
+    if re.match(r"^http://.+(%%.+)?$", link_value):
         return True
     else:
         return False

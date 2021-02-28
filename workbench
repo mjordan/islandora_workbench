@@ -233,36 +233,13 @@ def create():
 
             # Geolocation fields.
             elif field_definitions[custom_field]['field_type'] == 'geolocation':
-                target_type = field_definitions[custom_field]['target_type']
-                # Cardinality is unlimited.
-                if field_definitions[custom_field]['cardinality'] == -1:
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_geolocation_string(config, row[custom_field])
-                        for subvalue in subvalues:
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        field_value = split_geolocation_string(config, row[custom_field])
-                        node[custom_field] = field_value
-                # Cardinality has a limit.
-                elif field_definitions[custom_field]['cardinality'] > 1:
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_geolocation_string(config, row[custom_field])
-                        subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
-                        log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
-                        for subvalue in subvalues:
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        field_value = split_geolocation_string(config, row[custom_field])
-                        node[custom_field] = field_value
-                # Cardinality is 1.
-                else:
-                    field_values = split_geolocation_string(config, row[custom_field])
-                    node[custom_field] = field_value[0]
-                    log_field_cardinality_violation(custom_field, id_field, '1')
+                geolocation_field = workbench_fields.GeolocationField()
+                node = geolocation_field.create(config, field_definitions, node, row, custom_field)
+
+            # Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'link':
+                link_field = workbench_fields.LinkField()
+                node = link_field.create(config, field_definitions, node, row, custom_field)
 
             # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
             else:
@@ -605,61 +582,27 @@ def update():
 
             # Geolocation fields.
             elif field_definitions[custom_field]['field_type'] == 'geolocation':
-                target_type = field_definitions[custom_field]['target_type']
-                # Cardinality is unlimited.
-                if field_definitions[custom_field]['cardinality'] == -1:
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_geolocation_string(
-                            config, row[custom_field])
-                        for subvalue in subvalues:
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        field_value = split_geolocation_string(
-                            config, row[custom_field])
-                        node[custom_field] = field_value
-                # Cardinality has a limit.
-                elif int(field_definitions[custom_field]['cardinality']) > 1:
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_geolocation_string(
-                            config, row[custom_field])
-                        if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
-                            log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
-                        subvalues = subvalues[:field_definitions[custom_field]
-                                              ['cardinality']]
-                        for subvalue in subvalues:
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        field_value = split_geolocation_string(
-                            config, row[custom_field])
-                        node[custom_field] = field_value
-                # Cardinality is 1.
-                else:
-                    field_values = split_geolocation_string(
-                        config, row[custom_field])
-                    node[custom_field] = [field_values[0]]
-                    if len(field_values) > 1:
-                        log_field_cardinality_violation(
-                            custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                geolocation_field = workbench_fields.GeolocationField()
+                node = geolocation_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
+
+            # Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'link':
+                link_field = workbench_fields.LinkField()
+                node = link_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # For non-entity reference and non-typed relation fields (text, etc.).
             else:
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
-        node_endpoint = config['host'] + \
-            '/node/' + row['node_id'] + '?_format=json'
+        node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
         node_headers = {'Content-Type': 'application/json'}
         node_response = issue_request(
             config, 'PATCH', node_endpoint, node_headers, node)
 
         if node_response.status_code == 200:
             if config['progress_bar'] is False:
-                print("Node for " + config['host'] + '/node/' +
-                      row['node_id'] + " updated.")
+                print("Node for " + config['host'] + '/node/' + row['node_id'] + " updated.")
             logging.info(
                 "Node for %s updated.",
                 config['host'] +

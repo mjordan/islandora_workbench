@@ -166,6 +166,21 @@ class TestValidateLatlongValue(unittest.TestCase):
             self.assertFalse(res)
 
 
+class TestValidateLinkValue(unittest.TestCase):
+
+    def test_validate_good_link_values(self):
+        values = ['http://foo.com', 'http://foo1.com%%Foo Hardware']
+        for value in values:
+            res = workbench_utils.validate_link_value(value)
+            self.assertTrue(res)
+
+    def test_validate_bad_link_values(self):
+        values = ['foo.com', 'http://foo.com Foo Hardware']
+        for value in values:
+            res = workbench_utils.validate_latlong_value(value)
+            self.assertFalse(res)
+
+
 class TestValidateNodeCreatedDateValue(unittest.TestCase):
 
     def test_validate_good_date_string_values(self):
