@@ -525,7 +525,59 @@ class EntityReferenceField():
             dictionary
                 A dictionary represeting the node that is POSTed to Drupal as JSON.
         """
-        pass
+        id_field = row[config['id_field']]
+        if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
+            target_type = 'taxonomy_term'
+            field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
+            if config['subdelimiter'] in row[custom_field]:
+                prepared_tids = []
+                delimited_values = row[custom_field].split(config['subdelimiter'])
+                for delimited_value in delimited_values:
+                    tid = prepare_term_id(config, field_vocabs, delimited_value)
+                    if value_is_numeric(tid):
+                        tid = str(tid)
+                        prepared_tids.append(tid)
+                    else:
+                        continue
+                row[custom_field] = config['subdelimiter'].join(prepared_tids)
+            else:
+                row[custom_field] = prepare_term_id(config, field_vocabs, row[custom_field])
+                if value_is_numeric(row[custom_field]):
+                    row[custom_field] = str(row[custom_field])
+
+        if field_definitions[custom_field]['target_type'] == 'node':
+            target_type = 'node_type'
+
+        # Cardinality is unlimited.
+        if field_definitions[custom_field]['cardinality'] == -1:
+            if config['subdelimiter'] in row[custom_field]:
+                field_values = []
+                subvalues = row[custom_field].split(config['subdelimiter'])
+                for subvalue in subvalues:
+                    field_values.append({'target_id': subvalue, 'target_type': target_type})
+                node[custom_field] = field_values
+            else:
+                node[custom_field] = [{'target_id': row[custom_field], 'target_type': target_type}]
+        # Cardinality has a limit.
+        elif field_definitions[custom_field]['cardinality'] > 1:
+            if config['subdelimiter'] in row[custom_field]:
+                field_values = []
+                subvalues = row[custom_field].split(config['subdelimiter'])
+                for subvalue in subvalues:
+                    field_values.append({'target_id': subvalue, 'target_type': target_type})
+                node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]
+                log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
+            else:
+                node[custom_field] = [
+                    {'target_id': row[custom_field], 'target_type': target_type}]
+        # Cardinality is 1.
+        else:
+            subvalues = row[custom_field].split(config['subdelimiter'])
+            node[custom_field] = [{'target_id': subvalues[0], 'target_type': target_type}]
+            if len(subvalues) > 1:
+                log_field_cardinality_violation(custom_field, id_field, '1')
+
+        return node
 
     def update(self, config, field_definitions, node, row, custom_field, node_field_values):
         """Note: this method both adds incoming CSV values to existing values and replaces entire

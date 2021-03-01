@@ -194,6 +194,11 @@ def create():
                     if len(subvalues) > 1:
                         log_field_cardinality_violation(custom_field, id_field, '1')
 
+            # Entity reference fields.
+            # elif field_definitions[custom_field]['field_type'] == 'entity_reference':
+                # entity_reference_field = workbench_fields.EntityReferenceField()
+                # node = entity_reference_field.create(config, field_definitions, node, row, custom_field)
+
             # Typed relation fields.
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                 this_fields_vocabularies = field_definitions[custom_field]['vocabularies']
@@ -230,6 +235,11 @@ def create():
                     field_values = split_typed_relation_string(config, row[custom_field], target_type)
                     node[custom_field] = field_value[0]
                     log_field_cardinality_violation(custom_field, id_field, '1')
+
+            # Typed relation fields.
+            # elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                # typed_relation_field = workbench_fields.TypedRelationField()
+                # node = typed_relation_field.create(config, field_definitions, node, row, custom_field)
 
             # Geolocation fields.
             elif field_definitions[custom_field]['field_type'] == 'geolocation':
