@@ -1935,7 +1935,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                 delimited_field_values = row[field_name].split(config['subdelimiter'])
                 if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
                     if config['task'] == 'create':
-                        message = 'CSV field "' + field_name + '" in (!) record with ID ' + \
+                        message = 'CSV field "' + field_name + '" in record with ID ' + \
                             row[config['id_field']] + ' contains more values than the number '
                     if config['task'] == 'update':
                         message = 'CSV field "' + field_name + '" in record with node ID ' \
@@ -1946,7 +1946,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                     logging.warning(message + message_2)
                 if int(field_cardinalities[field_name]) > 1 and len(delimited_field_values) > field_cardinalities[field_name]:
                     if config['task'] == 'create':
-                        message = 'CSV field "' + field_name + '" in (!) record with ID ' + \
+                        message = 'CSV field "' + field_name + '" in record with ID ' + \
                             row[config['id_field']] + ' contains more values than the number '
                     if config['task'] == 'update':
                         message = 'CSV field "' + field_name + '" in record with node ID ' \
