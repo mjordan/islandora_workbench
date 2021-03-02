@@ -2240,18 +2240,418 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertRegex(str(message.output), 'for record node_entity_reference_006 would exceed maximum number of allowed values.+2')
 
     def test_update_with_entity_reference_field(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
         # Update a node with an entity_reference field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
         # always replaced with incoming values, they are never appended to. Update both taxonomy term and node references.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 100
+        csv_record['field_foo'] = '5'
+        node_field_values = [{'target_id': '1', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '5', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'target_type': 'node'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 101
+        csv_record['field_foo'] = '20'
+        node_field_values = [{'target_id': '10', 'target_type': 'node'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '20', 'target_type': 'node_type'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with an entity_reference field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
         # always replaced with incoming values, they are never appended to. Update both taxonomy term and node references.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        with self.assertLogs() as message:
+            field = workbench_fields.EntityReferenceField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 102
+            csv_record['field_foo'] = '10|15'
+            node_field_values = [{'target_id': '1', 'target_type': 'taxonomy_term'}]
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object',
+                     'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'target_id': '10', 'target_type': 'taxonomy_term'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), 'for record 102 would exceed maximum number of allowed values.+1')
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'target_type': 'node'
+            }
+        }
+
+        with self.assertLogs() as message:
+            field = workbench_fields.EntityReferenceField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 103
+            csv_record['field_foo'] = '20|25'
+            node_field_values = [{'target_id': '1', 'target_type': 'node'}]
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object',
+                     'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'target_id': '20', 'target_type': 'node_type'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), 'for record 103 would exceed maximum number of allowed values.+1')
+
         # Update a node with an entity_reference field of cardinality unlimited, no subdelimiters. update_mode is 'replace',
         # for both taxonomy term and node references.
+        self.config['update_mode'] = 'replace'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 104
+        csv_record['field_foo'] = '30'
+        node_field_values = [{'target_id': '40', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '30', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        self.config['update_mode'] = 'replace'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'node_type'
+            }
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'node'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 105
+        csv_record['field_foo'] = '40'
+        node_field_values = [{'target_id': '50', 'target_type': 'node'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '40', 'target_type': 'node_type'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with an entity_reference field of cardinality unlimited, with subdelimiters. update_mode is 'replace',
         # for both taxonomy term and node references.
+        self.config['update_mode'] = 'replace'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 106
+        csv_record['field_foo'] = '51|52'
+        node_field_values = [{'target_id': '50', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '51', 'target_type': 'taxonomy_term'},
+                {'target_id': '52', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        self.config['update_mode'] = 'replace'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'node'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 107
+        csv_record['field_foo'] = '61|62'
+        node_field_values = [{'target_id': '60', 'target_type': 'node'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '61', 'target_type': 'node_type'},
+                {'target_id': '62', 'target_type': 'node_type'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with an entity_reference field of cardinality unlimited, no subdelimiters. update_mode is 'append',
         # for both taxonomy term and node references.
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 108
+        csv_record['field_foo'] = '71'
+        node_field_values = [{'target_id': '70', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '70', 'target_type': 'taxonomy_term'},
+                {'target_id': '71', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'node'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 109
+        csv_record['field_foo'] = '81'
+        node_field_values = [{'target_id': '80', 'target_type': 'node_type'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '80', 'target_type': 'node_type'},
+                {'target_id': '81', 'target_type': 'node_type'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with an entity_reference field of cardinality unlimited, with subdelimiters. update_mode is 'append',
         # for both taxonomy term and node references.
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 110
+        csv_record['field_foo'] = '72|73'
+        node_field_values = [{'target_id': '70', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '70', 'target_type': 'taxonomy_term'},
+                {'target_id': '72', 'target_type': 'taxonomy_term'},
+                {'target_id': '73', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'node'
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 111
+        csv_record['field_foo'] = '74|75'
+        node_field_values = [{'target_id': '71', 'target_type': 'node_type'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '71', 'target_type': 'node_type'},
+                {'target_id': '74', 'target_type': 'node_type'},
+                {'target_id': '75', 'target_type': 'node_type'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with an entity_reference field of cardinality limited, no subdelimiters. update_mode is 'replace',
         # for both taxonomy term and node references.
         # Update a node with an entity_reference field of cardinality limited, no subdelimiters. update_mode is 'append',
