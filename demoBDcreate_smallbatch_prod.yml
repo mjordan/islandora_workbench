@@ -3,7 +3,7 @@ host: "https://bd-i8-stage.born-digital.com/"
 username: admin
 password:
 input_dir: i8demo_BD
-input_csv: i8_sample_objects_workbench_FULL_022621.csv
+input_csv: i8_sample_objects_workbench_SMALLBATCH.csv
 allow_missing_files: true
 allow_adding_terms: true
 media_use: "'Thumbnail Image'|'Original File'"
