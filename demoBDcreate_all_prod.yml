@@ -1,7 +1,7 @@
 task: create
 host: "https://bd-i8-prod.born-digital.com/"
 username: admin
-password:
+nopassword
 input_dir: i8demo_BD
 input_csv: i8_sample_objects_workbench_FULL.csv
 allow_missing_files: true
