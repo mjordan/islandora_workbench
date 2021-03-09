@@ -1707,7 +1707,7 @@ def create_term(config, vocab_id, term_name):
     term = {
         "vid": [
            {
-               "target_id": vocab_id,
+               "target_id": str(vocab_id),
                "target_type": "taxonomy_vocabulary"
            }
         ],

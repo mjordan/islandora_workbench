@@ -646,19 +646,16 @@ def delete():
 
         # Delete the node's media first.
         if config['delete_media_with_nodes'] is True:
-            media_endpoint = config['host'] + '/node/' + \
-                str(row['node_id']) + '/media/?_format=json'
-            media_response = issue_request(
-                config, 'GET', media_endpoint)
+            media_endpoint = config['host'] + '/node/' + str(row['node_id']) + '/media/?_format=json'
+            media_response = issue_request(config, 'GET', media_endpoint)
             media_response_body = json.loads(media_response.text)
             media_messages = []
             for media in media_response_body:
-                media_id = media['mid'][0]['value']
-                media_delete_status_code = remove_media_and_file(
-                    config, media_id)
-                if media_delete_status_code == 204:
-                    media_messages.append(
-                        "+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
+                if 'mid' in media:
+                    media_id = media['mid'][0]['value']
+                    media_delete_status_code = remove_media_and_file(config, media_id)
+                    if media_delete_status_code == 204:
+                        media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
 
         node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
         node_response = issue_request(config, 'DELETE', node_endpoint)
