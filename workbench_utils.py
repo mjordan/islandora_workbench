@@ -1115,12 +1115,11 @@ def validate_language_code(langcode):
 
 
 def clean_csv_values(row):
-    """Strip leading and trailing whitespace from row values. Could be used in the
-       future for other normalization tasks.
+    """Convert row values to strings and strip leading and trailing whitespace.
+       Could be used in the future for other normalization tasks.
     """
     for field in row:
-        if isinstance(row[field], str):
-            row[field] = row[field].strip()
+        row[field] = str(row[field]).strip()
     return row
 
 
