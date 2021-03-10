@@ -385,6 +385,29 @@ def ping_remote_file(url):
         sys.exit('Error: ' + message)
 
 
+def get_nid_from_url_alias(config, url_alias):
+    """Gets a node ID from a URL alias.
+
+       Parameters
+       ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        url_alias : string
+            The full URL alias, including http://, etc.
+        Returns
+        -------
+        int
+            The node ID, or False if the URL alias cannot be found.
+        """
+    url = url_alias + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code != 200:
+        return False
+    else:
+        node = json.loads(response.text)
+        return node['nid'][0]['value']
+
+
 def get_field_definitions(config):
     """Get field definitions from Drupal.
     """

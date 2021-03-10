@@ -261,27 +261,22 @@ def create():
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
+
+            # If Pathauto URL alias creation for nodes is enabled, the location header
+            # returns the alias, not the /node/xxx URL, which includes the node ID. In
+            # this case, get the node ID from the response body.
+            if not re.match(r'/node/\d+$', node_uri):
+                returned_node = json.loads(node_response.text)
+                node_id = returned_node['nid'][0]['value']
+                node_uri = config['host'] + '/node/' + str(node_id)
+
             if config['progress_bar'] is False:
-                print(
-                    'Node for "' +
-                    row['title'] +
-                    '" (record ' +
-                    id_field +
-                    ') created at ' +
-                    node_uri +
-                    '.')
-            logging.info(
-                "Node for %s (record %s) created at %s.",
-                row['title'],
-                id_field,
-                node_uri)
+                print('Node for "' + row['title'] + '" (record ' + id_field + ') created at ' + node_uri + '.')
+            logging.info("Node for %s (record %s) created at %s.", row['title'], id_field, node_uri)
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, id_field, node_response.text)
         else:
-            logging.error(
-                "Node for CSV record %s not created, HTTP response code was %s.",
-                id_field,
-                node_response.status_code)
+            logging.error("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
             continue
 
         # Map ID from CSV of newly created node to its node ID so we
