@@ -3,6 +3,6 @@ host: "http://drupalvm.test"
 username: admin
 password: admin
 input_dir: "tests/assets/url_alias_test"
-input_csv: delete.csv
+input_csv: curr_node_ids.csv
 content_type: article
 
