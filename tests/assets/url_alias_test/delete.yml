@@ -1,0 +1,8 @@
+task: delete
+host: "http://drupalvm.test"
+username: admin
+password: admin
+input_dir: "tests/assets/url_alias_test"
+input_csv: delete.csv
+content_type: article
+
