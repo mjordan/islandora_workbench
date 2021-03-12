@@ -1,7 +1,7 @@
 task: delete
-host: "http://drupalvm.test"
+host: "http://localhost:8000"
 username: admin
-password: admin
+password: islandora
 input_dir: "tests/assets/url_alias_test"
 input_csv: curr_node_ids.csv
 content_type: article
