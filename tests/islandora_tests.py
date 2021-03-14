@@ -318,6 +318,8 @@ class TestUrlAliases(unittest.TestCase):
 
         self.assertEqual(len(self.nids), 2)
 
+        print("Created initial nodes with url alias")
+
         #print(self.nids)
      
     def test_http_req(self):
@@ -335,9 +337,11 @@ class TestUrlAliases(unittest.TestCase):
                     #print(resp.status_code)
                     if resp.status_code != 200:
                         raise ValueError("Couldn't connect to url alias")
+                        print("fail 1")
                         status = 0
 
         if (status):
+            print("[pass1]")
             print("Connected to all url aliases")
 
     def test_http_update(self):
@@ -363,6 +367,8 @@ class TestUrlAliases(unittest.TestCase):
         update_output = update_output.decode().strip()
         update_lines = update_output.splitlines()
 
+        print("updated url aliases")
+
 
     def test_http_update_req(self):
         update_csv_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'update.csv')
@@ -377,21 +383,16 @@ class TestUrlAliases(unittest.TestCase):
                     resp = requests.get(test_url)
                     if resp.status_code != 200:
                         raise ValueError("Couldn't connect to updated url aliases")
+                        print("fail 2")
                         status = 0
 
         if (status):
+            print("[pass2]")
             print("Connected to all updated url aliases")
 
 
 
     def tearDown(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'delete.yml')
-        delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-        delete_output = delete_output.decode().strip()
-        delete_lines = delete_output.splitlines()
-        #os.remove(self.nid_file)
-
         self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'rollback.csv')
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
@@ -399,6 +400,13 @@ class TestUrlAliases(unittest.TestCase):
         self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'metadata.csv.prepocessed')
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
+
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'delete.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        delete_output = subprocess.check_output(delete_cmd)
+        delete_output = delete_output.decode().strip()
+        delete_lines = delete_output.splitlines()
+        #os.remove(self.nid_file)
 
 
 class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
