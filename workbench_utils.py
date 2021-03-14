@@ -11,6 +11,7 @@ import logging
 import datetime
 import requests
 import subprocess
+import hashlib
 import mimetypes
 import collections
 import urllib.parse
@@ -382,6 +383,29 @@ def ping_remote_file(url):
         logging.error(message)
         logging.error(error_connection)
         sys.exit('Error: ' + message)
+
+
+def get_nid_from_url_alias(config, url_alias):
+    """Gets a node ID from a URL alias.
+
+       Parameters
+       ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        url_alias : string
+            The full URL alias, including http://, etc.
+        Returns
+        -------
+        int
+            The node ID, or False if the URL alias cannot be found.
+        """
+    url = url_alias + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code != 200:
+        return False
+    else:
+        node = json.loads(response.text)
+        return node['nid'][0]['value']
 
 
 def get_field_definitions(config):
@@ -809,6 +833,9 @@ def check_input(config, args):
         validate_geolocation_values_csv_data = get_csv_data(config)
         validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
 
+        validate_link_values_csv_data = get_csv_data(config)
+        validate_link_fields(config, field_definitions, validate_link_values_csv_data)
+
         validate_edtf_values_csv_data = get_csv_data(config)
         validate_edtf_fields(config, field_definitions, validate_edtf_values_csv_data)
 
@@ -842,9 +869,8 @@ def check_input(config, args):
         if config['validate_title_length']:
             validate_title_csv_data = get_csv_data(config)
             for count, row in enumerate(validate_title_csv_data, start=1):
-                if len(row['title']) > 255:
-                    message = "The 'title' column in row " + \
-                        str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
+                if 'title' in row and len(row['title']) > 255:
+                    message = "The 'title' column in row " + str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -1083,7 +1109,8 @@ def check_input_for_create_from_files(config, args):
 def log_field_cardinality_violation(field_name, record_id, cardinality):
     """Writes an entry to the log during create/update tasks if any field values
        are sliced off. Workbench does this if the number of values in a field
-       exceeds the field's cardinality.
+       exceeds the field's cardinality. record_id could be a value from the
+       configured id_field or a node ID.
     """
     logging.warning(
         "Adding all values in CSV field %s for record %s would exceed maximum " +
@@ -1111,12 +1138,11 @@ def validate_language_code(langcode):
 
 
 def clean_csv_values(row):
-    """Strip leading and trailing whitespace from row values. Could be used in the
-       future for other normalization tasks.
+    """Convert row values to strings and strip leading and trailing whitespace.
+       Could be used in the future for other normalization tasks.
     """
     for field in row:
-        if isinstance(row[field], str):
-            row[field] = row[field].strip()
+        row[field] = str(row[field]).strip()
     return row
 
 
@@ -1127,7 +1153,7 @@ def truncate_csv_value(field_name, record_id, field_config, value):
     """
     if isinstance(value, str) and 'max_length' in field_config:
         max_length = field_config['max_length']
-        if max_length is not None and len(value) > max_length:
+        if max_length is not None and len(value) > int(max_length):
             original_value = value
             value = value[:max_length]
             logging.warning(
@@ -1204,6 +1230,28 @@ def split_geolocation_string(config, geolocation_string):
         # Remove any leading \ which might be in value if it comes from a spreadsheet.
         item_dict = {'lat': item_list[0].lstrip('\\').strip(), 'lng': item_list[1].lstrip('\\').strip()}
         return_list.append(item_dict)
+
+    return return_list
+
+
+def split_link_string(config, link_string):
+    """Fields of type 'link' are represented in the CSV file using a structured string,
+       specifically uri%%title, e.g. "https://www.lib.sfu.ca%%SFU Library Website".
+       This function takes one of those strings (optionally with a multivalue subdelimiter)
+       and returns a list of dictionaries with 'uri' and 'title' keys required by the
+       'link' field type.
+    """
+    return_list = []
+    temp_list = link_string.split(config['subdelimiter'])
+    for item in temp_list:
+        if '%%' in item:
+            item_list = item.split('%%')
+            item_dict = {'uri': item_list[0].strip(), 'title': item_list[1].strip()}
+            return_list.append(item_dict)
+        else:
+            # If there is no %% and title, use the URL as the title.
+            item_dict = {'uri': item.strip(), 'title': item.strip()}
+            return_list.append(item_dict)
 
     return return_list
 
@@ -1681,7 +1729,7 @@ def create_term(config, vocab_id, term_name):
     term = {
         "vid": [
            {
-               "target_id": vocab_id,
+               "target_id": str(vocab_id),
                "target_type": "taxonomy_vocabulary"
            }
         ],
@@ -1855,8 +1903,9 @@ def compare_strings(known, unknown):
     known = known.lower()
     unknown = unknown.lower()
     # Remove all punctuation.
-    known = known.translate(str.maketrans('', '', string.punctuation))
-    unknown = unknown.translate(str.maketrans('', '', string.punctuation))
+    for p in string.punctuation:
+        known = known.replace(p, ' ')
+        unknown = unknown.replace(p, ' ')
     # Replaces whitespace with a single space.
     known = " ".join(known.split())
     unknown = " ".join(unknown.split())
@@ -1865,6 +1914,24 @@ def compare_strings(known, unknown):
         return True
     else:
         return False
+
+
+def get_csv_record_hash(row):
+    """Concatenate values in the CSV record and get an MD5 hash on the
+       resulting string.
+    """
+    serialized_row = ''
+    for field in row:
+        if isinstance(row[field], str) or isinstance(row[field], int):
+            if isinstance(row[field], int):
+                row[field] = str(row[field])
+            row_value = row[field].strip()
+            row_value = " ".join(row_value.split())
+            serialized_row = serialized_row + row_value + " "
+
+    serialized_row = bytes(serialized_row.strip().lower(), 'utf-8')
+    hash_object = hashlib.md5(serialized_row)
+    return hash_object.hexdigest()
 
 
 def validate_csv_field_cardinality(config, field_definitions, csv_data):
@@ -1878,7 +1945,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
         if csv_header in field_definitions.keys():
             cardinality = field_definitions[csv_header]['cardinality']
             # We don't care about cardinality of -1 (unlimited).
-            if cardinality > 0:
+            if int(cardinality) > 0:
                 field_cardinalities[csv_header] = cardinality
 
     for count, row in enumerate(csv_data, start=1):
@@ -1890,7 +1957,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                 delimited_field_values = row[field_name].split(config['subdelimiter'])
                 if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
                     if config['task'] == 'create':
-                        message = 'CSV field "' + field_name + '" in (!) record with ID ' + \
+                        message = 'CSV field "' + field_name + '" in record with ID ' + \
                             row[config['id_field']] + ' contains more values than the number '
                     if config['task'] == 'update':
                         message = 'CSV field "' + field_name + '" in record with node ID ' \
@@ -1899,9 +1966,9 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                         field_cardinalities[field_name]) + '). Workbench will add only the first value.'
                     print('Warning: ' + message + message_2)
                     logging.warning(message + message_2)
-                if field_cardinalities[field_name] > 1 and len(delimited_field_values) > field_cardinalities[field_name]:
+                if int(field_cardinalities[field_name]) > 1 and len(delimited_field_values) > field_cardinalities[field_name]:
                     if config['task'] == 'create':
-                        message = 'CSV field "' + field_name + '" in (!) record with ID ' + \
+                        message = 'CSV field "' + field_name + '" in record with ID ' + \
                             row[config['id_field']] + ' contains more values than the number '
                     if config['task'] == 'update':
                         message = 'CSV field "' + field_name + '" in record with node ID ' \
@@ -1973,10 +2040,41 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
         logging.info(message)
 
 
+def validate_link_fields(config, field_definitions, csv_data):
+    """Validate lat,long values in fields that are of type 'geolocation'.
+    """
+    link_fields_present = False
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]['field_type'] == 'link':
+                if field_name in row:
+                    link_fields_present = True
+                    delimited_field_values = row[field_name].split(config['subdelimiter'])
+                    for field_value in delimited_field_values:
+                        if len(field_value.strip()):
+                            if not validate_link_value(field_value.strip()):
+                                message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                                    ' (' + field_value + ') is not a valid link field value.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+
+    if link_fields_present is True:
+        message = "OK, link field values in the CSV file validate."
+        print(message)
+        logging.info(message)
+
+
 def validate_latlong_value(latlong):
     # Remove leading \ that may be present if input CSV is from a spreadsheet.
     latlong = latlong.lstrip('\\')
     if re.match(r"^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$", latlong):
+        return True
+    else:
+        return False
+
+
+def validate_link_value(link_value):
+    if re.match(r"^http://.+(%%.+)?$", link_value):
         return True
     else:
         return False
@@ -2574,11 +2672,7 @@ def write_to_output_csv(config, id, node_json):
     csvfile.close()
 
 
-def create_children_from_directory(
-        config,
-        parent_csv_record,
-        parent_node_id,
-        parent_title):
+def create_children_from_directory(config, parent_csv_record, parent_node_id, parent_title):
     # These objects will have a title (derived from filename), an ID based on the parent's
     # id, and a config-defined Islandora model. Content type and status are inherited
     # as is from parent. The weight assigned to the page is the last segment in the filename,
@@ -2621,12 +2715,11 @@ def create_children_from_directory(
             ],
             'field_weight': [
                 {'value': weight}
-            ],
-            'field_display_hints': [
-                {'target_id': parent_csv_record['field_display_hints'],
-                 'target_type': 'taxonomy_term'}
             ]
         }
+
+        if 'field_display_hints' in parent_csv_record:
+            node_json['field_display_hints'] = [{'target_id': parent_csv_record['field_display_hints'], 'target_type': 'taxonomy_term'}]
 
         # Some optional base fields, inherited from the parent object.
         if 'uid' in parent_csv_record:
@@ -2651,36 +2744,23 @@ def create_children_from_directory(
             None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
-            print(
-                '+ Node for child "' +
-                page_title +
-                '" created at ' +
-                node_uri +
-                '.')
-            logging.info(
-                'Node for child "%s" created at %s.',
-                page_title,
-                node_uri)
+            print('+ Node for child "' + page_title + '" created at ' + node_uri + '.')
+            logging.info('Node for child "%s" created at %s.', page_title, node_uri)
             if 'output_csv' in config.keys():
-                write_to_output_csv(
-                    config, page_identifier, node_response.text)
+                write_to_output_csv(config, page_identifier, node_response.text)
 
             node_nid = node_uri.rsplit('/', 1)[-1]
             write_rollback_node_id(config, node_nid)
-        else:
-            logging.warning(
-                'Node for page "%s" not created, HTTP response code was %s.',
-                page_identifier,
-                node_response.status_code)
 
-        page_file_path = os.path.join(parent_id, page_file_name)
-        fake_csv_record = collections.OrderedDict()
-        fake_csv_record['title'] = page_title
-        media_response_status_code = create_media(
-            config, page_file_path, node_uri, fake_csv_record)
-        allowed_media_response_codes = [201, 204]
-        if media_response_status_code in allowed_media_response_codes:
-            logging.info("Media for %s created.", page_file_path)
+            page_file_path = os.path.join(parent_id, page_file_name)
+            fake_csv_record = collections.OrderedDict()
+            fake_csv_record['title'] = page_title
+            media_response_status_code = create_media(config, page_file_path, node_uri, fake_csv_record)
+            allowed_media_response_codes = [201, 204]
+            if media_response_status_code in allowed_media_response_codes:
+                logging.info("Media for %s created.", page_file_path)
+        else:
+            logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
 
 
 def write_rollback_config(config):

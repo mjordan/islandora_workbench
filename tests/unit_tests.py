@@ -4,6 +4,7 @@
 import sys
 import os
 from ruamel.yaml import YAML
+import collections
 import unittest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,10 +22,29 @@ class TestCompareStings(unittest.TestCase):
         self.assertTrue(res)
         res = workbench_utils.compare_strings('foo bar baz', 'foo   bar baz')
         self.assertTrue(res)
+        res = workbench_utils.compare_strings('Lastname,Firstname', 'Lastname, Firstname')
+        self.assertTrue(res)
+        res = workbench_utils.compare_strings('لدولي العاشر ليونيكود--', 'لدولي, العاشر []ليونيكود')
+        self.assertTrue(res)
 
     def test_strings_do_not_match(self):
         res = workbench_utils.compare_strings('foo', 'foot')
         self.assertFalse(res)
+
+
+class TestCsvRecordHasher(unittest.TestCase):
+
+    def test_hasher(self):
+        csv_record = collections.OrderedDict()
+        csv_record['one'] = 'eijco87we '
+        csv_record['two'] = 'jjjclsle300sloww'
+        csv_record['three'] = 'pppzzffr46wkkw'
+        csv_record['four'] = 'لدولي, العاشر []ليونيكود'
+        csv_record['four'] = ''
+        csv_record['six'] = 5
+
+        md5hash = workbench_utils.get_csv_record_hash(csv_record)
+        self.assertEqual(md5hash, 'bda4013d3695a98cd56d4d2b6a66fb4c')
 
 
 class TestSplitGeolocationString(unittest.TestCase):
@@ -55,6 +75,31 @@ class TestSplitGeolocationString(unittest.TestCase):
             config, r'\+49.16667, -123.93333@\+50.1,-120.5')
         self.assertDictEqual(res[0], {'lat': '+49.16667', 'lng': '-123.93333'})
         self.assertDictEqual(res[1], {'lat': '+50.1', 'lng': '-120.5'})
+
+
+class TestSplitLinkString(unittest.TestCase):
+
+    def test_split_link_string_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_link_string(config, 'http://www.foo.bar%%Foobar website')
+        self.assertDictEqual(res[0], {'uri': 'http://www.foo.bar', 'title': 'Foobar website'})
+
+    def test_split_geolocation_string_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_link_string(config, 'http://foobar.net%%Foobardotnet website|http://baz.com%%Baz website')
+        self.assertDictEqual(res[0], {'uri': 'http://foobar.net', 'title': 'Foobardotnet website'})
+        self.assertDictEqual(res[1], {'uri': 'http://baz.com', 'title': 'Baz website'})
+
+    def test_split_link_string_no_title_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_link_string(config, 'http://www.foo.bar')
+        self.assertDictEqual(res[0], {'uri': 'http://www.foo.bar', 'title': 'http://www.foo.bar'})
+
+    def test_split_geolocation_string_no_title_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_link_string(config, 'http://foobar.net|http://baz.com%%Baz website')
+        self.assertDictEqual(res[0], {'uri': 'http://foobar.net', 'title': 'http://foobar.net'})
+        self.assertDictEqual(res[1], {'uri': 'http://baz.com', 'title': 'Baz website'})
 
 
 class TestSplitTypedRelationString(unittest.TestCase):
@@ -116,6 +161,21 @@ class TestValidateLatlongValue(unittest.TestCase):
 
     def test_validate_bad_latlong_values(self):
         values = ['+90.1 -100.111', '045, 180', '+5025,-117.8', '-123.36667']
+        for value in values:
+            res = workbench_utils.validate_latlong_value(value)
+            self.assertFalse(res)
+
+
+class TestValidateLinkValue(unittest.TestCase):
+
+    def test_validate_good_link_values(self):
+        values = ['http://foo.com', 'http://foo1.com%%Foo Hardware']
+        for value in values:
+            res = workbench_utils.validate_link_value(value)
+            self.assertTrue(res)
+
+    def test_validate_bad_link_values(self):
+        values = ['foo.com', 'http://foo.com Foo Hardware']
         for value in values:
             res = workbench_utils.validate_latlong_value(value)
             self.assertFalse(res)
