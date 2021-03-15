@@ -401,11 +401,11 @@ class TestUrlAliases(unittest.TestCase):
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
 
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'delete.yml')
-        delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-        delete_output = delete_output.decode().strip()
-        delete_lines = delete_output.splitlines()
+        #delete_config_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'delete.yml')
+        #delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        #delete_output = subprocess.check_output(delete_cmd)
+        #delete_output = delete_output.decode().strip()
+        #delete_lines = delete_output.splitlines()
         #os.remove(self.nid_file)
 
 
