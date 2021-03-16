@@ -15,7 +15,6 @@ import hashlib
 import mimetypes
 import collections
 import urllib.parse
-import magic
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
@@ -1314,6 +1313,9 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
 def create_media(config, filename, node_uri, node_csv_row):
     """node_csv_row is an OrderedDict, e.g.
        OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+
+       Returns the HTTP status code from the attempt to create the media, or False if
+       it doesn't have sufficient information to create the media.
     """
     if config['nodes_only'] is True:
         return
@@ -1322,6 +1324,8 @@ def create_media(config, filename, node_uri, node_csv_row):
 
     if filename.startswith('http'):
         file_path = download_remote_file(config, filename, node_csv_row)
+        if file_path is False:
+            return False
         filename = file_path.split("/")[-1]
         is_remote = True
     elif os.path.isabs(filename):
@@ -2758,7 +2762,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             media_response_status_code = create_media(config, page_file_path, node_uri, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
-                logging.info("Media for %s created.", page_file_path)
+                if media_response_status_code is False:
+                    logging.info("Media for %s not created.", page_file_path)
+                    continue
+                else:
+                    logging.info("Media for %s created.", page_file_path)
         else:
             logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
 
@@ -2856,6 +2864,21 @@ def get_csv_from_excel(config):
     csv_writer_file_handle.close()
 
 
+def get_extension_from_mimetype(mimetype):
+    # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
+    # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
+    # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
+    map = {'image/jpeg': '.jpg',
+           'image/jp2': '.jp2',
+           'image/png': '.png',
+           'application/octet-stream': '.bin'
+           }
+    if mimetype in map:
+        return map[mimetype]
+    else:
+        return mimetypes.guess_extension(mimetype)
+
+
 def download_remote_file(config, url, node_csv_row):
     sections = urllib.parse.urlparse(url)
     try:
@@ -2866,12 +2889,14 @@ def download_remote_file(config, url, node_csv_row):
         logging.error(message)
         logging.error(err_timeout)
         print('Error: ' + message)
+        return False
     except requests.exceptions.ConnectionError as error_connection:
         message = 'Workbench cannot connect to ' + \
             sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
         logging.error(message)
         logging.error(error_connection)
         print('Error: ' + message)
+        return False
 
     # create_media() references the path of the downloaded file.
     subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
@@ -2890,11 +2915,13 @@ def download_remote_file(config, url, node_csv_row):
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)
     f.close
-    mime = magic.from_file(downloaded_file_path, mime=True)
-    ext = mimetypes.guess_extension(mime)
-    if ext == '.jpe':
-        ext = '.jpg'
+
     if file_extension == '':
+        try:
+            mimetype = response.headers['content-type']
+        except KeyError:
+            mimetype = 'application/octet-stream'
+        ext = get_extension_from_mimetype(mimetype)
         os.rename(downloaded_file_path, downloaded_file_path + ext)
         downloaded_file_path = downloaded_file_path + ext
 
