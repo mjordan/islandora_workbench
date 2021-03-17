@@ -1259,32 +1259,31 @@ def validate_media_use_tid(config):
     """Validate whether the term ID or URI provided in the config value for media_use_tid is
        in the Islandora Media Use vocabulary.
     """
-    if value_is_numeric(config['media_use_tid']) is not True and config['media_use_tid'].startswith('http'):
-        media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
-        if media_use_tid is False:
-            message = 'URI "' + \
-                config['media_use_tid'] + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
-    else:
-        # Confirm the tid exists and is in the islandora_media_use vocabulary
-        term_endpoint = config['host'] + '/taxonomy/term/' \
-            + str(config['media_use_tid']) + '?_format=json'
-        headers = {'Content-Type': 'application/json'}
-        response = issue_request(config, 'GET', term_endpoint, headers)
-        if response.status_code == 404:
-            message = 'Term ID "' + \
-                str(config['media_use_tid']) + '" used in the "media_use_tid" configuration option is not a term ID (term doesn\'t exist).'
-            logging.error(message)
-            sys.exit('Error: ' + message)
-        if response.status_code == 200:
-            response_body = json.loads(response.text)
-            if 'vid' in response_body:
-                if response_body['vid'][0]['target_id'] != 'islandora_media_use':
-                    message = 'Term ID "' + \
-                        str(config['media_use_tid']) + '" provided in configuration option "media_use_tid" is not in the Islandora Media Use vocabulary.'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
+    media_use_terms = config['media_use_tid'].split(config['subdelimiter'])
+    for media_use_term in media_use_terms:
+        if value_is_numeric(media_use_term) is not True and media_use_term.startswith('http'):
+            media_use_tid = get_term_id_from_uri(config, media_use_term)
+            if media_use_tid is False:
+                message = 'URI "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+        else:
+            # Confirm the tid exists and is in the islandora_media_use vocabulary
+            term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_term) + '?_format=json'
+            headers = {'Content-Type': 'application/json'}
+            response = issue_request(config, 'GET', term_endpoint, headers)
+            if response.status_code == 404:
+                message = 'Term ID "' + str(media_use_term) + '" used in the "media_use_tid" configuration option is not a term ID (term doesn\'t exist).'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+            if response.status_code == 200:
+                response_body = json.loads(response.text)
+                if 'vid' in response_body:
+                    if response_body['vid'][0]['target_id'] != 'islandora_media_use':
+                        message = 'Term ID "' + \
+                            str(media_use_term) + '" provided in configuration option "media_use_tid" is not in the Islandora Media Use vocabulary.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
 
 
 def preprocess_field_data(subdelimiter, field_value, path_to_script):
@@ -1336,12 +1335,15 @@ def create_media(config, filename, node_uri, node_csv_row):
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
 
-    if value_is_numeric(config['media_use_tid']):
-        media_use_tid = config['media_use_tid']
-    if not value_is_numeric(config['media_use_tid']) and config['media_use_tid'].startswith('http'):
-        media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
+    media_use_tids = []
+    media_use_terms = config['media_use_tid'].split(config['subdelimiter'])
+    for media_use_term in media_use_terms:
+        if value_is_numeric(media_use_term):
+            media_use_tids.append(media_use_term)
+        if not value_is_numeric(media_use_term) and media_use_term.startswith('http'):
+            media_use_tids.append(get_term_id_from_uri(config, media_use_term))
 
-    media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tid)
+    media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tids[0])
     media_endpoint = node_uri + media_endpoint_path
     location = config['drupal_filesystem'] + os.path.basename(filename)
     media_headers = {
@@ -1359,28 +1361,25 @@ def create_media(config, filename, node_uri, node_csv_row):
             # A 201 response provides a 'location' header, but a '204' response does not.
             media_uri = media_response.headers['location']
             logging.info(
-                "Media (%s) created at %s, linked to node %s.",
-                media_type,
-                media_uri,
-                node_uri)
+                "Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
             media_id = media_uri.rsplit('/', 1)[-1]
             patch_media_fields(config, media_id, media_type, node_csv_row)
 
             if media_type == 'image':
                 patch_image_alt_text(config, media_id, node_csv_row)
+
+            if len(media_use_tids) > 1:
+                patch_media_use_terms(config, media_id, media_type, media_use_tids)
     elif media_response.status_code == 204:
+        if len(media_use_tids) > 1:
+            patch_media_use_terms(config, media_id, media_type, media_use_tids)
         logging.warning(
             "Media created and linked to node %s, but its URI is not available since its creation returned an HTTP status code of %s",
             node_uri,
             media_response.status_code)
-        logging.warning(
-            "Media linked to node %s base fields not updated.",
-            node_uri)
+        logging.warning("Media linked to node %s base fields not updated.", node_uri)
     else:
-        logging.error(
-            'Media not created, PUT request to "%s" returned an HTTP status code of "%s".',
-            media_endpoint,
-            media_response.status_code)
+        logging.error('Media not created, PUT request to "%s" returned an HTTP status code of "%s".', media_endpoint, media_response.status_code)
 
     binary_data.close()
 
@@ -1407,11 +1406,32 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
         headers = {'Content-Type': 'application/json'}
         response = issue_request(config, 'PATCH', endpoint, headers, media_json)
         if response.status_code == 200:
-            logging.info(
-                "Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id)
+            logging.info("Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id)
         else:
-            logging.warning(
-                "Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id)
+            logging.warning("Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id)
+
+
+def patch_media_use_terms(config, media_id, media_type, media_use_tids):
+    """Patch the media entity's field_media_use.
+    """
+    media_json = {
+        'bundle': [
+            {'target_id': media_type}
+        ]
+    }
+
+    media_use_tids_json = []
+    for media_use_tid in media_use_tids:
+        media_use_tids_json.append({'target_id': media_use_tid, 'target_type': 'taxonomy_term'})
+
+    media_json['field_media_use'] = media_use_tids_json
+    endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+    headers = {'Content-Type': 'application/json'}
+    response = issue_request(config, 'PATCH', endpoint, headers, media_json)
+    if response.status_code == 200:
+        logging.info("Media %s Islandora Media Use terms updated.", config['host'] + '/media/' + media_id)
+    else:
+        logging.warning("Media %s Islandora Media Use terms not updated.", config['host'] + '/media/' + media_id)
 
 
 def patch_image_alt_text(config, media_id, node_csv_row):
