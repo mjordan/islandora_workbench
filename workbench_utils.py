@@ -1267,6 +1267,12 @@ def validate_media_use_tid(config):
                 message = 'URI "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+            if media_use_tid is not False and media_use_term != 'http://pcdm.org/use#OriginalFile':
+                message = 'Warning: URI "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
+                    "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                print(message)
+                logging.warning(message)
+
         else:
             # Confirm the tid exists and is in the islandora_media_use vocabulary
             term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_term) + '?_format=json'
@@ -1284,6 +1290,12 @@ def validate_media_use_tid(config):
                             str(media_use_term) + '" provided in configuration option "media_use_tid" is not in the Islandora Media Use vocabulary.'
                         logging.error(message)
                         sys.exit('Error: ' + message)
+                if 'field_external_uri' in response_body:
+                    if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
+                        message = 'Warning: Term ID "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
+                            "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                        print(message)
+                        logging.warning(message)
 
 
 def preprocess_field_data(subdelimiter, field_value, path_to_script):
