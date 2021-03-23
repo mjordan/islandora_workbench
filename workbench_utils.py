@@ -736,6 +736,8 @@ def check_input(config, args):
             csv_column_headers.remove('image_alt_text')
         if 'url_alias' in csv_column_headers:
             csv_column_headers.remove('url_alias')
+        if 'media_use_tid' in csv_column_headers:
+            csv_column_headers.remove('media_use_tid')
         # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')
@@ -806,6 +808,8 @@ def check_input(config, args):
             csv_column_headers.remove('url_alias')
         if 'image_alt_text' in csv_column_headers:
             csv_column_headers.remove('image_alt_text')
+        if 'media_use_tid' in csv_column_headers:
+            csv_column_headers.remove('media_use_tid')
         if 'file' in csv_column_headers:
             message = 'Error: CSV column header "file" is not allowed in update tasks.'
             logging.error(message)
@@ -1259,7 +1263,7 @@ def validate_media_use_tid(config):
     """Validate whether the term ID or URI provided in the config value for media_use_tid is
        in the Islandora Media Use vocabulary.
     """
-    media_use_terms = config['media_use_tid'].split(config['subdelimiter'])
+    media_use_terms = str(config['media_use_tid']).split(config['subdelimiter'])
     for media_use_term in media_use_terms:
         if value_is_numeric(media_use_term) is not True and media_use_term.startswith('http'):
             media_use_tid = get_term_id_from_uri(config, media_use_term)
@@ -1272,6 +1276,13 @@ def validate_media_use_tid(config):
                     "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
                 print(message)
                 logging.warning(message)
+        elif value_is_numeric(media_use_term) is not True and media_use_term.startswith('http') is not True:
+            media_use_tid = find_term_in_vocab(config, 'islandora_media_use', media_use_term)
+            if media_use_tid is False:
+                message = 'Warning: Term name "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
+                print(message)
+                logging.warning(message)
+                sys.exit('Error: ' + message)
 
         else:
             # Confirm the tid exists and is in the islandora_media_use vocabulary
@@ -1347,13 +1358,20 @@ def create_media(config, filename, node_uri, node_csv_row):
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
 
+    if 'media_use_tid' in node_csv_row:
+        media_use_tid_value = node_csv_row['media_use_tid']
+    else:
+        media_use_tid_value = config['media_use_tid']
+
     media_use_tids = []
-    media_use_terms = config['media_use_tid'].split(config['subdelimiter'])
+    media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
     for media_use_term in media_use_terms:
         if value_is_numeric(media_use_term):
             media_use_tids.append(media_use_term)
         if not value_is_numeric(media_use_term) and media_use_term.startswith('http'):
             media_use_tids.append(get_term_id_from_uri(config, media_use_term))
+        if not value_is_numeric(media_use_term) and not media_use_term.startswith('http'):
+            media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term))
 
     media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tids[0])
     media_endpoint = node_uri + media_endpoint_path
@@ -1372,8 +1390,7 @@ def create_media(config, filename, node_uri, node_csv_row):
         if 'location' in media_response.headers:
             # A 201 response provides a 'location' header, but a '204' response does not.
             media_uri = media_response.headers['location']
-            logging.info(
-                "Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
+            logging.info("Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
             media_id = media_uri.rsplit('/', 1)[-1]
             patch_media_fields(config, media_id, media_type, node_csv_row)
 
@@ -1639,9 +1656,8 @@ def get_term_pairs(config, vocab_id):
        request to Drupal returns a 200 plus an empty JSON list, i.e., [].
     """
     term_dict = dict()
-    # Note: this URL requires the view "Terms in vocabulary", created by the
-    # Islandora Workbench Integation module, to present on the target
-    # Islandora.
+    # Note: this URL requires the view "Terms in vocabulary", which is created by the
+    # by the Islandora Workbench Integation module, to be present on the target Drupal.
     vocab_url = config['host'] + '/vocabulary/' + vocab_id + '?_format=json'
     response = issue_request(config, 'GET', vocab_url)
     vocab = json.loads(response.text)
@@ -1676,8 +1692,7 @@ def get_term_id_from_uri(config, uri):
     """
     # Some vocabuluaries use this View.
     terms_with_uri = []
-    term_from_uri_url = config['host'] \
-        + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
+    term_from_uri_url = config['host'] + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
     term_from_uri_response = issue_request(config, 'GET', term_from_uri_url)
     if term_from_uri_response.status_code == 200:
         term_from_uri_response_body_json = term_from_uri_response.text
@@ -1688,8 +1703,7 @@ def get_term_id_from_uri(config, uri):
             return tid
         if len(term_from_uri_response_body) > 1:
             for term in term_from_uri_response_body:
-                terms_with_uri.append(
-                    {term['tid'][0]['value']: term['vid'][0]['target_id']})
+                terms_with_uri.append({term['tid'][0]['value']: term['vid'][0]['target_id']})
                 tid = term_from_uri_response_body[0]['tid'][0]['value']
             print("Warning: See log for important message about use of term URIs.")
             logging.warning(
