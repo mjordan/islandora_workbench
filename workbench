@@ -110,14 +110,17 @@ def create():
             if custom_field == 'url_alias':
                 continue
 
+            # 'media_use_tid' is a reserved CSV field.
+            if custom_field == 'media_use_tid':
+                continue
+
             # Execute field preprocessor scripts, if any are configured. Note that these scripts
             # are applied to the entire value from the CSV field and not split field values,
             # e.g., if a field is multivalued, the preprocesor must split it and then reassemble
             # it back into a string before returning it. Note that preprocessor scripts work only
             # on string data and not on binary data like images, etc. and only on custom fields
             # (so not title).
-            if 'preprocessors' in config and len(
-                    config['preprocessors']) > 0:
+            if 'preprocessors' in config and len(config['preprocessors']) > 0:
                 for field, command in config['preprocessors'].items():
                     if field in csv_column_headers:
                         output, return_code = preprocess_field_data(

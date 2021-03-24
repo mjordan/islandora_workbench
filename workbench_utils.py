@@ -831,6 +831,8 @@ def check_input(config, args):
 
     if config['task'] == 'add_media' or config['task'] == 'create' and config['nodes_only'] is False:
         validate_media_use_tid(config)
+        validate_media_use_tid_values_csv_data = get_csv_data(config)
+        validate_media_use_tids_in_csv(config, validate_media_use_tid_values_csv_data)
 
     if config['task'] == 'update' or config['task'] == 'create':
         validate_geolocation_values_csv_data = get_csv_data(config)
@@ -1259,54 +1261,112 @@ def split_link_string(config, link_string):
     return return_list
 
 
-def validate_media_use_tid(config):
-    """Validate whether the term ID or URI provided in the config value for media_use_tid is
-       in the Islandora Media Use vocabulary.
+def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id=None):
+    """Validate whether the term ID, term name, or terms URI provided in the
+       config value for media_use_tid is in the Islandora Media Use vocabulary.
     """
-    media_use_terms = str(config['media_use_tid']).split(config['subdelimiter'])
-    for media_use_term in media_use_terms:
-        if value_is_numeric(media_use_term) is not True and media_use_term.startswith('http'):
-            media_use_tid = get_term_id_from_uri(config, media_use_term)
-            if media_use_tid is False:
-                message = 'URI "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
-                logging.error(message)
-                sys.exit('Error: ' + message)
-            if media_use_tid is not False and media_use_term != 'http://pcdm.org/use#OriginalFile':
-                message = 'Warning: URI "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
-                    "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
-                print(message)
-                logging.warning(message)
-        elif value_is_numeric(media_use_term) is not True and media_use_term.startswith('http') is not True:
-            media_use_tid = find_term_in_vocab(config, 'islandora_media_use', media_use_term)
-            if media_use_tid is False:
-                message = 'Warning: Term name "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
-                print(message)
-                logging.warning(message)
-                sys.exit('Error: ' + message)
+    if 'media_use_tid_value_from_csv' is not None and csv_row_id is not None:
+        if len(str(media_use_tid_value_from_csv)) > 0:
+            media_use_tid_value = media_use_tid_value_from_csv
+    else:
+        media_use_tid_value = config['media_use_tid']
 
+    media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
+    for media_use_term in media_use_terms:
+        if value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http'):
+            media_use_tid = get_term_id_from_uri(config, media_use_term.strip())
+            if csv_row_id is None:
+                if media_use_tid is False:
+                    message = 'URI "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+                if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
+                    message = 'Warning: URI "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
+                        "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                    print(message)
+                    logging.warning(message)
+            else:
+                if media_use_tid is False:
+                    message = 'URI "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
+                        str(csv_row_id) + ' does not match any taxonomy terms.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+                if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
+                    message = 'Warning: URI "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
+                        str(csv_row_id) + "will assign an Islandora Media Use term that might conflict with " + \
+                        "derivative media (e.g., 'Thumbnail', 'Service File')."
+                    logging.warning(message)
+
+        elif value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http') is not True:
+            media_use_tid = find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip())
+            if csv_row_id is None:
+                if media_use_tid is False:
+                    message = 'Warning: Term name "' + media_use_term.strip() + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
+                    logging.warning(message)
+                    sys.exit('Error: ' + message)
+            else:
+                if media_use_tid is False:
+                    message = 'Warning: Term name "' + media_use_term.strip() + '" provided in "media_use_tid" field in CSV row ' + \
+                        str(csv_row_id) + ' does not match any taxonomy terms.'
+                    logging.warning(message)
+                    sys.exit('Error: ' + message)
         else:
             # Confirm the tid exists and is in the islandora_media_use vocabulary
-            term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_term) + '?_format=json'
+            term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_term.strip()) + '?_format=json'
             headers = {'Content-Type': 'application/json'}
             response = issue_request(config, 'GET', term_endpoint, headers)
             if response.status_code == 404:
-                message = 'Term ID "' + str(media_use_term) + '" used in the "media_use_tid" configuration option is not a term ID (term doesn\'t exist).'
-                logging.error(message)
-                sys.exit('Error: ' + message)
+                if csv_row_id is None:
+                    message = 'Term ID "' + str(media_use_term) + '" used in the "media_use_tid" configuration option is not a term ID (term doesn\'t exist).'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+                else:
+                    message = 'Term ID "' + str(media_use_term) + '" used in the "media_use_tid" field in CSV row ' + \
+                        str(csv_row_id) + ' is not a term ID (term doesn\'t exist).'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
             if response.status_code == 200:
                 response_body = json.loads(response.text)
-                if 'vid' in response_body:
-                    if response_body['vid'][0]['target_id'] != 'islandora_media_use':
-                        message = 'Term ID "' + \
-                            str(media_use_term) + '" provided in configuration option "media_use_tid" is not in the Islandora Media Use vocabulary.'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
-                if 'field_external_uri' in response_body:
-                    if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
-                        message = 'Warning: Term ID "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
-                            "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
-                        print(message)
-                        logging.warning(message)
+                if csv_row_id is None:
+                    if 'vid' in response_body:
+                        if response_body['vid'][0]['target_id'] != 'islandora_media_use':
+                            message = 'Term ID "' + \
+                                str(media_use_term) + '" provided in configuration option "media_use_tid" is not in the Islandora Media Use vocabulary.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                    if 'field_external_uri' in response_body:
+                        if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
+                            message = 'Warning: Term ID "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
+                                "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                            print(message)
+                            logging.warning(message)
+                else:
+                    if 'vid' in response_body:
+                        if response_body['vid'][0]['target_id'] != 'islandora_media_use':
+                            message = 'Term ID "' + \
+                                str(media_use_term) + '" provided in the "media_use_tid" field in CSV row ' + \
+                                str(csv_row_id) + ' is not in the Islandora Media Use vocabulary.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                    if 'field_external_uri' in response_body:
+                        if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
+                            message = 'Warning: Term ID "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
+                                str(csv_row_id) + " will assign an Islandora Media Use term that might conflict with " + \
+                                "derivative media (e.g., 'Thumbnail', 'Service File')."
+                            print(message)
+                            logging.warning(message)
+
+
+def validate_media_use_tids_in_csv(config, csv_data):
+    """Validate 'media_use_tid' values in CSV if they exist.
+    """
+    csv_id_field = config['id_field']
+    for count, row in enumerate(csv_data, start=1):
+        if 'media_use_tid' in row:
+            delimited_field_values = row['media_use_tid'].split(config['subdelimiter'])
+            for field_value in delimited_field_values:
+                if len(field_value.strip()) > 0:
+                    validate_media_use_tid(config, field_value, row[csv_id_field])
 
 
 def preprocess_field_data(subdelimiter, field_value, path_to_script):
@@ -1358,7 +1418,7 @@ def create_media(config, filename, node_uri, node_csv_row):
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
 
-    if 'media_use_tid' in node_csv_row:
+    if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
         media_use_tid_value = node_csv_row['media_use_tid']
     else:
         media_use_tid_value = config['media_use_tid']
@@ -1368,10 +1428,10 @@ def create_media(config, filename, node_uri, node_csv_row):
     for media_use_term in media_use_terms:
         if value_is_numeric(media_use_term):
             media_use_tids.append(media_use_term)
-        if not value_is_numeric(media_use_term) and media_use_term.startswith('http'):
+        if not value_is_numeric(media_use_term) and media_use_term.strip().startswith('http'):
             media_use_tids.append(get_term_id_from_uri(config, media_use_term))
-        if not value_is_numeric(media_use_term) and not media_use_term.startswith('http'):
-            media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term))
+        if not value_is_numeric(media_use_term) and not media_use_term.strip().startswith('http'):
+            media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip()))
 
     media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tids[0])
     media_endpoint = node_uri + media_endpoint_path
