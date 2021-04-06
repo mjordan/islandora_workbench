@@ -1664,7 +1664,7 @@ def get_term_id_from_uri(config, uri):
        taxonomy uses to store URIs (it's either field_external_uri or field_authority_link),
        we need to check both options in the "Term from URI" View.
     """
-    # Some vocabuluaries use this View.
+    # Some vocabularies use this View.
     terms_with_uri = []
     term_from_uri_url = config['host'] \
         + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
@@ -1823,6 +1823,17 @@ def create_term(config, vocab_id, term_name):
             term_name,
             response.status_code)
         return False
+
+
+def get_term_uuid(config, term_id):
+    """Given a term ID, get the term's UUID.
+    """
+    term_url = config['host'] + '/taxonomy/term/' + str(term_id) + '?_format=json'
+    response = issue_request(config, 'GET', term_url)
+    term = json.loads(response.text)
+    uuid = term['uuid'][0]['value']
+
+    return uuid
 
 
 def create_url_alias(config, node_id, url_alias):
