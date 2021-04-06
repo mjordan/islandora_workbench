@@ -152,8 +152,10 @@ def set_config_defaults(args):
             extracted_text = collections.OrderedDict({'extracted_text': ['txt']})
             config['media_types'].append(extracted_text)
 
-        # Set defaults for media fields in media type bunldes, then if 'media_fields' option is present
-        # in config file, determine which field to use for the file, per media bundle type.
+        # Set config['media_bundle_file_fields']. If 'media_fields' option is present in
+        # the config file, determine which field to use for the file, per media bundle.
+        # Note that 'media_file_fields' is the option used in the config file, and that
+        # config['media_bundle_file_fields'] is the internal name of the setting.
         media_fields = dict({
             'file': 'field_media_file',
             'document': 'field_media_document',
@@ -163,14 +165,14 @@ def set_config_defaults(args):
             'extracted_text': 'field_media_file',
             'fits_technical_metadata': 'field_media_file'
         })
-        if 'media_fields' in config:
-            for media_field in config['media_fields']:
+        if 'media_file_fields' in config:
+            for media_field in config['media_file_fields']:
                 for media_type, media_field in media_field.items():
                     media_fields[media_type] = media_field
         else:
             config['media_fields'] = media_fields
 
-        config['media_bundle_media_fields'] = media_fields
+        config['media_bundle_file_fields'] = media_fields
 
     if config['task'] == 'create':
         if 'paged_content_sequence_seprator' not in config:
