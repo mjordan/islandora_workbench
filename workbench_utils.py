@@ -15,7 +15,6 @@ import hashlib
 import mimetypes
 import collections
 import urllib.parse
-from decimal import Decimal
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
