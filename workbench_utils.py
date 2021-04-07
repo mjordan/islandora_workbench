@@ -15,6 +15,7 @@ import hashlib
 import mimetypes
 import collections
 import urllib.parse
+from decimal import Decimal
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
@@ -319,6 +320,39 @@ def issue_request(
     return response
 
 
+def get_drupal_core_version(config):
+    """Get Drupal's version number.
+    """
+    url = config['host'] + '/islandora_workbench_integration/core_version'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        version = json.loads(response.text)
+        return version['core_version']
+    else:
+        logging.warning(
+            "Attempt to get Drupal core versionh number eturned a %s status code",
+            url,
+            response.status_code)
+        return False
+
+
+def check_drupal_core_version(config):
+    """Used during --check.
+    """
+    drupal_core_version = get_drupal_core_version(config)
+    if drupal_core_version is not False:
+        float_drupal_core_version = float(drupal_core_version[0:3])
+    else:
+        message = "Error: Workbench cannot determine Drupal's version number."
+        logging.error(message)
+        sys.exit('Error: ' + message)
+    if float_drupal_core_version < 9.1:
+        message = "Warning: Media creation in your version of Drupal (" + \
+            drupal_core_version + \
+            ") is less reliable than in Drupal 9.1 or higher."
+        print(message)
+
+
 def ping_node(config, nid):
     """Ping the node to see if it exists.
     """
@@ -543,6 +577,8 @@ def check_input(config, args):
         args.config)
 
     ping_islandora(config, print_message=False)
+
+    # check_drupal_core_version(config)
 
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
 
