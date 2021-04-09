@@ -1388,7 +1388,7 @@ def create_file(config, filename, node_csv_row):
                 create the file, or None if config['nodes_only'] is True.
     """
     if config['nodes_only'] is True:
-        return
+        return None
     is_remote = False
     filename = filename.strip()
 
@@ -1431,30 +1431,78 @@ def create_file(config, filename, node_csv_row):
 
     file_json = json.loads(file_response.text)
     file_uuid = file_json['data']['id']
-    print(file_uuid)
     if is_remote and config['delete_tmp_upload'] is True:
         containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
         shutil.rmtree(containing_folder)
 
+    return file_uuid
+
 
 # WIP on https://github.com/mjordan/islandora_workbench/issues/171.
-def create_media(config, file_uuid, node_uri, node_csv_row):
+def create_media(config, filename, node_uuid, node_csv_row):
     """Creates a media in Drupal.
 
            Parameters
            ----------
             config : dict
                 The configuration object defined by set_config_defaults().
-            field_uuid: string
-                The UUID of the file the media wraps.
+            fieldname : string
+                The value of the CSV 'file' field for the current node.
+            node_uuid: string
+                The UUID of the node to attach the media to.
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
             Returns
             -------
-                ?
+            int|False
+                 The HTTP status code from the attempt to create the media, False if
+                 it doesn't have sufficient information to create the media, oor None
+                 if config['nodes_only'] is True.
     """
     if config['nodes_only'] is True:
         return
+
+    file_result = create_file(config, filename, node_csv_row)
+    if isinstance(file_result, str) and re.search(r'^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}', file_result):
+        media_json = {
+            "data": {
+                "type": "media--image",
+                "attributes": {
+                    "name": "My media"
+                },
+                "relationships": {
+                    "field_media_of": {
+                        "data": {
+                            "type": "node--" + config['content_type'],
+                            "id": node_uuid
+                        }
+                    },
+                    "field_media_image": {
+                        "data": {
+                            "type": "file--file", # @todo: Get the file's... type? from HTTP response?
+                            "id": "5060c33a-789f-4850-a2f9-2f6e05e2dd65"
+                        }
+                    },
+                    "field_media_use": {
+                        "data": {
+                            "type": "taxonomy_term--islandora_media_use",
+                            "id": "cc5e6f00-be2f-4d07-b047-be39cd9b7387" # @todo: Get the tern's UUID.
+                        }
+                    },
+                }
+            }
+        }
+        pass
+
+    if isinstance(file_result, int):
+        return file_result
+
+    if file_result is False:
+        return file_result
+
+    if file_result is None:
+        return file_result
+
     pass
 
 
@@ -2381,7 +2429,6 @@ def validate_edtf_value(edtf):
 
 def validate_single_edtf_date(single_edtf):
     if 'T' in single_edtf:
-        # if re.search(r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$', single_edtf):
         if re.search(r'^\d\d\d\d-\d\d-\d\d(T\d\d:\d\d:\d\d)?$', single_edtf):
             return True, None
         else:
@@ -2919,6 +2966,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = page_title
+            # media_response_status_code = create_media(config, page_file_path, node_uuid, fake_csv_record)
             media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
