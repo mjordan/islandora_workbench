@@ -19,6 +19,8 @@ from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
 import shutil
+
+
 yaml = YAML()
 
 
@@ -1486,7 +1488,7 @@ def create_media(config, filename, node_uuid, node_csv_row):
                     "field_media_use": {
                         "data": {
                             "type": "taxonomy_term--islandora_media_use",
-                            "id": "cc5e6f00-be2f-4d07-b047-be39cd9b7387" # @todo: Get the tern's UUID.
+                            "id": "cc5e6f00-be2f-4d07-b047-be39cd9b7387" # @todo: Get the term's UUID.
                         }
                     },
                 }
@@ -2966,6 +2968,8 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = page_title
+            # returned_node = json.loads(node_response.text)
+            # node_uuid = returned_node['uuid'][0]['value']
             # media_response_status_code = create_media(config, page_file_path, node_uuid, fake_csv_record)
             media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
             allowed_media_response_codes = [201, 204]
