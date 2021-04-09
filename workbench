@@ -42,6 +42,7 @@ def create():
         row = clean_csv_values(row)
 
         # Create a copy of the current item's row to pass to create_media().
+        # Create a copy of the current item's row to pass to create_islandora_media().
         row_for_media = copy.deepcopy(row)
         if config['paged_content_from_directories'] is True:
             # Create a copy of the current item's row to pass to the
@@ -264,12 +265,12 @@ def create():
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
+            returned_node = json.loads(node_response.text)
 
             # If Pathauto URL alias creation for nodes is enabled, the location header
             # returns the alias, not the /node/xxx URL, which includes the node ID. In
             # this case, get the node ID from the response body.
             if not re.match(r'/node/\d+$', node_uri):
-                returned_node = json.loads(node_response.text)
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
@@ -315,7 +316,9 @@ def create():
         if node_response.status_code == 201:
             # If there is something in the 'file' field, create the media from it.
             if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
-                media_response_status_code = create_media(config, row['file'], node_uri, row_for_media)
+                # node_uuid = returned_node['uuid'][0]['value']
+                # media_response_status_code = create_media(config, row['file'], node_uuid, row_for_media)
+                media_response_status_code = create_islandora_media(config, row['file'], node_uri, row_for_media)
                 allowed_media_response_codes = [201, 204]
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
@@ -702,8 +705,10 @@ def add_media():
         node_uri = config['host'] + '/node/' + row['node_id']
         node_response = issue_request(config, 'GET', node_json_url)
         if node_response.status_code == 200:
-            media_response_status_code = create_media(
-                config, row['file'], node_uri, None)
+            # returned_node = json.loads(node_response.text)
+            # node_uuid = returned_node['uuid'][0]['value']
+            # media_response_status_code = create_media(config, row['file'], node_uuid, None)
+            media_response_status_code = create_islandora_media(config, row['file'], node_uri, None)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
@@ -830,8 +835,10 @@ def create_from_files():
             fake_csv_record = collections.OrderedDict()
             if media_type == 'image':
                 fake_csv_record['image_alt_text'] = filename_without_extension
-            media_response_status_code = create_media(
-                config, file_name, node_uri, fake_csv_record)
+            # returned_node = json.loads(node_response.text)
+            # node_uuid = returned_node['uuid'][0]['value']
+            # media_response_status_code = create_media(config, file_name, node_uuid, fake_csv_record)
+            media_response_status_code = create_islandora_media(config, file_name, node_uri, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
