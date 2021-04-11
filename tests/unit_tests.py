@@ -302,5 +302,24 @@ class TestGetCsvFromExcel(unittest.TestCase):
         os.remove(self.csv_file_path)
 
 
+class TestDrupalCoreVersionNumbers(unittest.TestCase):
+    def test_version_numbers(self):
+        lower_versions = ['9.0', '9.1', '8.10.0-dev', '9.0.0-dev']
+        for version in lower_versions:
+            version_number = workbench_utils.convert_drupal_core_version_to_number(version)
+            res = version_number < tuple([9, 2])
+            self.assertTrue(res)
+
+        version_number = workbench_utils.convert_drupal_core_version_to_number('9.2')
+        self.assertTrue(version_number == tuple([9, 2]))
+
+        # higher_versions = ['9.3', '9.10.0-dev', '9.20.0-dev']
+        higher_versions = ['9.3', '9.10.0-dev']
+        for version in higher_versions:
+            version_number = workbench_utils.convert_drupal_core_version_to_number(version)
+            res = version_number > tuple([9, 2])
+            self.assertTrue(res)
+
+
 if __name__ == '__main__':
     unittest.main()

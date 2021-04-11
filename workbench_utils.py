@@ -76,6 +76,8 @@ def set_config_defaults(args):
         config['input_csv'] = 'metadata.csv'
     if 'media_use_tid' not in config:
         config['media_use_tid'] = 'http://pcdm.org/use#OriginalFile'
+    # @todo: remove 'drupal_filesystem' when Workbench drops support
+    # for create_islandora_media().
     if 'drupal_filesystem' not in config:
         config['drupal_filesystem'] = 'fedora://'
     if 'id_field' not in config:
@@ -323,12 +325,21 @@ def issue_request(
 
 def get_drupal_core_version(config):
     """Get Drupal's version number.
+
+           Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            Returns
+            -------
+            string|False
+                The Drupal core version number string (i.e., may contain -dev, etc.).
     """
     url = config['host'] + '/islandora_workbench_integration/core_version'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
-        version = json.loads(response.text)
-        return version['core_version']
+        version_body = json.loads(response.text)
+        return version_body['core_version']
     else:
         logging.warning(
             "Attempt to get Drupal core versionh number eturned a %s status code",
@@ -337,20 +348,39 @@ def get_drupal_core_version(config):
         return False
 
 
+def convert_drupal_core_version_to_number(version_string):
+    """Convert Drupal's version string to a number. We only need the major and minor numbers (e.g. 9.2).
+
+           Parameters
+           ----------
+            version_string: string
+                The version string as retrieved from Drupal.
+            Returns
+            -------
+            tuple
+                A tuple containing the major and minor Drupal core version numbers as integers.
+    """
+    parts = version_string.split('.')
+    parts = parts[:2]
+    int_parts = [int(part) for part in parts]
+    version_tuple = tuple(int_parts)
+    return version_tuple
+
+
 def check_drupal_core_version(config):
     """Used during --check.
     """
     drupal_core_version = get_drupal_core_version(config)
     if drupal_core_version is not False:
-        float_drupal_core_version = float(drupal_core_version[0:3])
+        core_version_number = convert_drupal_core_version_to_number(drupal_core_version)
     else:
         message = "Error: Workbench cannot determine Drupal's version number."
         logging.error(message)
         sys.exit('Error: ' + message)
-    if float_drupal_core_version < 9.1:
+    if core_version_number < tuple([9, 2]):
         message = "Warning: Media creation in your version of Drupal (" + \
             drupal_core_version + \
-            ") is less reliable than in Drupal 9.1 or higher."
+            ") is less reliable than in Drupal 9.2 or higher."
         print(message)
 
 
@@ -579,8 +609,8 @@ def check_input(config, args):
 
     ping_islandora(config, print_message=False)
 
-    # if config['nodes_only'] is False:
-    # check_drupal_core_version(config)
+    if config['nodes_only'] is False:
+        check_drupal_core_version(config)
 
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
 
@@ -1489,6 +1519,7 @@ def create_file(config, filename, node_csv_row):
 
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
+    print(media_type)
     if media_type in config['media_bundle_file_fields']:
         media_file_field = config['media_bundle_file_fields'][media_type]
     else:
@@ -1548,11 +1579,18 @@ def create_media(config, filename, node_uuid, node_csv_row):
 
     file_result = create_file(config, filename, node_csv_row)
     if isinstance(file_result, str) and re.search(r'^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}', file_result):
+        if isinstance(config['media_use_tid'], str) and config['media_use_tid'].startswith('http'):
+            media_use_tid = tid_from_uri = get_term_id_from_uri(config, config['media_use_tid'])
+        else:
+            media_use_tid = config['media_use_tid']
+        media_use_term_uuid = get_term_uuid(config, media_use_tid)
+        media_type = set_media_type(filename, config)
+        media_field = config['media_fields'][media_type]
         media_json = {
             "data": {
-                "type": "media--image",
+                "type": "media--" + media_type,
                 "attributes": {
-                    "name": "My media"
+                    "name": filename
                 },
                 "relationships": {
                     "field_media_of": {
@@ -1561,22 +1599,35 @@ def create_media(config, filename, node_uuid, node_csv_row):
                             "id": node_uuid
                         }
                     },
-                    "field_media_image": {
+                    media_field: {
                         "data": {
-                            "type": "file--file", # @todo: Get the file's... type? from HTTP response?
-                            "id": "5060c33a-789f-4850-a2f9-2f6e05e2dd65"
+                            # @todo: Get the file's... type? from HTTP response?
+                            "type": "file--file",
+                            "id": file_result
                         }
                     },
                     "field_media_use": {
                         "data": {
                             "type": "taxonomy_term--islandora_media_use",
-                            "id": "cc5e6f00-be2f-4d07-b047-be39cd9b7387" # @todo: Get the term's UUID.
+                            "id": media_use_term_uuid
                         }
                     },
                 }
             }
         }
-        pass
+
+        media_endpoint_path = '/jsonapi/media/' + media_type
+        media_headers = {
+            'Accept': 'application/vnd.api+json',
+            'Content-Type': 'application/vnd.api+json'
+        }
+
+        try:
+            media_response = issue_request(config, 'POST', media_endpoint_path, media_headers, media_json)
+            return media_response.status_code
+        except requests.exceptions.RequestException as e:
+            logging.error(e)
+            return False
 
     if isinstance(file_result, int):
         return file_result
