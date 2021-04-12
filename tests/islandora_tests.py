@@ -740,17 +740,23 @@ class TestCreateWithNonLatinText(unittest.TestCase):
 
         self.assertEqual(len(nids), 3)
 
-        url = self.islandora_host + '/solr-search/content?search_api_fulltext=一九二四年六月十二日'
+        url = self.islandora_host + '/node/' + str(nids[0]) + '?_format=json'
         response = requests.get(url)
-        self.assertIn('一九二四年六月十二日', response.text)
+        node = json.loads(response.text)
+        title = str(node['title'][0]['value'])
+        self.assertEqual(title, '一九二四年六月十二日')
 
-        url = self.islandora_host + '/solr-search/content?search_api_fulltext=ᐊᑕᐅᓯᖅ ᓄᓇ, ᐅᓄᖅᑐᑦ ᓂᐲᑦ'
+        url = self.islandora_host + '/node/' + str(nids[1]) + '?_format=json'
         response = requests.get(url)
-        self.assertIn('ᐊᑕᐅᓯᖅ ᓄᓇ, ᐅᓄᖅᑐᑦ ᓂᐲᑦ', response.text)
+        node = json.loads(response.text)
+        title = str(node['title'][0]['value'])
+        self.assertEqual(title, 'सरकारी दस्तावेज़')
 
-        url = self.islandora_host + '/solr-search/content?search_api_fulltext=सरकारी दस्तावेज़'
+        url = self.islandora_host + '/node/' + str(nids[2]) + '?_format=json'
         response = requests.get(url)
-        self.assertIn('सरकारी दस्तावेज़', response.text)
+        node = json.loads(response.text)
+        title = str(node['title'][0]['value'])
+        self.assertEqual(title, 'ᐊᑕᐅᓯᖅ ᓄᓇ, ᐅᓄᖅᑐᑦ ᓂᐲᑦ')
 
     def tearDown(self):
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'delete.yml')
