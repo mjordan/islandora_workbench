@@ -9,3 +9,4 @@ models:
  - 25: ['tif', 'tiff', 'jp2', 'png', 'gif', 'jpg', 'jpeg']
  - 22: ['mp3', 'wav', 'aac']
  - 26: ['mp4']
+log_json: true

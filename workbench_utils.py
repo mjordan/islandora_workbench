@@ -1482,7 +1482,6 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
     return result, cmd.returncode
 
 
-# WIP on https://github.com/mjordan/islandora_workbench/issues/171.
 def create_file(config, filename, node_csv_row):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
 
@@ -1519,7 +1518,6 @@ def create_file(config, filename, node_csv_row):
 
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
-    print(media_type)
     if media_type in config['media_bundle_file_fields']:
         media_file_field = config['media_bundle_file_fields'][media_type]
     else:
@@ -1540,20 +1538,20 @@ def create_file(config, filename, node_csv_row):
 
     try:
         file_response = issue_request(config, 'POST', file_endpoint_path, file_headers, '', binary_data)
+        if file_response.status_code == 201:
+            file_json = json.loads(file_response.text)
+            file_uuid = file_json['data']['id']
+            if is_remote and config['delete_tmp_upload'] is True:
+                containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+                shutil.rmtree(containing_folder)
+            return file_uuid
+        else:
+            return file_response.status_code
     except requests.exceptions.RequestException as e:
         logging.error(e)
         return False
 
-    file_json = json.loads(file_response.text)
-    file_uuid = file_json['data']['id']
-    if is_remote and config['delete_tmp_upload'] is True:
-        containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
-        shutil.rmtree(containing_folder)
 
-    return file_uuid
-
-
-# WIP on https://github.com/mjordan/islandora_workbench/issues/171.
 def create_media(config, filename, node_uuid, node_csv_row):
     """Creates a media in Drupal.
 
@@ -1601,7 +1599,7 @@ def create_media(config, filename, node_uuid, node_csv_row):
                     },
                     media_field: {
                         "data": {
-                            # @todo: Get the file's... type? from HTTP response?
+                            # @todo: Is this value always 'file--file'?
                             "type": "file--file",
                             "id": file_result
                         }

@@ -315,11 +315,11 @@ def create():
         if node_response.status_code == 201:
             # If there is something in the 'file' field, create the media from it.
             if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
-                if drupal_9 is True:
+                if drupal_8 is True:
+                    media_response_status_code = create_islandora_media(config, row['file'], node_uri, row_for_media)
+                else:
                     node_uuid = returned_node['uuid'][0]['value']
                     media_response_status_code = create_media(config, row['file'], node_uuid, row_for_media)
-                else:
-                    media_response_status_code = create_islandora_media(config, row['file'], node_uri, row_for_media)
                 allowed_media_response_codes = [201, 204]
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
@@ -706,12 +706,12 @@ def add_media():
         node_uri = config['host'] + '/node/' + row['node_id']
         node_response = issue_request(config, 'GET', node_json_url)
         if node_response.status_code == 200:
-            if drupal_9:
+            if drupal_8 is True:
+                media_response_status_code = create_islandora_media(config, row['file'], node_uri, None)
+            else:
                 returned_node = json.loads(node_response.text)
                 node_uuid = returned_node['uuid'][0]['value']
                 media_response_status_code = create_media(config, row['file'], node_uuid, None)
-            else:
-                media_response_status_code = create_islandora_media(config, row['file'], node_uri, None)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
@@ -838,12 +838,12 @@ def create_from_files():
             fake_csv_record = collections.OrderedDict()
             if media_type == 'image':
                 fake_csv_record['image_alt_text'] = filename_without_extension
-            if drupal_9 is True:
+            if drupal_8 is True:
+                media_response_status_code = create_islandora_media(config, file_name, node_uri, fake_csv_record)
+            else:
                 returned_node = json.loads(node_response.text)
                 node_uuid = returned_node['uuid'][0]['value']
                 media_response_status_code = create_media(config, file_name, node_uuid, fake_csv_record)
-            else:
-                media_response_status_code = create_islandora_media(config, file_name, node_uri, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
@@ -892,7 +892,7 @@ if config['task'] != 'create_from_files' and config['input_csv'].startswith('htt
 if config['task'] != 'create_from_files' and config['input_csv'].endswith('.xlsx') is True:
     get_csv_from_excel(config)
 
-drupal_9 = True
+drupal_8 = False
 drupal_core_version_string = get_drupal_core_version(config)
 if drupal_core_version_string is not False:
     drupal_core_version = convert_drupal_core_version_to_number(drupal_core_version_string)
@@ -901,7 +901,7 @@ else:
     logging.error(message)
     sys.exit('Error: ' + message)
 if drupal_core_version < tuple([9, 2]):
-    drupal_9 = False
+    drupal_8 = True
 
 ping_islandora(config, print_message=True)
 
