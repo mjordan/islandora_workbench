@@ -1621,7 +1621,7 @@ def create_media(config, filename, node_id, node_csv_row):
                 "value": True
             }],
             "name": [{
-                "value": "I am a media"
+                "value": node_csv_row['title']
             }],
             media_field: [{
                 "target_id": file_result,
@@ -1639,7 +1639,12 @@ def create_media(config, filename, node_id, node_csv_row):
 
         # @todo: We'll need a more generalized way of determining which media fields are required.
         if media_field == 'field_media_image':
-            media_json[media_field][0]['alt'] = 'Test alt text'
+            if 'image_alt_text' in node_csv_row and len(node_csv_row['image_alt_text']) > 0:
+                alt_text = clean_image_alt_text(node_csv_row['image_alt_text'])
+                media_json[media_field][0]['alt'] = alt_text
+            else:
+                alt_text = clean_image_alt_text(node_csv_row['title'])
+                media_json[media_field][0]['alt'] = alt_text
 
         media_endpoint_path = '/entity/media'
         media_headers = {
@@ -1792,6 +1797,13 @@ def patch_media_use_terms(config, media_id, media_type, media_use_tids):
         logging.warning("Media %s Islandora Media Use terms not updated.", config['host'] + '/media/' + media_id)
 
 
+def clean_image_alt_text(input_string):
+    ''' Strip out HTML markup to guard against CSRF in alt text.
+    '''
+    cleaned_string = re.sub('<[^<]+?>', '', input_string)
+    return cleaned_string
+
+
 def patch_image_alt_text(config, media_id, node_csv_row):
     """Patch the alt text value for an image media. Use the parent node's title
        unless the CSV record contains an image_alt_text field with something in it.
@@ -1804,10 +1816,9 @@ def patch_image_alt_text(config, media_id, node_csv_row):
 
     for field_name, field_value in node_csv_row.items():
         if field_name == 'title':
-            # Strip out HTML markup to guard against CSRF in alt text.
-            alt_text = re.sub('<[^<]+?>', '', field_value)
+            alt_text = clean_image_alt_text(field_value)
         if field_name == 'image_alt_text' and len(field_value) > 0:
-            alt_text = re.sub('<[^<]+?>', '', field_value)
+            alt_text = clean_image_alt_text(field_value)
 
     media_json = {
         'bundle': [
