@@ -384,6 +384,19 @@ def check_drupal_core_version(config):
         print(message)
 
 
+def set_drupal_8(config):
+    drupal_8 = False
+    drupal_core_version_string = get_drupal_core_version(config)
+    if drupal_core_version_string is not False:
+        drupal_core_version = convert_drupal_core_version_to_number(drupal_core_version_string)
+    else:
+        message = "Workbench cannot determine Drupal's version number."
+        logging.error(message)
+        sys.exit('Error: ' + message)
+    if drupal_core_version < tuple([9, 2]):
+        drupal_8 = True
+
+
 def ping_node(config, nid):
     """Ping the node to see if it exists.
     """
@@ -1496,9 +1509,9 @@ def create_file(config, filename, node_csv_row):
             Returns
             -------
             string|int|bool|None
-                The UUID of the successfully created file; the HTTP status code if the
-                attempt was unsuccessful, False if there is insufficient information to
-                create the file, or None if config['nodes_only'] is True.
+                The file ID of the successfully created file; the HTTP status code if the
+                attempt was unsuccessful, False if there is insufficient information to create
+                the file or file creation failed, or None if config['nodes_only'] is True.
     """
     if config['nodes_only'] is True:
         return None
@@ -1527,9 +1540,8 @@ def create_file(config, filename, node_csv_row):
             media_type)
         return False
 
-    file_endpoint_path = '/jsonapi/media/' + media_type + '/' + media_file_field
+    file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field
     file_headers = {
-        'Accept': 'application/vnd.api+json',
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': 'file; filename="' + filename + '"'
     }
@@ -1540,19 +1552,20 @@ def create_file(config, filename, node_csv_row):
         file_response = issue_request(config, 'POST', file_endpoint_path, file_headers, '', binary_data)
         if file_response.status_code == 201:
             file_json = json.loads(file_response.text)
-            file_uuid = file_json['data']['id']
+            file_id = file_json['fid'][0]['value']
             if is_remote and config['delete_tmp_upload'] is True:
                 containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
                 shutil.rmtree(containing_folder)
-            return file_uuid
+            return file_id
         else:
-            return file_response.status_code
+            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s".', file_endpoint_path, file_response.status_code)
+            return False
     except requests.exceptions.RequestException as e:
         logging.error(e)
         return False
 
 
-def create_media(config, filename, node_uuid, node_csv_row):
+def create_media(config, filename, node_id, node_csv_row):
     """Creates a media in Drupal.
 
            Parameters
@@ -1561,22 +1574,36 @@ def create_media(config, filename, node_uuid, node_csv_row):
                 The configuration object defined by set_config_defaults().
             fieldname : string
                 The value of the CSV 'file' field for the current node.
-            node_uuid: string
-                The UUID of the node to attach the media to.
+            node_id: string
+                The ID of the node to attach the media to. This is False if file creation failed.
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
             Returns
             -------
             int|False
                  The HTTP status code from the attempt to create the media, False if
-                 it doesn't have sufficient information to create the media, oor None
+                 it doesn't have sufficient information to create the media, or None
                  if config['nodes_only'] is True.
     """
     if config['nodes_only'] is True:
         return
 
+    try:
+        # We need to test that the filename is valid Latin-1 since Requests requires that.
+        filename.encode('latin-1')
+    except UnicodeError:
+        logging.error("Filename " + filename + " is not valid Latin-1.")
+        return False
+
+    try:
+        # We also need to test that the filename is valid UTF-8 since Drupal requires that.
+        filename.encode('utf-8')
+    except UnicodeError:
+        logging.error("Filename " + filename + " is not valid UTF-8.")
+        return False
+
     file_result = create_file(config, filename, node_csv_row)
-    if isinstance(file_result, str) and re.search(r'^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}', file_result):
+    if isinstance(file_result, int):
         if isinstance(config['media_use_tid'], str) and config['media_use_tid'].startswith('http'):
             media_use_tid = tid_from_uri = get_term_id_from_uri(config, config['media_use_tid'])
         else:
@@ -1584,40 +1611,39 @@ def create_media(config, filename, node_uuid, node_csv_row):
         media_use_term_uuid = get_term_uuid(config, media_use_tid)
         media_type = set_media_type(filename, config)
         media_field = config['media_fields'][media_type]
+
         media_json = {
-            "data": {
-                "type": "media--" + media_type,
-                "attributes": {
-                    "name": filename
-                },
-                "relationships": {
-                    "field_media_of": {
-                        "data": {
-                            "type": "node--" + config['content_type'],
-                            "id": node_uuid
-                        }
-                    },
-                    media_field: {
-                        "data": {
-                            # @todo: Is this value always 'file--file'?
-                            "type": "file--file",
-                            "id": file_result
-                        }
-                    },
-                    "field_media_use": {
-                        "data": {
-                            "type": "taxonomy_term--islandora_media_use",
-                            "id": media_use_term_uuid
-                        }
-                    },
-                }
-            }
+            "bundle": [{
+                "target_id": media_type,
+                "target_type": "media_type",
+            }],
+            "status": [{
+                "value": True
+            }],
+            "name": [{
+                "value": "I am a media"
+            }],
+            media_field: [{
+                "target_id": file_result,
+                "target_type": 'file'
+            }],
+            "field_media_of": [{
+                "target_id": int(node_id),
+                "target_type": 'node'
+            }],
+            "field_media_use": [{
+                "target_id": media_use_tid,
+                "target_type": 'taxonomy_term'
+            }]
         }
 
-        media_endpoint_path = '/jsonapi/media/' + media_type
+        # @todo: We'll need a more generalized way of determining which media fields are required.
+        if media_field == 'field_media_image':
+            media_json[media_field][0]['alt'] = 'Test alt text'
+
+        media_endpoint_path = '/entity/media'
         media_headers = {
-            'Accept': 'application/vnd.api+json',
-            'Content-Type': 'application/vnd.api+json'
+            'Content-Type': 'application/json'
         }
 
         try:
@@ -1627,16 +1653,11 @@ def create_media(config, filename, node_uuid, node_csv_row):
             logging.error(e)
             return False
 
-    if isinstance(file_result, int):
-        return file_result
-
     if file_result is False:
         return file_result
 
     if file_result is None:
         return file_result
-
-    pass
 
 
 def create_islandora_media(config, filename, node_uri, node_csv_row):
@@ -3041,6 +3062,7 @@ def write_to_output_csv(config, id, node_json):
 
 
 def create_children_from_directory(config, parent_csv_record, parent_node_id, parent_title):
+    drupal_8 = set_drupal_8(config)
     # These objects will have a title (derived from filename), an ID based on the parent's
     # id, and a config-defined Islandora model. Content type and status are inherited
     # as is from parent. The weight assigned to the page is the last segment in the filename,
@@ -3123,10 +3145,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = page_title
-            # returned_node = json.loads(node_response.text)
-            # node_uuid = returned_node['uuid'][0]['value']
-            # media_response_status_code = create_media(config, page_file_path, node_uuid, fake_csv_record)
-            media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
+            if drupal_8 is True:
+                media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
+            else:
+                media_response_status_code = create_media(config, page_file_path, node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if media_response_status_code is False:

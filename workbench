@@ -318,8 +318,7 @@ def create():
                 if drupal_8 is True:
                     media_response_status_code = create_islandora_media(config, row['file'], node_uri, row_for_media)
                 else:
-                    node_uuid = returned_node['uuid'][0]['value']
-                    media_response_status_code = create_media(config, row['file'], node_uuid, row_for_media)
+                    media_response_status_code = create_media(config, row['file'], node_nid, row_for_media)
                 allowed_media_response_codes = [201, 204]
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
@@ -709,9 +708,7 @@ def add_media():
             if drupal_8 is True:
                 media_response_status_code = create_islandora_media(config, row['file'], node_uri, None)
             else:
-                returned_node = json.loads(node_response.text)
-                node_uuid = returned_node['uuid'][0]['value']
-                media_response_status_code = create_media(config, row['file'], node_uuid, None)
+                media_response_status_code = create_media(config, row['file'], row['node_id'], None)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
@@ -841,9 +838,7 @@ def create_from_files():
             if drupal_8 is True:
                 media_response_status_code = create_islandora_media(config, file_name, node_uri, fake_csv_record)
             else:
-                returned_node = json.loads(node_response.text)
-                node_uuid = returned_node['uuid'][0]['value']
-                media_response_status_code = create_media(config, file_name, node_uuid, fake_csv_record)
+                media_response_status_code = create_media(config, file_name, node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
@@ -892,16 +887,7 @@ if config['task'] != 'create_from_files' and config['input_csv'].startswith('htt
 if config['task'] != 'create_from_files' and config['input_csv'].endswith('.xlsx') is True:
     get_csv_from_excel(config)
 
-drupal_8 = False
-drupal_core_version_string = get_drupal_core_version(config)
-if drupal_core_version_string is not False:
-    drupal_core_version = convert_drupal_core_version_to_number(drupal_core_version_string)
-else:
-    message = "Workbench cannot determine Drupal's version number."
-    logging.error(message)
-    sys.exit('Error: ' + message)
-if drupal_core_version < tuple([9, 2]):
-    drupal_8 = True
+drupal_8 = set_drupal_8(config)
 
 ping_islandora(config, print_message=True)
 
