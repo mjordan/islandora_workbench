@@ -833,6 +833,7 @@ def create_from_files():
             file_path = os.path.join(config['input_dir'], file_name)
             media_type = set_media_type(file_path, config)
             fake_csv_record = collections.OrderedDict()
+            fake_csv_record['title'] = filename_without_extension
             if media_type == 'image':
                 fake_csv_record['image_alt_text'] = filename_without_extension
             if drupal_8 is True:
@@ -842,12 +843,7 @@ def create_from_files():
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
-                    print(
-                        '+ ' +
-                        media_type.title() +
-                        " media for " +
-                        filename_without_extension +
-                        " created.")
+                    print('+ ' + media_type.title() + " media for " + filename_without_extension + " created.")
                 logging.info("Media for %s created.", file_path)
         else:
             logging.error(
@@ -887,9 +883,12 @@ if config['task'] != 'create_from_files' and config['input_csv'].startswith('htt
 if config['task'] != 'create_from_files' and config['input_csv'].endswith('.xlsx') is True:
     get_csv_from_excel(config)
 
-drupal_8 = set_drupal_8(config)
-
 ping_islandora(config, print_message=True)
+
+if config['nodes_only'] is False:
+    check_drupal_core_version(config)
+
+drupal_8 = set_drupal_8(config)
 
 # Apparently, there's no built-in way of getting the number of items in a
 # DictReader, so we read the CSV file, convert it to a list, and get its length.

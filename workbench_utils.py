@@ -342,9 +342,7 @@ def get_drupal_core_version(config):
         return version_body['core_version']
     else:
         logging.warning(
-            "Attempt to get Drupal core versionh number eturned a %s status code",
-            url,
-            response.status_code)
+            "Attempt to get Drupal core version number returned a %s status code", response.status_code)
         return False
 
 
@@ -374,7 +372,7 @@ def check_drupal_core_version(config):
     if drupal_core_version is not False:
         core_version_number = convert_drupal_core_version_to_number(drupal_core_version)
     else:
-        message = "Error: Workbench cannot determine Drupal's version number."
+        message = "Workbench cannot determine Drupal's version number."
         logging.error(message)
         sys.exit('Error: ' + message)
     if core_version_number < tuple([9, 2]):
@@ -621,9 +619,6 @@ def check_input(config, args):
         args.config)
 
     ping_islandora(config, print_message=False)
-
-    if config['nodes_only'] is False:
-        check_drupal_core_version(config)
 
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
 
