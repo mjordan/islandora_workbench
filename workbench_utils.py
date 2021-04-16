@@ -126,6 +126,10 @@ def set_config_defaults(args):
         config['use_node_title_for_media'] = False
     if 'delete_tmp_upload' not in config:
         config['delete_tmp_upload'] = False
+    # Used for integration tests only, in which case it
+    # will either be True or False.
+    if 'drupal_8' not in config:
+        config['drupal_8'] = None
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -383,6 +387,11 @@ def check_drupal_core_version(config):
 
 
 def set_drupal_8(config):
+    # Used for integration tests only, in which case it
+    # will either be True or False.
+    if config['drupal_8'] is not None:
+        return config['drupal_8']
+
     drupal_8 = False
     drupal_core_version_string = get_drupal_core_version(config)
     if drupal_core_version_string is not False:
