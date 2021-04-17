@@ -118,6 +118,8 @@ def set_config_defaults(args):
         config['excel_worksheet'] = 'Sheet1'
     if 'excel_csv_filename' not in config:
         config['excel_csv_filename'] = 'excel.csv'
+    if 'ignore_csv_columns' not in config:
+        config['ignore_csv_columns'] = list()
     if 'use_node_title_for_media' not in config:
         config['use_node_title_for_media'] = False
     if 'delete_tmp_upload' not in config:
@@ -800,6 +802,8 @@ def check_input(config, args):
             langcode_was_present = True
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+                if csv_column_header in config['ignore_csv_columns']:
+                    continue
                 logging.error(
                     "CSV column header %s does not match any Drupal field names.",
                     csv_column_header)
@@ -871,6 +875,8 @@ def check_input(config, args):
             csv_column_headers.remove('node_id')
         for csv_column_header in csv_column_headers:
             if csv_column_header not in drupal_fieldnames:
+                if csv_column_header in config['ignore_csv_columns']:
+                    continue
                 logging.error(
                     'CSV column header %s does not match any Drupal field names.',
                     csv_column_header)
@@ -1598,6 +1604,13 @@ def get_csv_data(config):
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
     csv_reader_fieldnames = csv_reader.fieldnames
 
+    '''
+    if len(config['ignore_csv_columns']) > 0:
+        for column_to_ignore in config['ignore_csv_columns']:
+            if column_to_ignore in csv_reader_fieldnames:
+                csv_reader_fieldnames.remove(column_to_ignore)
+    '''
+
     tasks = ['create', 'update']
     if config['task'] in tasks and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
         # If the config file contains CSV field templates, append them to the CSV data.
@@ -1640,6 +1653,14 @@ def get_csv_data(config):
         csv_writer.writeheader()
         row_num = 0
         for row in csv_reader:
+
+            if len(config['ignore_csv_columns']) > 0:
+                for column_to_ignore in config['ignore_csv_columns']:
+                    if column_to_ignore in row:
+                        print(column_to_ignore)
+                        del row[column_to_ignore]
+            print(row)
+            
             row_num += 1
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
