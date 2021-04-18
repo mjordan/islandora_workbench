@@ -1602,14 +1602,9 @@ def get_csv_data(config):
 
     csv_writer_file_handle = open(input_csv_path + '.prepocessed', 'w+', newline='')
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
-    csv_reader_fieldnames = csv_reader.fieldnames
 
-    '''
-    if len(config['ignore_csv_columns']) > 0:
-        for column_to_ignore in config['ignore_csv_columns']:
-            if column_to_ignore in csv_reader_fieldnames:
-                csv_reader_fieldnames.remove(column_to_ignore)
-    '''
+    csv_reader_fieldnames = csv_reader.fieldnames
+    csv_reader_fieldnames = [x for x in csv_reader_fieldnames if x not in config['ignore_csv_columns']]
 
     tasks = ['create', 'update']
     if config['task'] in tasks and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
@@ -1628,6 +1623,13 @@ def get_csv_data(config):
         unique_identifiers = []
         for row in csv_reader:
             row_num += 1
+
+            # Remove columns specified in config['ignore_csv_columns'].
+            if len(config['ignore_csv_columns']) > 0:
+                for column_to_ignore in config['ignore_csv_columns']:
+                    if column_to_ignore in row:
+                        del row[column_to_ignore]
+
             for template in config['csv_field_templates']:
                 for field_name, field_value in template.items():
                     if field_name not in csv_reader_fieldnames_orig:
@@ -1653,15 +1655,13 @@ def get_csv_data(config):
         csv_writer.writeheader()
         row_num = 0
         for row in csv_reader:
-
+            row_num += 1
+            # Remove columns specified in config['ignore_csv_columns'].
             if len(config['ignore_csv_columns']) > 0:
                 for column_to_ignore in config['ignore_csv_columns']:
                     if column_to_ignore in row:
-                        print(column_to_ignore)
                         del row[column_to_ignore]
-            print(row)
-            
-            row_num += 1
+
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
                 try:
