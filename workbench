@@ -110,14 +110,17 @@ def create():
             if custom_field == 'url_alias':
                 continue
 
+            # 'media_use_tid' is a reserved CSV field.
+            if custom_field == 'media_use_tid':
+                continue
+
             # Execute field preprocessor scripts, if any are configured. Note that these scripts
             # are applied to the entire value from the CSV field and not split field values,
             # e.g., if a field is multivalued, the preprocesor must split it and then reassemble
             # it back into a string before returning it. Note that preprocessor scripts work only
             # on string data and not on binary data like images, etc. and only on custom fields
             # (so not title).
-            if 'preprocessors' in config and len(
-                    config['preprocessors']) > 0:
+            if 'preprocessors' in config and len(config['preprocessors']) > 0:
                 for field, command in config['preprocessors'].items():
                     if field in csv_column_headers:
                         output, return_code = preprocess_field_data(
@@ -261,12 +264,12 @@ def create():
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
+            returned_node = json.loads(node_response.text)
 
             # If Pathauto URL alias creation for nodes is enabled, the location header
             # returns the alias, not the /node/xxx URL, which includes the node ID. In
             # this case, get the node ID from the response body.
             if not re.match(r'/node/\d+$', node_uri):
-                returned_node = json.loads(node_response.text)
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
@@ -312,7 +315,10 @@ def create():
         if node_response.status_code == 201:
             # If there is something in the 'file' field, create the media from it.
             if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
-                media_response_status_code = create_media(config, row['file'], node_uri, row_for_media)
+                if drupal_8 is True:
+                    media_response_status_code = create_islandora_media(config, row['file'], node_uri, row_for_media)
+                else:
+                    media_response_status_code = create_media(config, row['file'], node_nid, row_for_media)
                 allowed_media_response_codes = [201, 204]
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
@@ -699,8 +705,10 @@ def add_media():
         node_uri = config['host'] + '/node/' + row['node_id']
         node_response = issue_request(config, 'GET', node_json_url)
         if node_response.status_code == 200:
-            media_response_status_code = create_media(
-                config, row['file'], node_uri, None)
+            if drupal_8 is True:
+                media_response_status_code = create_islandora_media(config, row['file'], node_uri, None)
+            else:
+                media_response_status_code = create_media(config, row['file'], row['node_id'], None)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
@@ -825,19 +833,17 @@ def create_from_files():
             file_path = os.path.join(config['input_dir'], file_name)
             media_type = set_media_type(file_path, config)
             fake_csv_record = collections.OrderedDict()
+            fake_csv_record['title'] = filename_without_extension
             if media_type == 'image':
                 fake_csv_record['image_alt_text'] = filename_without_extension
-            media_response_status_code = create_media(
-                config, file_name, node_uri, fake_csv_record)
+            if drupal_8 is True:
+                media_response_status_code = create_islandora_media(config, file_name, node_uri, fake_csv_record)
+            else:
+                media_response_status_code = create_media(config, file_name, node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
-                    print(
-                        '+ ' +
-                        media_type.title() +
-                        " media for " +
-                        filename_without_extension +
-                        " created.")
+                    print('+ ' + media_type.title() + " media for " + filename_without_extension + " created.")
                 logging.info("Media for %s created.", file_path)
         else:
             logging.error(
@@ -879,7 +885,12 @@ if config['task'] != 'create_from_files' and config['input_csv'].endswith('.xlsx
 
 ping_islandora(config, print_message=True)
 
-# Apparently, there's no builtin way of getting the number of items in a
+if config['nodes_only'] is False:
+    check_drupal_core_version(config)
+
+drupal_8 = set_drupal_8(config)
+
+# Apparently, there's no built-in way of getting the number of items in a
 # DictReader, so we read the CSV file, convert it to a list, and get its length.
 if config['progress_bar'] is True:
     if config['task'] != 'create_from_files':

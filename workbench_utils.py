@@ -19,6 +19,8 @@ from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from functools import lru_cache
 import shutil
+
+
 yaml = YAML()
 
 
@@ -74,6 +76,8 @@ def set_config_defaults(args):
         config['input_csv'] = 'metadata.csv'
     if 'media_use_tid' not in config:
         config['media_use_tid'] = 'http://pcdm.org/use#OriginalFile'
+    # @todo: remove 'drupal_filesystem' when Workbench drops support
+    # for create_islandora_media().
     if 'drupal_filesystem' not in config:
         config['drupal_filesystem'] = 'fedora://'
     if 'id_field' not in config:
@@ -124,6 +128,10 @@ def set_config_defaults(args):
         config['use_node_title_for_media'] = False
     if 'delete_tmp_upload' not in config:
         config['delete_tmp_upload'] = False
+    # Used for integration tests only, in which case it
+    # will either be True or False.
+    if 'drupal_8' not in config:
+        config['drupal_8'] = None
 
     if config['task'] == 'create':
         if 'id_field' not in config:
@@ -323,18 +331,44 @@ def issue_request(
 
 def get_drupal_core_version(config):
     """Get Drupal's version number.
+
+           Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            Returns
+            -------
+            string|False
+                The Drupal core version number string (i.e., may contain -dev, etc.).
     """
     url = config['host'] + '/islandora_workbench_integration/core_version'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
-        version = json.loads(response.text)
-        return version['core_version']
+        version_body = json.loads(response.text)
+        return version_body['core_version']
     else:
         logging.warning(
-            "Attempt to get Drupal core versionh number eturned a %s status code",
-            url,
-            response.status_code)
+            "Attempt to get Drupal core version number returned a %s status code", response.status_code)
         return False
+
+
+def convert_drupal_core_version_to_number(version_string):
+    """Convert Drupal's version string to a number. We only need the major and minor numbers (e.g. 9.2).
+
+           Parameters
+           ----------
+            version_string: string
+                The version string as retrieved from Drupal.
+            Returns
+            -------
+            tuple
+                A tuple containing the major and minor Drupal core version numbers as integers.
+    """
+    parts = version_string.split('.')
+    parts = parts[:2]
+    int_parts = [int(part) for part in parts]
+    version_tuple = tuple(int_parts)
+    return version_tuple
 
 
 def check_drupal_core_version(config):
@@ -342,16 +376,34 @@ def check_drupal_core_version(config):
     """
     drupal_core_version = get_drupal_core_version(config)
     if drupal_core_version is not False:
-        float_drupal_core_version = float(drupal_core_version[0:3])
+        core_version_number = convert_drupal_core_version_to_number(drupal_core_version)
     else:
-        message = "Error: Workbench cannot determine Drupal's version number."
+        message = "Workbench cannot determine Drupal's version number."
         logging.error(message)
         sys.exit('Error: ' + message)
-    if float_drupal_core_version < 9.1:
+    if core_version_number < tuple([9, 2]):
         message = "Warning: Media creation in your version of Drupal (" + \
             drupal_core_version + \
-            ") is less reliable than in Drupal 9.1 or higher."
+            ") is less reliable than in Drupal 9.2 or higher."
         print(message)
+
+
+def set_drupal_8(config):
+    # Used for integration tests only, in which case it
+    # will either be True or False.
+    if config['drupal_8'] is not None:
+        return config['drupal_8']
+
+    drupal_8 = False
+    drupal_core_version_string = get_drupal_core_version(config)
+    if drupal_core_version_string is not False:
+        drupal_core_version = convert_drupal_core_version_to_number(drupal_core_version_string)
+    else:
+        message = "Workbench cannot determine Drupal's version number."
+        logging.error(message)
+        sys.exit('Error: ' + message)
+    if drupal_core_version < tuple([9, 2]):
+        drupal_8 = True
 
 
 def ping_node(config, nid):
@@ -579,8 +631,6 @@ def check_input(config, args):
 
     ping_islandora(config, print_message=False)
 
-    # check_drupal_core_version(config)
-
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
 
     # Check the config file.
@@ -795,6 +845,8 @@ def check_input(config, args):
             csv_column_headers.remove('image_alt_text')
         if 'url_alias' in csv_column_headers:
             csv_column_headers.remove('url_alias')
+        if 'media_use_tid' in csv_column_headers:
+            csv_column_headers.remove('media_use_tid')
         # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')
@@ -867,6 +919,8 @@ def check_input(config, args):
             csv_column_headers.remove('url_alias')
         if 'image_alt_text' in csv_column_headers:
             csv_column_headers.remove('image_alt_text')
+        if 'media_use_tid' in csv_column_headers:
+            csv_column_headers.remove('media_use_tid')
         if 'file' in csv_column_headers:
             message = 'Error: CSV column header "file" is not allowed in update tasks.'
             logging.error(message)
@@ -890,6 +944,8 @@ def check_input(config, args):
 
     if config['task'] == 'add_media' or config['task'] == 'create' and config['nodes_only'] is False:
         validate_media_use_tid(config)
+        validate_media_use_tid_values_csv_data = get_csv_data(config)
+        validate_media_use_tids_in_csv(config, validate_media_use_tid_values_csv_data)
 
     if config['task'] == 'update' or config['task'] == 'create':
         validate_geolocation_values_csv_data = get_csv_data(config)
@@ -1318,36 +1374,112 @@ def split_link_string(config, link_string):
     return return_list
 
 
-def validate_media_use_tid(config):
-    """Validate whether the term ID or URI provided in the config value for media_use_tid is
-       in the Islandora Media Use vocabulary.
+def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id=None):
+    """Validate whether the term ID, term name, or terms URI provided in the
+       config value for media_use_tid is in the Islandora Media Use vocabulary.
     """
-    if value_is_numeric(config['media_use_tid']) is not True and config['media_use_tid'].startswith('http'):
-        media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
-        if media_use_tid is False:
-            message = 'URI "' + \
-                config['media_use_tid'] + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
+    if 'media_use_tid_value_from_csv' is not None and csv_row_id is not None:
+        if len(str(media_use_tid_value_from_csv)) > 0:
+            media_use_tid_value = media_use_tid_value_from_csv
     else:
-        # Confirm the tid exists and is in the islandora_media_use vocabulary
-        term_endpoint = config['host'] + '/taxonomy/term/' \
-            + str(config['media_use_tid']) + '?_format=json'
-        headers = {'Content-Type': 'application/json'}
-        response = issue_request(config, 'GET', term_endpoint, headers)
-        if response.status_code == 404:
-            message = 'Term ID "' + \
-                str(config['media_use_tid']) + '" used in the "media_use_tid" configuration option is not a term ID (term doesn\'t exist).'
-            logging.error(message)
-            sys.exit('Error: ' + message)
-        if response.status_code == 200:
-            response_body = json.loads(response.text)
-            if 'vid' in response_body:
-                if response_body['vid'][0]['target_id'] != 'islandora_media_use':
-                    message = 'Term ID "' + \
-                        str(config['media_use_tid']) + '" provided in configuration option "media_use_tid" is not in the Islandora Media Use vocabulary.'
+        media_use_tid_value = config['media_use_tid']
+
+    media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
+    for media_use_term in media_use_terms:
+        if value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http'):
+            media_use_tid = get_term_id_from_uri(config, media_use_term.strip())
+            if csv_row_id is None:
+                if media_use_tid is False:
+                    message = 'URI "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
+                if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
+                    message = 'Warning: URI "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
+                        "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                    print(message)
+                    logging.warning(message)
+            else:
+                if media_use_tid is False:
+                    message = 'URI "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
+                        str(csv_row_id) + ' does not match any taxonomy terms.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+                if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
+                    message = 'Warning: URI "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
+                        str(csv_row_id) + "will assign an Islandora Media Use term that might conflict with " + \
+                        "derivative media (e.g., 'Thumbnail', 'Service File')."
+                    logging.warning(message)
+
+        elif value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http') is not True:
+            media_use_tid = find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip())
+            if csv_row_id is None:
+                if media_use_tid is False:
+                    message = 'Warning: Term name "' + media_use_term.strip() + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
+                    logging.warning(message)
+                    sys.exit('Error: ' + message)
+            else:
+                if media_use_tid is False:
+                    message = 'Warning: Term name "' + media_use_term.strip() + '" provided in "media_use_tid" field in CSV row ' + \
+                        str(csv_row_id) + ' does not match any taxonomy terms.'
+                    logging.warning(message)
+                    sys.exit('Error: ' + message)
+        else:
+            # Confirm the tid exists and is in the islandora_media_use vocabulary
+            term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_term.strip()) + '?_format=json'
+            headers = {'Content-Type': 'application/json'}
+            response = issue_request(config, 'GET', term_endpoint, headers)
+            if response.status_code == 404:
+                if csv_row_id is None:
+                    message = 'Term ID "' + str(media_use_term) + '" used in the "media_use_tid" configuration option is not a term ID (term doesn\'t exist).'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+                else:
+                    message = 'Term ID "' + str(media_use_term) + '" used in the "media_use_tid" field in CSV row ' + \
+                        str(csv_row_id) + ' is not a term ID (term doesn\'t exist).'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+            if response.status_code == 200:
+                response_body = json.loads(response.text)
+                if csv_row_id is None:
+                    if 'vid' in response_body:
+                        if response_body['vid'][0]['target_id'] != 'islandora_media_use':
+                            message = 'Term ID "' + \
+                                str(media_use_term) + '" provided in configuration option "media_use_tid" is not in the Islandora Media Use vocabulary.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                    if 'field_external_uri' in response_body:
+                        if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
+                            message = 'Warning: Term ID "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
+                                "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                            print(message)
+                            logging.warning(message)
+                else:
+                    if 'vid' in response_body:
+                        if response_body['vid'][0]['target_id'] != 'islandora_media_use':
+                            message = 'Term ID "' + \
+                                str(media_use_term) + '" provided in the "media_use_tid" field in CSV row ' + \
+                                str(csv_row_id) + ' is not in the Islandora Media Use vocabulary.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                    if 'field_external_uri' in response_body:
+                        if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
+                            message = 'Warning: Term ID "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
+                                str(csv_row_id) + " will assign an Islandora Media Use term that might conflict with " + \
+                                "derivative media (e.g., 'Thumbnail', 'Service File')."
+                            print(message)
+                            logging.warning(message)
+
+
+def validate_media_use_tids_in_csv(config, csv_data):
+    """Validate 'media_use_tid' values in CSV if they exist.
+    """
+    csv_id_field = config['id_field']
+    for count, row in enumerate(csv_data, start=1):
+        if 'media_use_tid' in row:
+            delimited_field_values = row['media_use_tid'].split(config['subdelimiter'])
+            for field_value in delimited_field_values:
+                if len(field_value.strip()) > 0:
+                    validate_media_use_tid(config, field_value, row[csv_id_field])
 
 
 def preprocess_field_data(subdelimiter, field_value, path_to_script):
@@ -1373,15 +1505,26 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
     return result, cmd.returncode
 
 
-def create_media(config, filename, node_uri, node_csv_row):
-    """node_csv_row is an OrderedDict, e.g.
-       OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+def create_file(config, filename, node_csv_row):
+    """Creates a file in Drupal, which is then referenced by the accompanying media.
 
-       Returns the HTTP status code from the attempt to create the media, or False if
-       it doesn't have sufficient information to create the media.
+           Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            fieldname : string
+                The value of the CSV 'file' field for the current node.
+            node_csv_row: OrderedDict
+                E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+            Returns
+            -------
+            string|int|bool|None
+                The file ID of the successfully created file; the HTTP status code if the
+                attempt was unsuccessful, False if there is insufficient information to create
+                the file or file creation failed, or None if config['nodes_only'] is True.
     """
     if config['nodes_only'] is True:
-        return
+        return None
     is_remote = False
     filename = filename.strip()
 
@@ -1398,13 +1541,183 @@ def create_media(config, filename, node_uri, node_csv_row):
 
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(filename, config)
+    if media_type in config['media_bundle_file_fields']:
+        media_file_field = config['media_bundle_file_fields'][media_type]
+    else:
+        logging.error(
+            'File not created for CSV row "%s": media type "%s" not recognized.',
+            node_csv_row[config['id_field']],
+            media_type)
+        return False
 
-    if value_is_numeric(config['media_use_tid']):
-        media_use_tid = config['media_use_tid']
-    if not value_is_numeric(config['media_use_tid']) and config['media_use_tid'].startswith('http'):
-        media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
+    file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field
+    file_headers = {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': 'file; filename="' + filename + '"'
+    }
 
-    media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tid)
+    binary_data = open(file_path, 'rb')
+
+    try:
+        file_response = issue_request(config, 'POST', file_endpoint_path, file_headers, '', binary_data)
+        if file_response.status_code == 201:
+            file_json = json.loads(file_response.text)
+            file_id = file_json['fid'][0]['value']
+            if is_remote and config['delete_tmp_upload'] is True:
+                containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+                shutil.rmtree(containing_folder)
+            return file_id
+        else:
+            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s".', file_endpoint_path, file_response.status_code)
+            return False
+    except requests.exceptions.RequestException as e:
+        logging.error(e)
+        return False
+
+
+def create_media(config, filename, node_id, node_csv_row):
+    """Creates a media in Drupal.
+
+           Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            fieldname : string
+                The value of the CSV 'file' field for the current node.
+            node_id: string
+                The ID of the node to attach the media to. This is False if file creation failed.
+            node_csv_row: OrderedDict
+                E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+            Returns
+            -------
+            int|False
+                 The HTTP status code from the attempt to create the media, False if
+                 it doesn't have sufficient information to create the media, or None
+                 if config['nodes_only'] is True.
+    """
+    if config['nodes_only'] is True:
+        return
+
+    try:
+        # We need to test that the filename is valid Latin-1 since Requests requires that.
+        filename.encode('latin-1')
+    except UnicodeError:
+        logging.error("Filename " + filename + " is not valid Latin-1.")
+        return False
+
+    try:
+        # We also need to test that the filename is valid UTF-8 since Drupal requires that.
+        filename.encode('utf-8')
+    except UnicodeError:
+        logging.error("Filename " + filename + " is not valid UTF-8.")
+        return False
+
+    file_result = create_file(config, filename, node_csv_row)
+    if isinstance(file_result, int):
+        if isinstance(config['media_use_tid'], str) and config['media_use_tid'].startswith('http'):
+            media_use_tid = tid_from_uri = get_term_id_from_uri(config, config['media_use_tid'])
+        else:
+            media_use_tid = config['media_use_tid']
+        media_use_term_uuid = get_term_uuid(config, media_use_tid)
+        media_type = set_media_type(filename, config)
+        media_field = config['media_fields'][media_type]
+
+        media_json = {
+            "bundle": [{
+                "target_id": media_type,
+                "target_type": "media_type",
+            }],
+            "status": [{
+                "value": True
+            }],
+            "name": [{
+                "value": node_csv_row['title']
+            }],
+            media_field: [{
+                "target_id": file_result,
+                "target_type": 'file'
+            }],
+            "field_media_of": [{
+                "target_id": int(node_id),
+                "target_type": 'node'
+            }],
+            "field_media_use": [{
+                "target_id": media_use_tid,
+                "target_type": 'taxonomy_term'
+            }]
+        }
+
+        # @todo: We'll need a more generalized way of determining which media fields are required.
+        if media_field == 'field_media_image':
+            if 'image_alt_text' in node_csv_row and len(node_csv_row['image_alt_text']) > 0:
+                alt_text = clean_image_alt_text(node_csv_row['image_alt_text'])
+                media_json[media_field][0]['alt'] = alt_text
+            else:
+                alt_text = clean_image_alt_text(node_csv_row['title'])
+                media_json[media_field][0]['alt'] = alt_text
+
+        media_endpoint_path = '/entity/media'
+        media_headers = {
+            'Content-Type': 'application/json'
+        }
+
+        try:
+            media_response = issue_request(config, 'POST', media_endpoint_path, media_headers, media_json)
+            return media_response.status_code
+        except requests.exceptions.RequestException as e:
+            logging.error(e)
+            return False
+
+    if file_result is False:
+        return file_result
+
+    if file_result is None:
+        return file_result
+
+
+def create_islandora_media(config, filename, node_uri, node_csv_row):
+    """node_csv_row is an OrderedDict, e.g.
+       OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+
+       Returns the HTTP status code from the attempt to create the media, or False if
+       it doesn't have sufficient information to create the media.
+    """
+    if config['nodes_only'] is True:
+        return
+
+    is_remote = False
+
+    filename = filename.strip()
+    if filename.startswith('http'):
+        file_path = download_remote_file(config, filename, node_csv_row)
+        if file_path is False:
+            return False
+        filename = file_path.split("/")[-1]
+        is_remote = True
+    elif os.path.isabs(filename):
+        file_path = filename
+    else:
+        file_path = os.path.join(config['input_dir'], filename)
+
+    mimetype = mimetypes.guess_type(file_path)
+    media_type = set_media_type(filename, config)
+
+    if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
+        media_use_tid_value = node_csv_row['media_use_tid']
+    else:
+        media_use_tid_value = config['media_use_tid']
+
+    media_use_tids = []
+    media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
+    for media_use_term in media_use_terms:
+        if value_is_numeric(media_use_term):
+            media_use_tids.append(media_use_term)
+        if not value_is_numeric(media_use_term) and media_use_term.strip().startswith('http'):
+            media_use_tids.append(get_term_id_from_uri(config, media_use_term))
+        if not value_is_numeric(media_use_term) and not media_use_term.strip().startswith('http'):
+            media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip()))
+
+    media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tids[0])
     media_endpoint = node_uri + media_endpoint_path
     location = config['drupal_filesystem'] + os.path.basename(filename)
     media_headers = {
@@ -1421,29 +1734,25 @@ def create_media(config, filename, node_uri, node_csv_row):
         if 'location' in media_response.headers:
             # A 201 response provides a 'location' header, but a '204' response does not.
             media_uri = media_response.headers['location']
-            logging.info(
-                "Media (%s) created at %s, linked to node %s.",
-                media_type,
-                media_uri,
-                node_uri)
+            logging.info("Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
             media_id = media_uri.rsplit('/', 1)[-1]
             patch_media_fields(config, media_id, media_type, node_csv_row)
 
             if media_type == 'image':
                 patch_image_alt_text(config, media_id, node_csv_row)
+
+            if len(media_use_tids) > 1:
+                patch_media_use_terms(config, media_id, media_type, media_use_tids)
     elif media_response.status_code == 204:
+        if len(media_use_tids) > 1:
+            patch_media_use_terms(config, media_id, media_type, media_use_tids)
         logging.warning(
             "Media created and linked to node %s, but its URI is not available since its creation returned an HTTP status code of %s",
             node_uri,
             media_response.status_code)
-        logging.warning(
-            "Media linked to node %s base fields not updated.",
-            node_uri)
+        logging.warning("Media linked to node %s base fields not updated.", node_uri)
     else:
-        logging.error(
-            'Media not created, PUT request to "%s" returned an HTTP status code of "%s".',
-            media_endpoint,
-            media_response.status_code)
+        logging.error('Media not created, PUT request to "%s" returned an HTTP status code of "%s".', media_endpoint, media_response.status_code)
 
     binary_data.close()
 
@@ -1470,11 +1779,39 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
         headers = {'Content-Type': 'application/json'}
         response = issue_request(config, 'PATCH', endpoint, headers, media_json)
         if response.status_code == 200:
-            logging.info(
-                "Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id)
+            logging.info("Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id)
         else:
-            logging.warning(
-                "Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id)
+            logging.warning("Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id)
+
+
+def patch_media_use_terms(config, media_id, media_type, media_use_tids):
+    """Patch the media entity's field_media_use.
+    """
+    media_json = {
+        'bundle': [
+            {'target_id': media_type}
+        ]
+    }
+
+    media_use_tids_json = []
+    for media_use_tid in media_use_tids:
+        media_use_tids_json.append({'target_id': media_use_tid, 'target_type': 'taxonomy_term'})
+
+    media_json['field_media_use'] = media_use_tids_json
+    endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+    headers = {'Content-Type': 'application/json'}
+    response = issue_request(config, 'PATCH', endpoint, headers, media_json)
+    if response.status_code == 200:
+        logging.info("Media %s Islandora Media Use terms updated.", config['host'] + '/media/' + media_id)
+    else:
+        logging.warning("Media %s Islandora Media Use terms not updated.", config['host'] + '/media/' + media_id)
+
+
+def clean_image_alt_text(input_string):
+    ''' Strip out HTML markup to guard against CSRF in alt text.
+    '''
+    cleaned_string = re.sub('<[^<]+?>', '', input_string)
+    return cleaned_string
 
 
 def patch_image_alt_text(config, media_id, node_csv_row):
@@ -1489,10 +1826,9 @@ def patch_image_alt_text(config, media_id, node_csv_row):
 
     for field_name, field_value in node_csv_row.items():
         if field_name == 'title':
-            # Strip out HTML markup to guard against CSRF in alt text.
-            alt_text = re.sub('<[^<]+?>', '', field_value)
+            alt_text = clean_image_alt_text(field_value)
         if field_name == 'image_alt_text' and len(field_value) > 0:
-            alt_text = re.sub('<[^<]+?>', '', field_value)
+            alt_text = clean_image_alt_text(field_value)
 
     media_json = {
         'bundle': [
@@ -1685,9 +2021,8 @@ def get_term_pairs(config, vocab_id):
        request to Drupal returns a 200 plus an empty JSON list, i.e., [].
     """
     term_dict = dict()
-    # Note: this URL requires the view "Terms in vocabulary", created by the
-    # Islandora Workbench Integation module, to present on the target
-    # Islandora.
+    # Note: this URL requires the view "Terms in vocabulary", which is created by the
+    # by the Islandora Workbench Integation module, to be present on the target Drupal.
     vocab_url = config['host'] + '/vocabulary/' + vocab_id + '?_format=json'
     response = issue_request(config, 'GET', vocab_url)
     vocab = json.loads(response.text)
@@ -1722,8 +2057,7 @@ def get_term_id_from_uri(config, uri):
     """
     # Some vocabularies use this View.
     terms_with_uri = []
-    term_from_uri_url = config['host'] \
-        + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
+    term_from_uri_url = config['host'] + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
     term_from_uri_response = issue_request(config, 'GET', term_from_uri_url)
     if term_from_uri_response.status_code == 200:
         term_from_uri_response_body_json = term_from_uri_response.text
@@ -1734,8 +2068,7 @@ def get_term_id_from_uri(config, uri):
             return tid
         if len(term_from_uri_response_body) > 1:
             for term in term_from_uri_response_body:
-                terms_with_uri.append(
-                    {term['tid'][0]['value']: term['vid'][0]['target_id']})
+                terms_with_uri.append({term['tid'][0]['value']: term['vid'][0]['target_id']})
                 tid = term_from_uri_response_body[0]['tid'][0]['value']
             print("Warning: See log for important message about use of term URIs.")
             logging.warning(
@@ -2310,7 +2643,6 @@ def validate_edtf_value(edtf):
 
 def validate_single_edtf_date(single_edtf):
     if 'T' in single_edtf:
-        # if re.search(r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$', single_edtf):
         if re.search(r'^\d\d\d\d-\d\d-\d\d(T\d\d:\d\d:\d\d)?$', single_edtf):
             return True, None
         else:
@@ -2766,6 +3098,7 @@ def write_to_output_csv(config, id, node_json):
 
 
 def create_children_from_directory(config, parent_csv_record, parent_node_id, parent_title):
+    drupal_8 = set_drupal_8(config)
     # These objects will have a title (derived from filename), an ID based on the parent's
     # id, and a config-defined Islandora model. Content type and status are inherited
     # as is from parent. The weight assigned to the page is the last segment in the filename,
@@ -2848,7 +3181,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = page_title
-            media_response_status_code = create_media(config, page_file_path, node_uri, fake_csv_record)
+            if drupal_8 is True:
+                media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
+            else:
+                media_response_status_code = create_media(config, page_file_path, node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if media_response_status_code is False:
@@ -2987,7 +3323,7 @@ def download_remote_file(config, url, node_csv_row):
         print('Error: ' + message)
         return False
 
-    # create_media() references the path of the downloaded file.
+    # create_islandora_media() references the path of the downloaded file.
     subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
     Path(subdir).mkdir(parents=True, exist_ok=True)
 
