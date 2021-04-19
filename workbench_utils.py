@@ -130,6 +130,8 @@ def set_config_defaults(args):
         config['delete_tmp_upload'] = False
     if 'list_missing_drupal_fields' not in config:
         config['list_missing_drupal_fields'] = False
+    if 'secondary_tasks' not in config:
+        config['secondary_tasks'] = None
     # Used for integration tests only, in which case it
     # will either be True or False.
     if 'drupal_8' not in config:
@@ -1137,8 +1139,18 @@ def check_input(config, args):
 
     # If nothing has failed by now, exit with a positive, upbeat message.
     print("Configuration and input data appear to be valid.")
-    logging.info('Configuration checked for "%s" task using config file %s, no problems found.', config['task'], args.config)
-    sys.exit(0)
+    logging.info('Configuration checked for "%s" task using config file "%s", no problems found.', config['task'], args.config)
+
+    if config['secondary_tasks'] is None:
+        sys.exit(0)
+    else:
+        for secondary_config_file in config['secondary_tasks']:
+            print("")
+            print('Running --check using secondary configuration file "' + secondary_config_file + '"')
+            cmd = ["./workbench", "--config", secondary_config_file, "--check"]
+            output = subprocess.run(cmd)
+
+        sys.exit(0)
 
 
 def get_registered_media_extensions(field_definitions):
@@ -3469,6 +3481,40 @@ def get_csv_template(config, args):
     csv_file.close()
     print('CSV template saved at ' + csv_file_path + '.')
     sys.exit()
+
+
+def prep_node_ids_tsv(config):
+    path_to_tsv_file = os.path.join(config['input_dir'], 'id_to_node_map.csv')
+    if os.path.exists(path_to_tsv_file):
+        os.remove(path_to_tsv_file)
+    tsv_file = open(path_to_tsv_file, "a+")
+    tsv_file.write("RowId" + "\t" + "NodeId" + "\n")
+    tsv_file.close()
+
+
+def write_to_node_ids_tsv(config, row_id, node_id):
+    path_to_tsv_file = os.path.join(config['input_dir'], 'id_to_node_map.csv')
+    tsv_file = open(path_to_tsv_file, "a+")
+    tsv_file.write(str(row_id) + "\t" + str(node_id) + "\n")
+    tsv_file.close()
+
+
+def read_node_ids_tsv(config):
+    path_to_tsv_file = os.path.join(config['input_dir'], 'id_to_node_map.csv')
+    if not os.path.exists(path_to_tsv_file):
+        message = 'Secondary load ID map file ' + path_to_tsv_file + ' not found.'
+        print('Error: ' + message)
+        logging.error(message)
+        sys.exit()
+
+    map_file = open(path_to_tsv_file, "r")
+    entries = map_file.read().splitlines()
+    map = dict()
+    for entry in entries:
+        parts = entry.split("\t")
+        map[parts[0]] = parts[1]
+
+    return map
 
 
 def get_percentage(part, whole):

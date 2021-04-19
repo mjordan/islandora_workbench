@@ -12,6 +12,7 @@ import logging
 import datetime
 import argparse
 import collections
+import subprocess
 from progress_bar import InitBar
 from workbench_utils import *
 import workbench_fields
@@ -21,6 +22,10 @@ def create():
     """Create new nodes via POST, and add media if there are any.
     """
     prep_rollback_csv(config)
+
+    if config['secondary_tasks'] is not None:
+        if args.config not in config['secondary_tasks']:
+            prep_node_ids_tsv(config)
 
     logging.info('"Create" task started using config file %s', args.config)
     temp = config
@@ -80,9 +85,16 @@ def create():
             row['created'] = ''
 
         # If a node with an ID that matches the current item's 'parent_id'
-        # value has just been created, make the item # a child of the node.
+        # value has just been created, make the item a child of the node.
         if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
             row['field_member_of'] = node_ids[row['parent_id']]
+
+        # For children whose parent node was created in the 'primary' job.
+        # @todo: how to check to see if the current batch is a secondary one?
+        if config['secondary_tasks'] is not None:
+            if args.config in config['secondary_tasks']:
+                primary_parent_nids = read_node_ids_tsv(config)
+                row['field_member_of'] = primary_parent_nids[row['parent_id']]
 
         # Add custom (non-required) CSV fields.
         required_fields = ['file', config['id_field'], 'title']
@@ -287,6 +299,10 @@ def create():
         if node_response.status_code == 201:
             node_nid = node_uri.rsplit('/', 1)[-1]
             node_ids[id_field] = node_nid
+
+            if config['secondary_tasks'] is not None:
+                if args.config not in config['secondary_tasks']:
+                    write_to_node_ids_tsv(config, id_field, node_id)
 
         if config['progress_bar'] is True:
             row_count += 1
@@ -927,3 +943,12 @@ if config['task'] == 'delete_media':
     delete_media()
 if config['task'] == 'create_from_files':
     create_from_files()
+
+if config['secondary_tasks'] is not None:
+    for secondary_config_file in config['secondary_tasks']:
+        message = 'Executing secondary task using configuration file "' + secondary_config_file + '"'
+        print('')
+        print(message)
+        logging.info(message)
+        cmd = ["./workbench", "--config", secondary_config_file]
+        output = subprocess.run(cmd)
