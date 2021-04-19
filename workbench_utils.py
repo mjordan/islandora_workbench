@@ -128,8 +128,8 @@ def set_config_defaults(args):
         config['use_node_title_for_media'] = False
     if 'delete_tmp_upload' not in config:
         config['delete_tmp_upload'] = False
-    if 'report_missing_drupal_fields' not in config:
-        config['report_missing_drupal_fields'] = False
+    if 'list_missing_drupal_fields' not in config:
+        config['list_missing_drupal_fields'] = False
     # Used for integration tests only, in which case it
     # will either be True or False.
     if 'drupal_8' not in config:
@@ -634,6 +634,9 @@ def check_input(config, args):
     ping_islandora(config, print_message=False)
 
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
+    # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
+    # but it doesn't show up in any field configs.
+    reserved_fields = [config['id_field'], 'file', 'media_use_tid', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode']
 
     # Check the config file.
     tasks = [
@@ -833,32 +836,22 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
 
-        if config['report_missing_drupal_fields'] is True:
+        if config['list_missing_drupal_fields'] is True:
             missing_drupal_fields = []
             for csv_column_header in csv_column_headers:
-                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
-                    missing_drupal_fields.append(csv_column_header)
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in reserved_fields:
+                    if csv_column_header != config['id_field']:
+                        missing_drupal_fields.append(csv_column_header)
             if len(missing_drupal_fields) > 0:
                 missing_drupal_fields_message = ', '.join(missing_drupal_fields)
-                logging.error("The following header(s) require a matching Drupal field name: %s", missing_drupal_fields_message)
-                sys.exit('Error: The following header(s)  require a matching Drupal field name: ' + missing_drupal_fields_message)
+                logging.error("The following header(s) require a matching Drupal field name: %s.", missing_drupal_fields_message)
+                sys.exit('Error: The following header(s) require a matching Drupal field name: ' + missing_drupal_fields_message + '.')
 
         # We .remove() CSV column headers for this check because they are not Drupal field names (including 'langcode').
-        # Any new columns introduced into the CSV need to be removed here.
-        if config['id_field'] in csv_column_headers:
-            csv_column_headers.remove(config['id_field'])
-        if 'file' in csv_column_headers:
-            csv_column_headers.remove('file')
-        if 'node_id' in csv_column_headers:
-            csv_column_headers.remove('node_id')
-        if 'parent_id' in csv_column_headers:
-            csv_column_headers.remove('parent_id')
-        if 'image_alt_text' in csv_column_headers:
-            csv_column_headers.remove('image_alt_text')
-        if 'url_alias' in csv_column_headers:
-            csv_column_headers.remove('url_alias')
-        if 'media_use_tid' in csv_column_headers:
-            csv_column_headers.remove('media_use_tid')
+        for reserved_field in reserved_fields:
+            if reserved_field in csv_column_headers:
+                csv_column_headers.remove(reserved_field)
+
         # langcode is a standard Drupal field but it doesn't show up in any field configs.
         if 'langcode' in csv_column_headers:
             csv_column_headers.remove('langcode')
@@ -869,12 +862,12 @@ def check_input(config, args):
                 if csv_column_header in config['ignore_csv_columns']:
                     continue
                 logging.error(
-                    "CSV column header %s does not match any Drupal field names.",
+                    "CSV column header %s does not match any Drupal or reserved field names.",
                     csv_column_header)
                 sys.exit(
                     'Error: CSV column header "' +
                     csv_column_header +
-                    '" does not match any Drupal field names.')
+                    '" does not match any Drupal or reserved field names.')
         message = 'OK, CSV column headers match Drupal field names.'
         print(message)
         logging.info(message)
