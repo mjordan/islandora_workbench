@@ -132,8 +132,9 @@ def set_config_defaults(args):
         config['list_missing_drupal_fields'] = False
     if 'secondary_tasks' not in config:
         config['secondary_tasks'] = None
-    # Used for integration tests only, in which case it
-    # will either be True or False.
+    if 'secondary_tasks_data_file' not in config:
+        config['secondary_tasks_data_file'] = 'id_to_node_map.csv'
+    # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None
 
@@ -3484,32 +3485,42 @@ def get_csv_template(config, args):
 
 
 def prep_node_ids_tsv(config):
-    path_to_tsv_file = os.path.join(config['input_dir'], 'id_to_node_map.csv')
+    path_to_tsv_file = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
     if os.path.exists(path_to_tsv_file):
         os.remove(path_to_tsv_file)
-    tsv_file = open(path_to_tsv_file, "a+")
-    tsv_file.write("RowId" + "\t" + "NodeId" + "\n")
+    if len(config['secondary_tasks']) > 0:
+        tsv_file = open(path_to_tsv_file, "a+")
+    else:
+        return False
+
+    # Write to the data file the names of config files identified in config['secondary_tasks']
+    # since we need a way to ensure that only tasks whose names are registered there should
+    # populate their objects' 'field_member_of'.
+    for secondary_config_file in config['secondary_tasks']:
+        tsv_file.write(secondary_config_file + "\t" + '' + "\n")
     tsv_file.close()
 
 
 def write_to_node_ids_tsv(config, row_id, node_id):
-    path_to_tsv_file = os.path.join(config['input_dir'], 'id_to_node_map.csv')
+    path_to_tsv_file = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
     tsv_file = open(path_to_tsv_file, "a+")
     tsv_file.write(str(row_id) + "\t" + str(node_id) + "\n")
     tsv_file.close()
 
 
 def read_node_ids_tsv(config):
-    path_to_tsv_file = os.path.join(config['input_dir'], 'id_to_node_map.csv')
-    if not os.path.exists(path_to_tsv_file):
-        message = 'Secondary load ID map file ' + path_to_tsv_file + ' not found.'
-        print('Error: ' + message)
-        logging.error(message)
-        sys.exit()
+    map = dict()
+    path_to_tsv_file = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
+    if config['secondary_tasks'] is not None:
+        if not os.path.exists(path_to_tsv_file):
+            message = 'Secondary task data file ' + path_to_tsv_file + ' not found.'
+            print('Error: ' + message)
+            logging.error(message)
+            return map
+            sys.exit()
 
     map_file = open(path_to_tsv_file, "r")
     entries = map_file.read().splitlines()
-    map = dict()
     for entry in entries:
         parts = entry.split("\t")
         map[parts[0]] = parts[1]

@@ -90,11 +90,15 @@ def create():
             row['field_member_of'] = node_ids[row['parent_id']]
 
         # For children whose parent node was created in the 'primary' job.
-        # @todo: how to check to see if the current batch is a secondary one?
-        if config['secondary_tasks'] is not None:
-            if args.config in config['secondary_tasks']:
-                primary_parent_nids = read_node_ids_tsv(config)
-                row['field_member_of'] = primary_parent_nids[row['parent_id']]
+        # The secondary task data file contains the names of the YAML config
+        # files registered in the primary task's 'secondary_tasks' config option.
+        # Therefore, only tasks whose names are registered there should populate
+        # their objects' 'field_member_of'.
+        secondary_task_data = read_node_ids_tsv(config)
+        if args.config in secondary_task_data:
+            if len(secondary_task_data) > 0:
+                if 'field_member_of' in row and 'parent_id' in row:
+                    row['field_member_of'] = secondary_task_data[row['parent_id']]
 
         # Add custom (non-required) CSV fields.
         required_fields = ['file', config['id_field'], 'title']
