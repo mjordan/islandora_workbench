@@ -956,3 +956,8 @@ if config['secondary_tasks'] is not None:
         logging.info(message)
         cmd = ["./workbench", "--config", secondary_config_file]
         output = subprocess.run(cmd)
+
+    map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
+    if os.path.exists(map_file_path):
+        os.remove(map_file_path)
+

@@ -133,7 +133,7 @@ def set_config_defaults(args):
     if 'secondary_tasks' not in config:
         config['secondary_tasks'] = None
     if 'secondary_tasks_data_file' not in config:
-        config['secondary_tasks_data_file'] = 'id_to_node_map.csv'
+        config['secondary_tasks_data_file'] = 'id_to_node_map.tsv'
     # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None
@@ -3519,11 +3519,12 @@ def read_node_ids_tsv(config):
             return map
             sys.exit()
 
-    map_file = open(path_to_tsv_file, "r")
-    entries = map_file.read().splitlines()
-    for entry in entries:
-        parts = entry.split("\t")
-        map[parts[0]] = parts[1]
+    if os.path.exists(path_to_tsv_file):
+        map_file = open(path_to_tsv_file, "r")
+        entries = map_file.read().splitlines()
+        for entry in entries:
+            parts = entry.split("\t")
+            map[parts[0]] = parts[1]
 
     return map
 

@@ -1035,7 +1035,7 @@ class TestSecondaryTask(unittest.TestCase):
         if os.path.exists(secondary_preprocessed_csv_path):
             os.remove(secondary_preprocessed_csv_path)
 
-        map_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'id_to_node_map.csv')
+        map_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'id_to_node_map.tsv')
         if os.path.exists(map_file_path):
             os.remove(map_file_path)
 
