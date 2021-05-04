@@ -1396,7 +1396,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
     """Validate whether the term ID, term name, or terms URI provided in the
        config value for media_use_tid is in the Islandora Media Use vocabulary.
     """
-    if 'media_use_tid_value_from_csv' is not None and csv_row_id is not None:
+    if 'media_use_tid_value_from_csv' != None and csv_row_id is not None:
         if len(str(media_use_tid_value_from_csv)) > 0:
             media_use_tid_value = media_use_tid_value_from_csv
     else:
