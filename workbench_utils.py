@@ -292,6 +292,8 @@ def issue_request(
             headers=headers
         )
     if method == 'POST':
+        if '/file/upload' in url:
+            url = url + '?_format=json'
         if config['log_json'] is True:
             logging.info(json)
         response = requests.post(
