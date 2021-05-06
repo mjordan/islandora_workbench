@@ -411,6 +411,7 @@ def set_drupal_8(config):
         sys.exit('Error: ' + message)
     if drupal_core_version < tuple([9, 2]):
         drupal_8 = True
+    return drupal_8
 
 
 def ping_node(config, nid):
@@ -1570,7 +1571,7 @@ def create_file(config, filename, node_csv_row):
             media_type)
         return False
 
-    file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field
+    file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field + '?_format=json'
     file_headers = {
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': 'file; filename="' + filename + '"'
