@@ -318,19 +318,13 @@ def create():
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
         if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
             if config['progress_bar'] is False:
-                print(
-                    '+No media for ' +
-                    node_uri +
-                    ' created since its "file" field in the CSV is empty.')
-            logging.warning(
-                "No media for %s created since its 'file' field in the CSV is empty.",
-                node_uri)
+                print('+No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
+            logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
             continue
 
         # If there is a media file, add it.
         if config['nodes_only'] is False and 'file' in row:
-            file_path = os.path.join(config['input_dir'], row['file'])
-            media_type = set_media_type(file_path, config)
+            media_type = set_media_type(row['file'], config)
 
         if node_response.status_code == 201:
             # If there is something in the 'file' field, create the media from it.
@@ -960,4 +954,3 @@ if config['secondary_tasks'] is not None:
     map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
     if os.path.exists(map_file_path):
         os.remove(map_file_path)
-

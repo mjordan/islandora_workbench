@@ -216,6 +216,10 @@ def set_media_type(filepath, config):
     if 'media_type' in config:
         return config['media_type']
 
+    if filepath.startswith('http'):
+        parts = urllib.parse.urlparse(filepath)
+        filepath = parts.path
+
     extension_with_dot = os.path.splitext(filepath)[1]
     extension = extension_with_dot[1:]
     normalized_extension = extension.lower()
@@ -1548,10 +1552,11 @@ def create_file(config, filename, node_csv_row):
     filename = filename.strip()
 
     if filename.startswith('http'):
+        filename_parts = urllib.parse.urlparse(filename)
         file_path = download_remote_file(config, filename, node_csv_row)
         if file_path is False:
             return False
-        filename = file_path.split("/")[-1]
+        filename = filename_parts.path.split("/")[-1]
         is_remote = True
     elif os.path.isabs(filename):
         file_path = filename
@@ -1601,7 +1606,7 @@ def create_media(config, filename, node_id, node_csv_row):
            ----------
             config : dict
                 The configuration object defined by set_config_defaults().
-            fieldname : string
+            filename : string
                 The value of the CSV 'file' field for the current node.
             node_id: string
                 The ID of the node to attach the media to. This is False if file creation failed.
@@ -1638,6 +1643,9 @@ def create_media(config, filename, node_id, node_csv_row):
         else:
             media_use_tid = config['media_use_tid']
         media_use_term_uuid = get_term_uuid(config, media_use_tid)
+        if filename.startswith('http'):
+            parts = urllib.parse.urlparse(filename)
+            filename = parts.path
         media_type = set_media_type(filename, config)
         media_field = config['media_fields'][media_type]
 
@@ -3353,8 +3361,9 @@ def download_remote_file(config, url, node_csv_row):
         downloaded_file_path = os.path.join(subdir, filename)
         file_extension = os.path.splitext(downloaded_file_path)[1]
     else:
-        downloaded_file_path = os.path.join(subdir, url.split("/")[-1])
-        file_extension = os.path.splitext(url)[1]
+        file_extension = os.path.splitext(sections.path)
+        filename = sections.path.split("/")[-1]
+        downloaded_file_path = os.path.join(subdir, filename)
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)
