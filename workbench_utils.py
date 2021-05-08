@@ -386,7 +386,7 @@ def check_drupal_core_version(config):
         message = "Workbench cannot determine Drupal's version number."
         logging.error(message)
         sys.exit('Error: ' + message)
-    if core_version_number < tuple([9, 2]):
+    if core_version_number < tuple([8, 6]):
         message = "Warning: Media creation in your version of Drupal (" + \
             drupal_core_version + \
             ") is less reliable than in Drupal 9.2 or higher."
@@ -407,7 +407,7 @@ def set_drupal_8(config):
         message = "Workbench cannot determine Drupal's version number."
         logging.error(message)
         sys.exit('Error: ' + message)
-    if drupal_core_version < tuple([9, 2]):
+    if drupal_core_version < tuple([8, 6]):
         drupal_8 = True
     return drupal_8
 
