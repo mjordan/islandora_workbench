@@ -330,7 +330,7 @@ def create():
                 allowed_media_response_codes = [201, 204]
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
-                        print('+' + "Media for " + row['file'] + " created.")
+                        print("+ Media for " + row['file'] + " created.")
                     logging.info("Media for %s created.", row['file'])
 
             if config['nodes_only'] is False and 'file' in row and len(
@@ -710,7 +710,7 @@ def add_media():
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
                     print("Media for " + row['file'] + " created and added to " + node_uri)
-                logging.info("Media for %s created and added to %s.",  row['file'], node_uri)
+                logging.info("Media for %s created and added to %s.", row['file'], node_uri)
 
         if config['progress_bar'] is True:
             row_count += 1
@@ -833,7 +833,7 @@ def create_from_files():
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
-                    print("+Media for " + filename_without_extension + " created.")
+                    print("+ Media for " + filename_without_extension + " created.")
                 logging.info("Media for %s created.", file_path)
         else:
             logging.error(

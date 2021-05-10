@@ -3334,7 +3334,23 @@ def get_extension_from_mimetype(mimetype):
 
 
 def get_prepocessed_file_path(config, node_csv_row):
+    """For remote/downloaded files, generates the path to the local temporary
+       copy and returns that path. For local files, just returns the value of
+       node_csv_row['file'].
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        node_csv_row : OrderedDict
+            The CSV row for the current item.
+        Returns
+        -------
+        string
+            The path (absolute or relative) to the file.
+    """
     file_path_from_csv = node_csv_row['file'].strip()
+    # It's a remote file.
     if file_path_from_csv.startswith('http'):
         sections = urllib.parse.urlparse(file_path_from_csv)
         subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
@@ -3355,8 +3371,9 @@ def get_prepocessed_file_path(config, node_csv_row):
             try:
                 head_response = requests.head(file_path_from_csv, allow_redirects=True)
                 mimetype = head_response.headers['content-type']
-                # In case servers return stuff beside the MIME type. Assumes they use ; to separate stuff
-                # and that what we're looking for is in the first position.
+                # In case servers return stuff beside the MIME type in Content-Type header.
+                # Assumes they use ; to separate stuff and that what we're looking for is
+                # in the first position.
                 if ';' in mimetype:
                     mimetype_parts = mimetype.split(';')
                     mimetype = mimetype_parts[0].strip()
