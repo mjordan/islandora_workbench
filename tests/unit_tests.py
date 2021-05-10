@@ -237,37 +237,43 @@ class TestSetMediaType(unittest.TestCase):
         type_config_file_path = os.path.join(dir_path, 'assets', 'set_media_type_test', 'single_type_config.yml')
         with open(type_config_file_path, 'r') as f:
             single_type_config_file_contents = f.read()
-        self.single_type_config_yaml = yaml.load(
-            single_type_config_file_contents)
+        self.single_type_config_yaml = yaml.load(single_type_config_file_contents)
 
     def test_multi_types_set_media_type(self):
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.txt', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.txt'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.txt', fake_csv_record)
         self.assertEqual(res, 'extracted_text')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.tif', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.tif'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.tif', fake_csv_record)
         self.assertEqual(res, 'file')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.mp4', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.mp4'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.mp4', fake_csv_record)
         self.assertEqual(res, 'video')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.png', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.png'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.png', fake_csv_record)
         self.assertEqual(res, 'image')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.pptx', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.pptx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.pptx', fake_csv_record)
         self.assertEqual(res, 'document')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.xxx', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.xxx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.xxx', fake_csv_record)
         self.assertEqual(res, 'file')
 
     def test_single_type_set_media_type(self):
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.bar', self.single_type_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.xxx'
+        res = workbench_utils.set_media_type(self.single_type_config_yaml, '/tmp/foo.xxx', fake_csv_record)
         self.assertEqual(res, 'barmediatype')
 
 
