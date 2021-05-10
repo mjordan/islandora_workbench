@@ -298,8 +298,7 @@ def create():
             logging.error("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
             continue
 
-        # Map ID from CSV of newly created node to its node ID so we
-        # can use it for linking child nodes, etc.
+        # Map ID from CSV of newly created node to its node ID so we can use it for linking child nodes, etc.
         if node_response.status_code == 201:
             node_nid = node_uri.rsplit('/', 1)[-1]
             node_ids[id_field] = node_nid
@@ -322,12 +321,7 @@ def create():
             logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
             continue
 
-        # If there is a media file, add it.
-        if config['nodes_only'] is False and 'file' in row:
-            media_type = set_media_type(row['file'], config)
-
         if node_response.status_code == 201:
-            # If there is something in the 'file' field, create the media from it.
             if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
                 if drupal_8 is True:
                     media_response_status_code = create_islandora_media(config, row['file'], node_uri, row_for_media)
@@ -336,16 +330,8 @@ def create():
                 allowed_media_response_codes = [201, 204]
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
-                        print(
-                            '+' +
-                            media_type.title() +
-                            " media for " +
-                            row['file'] +
-                            " created.")
-                    logging.info(
-                        "%s media for %s created.",
-                        media_type.title(),
-                        row['file'])
+                        print('+' + "Media for " + row['file'] + " created.")
+                    logging.info("Media for %s created.", row['file'])
 
             if config['nodes_only'] is False and 'file' in row and len(
                     row['file']) == 0 and config['paged_content_from_directories'] is False:
@@ -354,8 +340,7 @@ def create():
                 logging.info("No file specified for %s, so no media created.", id_field)
 
             if config['paged_content_from_directories'] is True:
-                # Console output and logging are done in the
-                # create_children_from_directory function.
+                # Console output and logging are done in the create_children_from_directory() function.
                 create_children_from_directory(
                     config, row_as_parent, node_nid, row['title'])
 
@@ -712,10 +697,8 @@ def add_media():
             continue
 
         file_path = os.path.join(config['input_dir'], row['file'])
-        media_type = set_media_type(file_path, config)
 
-        node_json_url = config['host'] + \
-            '/node/' + row['node_id'] + '?_format=json'
+        node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
         node_uri = config['host'] + '/node/' + row['node_id']
         node_response = issue_request(config, 'GET', node_json_url)
         if node_response.status_code == 200:
@@ -726,17 +709,8 @@ def add_media():
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
-                    print(
-                        media_type.title() +
-                        " media for " +
-                        row['file'] +
-                        " created and added to " +
-                        node_uri)
-                logging.info(
-                    "%s media for %s created and added to %s.",
-                    media_type.title(),
-                    row['file'],
-                    node_uri)
+                    print("Media for " + row['file'] + " created and added to " + node_uri)
+                logging.info("Media for %s created and added to %s.",  row['file'], node_uri)
 
         if config['progress_bar'] is True:
             row_count += 1
@@ -845,9 +819,11 @@ def create_from_files():
             write_rollback_node_id(config, node_nid)
 
             file_path = os.path.join(config['input_dir'], file_name)
-            media_type = set_media_type(file_path, config)
             fake_csv_record = collections.OrderedDict()
-            fake_csv_record['title'] = filename_without_extension
+            fake_csv_record['file'] = filename_without_extension
+
+            media_type = set_media_type(config, file_path, fake_csv_record)
+
             if media_type == 'image':
                 fake_csv_record['image_alt_text'] = filename_without_extension
             if drupal_8 is True:
@@ -857,7 +833,7 @@ def create_from_files():
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
-                    print('+ ' + media_type.title() + " media for " + filename_without_extension + " created.")
+                    print("+Media for " + filename_without_extension + " created.")
                 logging.info("Media for %s created.", file_path)
         else:
             logging.error(

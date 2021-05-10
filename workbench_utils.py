@@ -208,7 +208,7 @@ def set_config_defaults(args):
     return config
 
 
-def set_media_type(filepath, config):
+def set_media_type(config, filepath, csv_row):
     """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from
        file extenstion to media type.
@@ -216,11 +216,14 @@ def set_media_type(filepath, config):
     if 'media_type' in config:
         return config['media_type']
 
-    if filepath.startswith('http'):
-        parts = urllib.parse.urlparse(filepath)
-        filepath = parts.path
+    if csv_row['file'].strip().startswith('http'):
+        preprocessed_file_path = get_prepocessed_file_path(config, csv_row)
+        filename = preprocessed_file_path.split('/')[-1]
+        extension = filename.split('.')[-1]
+        extension_with_dot = '.' + extension
+    else:
+        extension_with_dot = os.path.splitext(filepath)[-1]
 
-    extension_with_dot = os.path.splitext(filepath)[1]
     extension = extension_with_dot[1:]
     normalized_extension = extension.lower()
     for types in config['media_types']:
@@ -1535,8 +1538,8 @@ def create_file(config, filename, node_csv_row):
            ----------
             config : dict
                 The configuration object defined by set_config_defaults().
-            fieldname : string
-                The value of the CSV 'file' field for the current node.
+            filename : string
+                The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
             Returns
@@ -1551,12 +1554,13 @@ def create_file(config, filename, node_csv_row):
     is_remote = False
     filename = filename.strip()
 
-    if filename.startswith('http'):
+    if node_csv_row['file'].startswith('http'):
         filename_parts = urllib.parse.urlparse(filename)
         file_path = download_remote_file(config, filename, node_csv_row)
         if file_path is False:
             return False
-        filename = filename_parts.path.split("/")[-1]
+
+        filename = file_path.split("/")[-1]
         is_remote = True
     elif os.path.isabs(filename):
         file_path = filename
@@ -1564,14 +1568,11 @@ def create_file(config, filename, node_csv_row):
         file_path = os.path.join(config['input_dir'], filename)
 
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(filename, config)
+    media_type = set_media_type(config, file_path, node_csv_row)
     if media_type in config['media_bundle_file_fields']:
         media_file_field = config['media_bundle_file_fields'][media_type]
     else:
-        logging.error(
-            'File not created for CSV row "%s": media type "%s" not recognized.',
-            node_csv_row[config['id_field']],
-            media_type)
+        logging.error('File not created for CSV row "%s": media type "%s" not recognized.', node_csv_row[config['id_field']], media_type)
         return False
 
     file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field + '?_format=json'
@@ -1643,10 +1644,11 @@ def create_media(config, filename, node_id, node_csv_row):
         else:
             media_use_tid = config['media_use_tid']
         media_use_term_uuid = get_term_uuid(config, media_use_tid)
+
         if filename.startswith('http'):
             parts = urllib.parse.urlparse(filename)
             filename = parts.path
-        media_type = set_media_type(filename, config)
+        media_type = set_media_type(config, filename, node_csv_row)
         media_field = config['media_fields'][media_type]
 
         media_json = {
@@ -1727,7 +1729,7 @@ def create_islandora_media(config, filename, node_uri, node_csv_row):
         file_path = os.path.join(config['input_dir'], filename)
 
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(filename, config)
+    media_type = set_media_type(config, filename, node_csv_row)
 
     if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
         media_use_tid_value = node_csv_row['media_use_tid']
@@ -3331,8 +3333,50 @@ def get_extension_from_mimetype(mimetype):
         return mimetypes.guess_extension(mimetype)
 
 
+def get_prepocessed_file_path(config, node_csv_row):
+    file_path_from_csv = node_csv_row['file'].strip()
+    if file_path_from_csv.startswith('http'):
+        sections = urllib.parse.urlparse(file_path_from_csv)
+        subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+        Path(subdir).mkdir(parents=True, exist_ok=True)
+
+        if config["use_node_title_for_media"]:
+            filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
+            if filename[-1] == '_':
+                filename = filename[:-1]
+            downloaded_file_path = os.path.join(subdir, filename)
+            extension = os.path.splitext(downloaded_file_path)[1]
+        else:
+            extension = os.path.splitext(sections.path)[1]
+            filename = sections.path.split("/")[-1]
+            downloaded_file_path = os.path.join(subdir, filename)
+
+        if extension == '':
+            try:
+                head_response = requests.head(file_path_from_csv, allow_redirects=True)
+                mimetype = head_response.headers['content-type']
+                # In case servers return stuff beside the MIME type. Assumes they use ; to separate stuff
+                # and that what we're looking for is in the first position.
+                if ';' in mimetype:
+                    mimetype_parts = mimetype.split(';')
+                    mimetype = mimetype_parts[0].strip()
+            except KeyError:
+                mimetype = 'application/octet-stream'
+
+            extension_with_dot = get_extension_from_mimetype(mimetype)
+            downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
+
+        return downloaded_file_path
+    # It's a local file.
+    else:
+        if os.path.isabs(file_path_from_csv):
+            file_path = file_path_from_csv
+        else:
+            file_path = os.path.join(config['input_dir'], file_path_from_csv)
+        return file_path
+
+
 def download_remote_file(config, url, node_csv_row):
-    sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True)
     except requests.exceptions.Timeout as err_timeout:
@@ -3350,33 +3394,11 @@ def download_remote_file(config, url, node_csv_row):
         print('Error: ' + message)
         return False
 
-    # create_islandora_media() references the path of the downloaded file.
-    subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
-    Path(subdir).mkdir(parents=True, exist_ok=True)
-
-    if config["use_node_title_for_media"]:
-        filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
-        if filename[-1] == '_':
-            filename = filename[:-1]
-        downloaded_file_path = os.path.join(subdir, filename)
-        file_extension = os.path.splitext(downloaded_file_path)[1]
-    else:
-        file_extension = os.path.splitext(sections.path)
-        filename = sections.path.split("/")[-1]
-        downloaded_file_path = os.path.join(subdir, filename)
+    downloaded_file_path = get_prepocessed_file_path(config, node_csv_row)
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)
     f.close
-
-    if file_extension == '':
-        try:
-            mimetype = response.headers['content-type']
-        except KeyError:
-            mimetype = 'application/octet-stream'
-        ext = get_extension_from_mimetype(mimetype)
-        os.rename(downloaded_file_path, downloaded_file_path + ext)
-        downloaded_file_path = downloaded_file_path + ext
 
     return downloaded_file_path
 
