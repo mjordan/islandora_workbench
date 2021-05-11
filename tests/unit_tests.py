@@ -320,7 +320,7 @@ class TestDrupalCoreVersionNumbers(unittest.TestCase):
         version_number = workbench_utils.convert_drupal_core_version_to_number('8.6')
         self.assertTrue(version_number == minimum_core_version, 'Not sure what failed.')
 
-        higher_versions = ['8.6.1', '8.6.4', '8.10.0-dev', '9.0', '9.1', '9.0.0-dev', '9.1.0-rc3', '9.0.2']
+        higher_versions = ['8.6.1', '8.6.4', '8.9.14', '8.10.0-dev', '9.0', '9.1', '9.0.0-dev', '9.1.0-rc3', '9.0.2']
         for version in higher_versions:
             version_number = workbench_utils.convert_drupal_core_version_to_number(version)
             res = version_number >= minimum_core_version
