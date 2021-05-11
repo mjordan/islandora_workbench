@@ -344,14 +344,14 @@ def issue_request(
 def get_drupal_core_version(config):
     """Get Drupal's version number.
 
-           Parameters
-           ----------
-            config : dict
-                The configuration object defined by set_config_defaults().
-            Returns
-            -------
-            string|False
-                The Drupal core version number string (i.e., may contain -dev, etc.).
+        Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        Returns
+        -------
+        string|False
+            The Drupal core version number string (i.e., may contain -dev, etc.).
     """
     url = config['host'] + '/islandora_workbench_integration/core_version'
     response = issue_request(config, 'GET', url)
@@ -367,14 +367,14 @@ def get_drupal_core_version(config):
 def convert_drupal_core_version_to_number(version_string):
     """Convert Drupal's version string to a number. We only need the major and minor numbers (e.g. 9.2).
 
-           Parameters
-           ----------
-            version_string: string
-                The version string as retrieved from Drupal.
-            Returns
-            -------
-            tuple
-                A tuple containing the major and minor Drupal core version numbers as integers.
+        Parameters
+        ----------
+        version_string: string
+            The version string as retrieved from Drupal.
+        Returns
+        -------
+        tuple
+            A tuple containing the major and minor Drupal core version numbers as integers.
     """
     parts = version_string.split('.')
     parts = parts[:2]
@@ -401,8 +401,9 @@ def check_drupal_core_version(config):
 
 
 def set_drupal_8(config):
-    # Used for integration tests only, in which case it
-    # will either be True or False.
+    """Used for integration tests only, in which case it
+       will either be True or False.
+    """
     if config['drupal_8'] is not None:
         return config['drupal_8']
 
@@ -486,8 +487,8 @@ def ping_islandora(config, print_message=True):
 
 
 def ping_remote_file(url):
-    '''Logging, exiting, etc. happens in caller, except on requests error.
-    '''
+    """Logging, exiting, etc. happens in caller, except on requests error.
+    """
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.head(url, allow_redirects=True)
@@ -509,8 +510,8 @@ def ping_remote_file(url):
 def get_nid_from_url_alias(config, url_alias):
     """Gets a node ID from a URL alias.
 
-       Parameters
-       ----------
+        Parameters
+        ----------
         config : dict
             The configuration object defined by set_config_defaults().
         url_alias : string
@@ -519,7 +520,7 @@ def get_nid_from_url_alias(config, url_alias):
         -------
         int
             The node ID, or False if the URL alias cannot be found.
-        """
+    """
     url = url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code != 200:
@@ -1088,15 +1089,13 @@ def check_input(config, args):
             logging.info(message)
         empty_file_values_exist = False
         if config['nodes_only'] is False and config['allow_missing_files'] is True:
-            for count, file_check_row in enumerate(
-                    file_check_csv_data, start=1):
+            for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
                     empty_file_values_exist = True
                 else:
                     file_path = os.path.join(
                         config['input_dir'], file_check_row['file'])
-                    if not os.path.exists(
-                            file_path) or not os.path.isfile(file_path):
+                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
                         message = 'File ' + file_path + ' identified in CSV "file" column not found.'
                         logging.error(message)
                         sys.exit('Error: ' + message)
@@ -1109,7 +1108,7 @@ def check_input(config, args):
                 print(message)
                 logging.info(message)
 
-        # @todo: check that each file's extension is allowed for the current media type usin get_registered_media_extensions().
+        # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
         # 'media_type[s]' config option?
 
@@ -1120,10 +1119,8 @@ def check_input(config, args):
                 'Configuration requires "paged_content_page_model_tid" setting when creating paged content.')
             sys.exit('Error: ' + message)
         paged_content_from_directories_csv_data = get_csv_data(config)
-        for count, file_check_row in enumerate(
-                paged_content_from_directories_csv_data, start=1):
-            dir_path = os.path.join(
-                config['input_dir'], file_check_row[config['id_field']])
+        for count, file_check_row in enumerate(paged_content_from_directories_csv_data, start=1):
+            dir_path = os.path.join(config['input_dir'], file_check_row[config['id_field']])
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
                 message = 'Page directory ' + dir_path + ' for CSV record with ID "' \
                     + file_check_row[config['id_field']] + '"" not found.'
@@ -3139,8 +3136,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
     page_file_return_dict = dict()
     for page_file_name in page_files:
         filename_without_extension = os.path.splitext(page_file_name)[0]
-        filename_segments = filename_without_extension.split(
-            config['paged_content_sequence_seprator'])
+        filename_segments = filename_without_extension.split(config['paged_content_sequence_seprator'])
         weight = filename_segments[-1]
         weight = weight.lstrip("0")
         # @todo: come up with a templated way to generate the page_identifier,
@@ -3183,8 +3179,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
 
         if 'created' in parent_csv_record:
             if len(parent_csv_record['created']) > 0:
-                node_json['created'] = [
-                    {'value': parent_csv_record['created']}]
+                node_json['created'] = [{'value': parent_csv_record['created']}]
 
         node_headers = {
             'Content-Type': 'application/json'
@@ -3210,6 +3205,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = page_title
+            fake_csv_record['file'] = page_file_path
             if drupal_8 is True:
                 media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
             else:
