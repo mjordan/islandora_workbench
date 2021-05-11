@@ -389,7 +389,7 @@ def check_drupal_core_version(config):
     if core_version_number < tuple([8, 6]):
         message = "Warning: Media creation in your version of Drupal (" + \
             drupal_core_version + \
-            ") is less reliable than in Drupal 9.2 or higher."
+            ") is less reliable than in Drupal 8.6 or higher."
         print(message)
 
 
