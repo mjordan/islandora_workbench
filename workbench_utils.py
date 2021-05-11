@@ -208,7 +208,7 @@ def set_config_defaults(args):
     return config
 
 
-def set_media_type(filepath, config):
+def set_media_type(config, filepath, csv_row):
     """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from
        file extenstion to media type.
@@ -216,7 +216,14 @@ def set_media_type(filepath, config):
     if 'media_type' in config:
         return config['media_type']
 
-    extension_with_dot = os.path.splitext(filepath)[1]
+    if csv_row['file'].strip().startswith('http'):
+        preprocessed_file_path = get_prepocessed_file_path(config, csv_row)
+        filename = preprocessed_file_path.split('/')[-1]
+        extension = filename.split('.')[-1]
+        extension_with_dot = '.' + extension
+    else:
+        extension_with_dot = os.path.splitext(filepath)[-1]
+
     extension = extension_with_dot[1:]
     normalized_extension = extension.lower()
     for types in config['media_types']:
@@ -337,14 +344,14 @@ def issue_request(
 def get_drupal_core_version(config):
     """Get Drupal's version number.
 
-           Parameters
-           ----------
-            config : dict
-                The configuration object defined by set_config_defaults().
-            Returns
-            -------
-            string|False
-                The Drupal core version number string (i.e., may contain -dev, etc.).
+        Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        Returns
+        -------
+        string|False
+            The Drupal core version number string (i.e., may contain -dev, etc.).
     """
     url = config['host'] + '/islandora_workbench_integration/core_version'
     response = issue_request(config, 'GET', url)
@@ -360,14 +367,14 @@ def get_drupal_core_version(config):
 def convert_drupal_core_version_to_number(version_string):
     """Convert Drupal's version string to a number. We only need the major and minor numbers (e.g. 9.2).
 
-           Parameters
-           ----------
-            version_string: string
-                The version string as retrieved from Drupal.
-            Returns
-            -------
-            tuple
-                A tuple containing the major and minor Drupal core version numbers as integers.
+        Parameters
+        ----------
+        version_string: string
+            The version string as retrieved from Drupal.
+        Returns
+        -------
+        tuple
+            A tuple containing the major and minor Drupal core version numbers as integers.
     """
     parts = version_string.split('.')
     parts = parts[:2]
@@ -394,8 +401,9 @@ def check_drupal_core_version(config):
 
 
 def set_drupal_8(config):
-    # Used for integration tests only, in which case it
-    # will either be True or False.
+    """Used for integration tests only, in which case it
+       will either be True or False.
+    """
     if config['drupal_8'] is not None:
         return config['drupal_8']
 
@@ -479,8 +487,8 @@ def ping_islandora(config, print_message=True):
 
 
 def ping_remote_file(url):
-    '''Logging, exiting, etc. happens in caller, except on requests error.
-    '''
+    """Logging, exiting, etc. happens in caller, except on requests error.
+    """
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.head(url, allow_redirects=True)
@@ -502,8 +510,8 @@ def ping_remote_file(url):
 def get_nid_from_url_alias(config, url_alias):
     """Gets a node ID from a URL alias.
 
-       Parameters
-       ----------
+        Parameters
+        ----------
         config : dict
             The configuration object defined by set_config_defaults().
         url_alias : string
@@ -512,7 +520,7 @@ def get_nid_from_url_alias(config, url_alias):
         -------
         int
             The node ID, or False if the URL alias cannot be found.
-        """
+    """
     url = url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code != 200:
@@ -1081,15 +1089,13 @@ def check_input(config, args):
             logging.info(message)
         empty_file_values_exist = False
         if config['nodes_only'] is False and config['allow_missing_files'] is True:
-            for count, file_check_row in enumerate(
-                    file_check_csv_data, start=1):
+            for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
                     empty_file_values_exist = True
                 else:
                     file_path = os.path.join(
                         config['input_dir'], file_check_row['file'])
-                    if not os.path.exists(
-                            file_path) or not os.path.isfile(file_path):
+                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
                         message = 'File ' + file_path + ' identified in CSV "file" column not found.'
                         logging.error(message)
                         sys.exit('Error: ' + message)
@@ -1102,7 +1108,7 @@ def check_input(config, args):
                 print(message)
                 logging.info(message)
 
-        # @todo: check that each file's extension is allowed for the current media type usin get_registered_media_extensions().
+        # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
         # 'media_type[s]' config option?
 
@@ -1113,10 +1119,8 @@ def check_input(config, args):
                 'Configuration requires "paged_content_page_model_tid" setting when creating paged content.')
             sys.exit('Error: ' + message)
         paged_content_from_directories_csv_data = get_csv_data(config)
-        for count, file_check_row in enumerate(
-                paged_content_from_directories_csv_data, start=1):
-            dir_path = os.path.join(
-                config['input_dir'], file_check_row[config['id_field']])
+        for count, file_check_row in enumerate(paged_content_from_directories_csv_data, start=1):
+            dir_path = os.path.join(config['input_dir'], file_check_row[config['id_field']])
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
                 message = 'Page directory ' + dir_path + ' for CSV record with ID "' \
                     + file_check_row[config['id_field']] + '"" not found.'
@@ -1531,8 +1535,8 @@ def create_file(config, filename, node_csv_row):
            ----------
             config : dict
                 The configuration object defined by set_config_defaults().
-            fieldname : string
-                The value of the CSV 'file' field for the current node.
+            filename : string
+                The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
             Returns
@@ -1547,10 +1551,12 @@ def create_file(config, filename, node_csv_row):
     is_remote = False
     filename = filename.strip()
 
-    if filename.startswith('http'):
+    if node_csv_row['file'].startswith('http'):
+        filename_parts = urllib.parse.urlparse(filename)
         file_path = download_remote_file(config, filename, node_csv_row)
         if file_path is False:
             return False
+
         filename = file_path.split("/")[-1]
         is_remote = True
     elif os.path.isabs(filename):
@@ -1559,14 +1565,11 @@ def create_file(config, filename, node_csv_row):
         file_path = os.path.join(config['input_dir'], filename)
 
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(filename, config)
+    media_type = set_media_type(config, file_path, node_csv_row)
     if media_type in config['media_bundle_file_fields']:
         media_file_field = config['media_bundle_file_fields'][media_type]
     else:
-        logging.error(
-            'File not created for CSV row "%s": media type "%s" not recognized.',
-            node_csv_row[config['id_field']],
-            media_type)
+        logging.error('File not created for CSV row "%s": media type "%s" not recognized.', node_csv_row[config['id_field']], media_type)
         return False
 
     file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field + '?_format=json'
@@ -1601,7 +1604,7 @@ def create_media(config, filename, node_id, node_csv_row):
            ----------
             config : dict
                 The configuration object defined by set_config_defaults().
-            fieldname : string
+            filename : string
                 The value of the CSV 'file' field for the current node.
             node_id: string
                 The ID of the node to attach the media to. This is False if file creation failed.
@@ -1638,7 +1641,11 @@ def create_media(config, filename, node_id, node_csv_row):
         else:
             media_use_tid = config['media_use_tid']
         media_use_term_uuid = get_term_uuid(config, media_use_tid)
-        media_type = set_media_type(filename, config)
+
+        if filename.startswith('http'):
+            parts = urllib.parse.urlparse(filename)
+            filename = parts.path
+        media_type = set_media_type(config, filename, node_csv_row)
         media_field = config['media_fields'][media_type]
 
         media_json = {
@@ -1719,7 +1726,7 @@ def create_islandora_media(config, filename, node_uri, node_csv_row):
         file_path = os.path.join(config['input_dir'], filename)
 
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(filename, config)
+    media_type = set_media_type(config, filename, node_csv_row)
 
     if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
         media_use_tid_value = node_csv_row['media_use_tid']
@@ -3129,8 +3136,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
     page_file_return_dict = dict()
     for page_file_name in page_files:
         filename_without_extension = os.path.splitext(page_file_name)[0]
-        filename_segments = filename_without_extension.split(
-            config['paged_content_sequence_seprator'])
+        filename_segments = filename_without_extension.split(config['paged_content_sequence_seprator'])
         weight = filename_segments[-1]
         weight = weight.lstrip("0")
         # @todo: come up with a templated way to generate the page_identifier,
@@ -3173,8 +3179,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
 
         if 'created' in parent_csv_record:
             if len(parent_csv_record['created']) > 0:
-                node_json['created'] = [
-                    {'value': parent_csv_record['created']}]
+                node_json['created'] = [{'value': parent_csv_record['created']}]
 
         node_headers = {
             'Content-Type': 'application/json'
@@ -3200,6 +3205,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = page_title
+            fake_csv_record['file'] = page_file_path
             if drupal_8 is True:
                 media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
             else:
@@ -3323,8 +3329,67 @@ def get_extension_from_mimetype(mimetype):
         return mimetypes.guess_extension(mimetype)
 
 
+def get_prepocessed_file_path(config, node_csv_row):
+    """For remote/downloaded files, generates the path to the local temporary
+       copy and returns that path. For local files, just returns the value of
+       node_csv_row['file'].
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        node_csv_row : OrderedDict
+            The CSV row for the current item.
+        Returns
+        -------
+        string
+            The path (absolute or relative) to the file.
+    """
+    file_path_from_csv = node_csv_row['file'].strip()
+    # It's a remote file.
+    if file_path_from_csv.startswith('http'):
+        sections = urllib.parse.urlparse(file_path_from_csv)
+        subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+        Path(subdir).mkdir(parents=True, exist_ok=True)
+
+        if config["use_node_title_for_media"]:
+            filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
+            if filename[-1] == '_':
+                filename = filename[:-1]
+            downloaded_file_path = os.path.join(subdir, filename)
+            extension = os.path.splitext(downloaded_file_path)[1]
+        else:
+            extension = os.path.splitext(sections.path)[1]
+            filename = sections.path.split("/")[-1]
+            downloaded_file_path = os.path.join(subdir, filename)
+
+        if extension == '':
+            try:
+                head_response = requests.head(file_path_from_csv, allow_redirects=True)
+                mimetype = head_response.headers['content-type']
+                # In case servers return stuff beside the MIME type in Content-Type header.
+                # Assumes they use ; to separate stuff and that what we're looking for is
+                # in the first position.
+                if ';' in mimetype:
+                    mimetype_parts = mimetype.split(';')
+                    mimetype = mimetype_parts[0].strip()
+            except KeyError:
+                mimetype = 'application/octet-stream'
+
+            extension_with_dot = get_extension_from_mimetype(mimetype)
+            downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
+
+        return downloaded_file_path
+    # It's a local file.
+    else:
+        if os.path.isabs(file_path_from_csv):
+            file_path = file_path_from_csv
+        else:
+            file_path = os.path.join(config['input_dir'], file_path_from_csv)
+        return file_path
+
+
 def download_remote_file(config, url, node_csv_row):
-    sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True)
     except requests.exceptions.Timeout as err_timeout:
@@ -3342,32 +3407,11 @@ def download_remote_file(config, url, node_csv_row):
         print('Error: ' + message)
         return False
 
-    # create_islandora_media() references the path of the downloaded file.
-    subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
-    Path(subdir).mkdir(parents=True, exist_ok=True)
-
-    if config["use_node_title_for_media"]:
-        filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
-        if filename[-1] == '_':
-            filename = filename[:-1]
-        downloaded_file_path = os.path.join(subdir, filename)
-        file_extension = os.path.splitext(downloaded_file_path)[1]
-    else:
-        downloaded_file_path = os.path.join(subdir, url.split("/")[-1])
-        file_extension = os.path.splitext(url)[1]
+    downloaded_file_path = get_prepocessed_file_path(config, node_csv_row)
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)
     f.close
-
-    if file_extension == '':
-        try:
-            mimetype = response.headers['content-type']
-        except KeyError:
-            mimetype = 'application/octet-stream'
-        ext = get_extension_from_mimetype(mimetype)
-        os.rename(downloaded_file_path, downloaded_file_path + ext)
-        downloaded_file_path = downloaded_file_path + ext
 
     return downloaded_file_path
 
