@@ -821,7 +821,7 @@ def create_from_files():
             file_path = os.path.join(config['input_dir'], file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = filename_without_extension
-            fake_csv_record['file'] = filename
+            fake_csv_record['file'] = file_path
 
             media_type = set_media_type(config, file_path, fake_csv_record)
 
