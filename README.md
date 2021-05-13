@@ -27,6 +27,23 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 
 Complete documentation is [available](https://mjordan.github.io/islandora_workbench_docs/).
 
+## Post-merge hook to notify you when the Islandora Worbench Integration module should be updated
+
+Islandora Workbench relies on the Islandora Workbench Integration Drupal module. The following script will check this repo's log and if it finds the word "module" in the commit message of the last three commits, it will print the message "NOTE: Make sure you are running the latest version of the Islandora Workbench Integration module."
+
+```shell
+#!/bin/sh
+    #
+# Git hook script that notifies you to update the Islandora Worbench Integration
+# module if the last 3 commit messsages contain the word 'module.'
+#
+# To enable this hook, place create a file in your .git/hooks directory named 'post-merge'.
+
+if git log -n3 --format=format:"%s" | grep -qi module; then
+    echo "NOTE: Make sure you are running the latest version of the Islandora Workbench Integration module."
+fi
+```
+
 ## Current maintainer
 
 [Mark Jordan](https://github.com/mjordan)
