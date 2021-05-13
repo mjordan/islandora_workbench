@@ -486,6 +486,16 @@ def ping_islandora(config, print_message=True):
         print(message)
 
 
+def ping_media_bundle(config, bundle_name):
+    """Ping the Media bunlde/type to see if it exists. Return the status code,
+       a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
+       is not enabled on the target Drupal.
+    """
+    url = config['host'] + '/entity/media_type/' + bundle_name + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    return response.status_code
+
+
 def ping_remote_file(url):
     """Logging, exiting, etc. happens in caller, except on requests error.
     """
@@ -1107,6 +1117,18 @@ def check_input(config, args):
                 message = 'OK, files named in the CSV "file" column are all present.'
                 print(message)
                 logging.info(message)
+
+        # Verify that all media bundles/types exist.
+        if config['nodes_only'] is False:
+            media_type_check_csv_data = get_csv_data(config)
+            for count, file_check_row in enumerate(media_type_check_csv_data, start=1):
+                media_type = set_media_type(config, file_check_row['file'], file_check_row)
+                media_bundle_response_code = ping_media_bundle(config, media_type)
+                if media_bundle_response_code == 404:
+                    message = 'File "' + file_check_row['file'] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+                        ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
 
         # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
