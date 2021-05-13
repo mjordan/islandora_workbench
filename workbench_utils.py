@@ -1122,13 +1122,14 @@ def check_input(config, args):
         if config['nodes_only'] is False:
             media_type_check_csv_data = get_csv_data(config)
             for count, file_check_row in enumerate(media_type_check_csv_data, start=1):
-                media_type = set_media_type(config, file_check_row['file'], file_check_row)
-                media_bundle_response_code = ping_media_bundle(config, media_type)
-                if media_bundle_response_code == 404:
-                    message = 'File "' + file_check_row['file'] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
-                        ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
+                if len(file_check_row['file']) != 0:
+                    media_type = set_media_type(config, file_check_row['file'], file_check_row)
+                    media_bundle_response_code = ping_media_bundle(config, media_type)
+                    if media_bundle_response_code == 404:
+                        message = 'File "' + file_check_row['file'] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+                            ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
 
         # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
