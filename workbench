@@ -394,6 +394,10 @@ def update():
             if len(row['langcode']) > 0:
                 node['langcode'] = [{'value': row['langcode']}]
 
+        if 'created' in csv_column_headers:
+            if len(row['created']) > 0:
+                node['created'] = [{'value': row['created']}]
+
         # Add custom (non-required) fields.
         required_fields = ['node_id']
         custom_fields = list(set(csv_column_headers) - set(required_fields))
@@ -413,6 +417,10 @@ def update():
 
             # 'langcode' is a core Drupal field, but is not considered a base field.
             if custom_field == 'langcode':
+                continue
+
+            # 'created' is a base field.
+            if custom_field == 'created':
                 continue
 
             # 'uid' is a base field.
