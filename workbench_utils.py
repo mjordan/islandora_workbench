@@ -2549,7 +2549,19 @@ def validate_latlong_value(latlong):
 
 
 def validate_link_value(link_value):
-    if re.match(r"^http://.+(%%.+)?$", link_value):
+    """Validates that the value in 'url' starts with either 'http://' or 'https://'
+       and optionally contains the url/label delimiter '%%'.
+    """
+    """Parameters
+        ----------
+        link_value : string
+            The URL.
+        Returns
+        -------
+        boolean
+            True if it does, False if not.
+    """
+    if re.match(r"^https?://.+(%%.+)?$", link_value):
         return True
     else:
         return False
