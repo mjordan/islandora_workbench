@@ -31,16 +31,23 @@ Complete documentation is [available](https://mjordan.github.io/islandora_workbe
 
 Islandora Workbench requires the [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) Drupal module, and it is important to keep Workbench and the Integration module in sync. When you pull in updates to this git repo, the following script will check the repo's log and if it finds the word "module" in the commit message of the last three commits, it will print the message "NOTE: Make sure you are running the latest version of the Islandora Workbench Integration module."
 
+This script will also tell you if you need to run Python's `setup.py` script to install newly added libraries.
+
 ```shell
 #!/bin/sh
 #
 # Git hook script that notifies you to update the Islandora Worbench Integration
-# module if the last 3 commit messsages contain the word 'module.'
-#
+# module if the last 3 commit messsages contain the word 'module.' Also notifies 
+# you if you need to run setup.py to install newly added libraries.
+# 
 # To enable this hook, place create a file in your .git/hooks directory named 'post-merge'.
 
 if git log -n3 --format=format:"%s" | grep -qi module; then
     echo "NOTE: Make sure you are running the latest version of the Islandora Workbench Integration module."
+fi
+
+if git log -n3 --format=format:"%s" | grep -qi setup; then
+    echo "NOTE: You need to run 'python3 setup.py install' to install some newly added Python libraries."
 fi
 ```
 
