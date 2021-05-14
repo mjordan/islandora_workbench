@@ -84,6 +84,13 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['created'] = ''
 
+        if 'langcode' in csv_column_headers:
+            if len(row['langcode']) > 0:
+                node['langcode'] = [{'value': row['langcode']}]
+            # Reset it to empty so it doesn't throw a key error in the code
+            # in the "Assemble Drupal field structures..." section below.
+            row['langcode'] = ''
+
         # If a node with an ID that matches the current item's 'parent_id'
         # value has just been created, make the item a child of the node.
         if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
@@ -376,8 +383,16 @@ def update():
             ]
         }
 
-        node_field_values = get_node_field_values(
-            config, row['node_id'])
+        node_field_values = get_node_field_values(config, row['node_id'])
+
+        # Some optional base fields.
+        if 'uid' in csv_column_headers:
+            if len(row['uid']) > 0:
+                node['uid'] = [{'target_id': row['uid']}]
+
+        if 'langcode' in csv_column_headers:
+            if len(row['langcode']) > 0:
+                node['langcode'] = [{'value': row['langcode']}]
 
         # Add custom (non-required) fields.
         required_fields = ['node_id']
@@ -394,6 +409,14 @@ def update():
             # 'image_alt_text' is a reserved CSV field.
             # Issue to add alt text in update task is https://github.com/mjordan/islandora_workbench/issues/166.
             if custom_field == 'image_alt_text':
+                continue
+
+            # 'langcode' is a core Drupal field, but is not considered a base field.
+            if custom_field == 'langcode':
+                continue
+
+            # 'uid' is a base field.
+            if custom_field == 'uid':
                 continue
 
             # Entity reference fields: for taxonomy terms, target_type is 'taxonomy_term';
