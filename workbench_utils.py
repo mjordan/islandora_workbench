@@ -1979,7 +1979,9 @@ def get_csv_data(config):
         sys.exit(message)
 
     try:
-        csv_reader_file_handle = open(input_csv_path, 'r', encoding="utf-8", newline='')
+        # 'utf-8-sig' emcoding skips Microsoft BOM (0xef, 0xbb, 0xbf) at the start of files,
+        # e.g. exported from Excel and has no effect when reading standard UTF-8 encoded files.
+        csv_reader_file_handle = open(input_csv_path, 'r', encoding="utf-8-sig", newline='')
     except (UnicodeDecodeError):
         message = 'Error: CSV file ' + input_csv_path + ' must be encoded in ASCII or UTF-8.'
         logging.error(message)
@@ -2549,7 +2551,7 @@ def validate_latlong_value(latlong):
 
 
 def validate_link_value(link_value):
-    """Validates that the value in 'url' starts with either 'http://' or 'https://'
+    """Validates that the value in 'link_value' starts with either 'http://' or 'https://'
        and optionally contains the url/label delimiter '%%'.
     """
     """Parameters
