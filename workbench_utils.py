@@ -488,7 +488,10 @@ def ping_islandora(config, print_message=True):
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    message = "OK, connection to Drupal at " + config['host'] + " verified."
+    if config['secure_ssl_only'] is True:
+        message = "OK, connection to Drupal at " + config['host'] + " verified."
+    else:
+        message = "OK, connection to Drupal at " + config['host'] + " verified. Ignoring SSL certificates."
     if print_message is True:
         logging.info(message)
         print(message)
