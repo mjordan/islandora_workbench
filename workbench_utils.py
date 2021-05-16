@@ -114,6 +114,8 @@ def set_config_defaults(args):
         config['user_agent'] = 'Islandora Workbench'
     if 'allow_redirects' not in config:
         config['allow_redirects'] = True
+    if 'secure_ssl_only' not in config:
+        config['secure_ssl_only'] = True
     if 'google_sheets_csv_filename' not in config:
         config['google_sheets_csv_filename'] = 'google_sheet.csv'
     if 'google_sheets_gid' not in config:
@@ -287,6 +289,7 @@ def issue_request(
         response = requests.get(
             url,
             allow_redirects=config['allow_redirects'],
+            verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             params=query,
             headers=headers
@@ -295,6 +298,7 @@ def issue_request(
         response = requests.head(
             url,
             allow_redirects=config['allow_redirects'],
+            verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers
         )
@@ -304,6 +308,7 @@ def issue_request(
         response = requests.post(
             url,
             allow_redirects=config['allow_redirects'],
+            verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
             json=json,
@@ -315,6 +320,7 @@ def issue_request(
         response = requests.put(
             url,
             allow_redirects=config['allow_redirects'],
+            verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
             json=json,
@@ -326,6 +332,7 @@ def issue_request(
         response = requests.patch(
             url,
             allow_redirects=config['allow_redirects'],
+            verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
             json=json,
@@ -335,6 +342,7 @@ def issue_request(
         response = requests.delete(
             url,
             allow_redirects=config['allow_redirects'],
+            verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers
         )
@@ -501,7 +509,7 @@ def ping_remote_file(url):
     """
     sections = urllib.parse.urlparse(url)
     try:
-        response = requests.head(url, allow_redirects=True)
+        response = requests.head(url, allow_redirects=True, verify=config['secure_ssl_only'])
         return response.status_code
     except requests.exceptions.Timeout as err_timeout:
         message = 'Workbench timed out trying to reach ' + \
@@ -3409,7 +3417,7 @@ def get_prepocessed_file_path(config, node_csv_row):
 
         if extension == '':
             try:
-                head_response = requests.head(file_path_from_csv, allow_redirects=True)
+                head_response = requests.head(file_path_from_csv, allow_redirects=True, verify=config['secure_ssl_only']),
                 mimetype = head_response.headers['content-type']
                 # In case servers return stuff beside the MIME type in Content-Type header.
                 # Assumes they use ; to separate stuff and that what we're looking for is
@@ -3435,7 +3443,7 @@ def get_prepocessed_file_path(config, node_csv_row):
 
 def download_remote_file(config, url, node_csv_row):
     try:
-        response = requests.get(url, allow_redirects=True)
+        response = requests.get(url, allow_redirects=True, verify=config['secure_ssl_only'])
     except requests.exceptions.Timeout as err_timeout:
         message = 'Workbench timed out trying to reach ' + \
             sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
