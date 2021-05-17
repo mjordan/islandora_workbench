@@ -69,6 +69,12 @@ def set_config_defaults(args):
     for k, v in config_data.items():
         config[k] = v
 
+    # Add the location of the config file. We do not
+    # check for this in the config file itself.
+    if os.path.isabs(args.config):
+        config['config_file_path'] = args.config
+    else:
+        config['config_file_path'] = os.path.join(os.getcwd(), args.config)
     # Set up defaults for some settings.
     if 'input_dir' not in config:
         config['input_dir'] = 'input_data'
@@ -1540,8 +1546,7 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
        is passed the field subdelimiter as defined in the config YAML and the field's value, and
        prints a modified vesion of the value (result) back to this function.
     """
-    cmd = subprocess.Popen(
-        [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE)
+    cmd = subprocess.Popen([path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE)
     result, stderrdata = cmd.communicate()
 
     return result, cmd.returncode
@@ -1549,10 +1554,17 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
 
 def execute_bootstrap_script(path_to_script, path_to_config_file):
     """Executes a bootstrap script and returns its output and exit status code.
-       @todo: pass config into script.
     """
-    cmd = subprocess.Popen(
-        [path_to_script, path_to_config_file], stdout=subprocess.PIPE)
+    cmd = subprocess.Popen([path_to_script, path_to_config_file], stdout=subprocess.PIPE)
+    result, stderrdata = cmd.communicate()
+
+    return result, cmd.returncode
+
+
+def execute_entity_post_task_script(path_to_script, path_to_config_file, http_response_code, entity_json=''):
+    """Executes a entity-level post-task script and returns its output and exit status code.
+    """
+    cmd = subprocess.Popen([path_to_script, path_to_config_file, str(http_response_code), entity_json], stdout=subprocess.PIPE)
     result, stderrdata = cmd.communicate()
 
     return result, cmd.returncode
@@ -1719,6 +1731,16 @@ def create_media(config, filename, node_id, node_csv_row):
 
         try:
             media_response = issue_request(config, 'POST', media_endpoint_path, media_headers, media_json)
+
+            # Execute media-specific post-create scripts, if any are configured.
+            if 'media_post_create' in config and len(config['media_post_create']) > 0:
+                for command in config['media_post_create']:
+                    post_task_output, post_task_return_code = execute_entity_post_task_script(command, config['config_file_path'], media_response.status_code, media_response.text)
+                    if post_task_return_code == 0:
+                        logging.info("Post media create script " + command + " executed successfully.")
+                    else:
+                        logging.error("Post media create script " + command + " failed.")
+
             return media_response.status_code
         except requests.exceptions.RequestException as e:
             logging.error(e)
@@ -1782,6 +1804,16 @@ def create_islandora_media(config, filename, node_uri, node_csv_row):
     }
     binary_data = open(file_path, 'rb')
     media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
+
+    # Execute media-specific post-create scripts, if any are configured.
+    if 'media_post_create' in config and len(config['media_post_create']) > 0:
+        for command in config['media_post_create']:
+            post_task_output, post_task_return_code = execute_entity_post_task_script(command, config['config_file_path'], media_response.status_code, media_response.text)
+            if post_task_return_code == 0:
+                logging.info("Post media create script " + command + " executed successfully.")
+            else:
+                logging.error("Post media create script " + command + " failed.")
+
     if is_remote and config['delete_tmp_upload'] is True:
         containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
         shutil.rmtree(containing_folder)
@@ -3263,6 +3295,15 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
                     logging.info("Media for %s created.", page_file_path)
         else:
             logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
+
+        # Execute node-specific post-create scripts, if any are configured.
+        if 'node_post_create' in config and len(config['node_post_create']) > 0:
+            for command in config['node_post_create']:
+                post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                if post_task_return_code == 0:
+                    logging.info("Post node create script " + command + " executed successfully.")
+                else:
+                    logging.error("Post node create script " + command + " failed.")
 
 
 def write_rollback_config(config):

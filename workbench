@@ -305,6 +305,15 @@ def create():
             logging.error("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
             continue
 
+        # Execute node-specific post-create scripts, if any are configured.
+        if 'node_post_create' in config and len(config['node_post_create']) > 0:
+            for command in config['node_post_create']:
+                post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                if post_task_return_code == 0:
+                    logging.info("Post node create script " + command + " executed successfully.")
+                else:
+                    logging.error("Post node create script " + command + " failed.")
+
         # Map ID from CSV of newly created node to its node ID so we can use it for linking child nodes, etc.
         if node_response.status_code == 201:
             node_nid = node_uri.rsplit('/', 1)[-1]
@@ -348,8 +357,7 @@ def create():
 
             if config['paged_content_from_directories'] is True:
                 # Console output and logging are done in the create_children_from_directory() function.
-                create_children_from_directory(
-                    config, row_as_parent, node_nid, row['title'])
+                create_children_from_directory(config, row_as_parent, node_nid, row['title'])
 
             # If 'url_alias' is in the CSV, create the alias.
             if 'url_alias' in row and len(row['url_alias']) > 0:
@@ -848,6 +856,15 @@ def create_from_files():
 
             node_nid = node_uri.rsplit('/', 1)[-1]
             write_rollback_node_id(config, node_nid)
+
+            # Execute node-specific post-create scripts, if any are configured.
+            if 'node_post_create' in config and len(config['node_post_create']) > 0:
+                for command in config['node_post_create']:
+                    post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                    if post_task_return_code == 0:
+                        logging.info("Post node create script " + command + " executed successfully.")
+                    else:
+                        logging.error("Post node create script " + command + " failed.")
 
             file_path = os.path.join(config['input_dir'], file_name)
             fake_csv_record = collections.OrderedDict()
