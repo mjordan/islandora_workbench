@@ -646,17 +646,21 @@ def update():
 
         node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
         node_headers = {'Content-Type': 'application/json'}
-        node_response = issue_request(
-            config, 'PATCH', node_endpoint, node_headers, node)
+        node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
         if node_response.status_code == 200:
             if config['progress_bar'] is False:
                 print("Node for " + config['host'] + '/node/' + row['node_id'] + " updated.")
-            logging.info(
-                "Node for %s updated.",
-                config['host'] +
-                '/node/' +
-                row['node_id'])
+            logging.info("Node for %s updated.", config['host'] + '/node/' + row['node_id'])
+
+        # Execute node-specific post-create scripts, if any are configured.
+        if 'node_post_update' in config and len(config['node_post_update']) > 0:
+            for command in config['node_post_update']:
+                post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                if post_task_return_code == 0:
+                    logging.info("Post node update script " + command + " executed successfully.")
+                else:
+                    logging.error("Post node update script " + command + " failed.")
 
         if config['progress_bar'] is True:
             row_count += 1

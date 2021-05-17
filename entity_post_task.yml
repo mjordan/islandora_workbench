@@ -1,0 +1,7 @@
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+node_post_create: ['/home/mark/hacking/islandora_workbench/scripts/entity_post_task_example.py']
+# node_post_update: ['/home/mark/hacking/islandora_workbench/scripts/entity_post_task_example.py']
+# media_post_create: ['/home/mark/hacking/islandora_workbench/scripts/entity_post_task_example.py']

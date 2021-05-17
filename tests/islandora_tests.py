@@ -247,6 +247,49 @@ class TestExecutePreprocessorScript(unittest.TestCase):
         self.assertEqual(output.strip(), b'HELLO|THERE')
 
 
+class TestExecutePostActionEntityScript(unittest.TestCase):
+    '''Note: Only tests for creating nodes.
+    '''
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.realpath(__file__))
+        self.config_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'create.yml')
+        self.script_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'script.py')
+        temp_dir = tempfile.gettempdir()
+        self.output_file_path = os.path.join(temp_dir, 'execute_post_action_entity_script.dat')
+        if os.path.exists(self.output_file_path):
+            os.remove(self.output_file_path)
+
+    def test_post_task_entity_script(self):
+        cmd = ["./workbench", "--config", self.config_file_path]
+        output = subprocess.check_output(cmd)
+        with open(self.output_file_path, "r") as lines:
+            titles = lines.readlines()
+
+        self.assertEqual(titles[0].strip(), 'First title')
+        self.assertEqual(titles[1].strip(), 'Second title')
+
+    def tearDown(self):
+        rollback_config_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'rollback.yml')
+        cmd = ["./workbench", "--config", rollback_config_file_path]
+        subprocess.check_output(cmd)
+
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        self.preprocessed_rollback_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'rollback.csv.prepocessed')
+        if os.path.exists(self.preprocessed_rollback_file_path):
+            os.remove(self.preprocessed_rollback_file_path)
+
+        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'metadata.csv.prepocessed')
+        if os.path.exists(self.preprocessed_file_path):
+            os.remove(self.preprocessed_file_path)
+
+        if os.path.exists(self.output_file_path):
+            os.remove(self.output_file_path)
+
+
 class TestCreate(unittest.TestCase):
 
     def setUp(self):
