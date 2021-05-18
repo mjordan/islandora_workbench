@@ -1433,7 +1433,7 @@ def split_link_string(config, link_string):
     temp_list = link_string.split(config['subdelimiter'])
     for item in temp_list:
         if '%%' in item:
-            item_list = item.split('%%')
+            item_list = item.split('%%', 1)
             item_dict = {'uri': item_list[0].strip(), 'title': item_list[1].strip()}
             return_list.append(item_dict)
         else:
@@ -2568,7 +2568,7 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
 
 
 def validate_link_fields(config, field_definitions, csv_data):
-    """Validate lat,long values in fields that are of type 'geolocation'.
+    """Validate values in fields that are of type 'link'.
     """
     link_fields_present = False
     for count, row in enumerate(csv_data, start=1):
@@ -2613,7 +2613,8 @@ def validate_link_value(link_value):
         boolean
             True if it does, False if not.
     """
-    if re.match(r"^https?://.+(%%.+)?$", link_value):
+    parts = link_value.split('%%', 1)
+    if re.match(r"^https?://", parts[0]):
         return True
     else:
         return False
