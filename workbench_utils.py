@@ -2041,6 +2041,17 @@ def get_csv_data(config):
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
 
     csv_reader_fieldnames = csv_reader.fieldnames
+    confirmed = []
+    duplicates = []
+    for item in csv_reader_fieldnames:
+        if item not in confirmed:
+            confirmed.append(item)
+        else:
+            duplicates.append(item)
+    if len(duplicates) > 0:
+        message = "Error: CSV has duplicate header names - " + ', '.join(duplicates)
+        logging.error(message)
+        sys.exit(message)
     csv_reader_fieldnames = [x for x in csv_reader_fieldnames if x not in config['ignore_csv_columns']]
 
     tasks = ['create', 'update']
