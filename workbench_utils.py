@@ -802,31 +802,20 @@ def check_input(config, args):
 
     # Check whether each row contains the same number of columns as there are headers.
     for count, row in enumerate(csv_data, start=1):
-        string_field_count = 0
+        print("fuck")
+        field_count = -1
         for field in row:
-            if (row[field] is not None):
-                string_field_count += 1
-        if len(csv_column_headers) > string_field_count:
-            logging.error("Row %s of your CSV file does not " +
-                          "have same number of columns (%s) as there are headers " +
-                          "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
-            sys.exit("Error: Row " +
-                     str(count) +
-                     " of your CSV file " +
-                     "does not have same number of columns (" +
-                     str(string_field_count) +
-                     ") as there are headers (" +
-                     str(len(csv_column_headers)) +
-                     ").")
-        if len(csv_column_headers) < string_field_count:
-            logging.error("Row %s of your CSV file has more columns (%s) than there are headers " +
-                          "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
-            sys.exit("Error: Row " +
-                     str(count) +
-                     " of your CSV file " +
-                     "has more columns (" + str(string_field_count) + ") than there are headers (" +
-                     str(len(csv_column_headers)) +
-                     ").")
+            field_count += 1
+        if len(csv_column_headers) > field_count:
+            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of your CSV file has fewer columns (" +  \
+                str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")"
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        if len(csv_column_headers) < field_count:
+            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of your CSV file has more columns (" +  \
+                str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")"
+            logging.error(message)
+            sys.exit('Error: ' + message)
     message = "OK, all " \
         + str(count) + " rows in the CSV file have the same number of columns as there are headers (" \
         + str(len(csv_column_headers)) + ")."
@@ -3473,7 +3462,7 @@ def get_prepocessed_file_path(config, node_csv_row):
 
         if extension == '':
             try:
-                head_response = requests.head(file_path_from_csv, allow_redirects=True, verify=config['secure_ssl_only']),
+                head_response = requests.head(file_path_from_csv, allow_redirects=True, verify=config['secure_ssl_only'])
                 mimetype = head_response.headers['content-type']
                 # In case servers return stuff beside the MIME type in Content-Type header.
                 # Assumes they use ; to separate stuff and that what we're looking for is
