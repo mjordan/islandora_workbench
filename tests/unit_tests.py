@@ -175,7 +175,7 @@ class TestValidateLinkValue(unittest.TestCase):
             self.assertTrue(res)
 
     def test_validate_bad_link_values(self):
-        values = ['foo.com', 'http://foo.com Foo Hardware', 'file://server/folder/data.xml', 'mailto:someone@example.com']
+        values = ['foo.com', 'http:/foo.com', 'file://server/folder/data.xml', 'mailto:someone@example.com']
         for value in values:
             res = workbench_utils.validate_link_value(value)
             self.assertFalse(res)
