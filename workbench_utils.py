@@ -2406,7 +2406,7 @@ def prepare_term_id(config, vocab_ids, term):
             # Split the namespace/vocab ID from the term name on ':'.
             namespaced = re.search(':', term)
             if namespaced:
-                [vocab_id, term_name] = term.split(':')
+                [vocab_id, term_name] = term.split(':', maxsplit=1)
                 tid = create_term(config, vocab_id.strip(), term_name.strip())
                 return tid
 
