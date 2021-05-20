@@ -3432,7 +3432,8 @@ def get_extension_from_mimetype(mimetype):
     map = {'image/jpeg': '.jpg',
            'image/jp2': '.jp2',
            'image/png': '.png',
-           'application/octet-stream': '.bin'
+           'application/octet-stream': '.bin',
+           'audio/mpeg': '.mp3'
            }
     if mimetype in map:
         return map[mimetype]
