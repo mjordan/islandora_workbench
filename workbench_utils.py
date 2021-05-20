@@ -859,11 +859,14 @@ def check_input(config, args):
             validate_url_aliases_csv_data = get_csv_data(config)
             validate_url_aliases(config, validate_url_aliases_csv_data)
 
-        # Specific to creating paged content. Current, if 'parent_id' is present
-        # in the CSV file, so must 'field_weight' and 'field_member_of'.
+        # Specific to creating aggregated content such as collections, compound objects and paged content. Current, if 'parent_id' is present
+        # in the CSV file 'field_member_of' is mandatory.
         if 'parent_id' in csv_column_headers:
-            if ('field_weight' not in csv_column_headers or 'field_member_of' not in csv_column_headers):
-                message = 'If your CSV file contains a "parent_id" column, it must also contain "field_weight" and "field_member_of" columns.'
+            if ('field_weight' not in csv_column_headers):
+                message = 'If ingesting paged content, or compound objects where order is required a "field_weight" column is required.'
+                logging.info(message)
+            if ('field_member_of' not in csv_column_headers):
+                message = 'If your CSV file contains a "parent_id" column, it must also contain "field_member_of" column.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
         drupal_fieldnames = []
