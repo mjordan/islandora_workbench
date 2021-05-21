@@ -802,19 +802,20 @@ def check_input(config, args):
 
     # Check whether each row contains the same number of columns as there are headers.
     for count, row in enumerate(csv_data, start=1):
+        print(row)
         field_count = 0
         for field in row:
-            if row[field] != '':
-                field_count += 1
+            # if row[field] != '': #  <- *****this is  legit value....
+            field_count += 1
         if len(csv_column_headers) > field_count:
-            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of your CSV file has fewer columns (" +  \
+            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of the CSV file has fewer columns (" +  \
                 str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")."
             logging.error(message)
             sys.exit('Error: ' + message)
         # Note: this message is also generated in get_csv_data() since CSV Writer thows an exception if the row has
         # form fields than headers.
         if len(csv_column_headers) < field_count:
-            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of your CSV file has more columns (" +  \
+            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of the CSV file has more columns (" +  \
                 str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")."
             logging.error(message)
             sys.exit('Error: ' + message)
@@ -2029,7 +2030,7 @@ def get_csv_data(config):
         sys.exit(message)
 
     csv_writer_file_handle = open(input_csv_path + '.prepocessed', 'w+', newline='')
-    csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
+    csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval=None)
 
     csv_reader_fieldnames = csv_reader.fieldnames
     confirmed = []
@@ -2081,18 +2082,19 @@ def get_csv_data(config):
                     csv_writer.writerow(row)
                 except (ValueError):
                     # Note: this message is also generated in check_input().
-                    message = "Error: Row " + str(row_num) + " (ID " + row[config['id_field']] + ') of your CSV file ' + \
-                              "has more columns (" + str(len(row)) + ") than there are headers (" + \
+                    message = "Error: Skipping row " + str(row_num) + " (ID " + row[config['id_field']] + ') of the CSV file ' + \
+                              "because it has more columns (" + str(len(row)) + ") than there are headers (" + \
                               str(len(csv_reader.fieldnames)) + ').'
                     logging.error(message)
-                    sys.exit(message)
+                    print(message)
+                    # sys.exit(message)
         repeats = set(([x for x in unique_identifiers if unique_identifiers.count(x) > 1]))
         if len(repeats) > 0:
             message = "Duplicate identifiers in column " + config['id_field'] + " found: " + str(repeats)
             logging.error(message)
             sys.exit("Error: " + message)
     else:
-        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
+        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames, extrasaction='raise')
         csv_writer.writeheader()
         row_num = 0
         for row in csv_reader:
@@ -2109,15 +2111,15 @@ def get_csv_data(config):
                     csv_writer.writerow(row)
                 except (ValueError):
                     # Note: this message is also generated in check_input().
-                    message = "Error: Row " + str(row_num) + " (ID " + row[config['id_field']] + ') of your CSV file ' + \
-                              "has more columns (" + str(len(row)) + ") than there are headers (" + \
+                    message = "Error: Skipping row " + str(row_num) + " (ID " + row[config['id_field']] + ') of the CSV file ' + \
+                              "because it has more columns (" + str(len(row)) + ") than there are headers (" + \
                               str(len(csv_reader.fieldnames)) + ').'
                     logging.error(message)
-                    sys.exit(message)
+                    # sys.exit(message)
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(input_csv_path + '.prepocessed', 'r')
-    preprocessed_csv_reader = csv.DictReader(preprocessed_csv_reader_file_handle, delimiter=config['delimiter'])
+    preprocessed_csv_reader = csv.DictReader(preprocessed_csv_reader_file_handle, delimiter=config['delimiter'], restval=None)
     return preprocessed_csv_reader
 
 
