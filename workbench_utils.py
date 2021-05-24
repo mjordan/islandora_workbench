@@ -277,7 +277,8 @@ def issue_request(
         json='',
         data='',
         query={}):
-    """Issue the HTTP request to Drupal.
+    """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
+       do not use this function.
     """
     if config['check'] is False:
         if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -709,7 +710,7 @@ def check_input(config, args):
         for create_required_option in create_required_options:
             if create_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' \
-                    + joiner.join(create_options) + '.'
+                    + joiner.join(create_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'update':
@@ -802,31 +803,26 @@ def check_input(config, args):
 
     # Check whether each row contains the same number of columns as there are headers.
     for count, row in enumerate(csv_data, start=1):
-        string_field_count = 0
+        extra_headers = False
+        field_count = 0
         for field in row:
-            if (row[field] is not None):
-                string_field_count += 1
-        if len(csv_column_headers) > string_field_count:
-            logging.error("Row %s of your CSV file does not " +
-                          "have same number of columns (%s) as there are headers " +
-                          "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
-            sys.exit("Error: Row " +
-                     str(count) +
-                     " of your CSV file " +
-                     "does not have same number of columns (" +
-                     str(string_field_count) +
-                     ") as there are headers (" +
-                     str(len(csv_column_headers)) +
-                     ").")
-        if len(csv_column_headers) < string_field_count:
-            logging.error("Row %s of your CSV file has more columns (%s) than there are headers " +
-                          "(%s).", str(count), str(string_field_count), str(len(csv_column_headers)))
-            sys.exit("Error: Row " +
-                     str(count) +
-                     " of your CSV file " +
-                     "has more columns (" + str(string_field_count) + ") than there are headers (" +
-                     str(len(csv_column_headers)) +
-                     ").")
+            # 'stringtopopulateextrafields' is added by get_csv_data() if there are extra headers.
+            if row[field] == 'stringtopopulateextrafields':
+                extra_headers = True
+            else:
+                field_count += 1
+        if extra_headers is True:
+            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of the CSV file has fewer columns " +  \
+                "than there are headers (" + str(len(csv_column_headers)) + ")."
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        # Note: this message is also generated in get_csv_data() since CSV Writer thows an exception if the row has
+        # form fields than headers.
+        if len(csv_column_headers) < field_count:
+            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of the CSV file has more columns (" +  \
+                str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")."
+            logging.error(message)
+            sys.exit('Error: ' + message)
     message = "OK, all " \
         + str(count) + " rows in the CSV file have the same number of columns as there are headers (" \
         + str(len(csv_column_headers)) + ")."
@@ -2040,8 +2036,9 @@ def get_csv_data(config):
         logging.error(message)
         sys.exit(message)
 
+    # 'restval' is what is used to populate superfluous fields/labels.
     csv_writer_file_handle = open(input_csv_path + '.prepocessed', 'w+', newline='')
-    csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'])
+    csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
 
     csv_reader_fieldnames = csv_reader.fieldnames
     confirmed = []
@@ -2085,22 +2082,25 @@ def get_csv_data(config):
                 for field_name, field_value in template.items():
                     if field_name not in csv_reader_fieldnames_orig:
                         row[field_name] = field_value
+
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
                 try:
                     unique_identifiers.append(row[config['id_field']])
                     csv_writer.writerow(row)
                 except (ValueError):
-                    message = "Error: Row " + str(row_num) + ' in your CSV file ' + \
+                    # Note: this message is also generated in check_input().
+                    message = "Row " + str(row_num) + " (ID " + row[config['id_field']] + ') of the CSV file ' + \
                               "has more columns (" + str(len(row)) + ") than there are headers (" + \
                               str(len(csv_reader.fieldnames)) + ').'
                     logging.error(message)
+                    print('Error: ' + message)
                     sys.exit(message)
         repeats = set(([x for x in unique_identifiers if unique_identifiers.count(x) > 1]))
         if len(repeats) > 0:
-            message = "duplicated identifiers found: " + str(repeats)
+            message = "Duplicate identifiers in column " + config['id_field'] + " found: " + str(repeats)
             logging.error(message)
-            sys.exit(message)
+            sys.exit("Error: " + message)
     else:
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
         csv_writer.writeheader()
@@ -2118,15 +2118,16 @@ def get_csv_data(config):
                 try:
                     csv_writer.writerow(row)
                 except (ValueError):
-                    message = "Error: Row " + str(row_num) + ' in your CSV file ' + \
+                    # Note: this message is also generated in check_input().
+                    message = "Row " + str(row_num) + " (ID " + row[config['id_field']] + ') of the CSV file ' + \
                               "has more columns (" + str(len(row)) + ") than there are headers (" + \
                               str(len(csv_reader.fieldnames)) + ').'
                     logging.error(message)
-                    sys.exit(message)
+                    sys.exit('Error: ' + message)
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(input_csv_path + '.prepocessed', 'r')
-    preprocessed_csv_reader = csv.DictReader(preprocessed_csv_reader_file_handle, delimiter=config['delimiter'])
+    preprocessed_csv_reader = csv.DictReader(preprocessed_csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
     return preprocessed_csv_reader
 
 
@@ -3477,7 +3478,7 @@ def get_prepocessed_file_path(config, node_csv_row):
 
         if extension == '':
             try:
-                head_response = requests.head(file_path_from_csv, allow_redirects=True, verify=config['secure_ssl_only']),
+                head_response = requests.head(file_path_from_csv, allow_redirects=True, verify=config['secure_ssl_only'])
                 mimetype = head_response.headers['content-type']
                 # In case servers return stuff beside the MIME type in Content-Type header.
                 # Assumes they use ; to separate stuff and that what we're looking for is
@@ -3502,6 +3503,7 @@ def get_prepocessed_file_path(config, node_csv_row):
 
 
 def download_remote_file(config, url, node_csv_row):
+    sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True, verify=config['secure_ssl_only'])
     except requests.exceptions.Timeout as err_timeout:
