@@ -17,7 +17,6 @@ import collections
 import urllib.parse
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
-from functools import lru_cache
 import shutil
 
 
@@ -2001,7 +2000,6 @@ def remove_media_and_file(config, media_id):
     return False
 
 
-# @lru_cache(maxsize=None)
 def get_csv_data(config):
     """Read the input CSV data and prepare it for use in create, update, etc. tasks.
 
