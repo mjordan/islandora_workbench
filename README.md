@@ -51,7 +51,7 @@ if git log -n3 --format=format:"%s" | grep -qi setup; then
 fi
 ```
 
-To install it, place the script above at `islandora_workbench/.git/hooks/post-merge` and make it executable (i.e., `chmod +x post-merge`).
+To use this reminder, place the script above at `islandora_workbench/.git/hooks/post-merge` and make it executable (i.e., `chmod +x post-merge`).
 
 ## Current maintainer
 

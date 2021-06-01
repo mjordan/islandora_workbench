@@ -1188,6 +1188,63 @@ def check_input(config, args):
 
         print('OK, page directories are all present.')
 
+    # Check for bootstrap scripts, if any are configured.
+    bootsrap_scripts_present = False
+    if 'bootstrap' in config and len(config['bootstrap']) > 0:
+        bootsrap_scripts_present = True
+        for bootstrap_script in config['bootstrap']:
+            if not os.path.exists(bootstrap_script):
+                message = "Bootstrap script " + bootstrap_script + " not found."
+                logging.error(message)
+                sys.exit('Error: ' + message)
+            if os.access(bootstrap_script, os.X_OK) is False:
+                message = "Bootstrap script " + bootstrap_script + " is not executable."
+                logging.error(message)
+                sys.exit('Error: ' + message)
+        if bootsrap_scripts_present is True:
+            message = "OK, registered bootstrap scripts found and executable."
+            logging.info(message)
+            print(message)
+
+    # Check for preprocessor scripts, if any are configured.
+    preprocessor_scripts_present = False
+    if 'preprocessors' in config and len(config['preprocessors']) > 0:
+        preprocessor_scripts_present = True
+        for preprocessor_script in config['preprocessors']:
+            if not os.path.exists(preprocessor_script):
+                message = "Preprocessor script " + preprocessor_script + " not found."
+                logging.error(message)
+                sys.exit('Error: ' + message)
+            if os.access(preprocessor_script, os.X_OK) is False:
+                message = "Preprocessor script " + preprocessor_script + " is not executable."
+                logging.error(message)
+                sys.exit('Error: ' + message)
+        if preprocessor_scripts_present is True:
+            message = "OK, registered preprocessor scripts found and executable."
+            logging.info(message)
+            print(message)
+
+    # Check for the existence and executableness of post-action scripts, if any are configured.
+    if config['task'] == 'create' or config['task'] == 'update' or config['task'] == 'add_media':
+        post_action_scripts_configs = ['node_post_create', 'node_post_update', 'media_post_create']
+        for post_action_script_config in post_action_scripts_configs:
+            post_action_scripts_present = False
+            if post_action_script_config in config and len(config[post_action_script_config]) > 0:
+                post_action_scripts_present = True
+                for post_action_script in config[post_action_script_config]:
+                    if not os.path.exists(post_action_script):
+                        message = "Post-action script " + post_action_script + " not found."
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                    if os.access(post_action_script, os.X_OK) is False:
+                        message = "Post-action script " + post_action_script + " is not executable."
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+            if post_action_scripts_present is True:
+                message = "OK, registered post-action scripts found and executable."
+                logging.info(message)
+                print(message)
+
     # If nothing has failed by now, exit with a positive, upbeat message.
     print("Configuration and input data appear to be valid.")
     logging.info('Configuration checked for "%s" task using config file "%s", no problems found.', config['task'], args.config)
