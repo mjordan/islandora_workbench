@@ -3302,7 +3302,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
         page_identifier = parent_id + '_' + filename_without_extension
         page_title = parent_title + ', page ' + weight
 
-        # @todo: provide a config option for page content type.
         node_json = {
             'type': [
                 {'target_id': config['paged_content_page_content_type'],
@@ -3314,10 +3313,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             'status': [
                 {'value': config['published']}
             ],
-            'field_model': [
-                {'target_id': config['paged_content_page_model_tid'],
-                 'target_type': 'taxonomy_term'}
-            ],
             'field_member_of': [
                 {'target_id': parent_node_id,
                  'target_type': 'node'}
@@ -3326,6 +3321,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
                 {'value': weight}
             ]
         }
+
+        # Add field_model if that field exists in the child's content type.
+        entity_fields = get_entity_fields(config, 'node', config['paged_content_page_content_type'])
+        if 'field_model' in entity_fields:
+            node_json['field_model'] = [{'target_id': config['paged_content_page_model_tid'], 'target_type': 'taxonomy_term'}]
 
         if 'field_display_hints' in parent_csv_record:
             node_json['field_display_hints'] = [{'target_id': parent_csv_record['field_display_hints'], 'target_type': 'taxonomy_term'}]

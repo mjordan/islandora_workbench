@@ -812,8 +812,6 @@ def create_from_files():
             logging.error(message)
             filename_without_extension = filename_without_extension[:255]
 
-        islandora_model = set_model_from_extension(file_name, config)
-
         node_json = {
             'type': [
                 {'target_id': config['content_type'],
@@ -824,12 +822,14 @@ def create_from_files():
             ],
             'status': [
                 {'value': config['published']}
-            ],
-            'field_model': [
-                {'target_id': islandora_model,
-                 'target_type': 'taxonomy_term'}
             ]
         }
+
+        # Add field_model if that field exists in the current content type.
+        entity_fields = get_entity_fields(config, 'node', config['content_type'])
+        if 'field_model' in entity_fields:
+            islandora_model = set_model_from_extension(file_name, config)
+            node_json['field_model'] = [{'target_id': islandora_model, 'target_type': 'taxonomy_term'}]
 
         node_headers = {
             'Content-Type': 'application/json'

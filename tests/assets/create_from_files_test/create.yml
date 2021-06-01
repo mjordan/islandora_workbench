@@ -4,9 +4,9 @@ username: admin
 password: islandora
 input_dir: tests/assets/create_from_files_test/files
 models:
- - 23: ['zip', 'tar', '']
- - 27: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
- - 25: ['tif', 'tiff', 'jp2', 'png', 'gif', 'jpg', 'jpeg']
- - 22: ['mp3', 'wav', 'aac']
- - 26: ['mp4']
+ - 'http://purl.org/coar/resource_type/c_1843': ['zip', 'tar', '']
+ - 'https://schema.org/DigitalDocument': ['pdf', 'doc', 'docx', 'ppt', 'pptx']
+ - 'http://purl.org/coar/resource_type/c_c513': ['tif', 'tiff', 'jp2', 'png', 'gif', 'jpg', 'jpeg']
+ - 'http://purl.org/coar/resource_type/c_18cc': ['mp3', 'wav', 'aac']
+ - 'http://purl.org/coar/resource_type/c_12ce': ['mp4']
 log_json: true
