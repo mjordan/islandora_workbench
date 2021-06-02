@@ -636,8 +636,7 @@ def get_entity_fields(config, entity_type, bundle_type):
 def get_entity_field_config(config, fieldname, entity_type, bundle_type):
     """Get a specific fields's configuration.
     """
-    field_config_endpoint = config['host'] + '/entity/field_config/' + \
-        entity_type + '.' + bundle_type + '.' + fieldname + '?_format=json'
+    field_config_endpoint = config['host'] + '/entity/field_config/' + entity_type + '.' + bundle_type + '.' + fieldname + '?_format=json'
     field_config_response = issue_request(config, 'GET', field_config_endpoint)
     if field_config_response.status_code == 200:
         return field_config_response.text
@@ -650,10 +649,8 @@ def get_entity_field_config(config, fieldname, entity_type, bundle_type):
 def get_entity_field_storage(config, fieldname, entity_type):
     """Get a specific fields's storage configuration.
     """
-    field_storage_endpoint = config['host'] + '/entity/field_storage_config/' + \
-        entity_type + '.' + fieldname + '?_format=json'
-    field_storage_response = issue_request(
-        config, 'GET', field_storage_endpoint)
+    field_storage_endpoint = config['host'] + '/entity/field_storage_config/' + entity_type + '.' + fieldname + '?_format=json'
+    field_storage_response = issue_request(config, 'GET', field_storage_endpoint)
     if field_storage_response.status_code == 200:
         return field_storage_response.text
     else:
@@ -854,14 +851,14 @@ def check_input(config, args):
             validate_url_aliases_csv_data = get_csv_data(config)
             validate_url_aliases(config, validate_url_aliases_csv_data)
 
-        # Specific to creating aggregated content such as collections, compound objects and paged content. Current, if 'parent_id' is present
+        # Specific to creating aggregated content such as collections, compound objects and paged content. Currently, if 'parent_id' is present
         # in the CSV file 'field_member_of' is mandatory.
         if 'parent_id' in csv_column_headers:
             if ('field_weight' not in csv_column_headers):
                 message = 'If ingesting paged content, or compound objects where order is required a "field_weight" column is required.'
                 logging.info(message)
             if ('field_member_of' not in csv_column_headers):
-                message = 'If your CSV file contains a "parent_id" column, it must also contain "field_member_of" column.'
+                message = 'If your CSV file contains a "parent_id" column, it must also contain an empty "field_member_of" column.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
         drupal_fieldnames = []
@@ -1047,8 +1044,7 @@ def check_input(config, args):
         for count, row in enumerate(
                 validate_field_member_of_csv_data, start=1):
             if 'field_member_of' in csv_column_headers:
-                parent_nids = row['field_member_of'].split(
-                    config['subdelimiter'])
+                parent_nids = row['field_member_of'].split(config['subdelimiter'])
                 for parent_nid in parent_nids:
                     if len(parent_nid) > 0:
                         parent_node_exists = ping_node(config, parent_nid)
@@ -1160,8 +1156,7 @@ def check_input(config, args):
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
             message = 'If you are creating paged content, you must include "paged_content_page_model_tid" in your configuration.'
-            logging.error(
-                'Configuration requires "paged_content_page_model_tid" setting when creating paged content.')
+            logging.error('Configuration requires "paged_content_page_model_tid" setting when creating paged content.')
             sys.exit('Error: ' + message)
         paged_content_from_directories_csv_data = get_csv_data(config)
         for count, file_check_row in enumerate(paged_content_from_directories_csv_data, start=1):
@@ -2253,12 +2248,10 @@ def get_term_id_from_uri(config, uri):
     # And some vocabuluaries use this View.
     term_from_authority_link_url = config['host'] + \
         '/term_from_authority_link?_format=json&authority_link=' + uri.replace('#', '%23')
-    term_from_authority_link_response = issue_request(
-        config, 'GET', term_from_authority_link_url)
+    term_from_authority_link_response = issue_request(config, 'GET', term_from_authority_link_url)
     if term_from_authority_link_response.status_code == 200:
         term_from_authority_link_response_body_json = term_from_authority_link_response.text
-        term_from_authority_link_response_body = json.loads(
-            term_from_authority_link_response_body_json)
+        term_from_authority_link_response_body = json.loads(term_from_authority_link_response_body_json)
         if len(term_from_authority_link_response_body) == 1:
             tid = term_from_authority_link_response_body[0]['tid'][0]['value']
             return tid
@@ -2306,8 +2299,7 @@ def create_term(config, vocab_id, term_name):
 
     if len(term_name) > 255:
         truncated_term_name = term_name[:255]
-        message = 'Term "' + term_name + '"' + \
-            "provided in the CSV data exceeds Drupal's maximum length of 255 characters."
+        message = 'Term "' + term_name + '"' + "provided in the CSV data exceeds Drupal's maximum length of 255 characters."
         message_2 = ' It has been trucated to "' + truncated_term_name + '".'
         logging.info(message + message_2)
         term_name = truncated_term_name
@@ -2554,24 +2546,18 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                 delimited_field_values = row[field_name].split(config['subdelimiter'])
                 if field_cardinalities[field_name] == 1 and len(delimited_field_values) > 1:
                     if config['task'] == 'create':
-                        message = 'CSV field "' + field_name + '" in record with ID ' + \
-                            row[config['id_field']] + ' contains more values than the number '
+                        message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains more values than the number '
                     if config['task'] == 'update':
-                        message = 'CSV field "' + field_name + '" in record with node ID ' \
-                            + row['node_id'] + ' contains more values than the number '
-                    message_2 = 'allowed for that field (' + str(
-                        field_cardinalities[field_name]) + '). Workbench will add only the first value.'
+                        message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains more values than the number '
+                    message_2 = 'allowed for that field (' + str(field_cardinalities[field_name]) + '). Workbench will add only the first value.'
                     print('Warning: ' + message + message_2)
                     logging.warning(message + message_2)
                 if int(field_cardinalities[field_name]) > 1 and len(delimited_field_values) > field_cardinalities[field_name]:
                     if config['task'] == 'create':
-                        message = 'CSV field "' + field_name + '" in record with ID ' + \
-                            row[config['id_field']] + ' contains more values than the number '
+                        message = 'CSV field "' + field_name + '" in record with ID ' + row[config['id_field']] + ' contains more values than the number '
                     if config['task'] == 'update':
-                        message = 'CSV field "' + field_name + '" in record with node ID ' \
-                            + row['node_id'] + ' contains more values than the number '
-                    message_2 = 'allowed for that field (' + str(
-                        field_cardinalities[field_name]) + '). Workbench will add only the first ' + str(
+                        message = 'CSV field "' + field_name + '" in record with node ID ' + row['node_id'] + ' contains more values than the number '
+                    message_2 = 'allowed for that field (' + str(field_cardinalities[field_name]) + '). Workbench will add only the first ' + str(
                         field_cardinalities[field_name]) + ' values.'
                     print('Warning: ' + message + message_2)
                     logging.warning(message + message_2)
@@ -2607,8 +2593,8 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                         if config['task'] == 'update':
                             message = 'CSV field "' + field_name + '" in record with node ID ' + \
                                 row['node_id'] + ' contains a value that is longer (' + str(len(field_value)) + ' characters)'
-                        message_2 = ' than allowed for that field (' + str(
-                            field_max_lengths[field_name]) + ' characters). Workbench will truncate this value prior to populating Drupal.'
+                        message_2 = ' than allowed for that field (' + \
+                            str(field_max_lengths[field_name]) + ' characters). Workbench will truncate this value prior to populating Drupal.'
                         print('Warning: ' + message + message_2)
                         logging.warning(message + message_2)
 
@@ -2626,8 +2612,7 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
                     for field_value in delimited_field_values:
                         if len(field_value.strip()):
                             if not validate_latlong_value(field_value.strip()):
-                                message = 'Value in field "' + field_name + '" in row ' + str(count) + \
-                                    ' (' + field_value + ') is not a valid lat,long pair.'
+                                message = 'Value in field "' + field_name + '" in row ' + str(count) + ' (' + field_value + ') is not a valid lat,long pair.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -2701,10 +2686,7 @@ def validate_term_name_length(term_name, row_number, column_name):
         message_2 = ' Term provided in CSV is "' + term_name + '".'
         message_3 = " Please reduce the term's length to less than 256 characters."
         logging.error(message + message_2 + message_3)
-        sys.exit(
-            'Error: ' +
-            message +
-            ' See the Workbench log for more information.')
+        sys.exit('Error: ' + message + ' See the Workbench log for more information.')
 
 
 def validate_node_created_date(csv_data):
@@ -2725,8 +2707,7 @@ def validate_node_created_date(csv_data):
                 # Remove the GMT differential at the end of the time string.
                 date_string_trimmed = re.sub(
                     r'[+-]\d\d:\d\d$', '', field_value)
-                created_date = datetime.datetime.strptime(
-                    date_string_trimmed, '%Y-%m-%dT%H:%M:%S')
+                created_date = datetime.datetime.strptime(date_string_trimmed, '%Y-%m-%dT%H:%M:%S')
                 if created_date > now:
                     message = 'CSV field "created" in record ' + \
                         str(count) + ' contains a date "' + field_value + '" that is in the future.'
@@ -2910,8 +2891,7 @@ def validate_node_uid(config, csv_data):
             if field_name == 'uid' and len(field_value) > 0:
                 # Request to /user/x?_format=json goes here; 200 means the user
                 # exists, 404 means they do no.
-                uid_url = config['host'] + '/user/' + \
-                    str(field_value) + '?_format=json'
+                uid_url = config['host'] + '/user/' + str(field_value) + '?_format=json'
                 uid_response = issue_request(config, 'GET', uid_url)
                 if uid_response.status_code == 404:
                     message = 'CSV field "uid" in record ' + \
@@ -3136,8 +3116,8 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                 message = 'CSV field "' + csv_field_name + '" in row ' + \
                     str(record_number) + ' contains a term ID (' + field_value + ') that is '
                 if len(this_fields_vocabularies) > 1:
-                    message_2 = 'not in one of the referenced vocabularies (' \
-                        + this_fields_vocabularies_string + ').'
+                    message_2 = 'not in one of the referenced vocabularies (' + \
+                        this_fields_vocabularies_string + ').'
                 else:
                     message_2 = 'not in the referenced vocabulary ("' + \
                         this_fields_vocabularies[0] + '").'
@@ -3178,8 +3158,8 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                                 validate_term_name_length(field_value, str(record_number), csv_field_name)
                                 message = 'CSV field "' + csv_field_name + '" in row ' + \
                                     str(record_number) + ' contains a term ("' + field_value.strip() + '") that is '
-                                message_2 = 'not in the referenced vocabulary ("' \
-                                    + this_fields_vocabularies[0] + '"). That term will be created.'
+                                message_2 = 'not in the referenced vocabulary ("' + \
+                                    this_fields_vocabularies[0] + '"). That term will be created.'
                                 logging.warning(message + message_2)
                         else:
                             new_term_names_in_csv = True
@@ -3198,10 +3178,9 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                         # Check to see if the namespaced vocab is referenced by this field.
                         [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':', 1)
                         if namespace_vocab_id not in this_fields_vocabularies:
-                            message = 'CSV field "' + csv_field_name + '" in row ' \
-                                + str(record_number) + ' contains a namespaced term name '
-                            message_2 = '(' + namespaced_term_name.strip(
-                            ) + '") that specifies a vocabulary not associated with that field.'
+                            message = 'CSV field "' + csv_field_name + '" in row ' + \
+                                str(record_number) + ' contains a namespaced term name '
+                            message_2 = '(' + namespaced_term_name.strip() + '") that specifies a vocabulary not associated with that field.'
                             logging.error(message + message_2)
                             sys.exit('Error: ' + message + message_2)
 
@@ -3213,8 +3192,8 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                                 new_term_names_in_csv = True
                                 message = 'CSV field "' + csv_field_name + '" in row ' + \
                                     str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                message_2 = 'not in the referenced vocabulary ("' \
-                                    + namespace_vocab_id + '"). That term will be created.'
+                                message_2 = 'not in the referenced vocabulary ("' + \
+                                    namespace_vocab_id + '"). That term will be created.'
                                 logging.warning(message + message_2)
                                 new_terms_to_add.append(split_field_value)
 
@@ -3224,8 +3203,8 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                             if tid is False:
                                 message = 'CSV field "' + csv_field_name + '" in row ' + \
                                     str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                message_2 = 'not in the referenced vocabulary ("' \
-                                    + namespace_vocab_id + '").'
+                                message_2 = 'not in the referenced vocabulary ("' + \
+                                    namespace_vocab_id + '").'
                                 logging.warning(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
 
@@ -3412,8 +3391,7 @@ def prep_rollback_csv(config):
 
 
 def write_rollback_node_id(config, node_id):
-    path_to_rollback_csv_file = os.path.join(
-        config['input_dir'], 'rollback.csv')
+    path_to_rollback_csv_file = os.path.join(config['input_dir'], 'rollback.csv')
     rollback_csv_file = open(path_to_rollback_csv_file, "a+")
     rollback_csv_file.write(node_id + "\n")
     rollback_csv_file.close()
