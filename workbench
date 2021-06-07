@@ -111,10 +111,15 @@ def create():
         required_fields = ['file', config['id_field'], 'title']
         custom_fields = list(
             set(csv_column_headers) - set(required_fields))
+        additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
             # Skip updating field if value is empty.
             if len(row[custom_field]) == 0:
                 continue
+
+            if additional_files_entries is not None:
+                if custom_field in additional_files_entries.keys():
+                    continue
 
             # This field can exist in the CSV to create parent/child
             # relationships and is not a Drupal field.

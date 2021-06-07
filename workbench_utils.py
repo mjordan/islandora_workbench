@@ -895,6 +895,9 @@ def check_input(config, args):
             if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
                 if csv_column_header in config['ignore_csv_columns']:
                     continue
+                additional_files_entries = get_additional_files_config(config)
+                if csv_column_header in additional_files_entries.keys():
+                    continue
                 logging.error(
                     "CSV column header %s does not match any Drupal or reserved field names.",
                     csv_column_header)
@@ -1091,7 +1094,7 @@ def check_input(config, args):
         if config['nodes_only'] is False and config['allow_missing_files'] is False:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
-                    message = 'Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
+                    message = 'CSV row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 file_check_row['file'] = file_check_row['file'].strip()
@@ -1121,8 +1124,10 @@ def check_input(config, args):
                 if len(file_check_row['file']) == 0:
                     empty_file_values_exist = True
                 else:
-                    file_path = os.path.join(
-                        config['input_dir'], file_check_row['file'])
+                    if os.path.isabs(file_check_row['file']):
+                        file_path = file_check_row['file']
+                    else:
+                        file_path = os.path.join(config['input_dir'], file_check_row['file'])
                     if not os.path.exists(file_path) or not os.path.isfile(file_path):
                         message = 'File ' + file_path + ' identified in CSV "file" column not found.'
                         logging.error(message)
@@ -1153,6 +1158,82 @@ def check_input(config, args):
         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
         # 'media_type[s]' config option?
 
+    # Check existence of fields identified in 'additional_files' config setting, and the files named in those fields.
+    # Also check for the acommpanying Media Use tid.
+    if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
+        if 'additional_files' in config and len(config['additional_files']) > 0:
+            additional_files_entries = get_additional_files_config(config)
+            additional_files_check_csv_data = get_csv_data(config)
+            additional_files_fields = additional_files_entries.keys()
+            additional_files_fields_csv_headers = additional_files_check_csv_data.fieldnames
+            if config['nodes_only'] is False:
+                for additional_file_field in additional_files_fields:
+                    if additional_file_field not in additional_files_fields_csv_headers:
+                        message = 'CSV column "' + additional_file_field + '" registered in the "additional_files" configuration setting is missing from your CSV file.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+
+            # Verify media use tids.
+            for additional_files_media_use_field, additional_files_media_use_tid in additional_files_entries.items():
+                validate_media_use_tid_in_additional_files_setting(config, additional_files_media_use_tid, additional_files_media_use_field)
+
+            if config['nodes_only'] is False and config['allow_missing_files'] is False:
+                for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
+                    for additional_file_field in additional_files_fields:
+                        if len(file_check_row[additional_file_field]) == 0:
+                            message = 'CVS row ' + file_check_row[config['id_field']] + ' contains an empty "' + additional_file_field + '" value.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                        file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
+                        if file_check_row[additional_file_field].startswith('http'):
+                            http_response_code = ping_remote_file(file_check_row[additional_file_field])
+                            if http_response_code != 200 or ping_remote_file(file_check_row[additional_file_field]) is False:
+                                message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
+                                    + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+                        if os.path.isabs(file_check_row[additional_file_field]):
+                            file_path = file_check_row[additional_file_field]
+                        else:
+                            file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
+                        if not file_check_row[additional_file_field].startswith('http'):
+                            if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                                message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
+                                    + file_check_row[config['id_field']] + ' not found.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+                message = 'OK, files named in the CSV "' + additional_file_field + '" column are all present.'
+                print(message)
+                logging.info(message)
+            empty_file_values_exist = False
+            if config['nodes_only'] is False and config['allow_missing_files'] is True:
+                additional_files_check_csv_data = get_csv_data(config)
+                additional_file_fields_for_message = []
+                for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
+                    for additional_file_field in additional_files_fields:
+                        if len(file_check_row[additional_file_field]) == 0:
+                            empty_file_values_exist = True
+                        else:
+                            if os.path.isabs(file_check_row[additional_file_field]):
+                                file_path = file_check_row[additional_file_field]
+                            else:
+                                file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
+                            if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                                message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column not found.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+                        if '"' + additional_file_field + '"' not in additional_file_fields_for_message:
+                            additional_file_fields_for_message.append('"' + additional_file_field + '"')
+                if empty_file_values_exist is True:
+                    message = 'OK, files named in the CSV ' + ', '.join(additional_file_fields_for_message) + ' column(s) are all present; the "allow_missing_files" ' + \
+                        'option is enabled and empty ' + ', '.join(additional_file_fields_for_message) + ' values exist.'
+                    print(message)
+                    logging.info(message)
+                else:
+                    message = 'OK, files named in the CSV ' + ', '.join(additional_file_fields_for_message) + ' column(s) are all present.'
+                    print(message)
+                    logging.info(message)
+
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
             message = 'If you are creating paged content, you must include "paged_content_page_model_tid" in your configuration.'
@@ -1162,8 +1243,7 @@ def check_input(config, args):
         for count, file_check_row in enumerate(paged_content_from_directories_csv_data, start=1):
             dir_path = os.path.join(config['input_dir'], file_check_row[config['id_field']])
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
-                message = 'Page directory ' + dir_path + ' for CSV record with ID "' \
-                    + file_check_row[config['id_field']] + '"" not found.'
+                message = 'Page directory ' + dir_path + ' for CSV record with ID "' + file_check_row[config['id_field']] + '"" not found.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
             page_files = os.listdir(dir_path)
@@ -1422,6 +1502,17 @@ def get_target_ids(node_field_values):
     return target_ids
 
 
+def get_additional_files_config(config):
+    if 'additional_files' in config and len(config['additional_files']) > 0:
+        additional_files_entries = dict()
+        for additional_files_entry in config['additional_files']:
+            for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
+                additional_files_entries[additional_file_field] = additional_file_media_use_tid
+        return additional_files_entries
+    else:
+        return None
+
+
 def split_typed_relation_string(config, typed_relation_string, target_type):
     """Fields of type 'typed_relation' are represented in the CSV file
        using a structured string, specifically namespace:property:id,
@@ -1494,6 +1585,32 @@ def split_link_string(config, link_string):
     return return_list
 
 
+def validate_media_use_tid_in_additional_files_setting(config, media_use_tid, additional_field_name):
+    term_endpoint = config['host'] + '/taxonomy/term/' + str(str(media_use_tid).strip()) + '?_format=json'
+    headers = {'Content-Type': 'application/json'}
+    response = issue_request(config, 'GET', term_endpoint, headers)
+    if response.status_code == 404:
+        message = 'Term ID "' + str(media_use_tid) + '" registered in the "additional_files" config option ' + \
+            'for field "' + additional_field_name + '" is not a term ID (term doesn\'t exist).'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+    if response.status_code == 200:
+        response_body = json.loads(response.text)
+        if 'vid' in response_body:
+            if response_body['vid'][0]['target_id'] != 'islandora_media_use':
+                message = 'Term ID "' + str(media_use_tid) + '" registered in the "additional_files" config option ' + \
+                    'for field "' + additional_field_name + '" is not in the Islandora Media Use vocabulary.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+        if 'field_external_uri' in response_body:
+            if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
+                message = 'Warning: Term ID "' + media_use_term + '" registered in the "additional_files" config option ' + \
+                    'for field "' + additional_field_name + '" will assign an Islandora Media Use term that might ' + \
+                    "conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                print(message)
+                logging.warning(message)
+
+
 def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id=None):
     """Validate whether the term ID, term name, or terms URI provided in the
        config value for media_use_tid is in the Islandora Media Use vocabulary.
@@ -1501,8 +1618,10 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
     if media_use_tid_value_from_csv is not None and csv_row_id is not None:
         if len(str(media_use_tid_value_from_csv)) > 0:
             media_use_tid_value = media_use_tid_value_from_csv
+            message_wording = ' in the CSV "media_use_tid" column '
     else:
         media_use_tid_value = config['media_use_tid']
+        message_wording = ' in configuration option "media_use_tid" '
 
     media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
     for media_use_term in media_use_terms:
@@ -1510,11 +1629,11 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
             media_use_tid = get_term_id_from_uri(config, media_use_term.strip())
             if csv_row_id is None:
                 if media_use_tid is False:
-                    message = 'URI "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
+                    message = 'URI "' + media_use_term + '" provided ' + message_wording + ' does not match any taxonomy terms.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
-                    message = 'Warning: URI "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
+                    message = 'Warning: URI "' + media_use_term + '" provided ' + message_wording + \
                         "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
                     print(message)
                     logging.warning(message)
