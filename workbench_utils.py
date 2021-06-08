@@ -1503,6 +1503,9 @@ def get_target_ids(node_field_values):
 
 
 def get_additional_files_config(config):
+    """Converts values in 'additional_files' config setting to a simple
+       dictionary for easy access.
+    """
     if 'additional_files' in config and len(config['additional_files']) > 0:
         additional_files_entries = dict()
         for additional_files_entry in config['additional_files']:
@@ -1586,7 +1589,10 @@ def split_link_string(config, link_string):
 
 
 def validate_media_use_tid_in_additional_files_setting(config, media_use_tid, additional_field_name):
-    term_endpoint = config['host'] + '/taxonomy/term/' + str(str(media_use_tid).strip()) + '?_format=json'
+    """Validate whether the term ID registered in the "additional_files" config setting
+       is in the Islandora Media Use vocabulary.
+    """
+    term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_tid).strip() + '?_format=json'
     headers = {'Content-Type': 'application/json'}
     response = issue_request(config, 'GET', term_endpoint, headers)
     if response.status_code == 404:
@@ -1604,7 +1610,7 @@ def validate_media_use_tid_in_additional_files_setting(config, media_use_tid, ad
                 sys.exit('Error: ' + message)
         if 'field_external_uri' in response_body:
             if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
-                message = 'Warning: Term ID "' + media_use_term + '" registered in the "additional_files" config option ' + \
+                message = 'Warning: Term ID "' + str(media_use_tid) + '" registered in the "additional_files" config option ' + \
                     'for field "' + additional_field_name + '" will assign an Islandora Media Use term that might ' + \
                     "conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
                 print(message)
@@ -1634,7 +1640,8 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     sys.exit('Error: ' + message)
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
                     message = 'Warning: URI "' + media_use_term + '" provided ' + message_wording + \
-                        "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                        "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')." + \
+                        " You should temporarily disable the Context or Action that generates those derivatives."
                     print(message)
                     logging.warning(message)
             else:
@@ -1646,7 +1653,8 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
                     message = 'Warning: URI "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
                         str(csv_row_id) + "will assign an Islandora Media Use term that might conflict with " + \
-                        "derivative media (e.g., 'Thumbnail', 'Service File')."
+                        "derivative media (e.g., 'Thumbnail', 'Service File'). You should temporarily disable the " + \
+                        "Context or Action that generates those derivatives."
                     logging.warning(message)
 
         elif value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http') is not True:
@@ -1689,7 +1697,8 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     if 'field_external_uri' in response_body:
                         if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
                             message = 'Warning: Term ID "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
-                                "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                                "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')." + \
+                                " You should temporarily disable the Context or Action that generates those derivatives."
                             print(message)
                             logging.warning(message)
                 else:
@@ -1704,7 +1713,8 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                         if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
                             message = 'Warning: Term ID "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
                                 str(csv_row_id) + " will assign an Islandora Media Use term that might conflict with " + \
-                                "derivative media (e.g., 'Thumbnail', 'Service File')."
+                                "derivative media (e.g., 'Thumbnail', 'Service File'). You should temporarily disable the " + \
+                                "Context or Action that generates those derivatives."
                             print(message)
                             logging.warning(message)
 
@@ -1778,7 +1788,6 @@ def create_file(config, filename, node_csv_row):
         file_path = download_remote_file(config, filename, node_csv_row)
         if file_path is False:
             return False
-
         filename = file_path.split("/")[-1]
         is_remote = True
     elif os.path.isabs(filename):
@@ -1819,7 +1828,7 @@ def create_file(config, filename, node_csv_row):
         return False
 
 
-def create_media(config, filename, node_id, node_csv_row):
+def create_media(config, filename, node_id, node_csv_row, media_use_tid=None):
     """Creates a media in Drupal.
 
            Parameters
@@ -1832,6 +1841,8 @@ def create_media(config, filename, node_id, node_csv_row):
                 The ID of the node to attach the media to. This is False if file creation failed.
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+            media_use_tid : int
+                A valid term ID from the Islandora Media Use vocabulary.
             Returns
             -------
             int|False
@@ -1858,11 +1869,11 @@ def create_media(config, filename, node_id, node_csv_row):
 
     file_result = create_file(config, filename, node_csv_row)
     if isinstance(file_result, int):
-        if isinstance(config['media_use_tid'], str) and config['media_use_tid'].startswith('http'):
-            media_use_tid = tid_from_uri = get_term_id_from_uri(config, config['media_use_tid'])
-        else:
-            media_use_tid = config['media_use_tid']
-        media_use_term_uuid = get_term_uuid(config, media_use_tid)
+        if media_use_tid is None:
+            if isinstance(config['media_use_tid'], str) and config['media_use_tid'].startswith('http'):
+                media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
+            else:
+                media_use_tid = config['media_use_tid']
 
         if filename.startswith('http'):
             parts = urllib.parse.urlparse(filename)
@@ -1933,7 +1944,7 @@ def create_media(config, filename, node_id, node_csv_row):
         return file_result
 
 
-def create_islandora_media(config, filename, node_uri, node_csv_row):
+def create_islandora_media(config, filename, node_uri, node_csv_row, media_use_tid=None):
     """node_csv_row is an OrderedDict, e.g.
        OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
 
@@ -1964,6 +1975,9 @@ def create_islandora_media(config, filename, node_uri, node_csv_row):
         media_use_tid_value = node_csv_row['media_use_tid']
     else:
         media_use_tid_value = config['media_use_tid']
+
+    if media_use_tid is not None:
+        media_use_tid_value = media_use_tid
 
     media_use_tids = []
     media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
