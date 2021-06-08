@@ -513,7 +513,7 @@ def ping_media_bundle(config, bundle_name):
     return response.status_code
 
 
-def ping_remote_file(url):
+def ping_remote_file(config, url):
     """Logging, exiting, etc. happens in caller, except on requests error.
     """
     sections = urllib.parse.urlparse(url)
@@ -1099,8 +1099,8 @@ def check_input(config, args):
                     sys.exit('Error: ' + message)
                 file_check_row['file'] = file_check_row['file'].strip()
                 if file_check_row['file'].startswith('http'):
-                    http_response_code = ping_remote_file(file_check_row['file'])
-                    if http_response_code != 200 or ping_remote_file(file_check_row['file']) is False:
+                    http_response_code = ping_remote_file(config, file_check_row['file'])
+                    if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
                         message = 'Remote file ' + file_check_row['file'] + ' identified in CSV "file" column for record with ID field value ' \
                             + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
                         logging.error(message)
@@ -1186,8 +1186,8 @@ def check_input(config, args):
                             sys.exit('Error: ' + message)
                         file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
                         if file_check_row[additional_file_field].startswith('http'):
-                            http_response_code = ping_remote_file(file_check_row[additional_file_field])
-                            if http_response_code != 200 or ping_remote_file(file_check_row[additional_file_field]) is False:
+                            http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
+                            if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
                                 message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
                                     + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
                                 logging.error(message)
@@ -1612,7 +1612,7 @@ def validate_media_use_tid_in_additional_files_setting(config, media_use_tid, ad
             if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
                 message = 'Warning: Term ID "' + str(media_use_tid) + '" registered in the "additional_files" config option ' + \
                     'for field "' + additional_field_name + '" will assign an Islandora Media Use term that might ' + \
-                    "conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                    "conflict with derivative media. You should temporarily disable the Context or Action that generates those derivatives."
                 print(message)
                 logging.warning(message)
 
@@ -1640,7 +1640,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     sys.exit('Error: ' + message)
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
                     message = 'Warning: URI "' + media_use_term + '" provided ' + message_wording + \
-                        "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')." + \
+                        "will assign an Islandora Media Use term that might conflict with derivative media. " + \
                         " You should temporarily disable the Context or Action that generates those derivatives."
                     print(message)
                     logging.warning(message)
@@ -1653,8 +1653,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
                     message = 'Warning: URI "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
                         str(csv_row_id) + "will assign an Islandora Media Use term that might conflict with " + \
-                        "derivative media (e.g., 'Thumbnail', 'Service File'). You should temporarily disable the " + \
-                        "Context or Action that generates those derivatives."
+                        "derivative media. You should temporarily disable the Context or Action that generates those derivatives."
                     logging.warning(message)
 
         elif value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http') is not True:
@@ -1697,7 +1696,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     if 'field_external_uri' in response_body:
                         if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
                             message = 'Warning: Term ID "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
-                                "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')." + \
+                                "will assign an Islandora Media Use term that might conflict with derivative media. " + \
                                 " You should temporarily disable the Context or Action that generates those derivatives."
                             print(message)
                             logging.warning(message)
@@ -1713,8 +1712,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                         if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
                             message = 'Warning: Term ID "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
                                 str(csv_row_id) + " will assign an Islandora Media Use term that might conflict with " + \
-                                "derivative media (e.g., 'Thumbnail', 'Service File'). You should temporarily disable the " + \
-                                "Context or Action that generates those derivatives."
+                                "derivative media. You should temporarily disable the Context or Action that generates those derivatives."
                             print(message)
                             logging.warning(message)
 
@@ -1783,7 +1781,7 @@ def create_file(config, filename, node_csv_row):
     is_remote = False
     filename = filename.strip()
 
-    if node_csv_row['file'].startswith('http'):
+    if filename.startswith('http'):
         filename_parts = urllib.parse.urlparse(filename)
         file_path = download_remote_file(config, filename, node_csv_row)
         if file_path is False:
