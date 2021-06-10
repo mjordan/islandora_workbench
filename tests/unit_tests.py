@@ -327,5 +327,17 @@ class TestDrupalCoreVersionNumbers(unittest.TestCase):
             self.assertTrue(res, 'Version number ' + str(version_number) + ' is less than 8.6.')
 
 
+class TestDedupedFilePaths(unittest.TestCase):
+    def test_deduped_file_paths(self):
+        paths = [
+            ['/home/foo/bar.txt', '/home/foo/bar_1.txt'],
+            ['/home/foo/bar_1.txt', '/home/foo/bar_2.txt'],
+            ['/tmp/dir/dog_05.zip', '/tmp/dir/dog_6.zip']
+        ]
+        for path_pair in paths:
+            deduped_path = workbench_utils.get_deduped_file_path(path_pair[0])
+            self.assertEqual(deduped_path, path_pair[1])
+
+
 if __name__ == '__main__':
     unittest.main()

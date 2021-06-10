@@ -223,7 +223,7 @@ def set_media_type(config, filepath, csv_row):
     if 'media_type' in config:
         return config['media_type']
 
-    if csv_row['file'].strip().startswith('http'):
+    if filepath.strip().startswith('http'):
         preprocessed_file_path = get_prepocessed_file_path(config, csv_row)
         filename = preprocessed_file_path.split('/')[-1]
         extension = filename.split('.')[-1]
@@ -1778,6 +1778,7 @@ def create_file(config, filename, node_csv_row):
     """
     if config['nodes_only'] is True:
         return None
+
     is_remote = False
     filename = filename.strip()
 
@@ -3606,6 +3607,34 @@ def get_extension_from_mimetype(mimetype):
         return mimetypes.guess_extension(mimetype)
 
 
+def get_deduped_file_path(path):
+    """Given a file path, return a version of it that contains a version of
+       the same name with an incremented integer inserted before the extension.
+    """
+    """Parameters
+        ----------
+        path : string
+            The file path we want to dedupe.
+        Returns
+        -------
+        string
+            The deduped version of 'path', i.e., the original path with an
+            underscore and an incremented digit inserted before the extension.
+    """
+    [base_path, extension] = os.path.splitext(path)
+
+    numbers = re.findall(r"_\d+$", base_path)
+    if len(numbers) == 0:
+        incremented_path = base_path + '_1' + extension
+    else:
+        number = int(numbers[0].lstrip('_')) + 1
+        base_path_parts = base_path.split('_')
+        del base_path_parts[-1]
+        incremented_path = '_'.join(base_path_parts) + '_' + str(number) + extension
+
+    return incremented_path
+
+
 def get_prepocessed_file_path(config, node_csv_row):
     """For remote/downloaded files, generates the path to the local temporary
        copy and returns that path. For local files, just returns the value of
@@ -3655,6 +3684,11 @@ def get_prepocessed_file_path(config, node_csv_row):
 
             extension_with_dot = get_extension_from_mimetype(mimetype)
             downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
+
+            # Check to see if a file with this path already exists; if so, insert an
+            # incremented digit into the file path before the extension.
+            if os.path.exists(downloaded_file_path):
+                downloaded_file_path = get_deduped_file_path(downloaded_file_path)
 
         return downloaded_file_path
     # It's a local file.
