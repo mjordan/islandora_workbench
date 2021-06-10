@@ -215,7 +215,7 @@ def set_config_defaults(args):
     return config
 
 
-def set_media_type(config, filepath, csv_row):
+def set_media_type(config, filepath, file_fieldname, csv_row):
     """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from
        file extenstion to media type.
@@ -224,7 +224,7 @@ def set_media_type(config, filepath, csv_row):
         return config['media_type']
 
     if filepath.strip().startswith('http'):
-        preprocessed_file_path = get_prepocessed_file_path(config, csv_row)
+        preprocessed_file_path = get_prepocessed_file_path(config, file_fieldname, csv_row)
         filename = preprocessed_file_path.split('/')[-1]
         extension = filename.split('.')[-1]
         extension_with_dot = '.' + extension
@@ -1145,14 +1145,19 @@ def check_input(config, args):
         if config['nodes_only'] is False:
             media_type_check_csv_data = get_csv_data(config)
             for count, file_check_row in enumerate(media_type_check_csv_data, start=1):
-                if len(file_check_row['file']) != 0:
-                    media_type = set_media_type(config, file_check_row['file'], file_check_row)
-                    media_bundle_response_code = ping_media_bundle(config, media_type)
-                    if media_bundle_response_code == 404:
-                        message = 'File "' + file_check_row['file'] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
-                            ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
+                filename_fields_to_check = ['file']
+                if 'additional_files' in config and len(config['additional_files']) > 0:
+                    additional_files_entries = get_additional_files_config(config)
+                    filename_fields_to_check.extend(additional_files_entries.keys())
+                for filename_field in filename_fields_to_check:
+                    if len(file_check_row[filename_field]) != 0:
+                        media_type = set_media_type(config, file_check_row[filename_field], filename_field, file_check_row)
+                        media_bundle_response_code = ping_media_bundle(config, media_type)
+                        if media_bundle_response_code == 404:
+                            message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+                                ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
 
         # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
@@ -1758,7 +1763,7 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
     return result, cmd.returncode
 
 
-def create_file(config, filename, node_csv_row):
+def create_file(config, filename, file_fieldname, node_csv_row):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
 
            Parameters
@@ -1767,6 +1772,8 @@ def create_file(config, filename, node_csv_row):
                 The configuration object defined by set_config_defaults().
             filename : string
                 The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
+            file_fieldname: string
+                The name of the CSV column containing the filename.
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
             Returns
@@ -1784,7 +1791,7 @@ def create_file(config, filename, node_csv_row):
 
     if filename.startswith('http'):
         filename_parts = urllib.parse.urlparse(filename)
-        file_path = download_remote_file(config, filename, node_csv_row)
+        file_path = download_remote_file(config, filename, file_fieldname, node_csv_row)
         if file_path is False:
             return False
         filename = file_path.split("/")[-1]
@@ -1795,7 +1802,7 @@ def create_file(config, filename, node_csv_row):
         file_path = os.path.join(config['input_dir'], filename)
 
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(config, file_path, node_csv_row)
+    media_type = set_media_type(config, file_path, file_fieldname, node_csv_row)
     if media_type in config['media_bundle_file_fields']:
         media_file_field = config['media_bundle_file_fields'][media_type]
     else:
@@ -1827,7 +1834,7 @@ def create_file(config, filename, node_csv_row):
         return False
 
 
-def create_media(config, filename, node_id, node_csv_row, media_use_tid=None):
+def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_use_tid=None):
     """Creates a media in Drupal.
 
            Parameters
@@ -1836,6 +1843,8 @@ def create_media(config, filename, node_id, node_csv_row, media_use_tid=None):
                 The configuration object defined by set_config_defaults().
             filename : string
                 The value of the CSV 'file' field for the current node.
+            file_fieldname: string
+                The name of the CSV column containing the filename.
             node_id: string
                 The ID of the node to attach the media to. This is False if file creation failed.
             node_csv_row: OrderedDict
@@ -1866,7 +1875,7 @@ def create_media(config, filename, node_id, node_csv_row, media_use_tid=None):
         logging.error("Filename " + filename + " is not valid UTF-8.")
         return False
 
-    file_result = create_file(config, filename, node_csv_row)
+    file_result = create_file(config, filename, file_fieldname, node_csv_row)
     if isinstance(file_result, int):
         if media_use_tid is None:
             if isinstance(config['media_use_tid'], str) and config['media_use_tid'].startswith('http'):
@@ -1877,7 +1886,7 @@ def create_media(config, filename, node_id, node_csv_row, media_use_tid=None):
         if filename.startswith('http'):
             parts = urllib.parse.urlparse(filename)
             filename = parts.path
-        media_type = set_media_type(config, filename, node_csv_row)
+        media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_field = config['media_fields'][media_type]
 
         media_json = {
@@ -1943,7 +1952,7 @@ def create_media(config, filename, node_id, node_csv_row, media_use_tid=None):
         return file_result
 
 
-def create_islandora_media(config, filename, node_uri, node_csv_row, media_use_tid=None):
+def create_islandora_media(config, filename, file_fieldname, node_uri, node_csv_row, media_use_tid=None):
     """node_csv_row is an OrderedDict, e.g.
        OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
 
@@ -1957,7 +1966,7 @@ def create_islandora_media(config, filename, node_uri, node_csv_row, media_use_t
 
     filename = filename.strip()
     if filename.startswith('http'):
-        file_path = download_remote_file(config, filename, node_csv_row)
+        file_path = download_remote_file(config, filename, file_fieldname, node_csv_row)
         if file_path is False:
             return False
         filename = file_path.split("/")[-1]
@@ -1968,7 +1977,7 @@ def create_islandora_media(config, filename, node_uri, node_csv_row, media_use_t
         file_path = os.path.join(config['input_dir'], filename)
 
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(config, filename, node_csv_row)
+    media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
 
     if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
         media_use_tid_value = node_csv_row['media_use_tid']
@@ -3476,9 +3485,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             fake_csv_record['title'] = page_title
             fake_csv_record['file'] = page_file_path
             if drupal_8 is True:
-                media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
+                media_response_status_code = create_islandora_media(config, page_file_path, 'file', node_uri, fake_csv_record)
             else:
-                media_response_status_code = create_media(config, page_file_path, node_nid, fake_csv_record)
+                media_response_status_code = create_media(config, page_file_path, 'file', node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if media_response_status_code is False:
@@ -3635,7 +3644,7 @@ def get_deduped_file_path(path):
     return incremented_path
 
 
-def get_prepocessed_file_path(config, node_csv_row):
+def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
     """For remote/downloaded files, generates the path to the local temporary
        copy and returns that path. For local files, just returns the value of
        node_csv_row['file'].
@@ -3644,6 +3653,8 @@ def get_prepocessed_file_path(config, node_csv_row):
         ----------
         config : dict
             The configuration object defined by set_config_defaults().
+        file_fieldname: string
+            The name of the CSV column containing the filename.
         node_csv_row : OrderedDict
             The CSV row for the current item.
         Returns
@@ -3651,7 +3662,7 @@ def get_prepocessed_file_path(config, node_csv_row):
         string
             The path (absolute or relative) to the file.
     """
-    file_path_from_csv = node_csv_row['file'].strip()
+    file_path_from_csv = node_csv_row[file_fieldname].strip()
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
         sections = urllib.parse.urlparse(file_path_from_csv)
@@ -3700,7 +3711,7 @@ def get_prepocessed_file_path(config, node_csv_row):
         return file_path
 
 
-def download_remote_file(config, url, node_csv_row):
+def download_remote_file(config, url, file_fieldname, node_csv_row):
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True, verify=config['secure_ssl_only'])
@@ -3719,7 +3730,7 @@ def download_remote_file(config, url, node_csv_row):
         print('Error: ' + message)
         return False
 
-    downloaded_file_path = get_prepocessed_file_path(config, node_csv_row)
+    downloaded_file_path = get_prepocessed_file_path(config, file_fieldname, node_csv_row)
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)

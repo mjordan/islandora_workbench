@@ -346,7 +346,7 @@ def create():
             allowed_media_response_codes = [201, 204]
             if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
                 if drupal_8 is True:
-                    media_response_status_code = create_islandora_media(config, row['file'], node_uri, row_for_media)
+                    media_response_status_code = create_islandora_media(config, row['file'], 'file', node_uri, row_for_media)
                     if media_response_status_code in allowed_media_response_codes:
                         if config['progress_bar'] is False:
                             print("+ Media for " + row['file'] + " created.")
@@ -355,13 +355,13 @@ def create():
                         additional_files_config = get_additional_files_config(config)
                         if additional_files_config is not None:
                             for additional_file_field, media_additional_file_media_use_tid in additional_files_config.items():
-                                media_response_status_code = create_islandora_media(config, row[additional_file_field], node_uri, row_for_media, additional_file_media_use_tid)
+                                media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row_for_media, additional_file_media_use_tid)
                                 if media_response_status_code in allowed_media_response_codes:
                                     if config['progress_bar'] is False:
                                         print("+ Media for " + row[additional_file_field] + " created.")
                                     logging.info("Media for %s created.", row[additional_file_field])
                 else:
-                    media_response_status_code = create_media(config, row['file'], node_nid, row_for_media)
+                    media_response_status_code = create_media(config, row['file'], 'file', node_nid, row_for_media)
                     if media_response_status_code in allowed_media_response_codes:
                         if config['progress_bar'] is False:
                             print("+ Media for " + row['file'] + " created.")
@@ -370,7 +370,7 @@ def create():
                         additional_files_config = get_additional_files_config(config)
                         if additional_files_config is not None:
                             for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
-                                media_response_status_code = create_media(config, row[additional_file_field], node_nid, row_for_media, additional_file_media_use_tid)
+                                media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
                                 if media_response_status_code in allowed_media_response_codes:
                                     if config['progress_bar'] is False:
                                         print("+ Media for " + row[additional_file_field] + " created.")
@@ -754,6 +754,7 @@ def delete():
 def add_media():
     """Add media to existing nodes using PUT.
     """
+    # @todo: allow for "additional_files" as per #287.
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
@@ -772,9 +773,9 @@ def add_media():
         node_response = issue_request(config, 'GET', node_json_url)
         if node_response.status_code == 200:
             if drupal_8 is True:
-                media_response_status_code = create_islandora_media(config, row['file'], node_uri, None)
+                media_response_status_code = create_islandora_media(config, 'file', row['file'], node_uri, None)
             else:
-                media_response_status_code = create_media(config, row['file'], row['node_id'], None)
+                media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], None)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
@@ -833,8 +834,7 @@ def create_from_files():
 
         filename_without_extension = os.path.splitext(file_name)[0]
         if len(filename_without_extension) > 255:
-            message = 'Truncating the filename "' + filename_without_extension + \
-                '" since it exceeds Drupal\'s maximum node title length of 255 characters.'
+            message = 'Truncating the filename "' + filename_without_extension + '" since it exceeds Drupal\'s maximum node title length of 255 characters.'
             logging.error(message)
             filename_without_extension = filename_without_extension[:255]
 
@@ -901,14 +901,14 @@ def create_from_files():
             fake_csv_record['title'] = filename_without_extension
             fake_csv_record['file'] = file_path
 
-            media_type = set_media_type(config, file_path, fake_csv_record)
+            media_type = set_media_type(config, file_path, 'file', fake_csv_record)
 
             if media_type == 'image':
                 fake_csv_record['image_alt_text'] = filename_without_extension
             if drupal_8 is True:
-                media_response_status_code = create_islandora_media(config, file_name, node_uri, fake_csv_record)
+                media_response_status_code = create_islandora_media(config, file_name, 'file', node_uri, fake_csv_record)
             else:
-                media_response_status_code = create_media(config, file_name, node_nid, fake_csv_record)
+                media_response_status_code = create_media(config, file_name, 'file', node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
