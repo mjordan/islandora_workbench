@@ -1876,16 +1876,17 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         return False
 
     file_result = create_file(config, filename, file_fieldname, node_csv_row)
+    if filename.startswith('http'):
+        filename = get_prepocessed_file_path(config, file_fieldname, node_csv_row)
     if isinstance(file_result, int):
         if media_use_tid is None:
             if isinstance(config['media_use_tid'], str) and config['media_use_tid'].startswith('http'):
                 media_use_tid = get_term_id_from_uri(config, config['media_use_tid'])
             else:
                 media_use_tid = config['media_use_tid']
+        if file_fieldname != 'file' and media_use_tid is not None:
+            media_use_tid = media_use_tid
 
-        if filename.startswith('http'):
-            parts = urllib.parse.urlparse(filename)
-            filename = parts.path
         media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_field = config['media_fields'][media_type]
 

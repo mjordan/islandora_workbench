@@ -338,7 +338,7 @@ def create():
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
         if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
             if config['progress_bar'] is False:
-                print('+No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
+                print('- No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
             logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
             continue
 
@@ -351,6 +351,10 @@ def create():
                         if config['progress_bar'] is False:
                             print("+ Media for " + row['file'] + " created.")
                         logging.info("Media for %s created.", row['file'])
+                    else:
+                        if config['progress_bar'] is False:
+                            print("- Media for " + row['file'] + " not created. See log for more information")
+                        logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
                     if 'additional_files' in config:
                         additional_files_config = get_additional_files_config(config)
                         if additional_files_config is not None:
@@ -360,12 +364,20 @@ def create():
                                     if config['progress_bar'] is False:
                                         print("+ Media for " + row[additional_file_field] + " created.")
                                     logging.info("Media for %s created.", row[additional_file_field])
+                                else:
+                                    if config['progress_bar'] is False:
+                                        print("- Media for " + row[additional_file_field] + " not created. See log for more information")
+                                    logging.error("Media for %s not created (HTTP respone code %s).", row[additional_file_field], media_response_status_code)
                 else:
                     media_response_status_code = create_media(config, row['file'], 'file', node_nid, row_for_media)
                     if media_response_status_code in allowed_media_response_codes:
                         if config['progress_bar'] is False:
                             print("+ Media for " + row['file'] + " created.")
                         logging.info("Media for %s created.", row['file'])
+                    else:
+                        if config['progress_bar'] is False:
+                            print("- Media for " + row['file'] + " not created. See log for more information")
+                        logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
                     if 'additional_files' in config:
                         additional_files_config = get_additional_files_config(config)
                         if additional_files_config is not None:
@@ -375,6 +387,10 @@ def create():
                                     if config['progress_bar'] is False:
                                         print("+ Media for " + row[additional_file_field] + " created.")
                                     logging.info("Media for %s created.", row[additional_file_field])
+                                else:
+                                    if config['progress_bar'] is False:
+                                        print("- Media for " + row[additional_file_field] + " not created. See log for more information")
+                                    logging.error("Media for %s not created (HTTP respone code %s).", row[additional_file_field], media_response_status_code)
 
             if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                 if config['progress_bar'] is False:
@@ -762,25 +778,49 @@ def add_media():
     for row in csv_data:
         row = clean_csv_values(row)
         if not ping_node(config, row['node_id']):
-            print("Node " + row['node_id'] + " not found or not " +
-                  "accessible, skipping adding media.")
+            print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
             continue
 
         file_path = os.path.join(config['input_dir'], row['file'])
 
+        allowed_media_response_codes = [201, 204]
+
         node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
         node_uri = config['host'] + '/node/' + row['node_id']
-        node_response = issue_request(config, 'GET', node_json_url)
+        node_response = issue_request(config, 'HEAD', node_json_url)
         if node_response.status_code == 200:
             if drupal_8 is True:
                 media_response_status_code = create_islandora_media(config, 'file', row['file'], node_uri, None)
+                if 'additional_files' in config:
+                    additional_files_config = get_additional_files_config(config)
+                    if additional_files_config is not None:
+                        for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
+                            media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row_for_media, additional_file_media_use_tid)
+                            if media_response_status_code in allowed_media_response_codes:
+                                if config['progress_bar'] is False:
+                                    print("Media for " + row[additional_file_field] + " created.")
+                                logging.info("Media for %s created.", row[additional_file_field])
             else:
                 media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], None)
-            allowed_media_response_codes = [201, 204]
+                if 'additional_files' in config:
+                    additional_files_config = get_additional_files_config(config)
+                    if additional_files_config is not None:
+                        for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
+                            media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
+                            if media_response_status_code in allowed_media_response_codes:
+                                if config['progress_bar'] is False:
+                                    print("Media for " + row[additional_file_field] + " created.")
+                                logging.info("Media for %s created.", row[additional_file_field])
+
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
                     print("Media for " + row['file'] + " created and added to " + node_uri)
                 logging.info("Media for %s created and added to %s.", row['file'], node_uri)
+
+        else:
+            if config['progress_bar'] is False:
+                print("ERROR: Node at " + node_uri + " does not exist or is not accessible.")
+            logging.error("Node at %s does not exist or is not accessible (HTTP response code %s)", node_uri, node_response.status_code)
 
         if config['progress_bar'] is True:
             row_count += 1
