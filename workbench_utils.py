@@ -1890,6 +1890,11 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_field = config['media_fields'][media_type]
 
+        if 'title' in node_csv_row:
+            media_name = node_csv_row['title']
+        else:
+            media_name = os.path.basename(filename)
+
         media_json = {
             "bundle": [{
                 "target_id": media_type,
@@ -1899,7 +1904,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 "value": True
             }],
             "name": [{
-                "value": node_csv_row['title']
+                "value": media_name
             }],
             media_field: [{
                 "target_id": file_result,
@@ -1921,7 +1926,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 alt_text = clean_image_alt_text(node_csv_row['image_alt_text'])
                 media_json[media_field][0]['alt'] = alt_text
             else:
-                alt_text = clean_image_alt_text(node_csv_row['title'])
+                alt_text = clean_image_alt_text(media_name)
                 media_json[media_field][0]['alt'] = alt_text
 
         media_endpoint_path = '/entity/media'
@@ -3608,8 +3613,9 @@ def get_extension_from_mimetype(mimetype):
     map = {'image/jpeg': '.jpg',
            'image/jp2': '.jp2',
            'image/png': '.png',
-           'application/octet-stream': '.bin',
-           'audio/mpeg': '.mp3'
+           'audio/mpeg': '.mp3',
+           'text/plain': '.txt',
+           'application/octet-stream': '.bin'
            }
     if mimetype in map:
         return map[mimetype]
@@ -3664,14 +3670,33 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
             The path (absolute or relative) to the file.
     """
     file_path_from_csv = node_csv_row[file_fieldname].strip()
+    if config['task'] == 'add_media':
+        config['id_field'] = 'node_id'
+
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
         sections = urllib.parse.urlparse(file_path_from_csv)
-        subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+        if config['task'] == 'add_media':
+            subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', 'nid_' + str(node_csv_row['node_id'])))
+        else:
+            subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
         Path(subdir).mkdir(parents=True, exist_ok=True)
 
         if config["use_node_title_for_media"]:
-            filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
+            # CSVs for add_media tasks don't contain 'title', so we need to get it.
+            if config['task'] == 'add_media':
+                node_id = node_csv_row['node_id']
+                node_url = config['host'] + '/node/' + node_id + '?_format=json'
+                node_response = issue_request(config, 'GET', node_url)
+                if node_response.status_code == 200:
+                    node_dict = json.loads(node_response.text)
+                    node_csv_row['title'] = node_dict['title'][0]['value']
+                else:
+                    message = 'Cannot access node " + node_id + ", so cannot get its title for use in media filename. Using filename instead.'
+                    logging.warning(message)
+                    node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
+            filename = re.sub(r'\s+', '_', node_csv_row['title'])
+            filename = re.sub('[^A-Za-z0-9]+', '_', filename)
             if filename[-1] == '_':
                 filename = filename[:-1]
             downloaded_file_path = os.path.join(subdir, filename)

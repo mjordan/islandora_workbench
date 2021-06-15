@@ -770,7 +770,6 @@ def delete():
 def add_media():
     """Add media to existing nodes using PUT.
     """
-    # @todo: allow for "additional_files" as per #287.
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
@@ -781,8 +780,6 @@ def add_media():
             print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
             continue
 
-        file_path = os.path.join(config['input_dir'], row['file'])
-
         allowed_media_response_codes = [201, 204]
 
         node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
@@ -790,33 +787,36 @@ def add_media():
         node_response = issue_request(config, 'HEAD', node_json_url)
         if node_response.status_code == 200:
             if drupal_8 is True:
-                media_response_status_code = create_islandora_media(config, 'file', row['file'], node_uri, None)
+                media_response_status_code = create_islandora_media(config, 'file', row['file'], node_uri, row, None)
                 if 'additional_files' in config:
                     additional_files_config = get_additional_files_config(config)
                     if additional_files_config is not None:
                         for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
-                            media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row_for_media, additional_file_media_use_tid)
+                            media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row, additional_file_media_use_tid)
                             if media_response_status_code in allowed_media_response_codes:
                                 if config['progress_bar'] is False:
-                                    print("Media for " + row[additional_file_field] + " created.")
-                                logging.info("Media for %s created.", row[additional_file_field])
+                                    print("Media for " + row[additional_file_field] + " created and added to " + node_uri + ".")
+                                logging.info("Media for %s created and added to %s.", row[additional_file_field], node_uri)
             else:
-                media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], None)
+                media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], row, None)
                 if 'additional_files' in config:
                     additional_files_config = get_additional_files_config(config)
                     if additional_files_config is not None:
                         for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
-                            media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
+                            media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, row['node_id'], row, additional_file_media_use_tid)
                             if media_response_status_code in allowed_media_response_codes:
                                 if config['progress_bar'] is False:
-                                    print("Media for " + row[additional_file_field] + " created.")
-                                logging.info("Media for %s created.", row[additional_file_field])
+                                    print("Media for " + row[additional_file_field] + " created and added to " + node_uri + ".")
+                                logging.info("Media for %s created and added to %s.", row[additional_file_field], node_uri)
 
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
                     print("Media for " + row['file'] + " created and added to " + node_uri)
                 logging.info("Media for %s created and added to %s.", row['file'], node_uri)
-
+            else:
+                if config['progress_bar'] is False:
+                    print("Media for " + row['file'] + " not created. See log for more information")
+                logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
         else:
             if config['progress_bar'] is False:
                 print("ERROR: Node at " + node_uri + " does not exist or is not accessible.")
