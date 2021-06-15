@@ -148,6 +148,9 @@ def set_config_defaults(args):
     if config['task'] == 'create':
         if 'id_field' not in config:
             config['id_field'] = 'id'
+    if config['task'] == 'add_media':
+        if 'id_field' not in config:
+            config['id_field'] = 'node_id'
     if config['task'] == 'create' or config['task'] == 'create_from_files':
         if 'published' not in config:
             config['published'] = 1
@@ -1219,14 +1222,22 @@ def check_input(config, args):
                         if len(file_check_row[additional_file_field]) == 0:
                             empty_file_values_exist = True
                         else:
-                            if os.path.isabs(file_check_row[additional_file_field]):
-                                file_path = file_check_row[additional_file_field]
+                            if file_check_row[additional_file_field].startswith('http'):
+                                http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
+                                if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
+                                    message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
+                                        + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
                             else:
-                                file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
-                            if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                                message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column not found.'
-                                logging.error(message)
-                                sys.exit('Error: ' + message)
+                                if os.path.isabs(file_check_row[additional_file_field]):
+                                    file_path = file_check_row[additional_file_field]
+                                else:
+                                    file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
+                                if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                                    message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column not found.'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
                         if '"' + additional_file_field + '"' not in additional_file_fields_for_message:
                             additional_file_fields_for_message.append('"' + additional_file_field + '"')
                 if empty_file_values_exist is True:
@@ -1781,15 +1792,24 @@ def create_file(config, filename, file_fieldname, node_csv_row):
             string|int|bool|None
                 The file ID of the successfully created file; the HTTP status code if the
                 attempt was unsuccessful, False if there is insufficient information to create
-                the file or file creation failed, or None if config['nodes_only'] is True.
+                the file or file creation failed, or None if config['nodes_only'] or
+                config['allow_missing_files'] is True.
     """
     if config['nodes_only'] is True:
         return None
+
+    if config['task'] == 'add_media' or config['task'] == 'create':
+        if config['allow_missing_files'] and len(node_csv_row[file_fieldname].strip()) == 0:
+            return None
 
     is_remote = False
     filename = filename.strip()
 
     if filename.startswith('http'):
+        remote_file_http_response_code = ping_remote_file(config, filename)
+        if remote_file_http_response_code != 200:
+            return False
+
         filename_parts = urllib.parse.urlparse(filename)
         file_path = download_remote_file(config, filename, file_fieldname, node_csv_row)
         if file_path is False:
@@ -1877,6 +1897,8 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
 
     file_result = create_file(config, filename, file_fieldname, node_csv_row)
     if filename.startswith('http'):
+        if file_result is False:
+            return False
         filename = get_prepocessed_file_path(config, file_fieldname, node_csv_row)
     if isinstance(file_result, int):
         if media_use_tid is None:
@@ -1972,6 +1994,9 @@ def create_islandora_media(config, filename, file_fieldname, node_uri, node_csv_
 
     filename = filename.strip()
     if filename.startswith('http'):
+        remote_file_http_reponse = ping_remote_file(config, filename)
+        if remote_file_http_reponse != 200:
+            return False
         file_path = download_remote_file(config, filename, file_fieldname, node_csv_row)
         if file_path is False:
             return False
