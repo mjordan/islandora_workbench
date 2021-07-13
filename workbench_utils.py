@@ -900,7 +900,7 @@ def check_input(config, args):
             # Set this so we can validate langcode below.
             langcode_was_present = True
         for csv_column_header in csv_column_headers:
-            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
                 if csv_column_header in config['ignore_csv_columns']:
                     continue
                 logging.error(
@@ -1374,6 +1374,18 @@ def get_target_ids(node_field_values):
         target_ids.append(target['target_id'])
     return target_ids
 
+def get_additional_files_config(config):
+    """Converts values in 'additional_files' config setting to a simple
+       dictionary for easy access.
+    """
+    if 'additional_files' in config and len(config['additional_files']) > 0:
+        additional_files_entries = dict()
+        for additional_files_entry in config['additional_files']:
+            for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
+                additional_files_entries[additional_file_field] = additional_file_media_use_tid
+        return additional_files_entries
+    else:
+        return None
 
 def split_typed_relation_string(config, typed_relation_string, target_type):
     """Fields of type 'typed_relation' are represented in the CSV file
