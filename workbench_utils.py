@@ -881,7 +881,7 @@ def check_input(config, args):
         if config['list_missing_drupal_fields'] is True:
             missing_drupal_fields = []
             for csv_column_header in csv_column_headers:
-                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in reserved_fields:
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in reserved_fields and csv_column_header not in get_additional_files_config(config).keys():
                     if csv_column_header != config['id_field']:
                         missing_drupal_fields.append(csv_column_header)
             if len(missing_drupal_fields) > 0:
