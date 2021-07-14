@@ -174,6 +174,25 @@ class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
+class TestDelimiterCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'delimiter_test', 'create_tab.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        self.output = output.decode().strip()
+
+    def test_delimiter_check(self):
+        lines = self.output.splitlines()
+        self.assertRegex(self.output, 'input data appear to be valid', '')
+
+    def tearDown(self):
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "delimiter_test", "metadata.tsv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
+
 class TestGeolocationCheck(unittest.TestCase):
 
     def test_geolocation_check(self):

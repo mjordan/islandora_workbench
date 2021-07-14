@@ -2078,7 +2078,7 @@ def get_csv_data(config):
         sys.exit(message)
 
     try:
-        # 'utf-8-sig' emcoding skips Microsoft BOM (0xef, 0xbb, 0xbf) at the start of files,
+        # 'utf-8-sig' encoding skips Microsoft BOM (0xef, 0xbb, 0xbf) at the start of files,
         # e.g. exported from Excel and has no effect when reading standard UTF-8 encoded files.
         csv_reader_file_handle = open(input_csv_path, 'r', encoding="utf-8-sig", newline='')
     except (UnicodeDecodeError):
@@ -2115,7 +2115,7 @@ def get_csv_data(config):
             for field_name, field_value in template.items():
                 if field_name not in csv_reader_fieldnames_orig:
                     csv_reader_fieldnames.append(field_name)
-        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
+        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames, delimiter=config['delimiter'])
         csv_writer.writeheader()
         row_num = 0
         unique_identifiers = []
@@ -2152,7 +2152,7 @@ def get_csv_data(config):
             logging.error(message)
             sys.exit("Error: " + message)
     else:
-        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames)
+        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames, delimiter=config['delimiter'])
         csv_writer.writeheader()
         row_num = 0
         for row in csv_reader:
