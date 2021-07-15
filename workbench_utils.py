@@ -876,9 +876,10 @@ def check_input(config, args):
         if config['list_missing_drupal_fields'] is True:
             missing_drupal_fields = []
             for csv_column_header in csv_column_headers:
-                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in reserved_fields and csv_column_header not in get_additional_files_config(config).keys():
-                    if csv_column_header != config['id_field']:
-                        missing_drupal_fields.append(csv_column_header)
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+                    if csv_column_header not in reserved_fields and csv_column_header not in get_additional_files_config(config).keys():
+                        if csv_column_header != config['id_field']:
+                            missing_drupal_fields.append(csv_column_header)
             if len(missing_drupal_fields) > 0:
                 missing_drupal_fields_message = ', '.join(missing_drupal_fields)
                 logging.error("The following header(s) require a matching Drupal field name: %s.", missing_drupal_fields_message)
@@ -3686,6 +3687,50 @@ def get_deduped_file_path(path):
         incremented_path = '_'.join(base_path_parts) + '_' + str(number) + extension
 
     return incremented_path
+
+
+def check_file_exists(config, filename):
+    """Cconfirms file exists and is a file (not a directory).
+       For remote/downloaded files, checks for a 200 response from a HEAD request.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        filename: string
+            The filename.
+        Returns
+        -------
+        boolean
+            True if the file exists, false if not.
+    """
+    # It's a remote file.
+    if file_path_from_csv.startswith('http'):
+        try:
+            head_response = requests.head(filename, allow_redirects=True, verify=config['secure_ssl_only'])
+            if head_response.status_code == 200:
+                return True
+            else:
+                return False
+        except requests.exceptions.Timeout as err_timeout:
+            message = 'Workbench timed out trying to reach ' + filename + '. Details in next log entry.'
+            logging.error(message)
+            logging.error(err_timeout)
+            return False
+        except requests.exceptions.ConnectionError as error_connection:
+            message = 'Workbench cannot connect to ' + filename + '. Details in next log entry.'
+            logging.error(message)
+            logging.error(error_connection)
+            return False
+    # It's a local file.
+    else:
+        if os.path.isabs(filename):
+            file_path = filename
+        else:
+            file_path = os.path.join(config['input_dir'], filename)
+
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return True
 
 
 def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
