@@ -1518,6 +1518,7 @@ def get_target_ids(node_field_values):
         target_ids.append(target['target_id'])
     return target_ids
 
+
 def get_additional_files_config(config):
     """Converts values in 'additional_files' config setting to a simple
        dictionary for easy access.
@@ -1530,6 +1531,7 @@ def get_additional_files_config(config):
         return additional_files_entries
     else:
         return None
+
 
 def get_additional_files_config(config):
     """Converts values in 'additional_files' config setting to a simple
@@ -3705,7 +3707,7 @@ def check_file_exists(config, filename):
             True if the file exists, false if not.
     """
     # It's a remote file.
-    if file_path_from_csv.startswith('http'):
+    if filename.startswith('http'):
         try:
             head_response = requests.head(filename, allow_redirects=True, verify=config['secure_ssl_only'])
             if head_response.status_code == 200:
