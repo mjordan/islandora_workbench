@@ -148,6 +148,9 @@ def set_config_defaults(args):
     if config['task'] == 'create':
         if 'id_field' not in config:
             config['id_field'] = 'id'
+    if config['task'] == 'add_media':
+        if 'id_field' not in config:
+            config['id_field'] = 'node_id'
     if config['task'] == 'create' or config['task'] == 'create_from_files':
         if 'published' not in config:
             config['published'] = 1
@@ -215,7 +218,7 @@ def set_config_defaults(args):
     return config
 
 
-def set_media_type(config, filepath, csv_row):
+def set_media_type(config, filepath, file_fieldname, csv_row):
     """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from
        file extenstion to media type.
@@ -223,8 +226,8 @@ def set_media_type(config, filepath, csv_row):
     if 'media_type' in config:
         return config['media_type']
 
-    if csv_row['file'].strip().startswith('http'):
-        preprocessed_file_path = get_prepocessed_file_path(config, csv_row)
+    if filepath.strip().startswith('http'):
+        preprocessed_file_path = get_prepocessed_file_path(config, file_fieldname, csv_row)
         filename = preprocessed_file_path.split('/')[-1]
         extension = filename.split('.')[-1]
         extension_with_dot = '.' + extension
@@ -513,7 +516,7 @@ def ping_media_bundle(config, bundle_name):
     return response.status_code
 
 
-def ping_remote_file(url):
+def ping_remote_file(config, url):
     """Logging, exiting, etc. happens in caller, except on requests error.
     """
     sections = urllib.parse.urlparse(url)
@@ -873,9 +876,10 @@ def check_input(config, args):
         if config['list_missing_drupal_fields'] is True:
             missing_drupal_fields = []
             for csv_column_header in csv_column_headers:
-                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in reserved_fields:
-                    if csv_column_header != config['id_field']:
-                        missing_drupal_fields.append(csv_column_header)
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+                    if csv_column_header not in reserved_fields and csv_column_header not in get_additional_files_config(config).keys():
+                        if csv_column_header != config['id_field']:
+                            missing_drupal_fields.append(csv_column_header)
             if len(missing_drupal_fields) > 0:
                 missing_drupal_fields_message = ', '.join(missing_drupal_fields)
                 logging.error("The following header(s) require a matching Drupal field name: %s.", missing_drupal_fields_message)
@@ -892,8 +896,11 @@ def check_input(config, args):
             # Set this so we can validate langcode below.
             langcode_was_present = True
         for csv_column_header in csv_column_headers:
-            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
                 if csv_column_header in config['ignore_csv_columns']:
+                    continue
+                additional_files_entries = get_additional_files_config(config)
+                if csv_column_header in additional_files_entries.keys():
                     continue
                 logging.error(
                     "CSV column header %s does not match any Drupal or reserved field names.",
@@ -1091,13 +1098,13 @@ def check_input(config, args):
         if config['nodes_only'] is False and config['allow_missing_files'] is False:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
-                    message = 'Row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
+                    message = 'CSV row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 file_check_row['file'] = file_check_row['file'].strip()
                 if file_check_row['file'].startswith('http'):
-                    http_response_code = ping_remote_file(file_check_row['file'])
-                    if http_response_code != 200 or ping_remote_file(file_check_row['file']) is False:
+                    http_response_code = ping_remote_file(config, file_check_row['file'])
+                    if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
                         message = 'Remote file ' + file_check_row['file'] + ' identified in CSV "file" column for record with ID field value ' \
                             + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
                         logging.error(message)
@@ -1121,8 +1128,10 @@ def check_input(config, args):
                 if len(file_check_row['file']) == 0:
                     empty_file_values_exist = True
                 else:
-                    file_path = os.path.join(
-                        config['input_dir'], file_check_row['file'])
+                    if os.path.isabs(file_check_row['file']):
+                        file_path = file_check_row['file']
+                    else:
+                        file_path = os.path.join(config['input_dir'], file_check_row['file'])
                     if not os.path.exists(file_path) or not os.path.isfile(file_path):
                         message = 'File ' + file_path + ' identified in CSV "file" column not found.'
                         logging.error(message)
@@ -1140,18 +1149,107 @@ def check_input(config, args):
         if config['nodes_only'] is False:
             media_type_check_csv_data = get_csv_data(config)
             for count, file_check_row in enumerate(media_type_check_csv_data, start=1):
-                if len(file_check_row['file']) != 0:
-                    media_type = set_media_type(config, file_check_row['file'], file_check_row)
-                    media_bundle_response_code = ping_media_bundle(config, media_type)
-                    if media_bundle_response_code == 404:
-                        message = 'File "' + file_check_row['file'] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
-                            ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
+                filename_fields_to_check = ['file']
+                if 'additional_files' in config and len(config['additional_files']) > 0:
+                    additional_files_entries = get_additional_files_config(config)
+                    filename_fields_to_check.extend(additional_files_entries.keys())
+                for filename_field in filename_fields_to_check:
+                    if len(file_check_row[filename_field]) != 0:
+                        media_type = set_media_type(config, file_check_row[filename_field], filename_field, file_check_row)
+                        media_bundle_response_code = ping_media_bundle(config, media_type)
+                        if media_bundle_response_code == 404:
+                            message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+                                ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
 
         # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
         # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
         # 'media_type[s]' config option?
+
+    # Check existence of fields identified in 'additional_files' config setting, and the files named in those fields.
+    # Also check for the acommpanying Media Use tid.
+    if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
+        if 'additional_files' in config and len(config['additional_files']) > 0:
+            additional_files_entries = get_additional_files_config(config)
+            additional_files_check_csv_data = get_csv_data(config)
+            additional_files_fields = additional_files_entries.keys()
+            additional_files_fields_csv_headers = additional_files_check_csv_data.fieldnames
+            if config['nodes_only'] is False:
+                for additional_file_field in additional_files_fields:
+                    if additional_file_field not in additional_files_fields_csv_headers:
+                        message = 'CSV column "' + additional_file_field + '" registered in the "additional_files" configuration setting is missing from your CSV file.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+
+            # Verify media use tids.
+            for additional_files_media_use_field, additional_files_media_use_tid in additional_files_entries.items():
+                validate_media_use_tid_in_additional_files_setting(config, additional_files_media_use_tid, additional_files_media_use_field)
+
+            if config['nodes_only'] is False and config['allow_missing_files'] is False:
+                for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
+                    for additional_file_field in additional_files_fields:
+                        if len(file_check_row[additional_file_field]) == 0:
+                            message = 'CVS row ' + file_check_row[config['id_field']] + ' contains an empty "' + additional_file_field + '" value.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                        file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
+                        if file_check_row[additional_file_field].startswith('http'):
+                            http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
+                            if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
+                                message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
+                                    + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+                        if os.path.isabs(file_check_row[additional_file_field]):
+                            file_path = file_check_row[additional_file_field]
+                        else:
+                            file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
+                        if not file_check_row[additional_file_field].startswith('http'):
+                            if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                                message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
+                                    + file_check_row[config['id_field']] + ' not found.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+                message = 'OK, files named in the CSV "' + additional_file_field + '" column are all present.'
+                print(message)
+                logging.info(message)
+            empty_file_values_exist = False
+            if config['nodes_only'] is False and config['allow_missing_files'] is True:
+                additional_files_check_csv_data = get_csv_data(config)
+                additional_file_fields_for_message = []
+                for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
+                    for additional_file_field in additional_files_fields:
+                        if len(file_check_row[additional_file_field]) == 0:
+                            empty_file_values_exist = True
+                        else:
+                            if file_check_row[additional_file_field].startswith('http'):
+                                http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
+                                if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
+                                    message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
+                                        + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
+                            else:
+                                if os.path.isabs(file_check_row[additional_file_field]):
+                                    file_path = file_check_row[additional_file_field]
+                                else:
+                                    file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
+                                if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                                    message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column not found.'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
+                        if '"' + additional_file_field + '"' not in additional_file_fields_for_message:
+                            additional_file_fields_for_message.append('"' + additional_file_field + '"')
+                if empty_file_values_exist is True:
+                    message = 'OK, files named in the CSV ' + ', '.join(additional_file_fields_for_message) + ' column(s) are all present; the "allow_missing_files" ' + \
+                        'option is enabled and empty ' + ', '.join(additional_file_fields_for_message) + ' values exist.'
+                    print(message)
+                    logging.info(message)
+                else:
+                    message = 'OK, files named in the CSV ' + ', '.join(additional_file_fields_for_message) + ' column(s) are all present.'
+                    print(message)
+                    logging.info(message)
 
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
@@ -1162,8 +1260,7 @@ def check_input(config, args):
         for count, file_check_row in enumerate(paged_content_from_directories_csv_data, start=1):
             dir_path = os.path.join(config['input_dir'], file_check_row[config['id_field']])
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
-                message = 'Page directory ' + dir_path + ' for CSV record with ID "' \
-                    + file_check_row[config['id_field']] + '"" not found.'
+                message = 'Page directory ' + dir_path + ' for CSV record with ID "' + file_check_row[config['id_field']] + '"" not found.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
             page_files = os.listdir(dir_path)
@@ -1422,6 +1519,34 @@ def get_target_ids(node_field_values):
     return target_ids
 
 
+def get_additional_files_config(config):
+    """Converts values in 'additional_files' config setting to a simple
+       dictionary for easy access.
+    """
+    if 'additional_files' in config and len(config['additional_files']) > 0:
+        additional_files_entries = dict()
+        for additional_files_entry in config['additional_files']:
+            for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
+                additional_files_entries[additional_file_field] = additional_file_media_use_tid
+        return additional_files_entries
+    else:
+        return None
+
+
+def get_additional_files_config(config):
+    """Converts values in 'additional_files' config setting to a simple
+       dictionary for easy access.
+    """
+    if 'additional_files' in config and len(config['additional_files']) > 0:
+        additional_files_entries = dict()
+        for additional_files_entry in config['additional_files']:
+            for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
+                additional_files_entries[additional_file_field] = additional_file_media_use_tid
+        return additional_files_entries
+    else:
+        return None
+
+
 def split_typed_relation_string(config, typed_relation_string, target_type):
     """Fields of type 'typed_relation' are represented in the CSV file
        using a structured string, specifically namespace:property:id,
@@ -1494,6 +1619,42 @@ def split_link_string(config, link_string):
     return return_list
 
 
+def validate_media_use_tid_in_additional_files_setting(config, media_use_tid_value, additional_field_name):
+    """Validate whether the term ID registered in the "additional_files" config setting
+       is in the Islandora Media Use vocabulary.
+    """
+    media_use_tids = []
+    if (config['subdelimiter'] in str(media_use_tid_value)):
+        media_use_tids = str(media_use_tid_value).split(config['subdelimiter'])
+    else:
+        media_use_tids.append(media_use_tid_value)
+
+    for media_use_tid in media_use_tids:
+        term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_tid).strip() + '?_format=json'
+        headers = {'Content-Type': 'application/json'}
+        response = issue_request(config, 'GET', term_endpoint, headers)
+        if response.status_code == 404:
+            message = 'Term ID "' + str(media_use_tid) + '" registered in the "additional_files" config option ' + \
+                'for field "' + additional_field_name + '" is not a term ID (term doesn\'t exist).'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        if response.status_code == 200:
+            response_body = json.loads(response.text)
+            if 'vid' in response_body:
+                if response_body['vid'][0]['target_id'] != 'islandora_media_use':
+                    message = 'Term ID "' + str(media_use_tid) + '" registered in the "additional_files" config option ' + \
+                        'for field "' + additional_field_name + '" is not in the Islandora Media Use vocabulary.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
+            if 'field_external_uri' in response_body:
+                if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
+                    message = 'Warning: Term ID "' + str(media_use_tid) + '" registered in the "additional_files" config option ' + \
+                        'for field "' + additional_field_name + '" will assign an Islandora Media Use term that might ' + \
+                        "conflict with derivative media. You should temporarily disable the Context or Action that generates those derivatives."
+                    print(message)
+                    logging.warning(message)
+
+
 def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id=None):
     """Validate whether the term ID, term name, or terms URI provided in the
        config value for media_use_tid is in the Islandora Media Use vocabulary.
@@ -1501,8 +1662,10 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
     if media_use_tid_value_from_csv is not None and csv_row_id is not None:
         if len(str(media_use_tid_value_from_csv)) > 0:
             media_use_tid_value = media_use_tid_value_from_csv
+            message_wording = ' in the CSV "media_use_tid" column '
     else:
         media_use_tid_value = config['media_use_tid']
+        message_wording = ' in configuration option "media_use_tid" '
 
     media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
     for media_use_term in media_use_terms:
@@ -1510,12 +1673,13 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
             media_use_tid = get_term_id_from_uri(config, media_use_term.strip())
             if csv_row_id is None:
                 if media_use_tid is False:
-                    message = 'URI "' + media_use_term + '" provided in configuration option "media_use_tid" does not match any taxonomy terms.'
+                    message = 'URI "' + media_use_term + '" provided ' + message_wording + ' does not match any taxonomy terms.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
-                    message = 'Warning: URI "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
-                        "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                    message = 'Warning: URI "' + media_use_term + '" provided ' + message_wording + \
+                        "will assign an Islandora Media Use term that might conflict with derivative media. " + \
+                        " You should temporarily disable the Context or Action that generates those derivatives."
                     print(message)
                     logging.warning(message)
             else:
@@ -1527,7 +1691,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
                     message = 'Warning: URI "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
                         str(csv_row_id) + "will assign an Islandora Media Use term that might conflict with " + \
-                        "derivative media (e.g., 'Thumbnail', 'Service File')."
+                        "derivative media. You should temporarily disable the Context or Action that generates those derivatives."
                     logging.warning(message)
 
         elif value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http') is not True:
@@ -1570,7 +1734,8 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     if 'field_external_uri' in response_body:
                         if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
                             message = 'Warning: Term ID "' + media_use_term + '" provided in configuration option "media_use_tid" ' + \
-                                "will assign an Islandora Media Use term that might conflict with derivative media (e.g., 'Thumbnail', 'Service File')."
+                                "will assign an Islandora Media Use term that might conflict with derivative media. " + \
+                                " You should temporarily disable the Context or Action that generates those derivatives."
                             print(message)
                             logging.warning(message)
                 else:
@@ -1585,7 +1750,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                         if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
                             message = 'Warning: Term ID "' + media_use_term + '" provided in "media_use_tid" field in CSV row ' + \
                                 str(csv_row_id) + " will assign an Islandora Media Use term that might conflict with " + \
-                                "derivative media (e.g., 'Thumbnail', 'Service File')."
+                                "derivative media. You should temporarily disable the Context or Action that generates those derivatives."
                             print(message)
                             logging.warning(message)
 
@@ -1593,7 +1758,11 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
 def validate_media_use_tids_in_csv(config, csv_data):
     """Validate 'media_use_tid' values in CSV if they exist.
     """
-    csv_id_field = config['id_field']
+    if config['task'] == 'add_media':
+        csv_id_field = 'node_id'
+    else:
+        csv_id_field = config['id_field']
+
     for count, row in enumerate(csv_data, start=1):
         if 'media_use_tid' in row:
             delimited_field_values = row['media_use_tid'].split(config['subdelimiter'])
@@ -1631,7 +1800,7 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
     return result, cmd.returncode
 
 
-def create_file(config, filename, node_csv_row):
+def create_file(config, filename, file_fieldname, node_csv_row):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
 
            Parameters
@@ -1640,6 +1809,8 @@ def create_file(config, filename, node_csv_row):
                 The configuration object defined by set_config_defaults().
             filename : string
                 The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
+            file_fieldname: string
+                The name of the CSV column containing the filename.
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
             Returns
@@ -1647,19 +1818,28 @@ def create_file(config, filename, node_csv_row):
             string|int|bool|None
                 The file ID of the successfully created file; the HTTP status code if the
                 attempt was unsuccessful, False if there is insufficient information to create
-                the file or file creation failed, or None if config['nodes_only'] is True.
+                the file or file creation failed, or None if config['nodes_only'] or
+                config['allow_missing_files'] is True.
     """
     if config['nodes_only'] is True:
         return None
+
+    if config['task'] == 'add_media' or config['task'] == 'create':
+        if config['allow_missing_files'] and len(node_csv_row[file_fieldname].strip()) == 0:
+            return None
+
     is_remote = False
     filename = filename.strip()
 
-    if node_csv_row['file'].startswith('http'):
-        filename_parts = urllib.parse.urlparse(filename)
-        file_path = download_remote_file(config, filename, node_csv_row)
-        if file_path is False:
+    if filename.startswith('http'):
+        remote_file_http_response_code = ping_remote_file(config, filename)
+        if remote_file_http_response_code != 200:
             return False
 
+        filename_parts = urllib.parse.urlparse(filename)
+        file_path = download_remote_file(config, filename, file_fieldname, node_csv_row)
+        if file_path is False:
+            return False
         filename = file_path.split("/")[-1]
         is_remote = True
     elif os.path.isabs(filename):
@@ -1668,7 +1848,7 @@ def create_file(config, filename, node_csv_row):
         file_path = os.path.join(config['input_dir'], filename)
 
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(config, file_path, node_csv_row)
+    media_type = set_media_type(config, file_path, file_fieldname, node_csv_row)
     if media_type in config['media_bundle_file_fields']:
         media_file_field = config['media_bundle_file_fields'][media_type]
     else:
@@ -1700,7 +1880,7 @@ def create_file(config, filename, node_csv_row):
         return False
 
 
-def create_media(config, filename, node_id, node_csv_row):
+def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_use_tid=None):
     """Creates a media in Drupal.
 
            Parameters
@@ -1709,10 +1889,14 @@ def create_media(config, filename, node_id, node_csv_row):
                 The configuration object defined by set_config_defaults().
             filename : string
                 The value of the CSV 'file' field for the current node.
+            file_fieldname: string
+                The name of the CSV column containing the filename.
             node_id: string
                 The ID of the node to attach the media to. This is False if file creation failed.
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+            media_use_tid : int|str
+                A valid term ID (or a subdelimited list of IDs) from the Islandora Media Use vocabulary.
             Returns
             -------
             int|False
@@ -1737,19 +1921,37 @@ def create_media(config, filename, node_id, node_csv_row):
         logging.error("Filename " + filename + " is not valid UTF-8.")
         return False
 
-    file_result = create_file(config, filename, node_csv_row)
+    file_result = create_file(config, filename, file_fieldname, node_csv_row)
+    if filename.startswith('http'):
+        if file_result is False:
+            return False
+        filename = get_prepocessed_file_path(config, file_fieldname, node_csv_row)
     if isinstance(file_result, int):
-        if isinstance(config['media_use_tid'], str) and config['media_use_tid'].startswith('http'):
-            media_use_tid = tid_from_uri = get_term_id_from_uri(config, config['media_use_tid'])
+        if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
+            media_use_tid_value = node_csv_row['media_use_tid']
         else:
-            media_use_tid = config['media_use_tid']
-        media_use_term_uuid = get_term_uuid(config, media_use_tid)
+            media_use_tid_value = config['media_use_tid']
 
-        if filename.startswith('http'):
-            parts = urllib.parse.urlparse(filename)
-            filename = parts.path
-        media_type = set_media_type(config, filename, node_csv_row)
+        if media_use_tid is not None:
+            media_use_tid_value = media_use_tid
+
+        media_use_tids = []
+        media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
+        for media_use_term in media_use_terms:
+            if value_is_numeric(media_use_term):
+                media_use_tids.append(media_use_term)
+            if not value_is_numeric(media_use_term) and media_use_term.strip().startswith('http'):
+                media_use_tids.append(get_term_id_from_uri(config, media_use_term))
+            if not value_is_numeric(media_use_term) and not media_use_term.strip().startswith('http'):
+                media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip()))
+
+        media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_field = config['media_fields'][media_type]
+
+        if 'title' in node_csv_row:
+            media_name = node_csv_row['title']
+        else:
+            media_name = os.path.basename(filename)
 
         media_json = {
             "bundle": [{
@@ -1760,7 +1962,7 @@ def create_media(config, filename, node_id, node_csv_row):
                 "value": True
             }],
             "name": [{
-                "value": node_csv_row['title']
+                "value": media_name
             }],
             media_field: [{
                 "target_id": file_result,
@@ -1771,7 +1973,7 @@ def create_media(config, filename, node_id, node_csv_row):
                 "target_type": 'node'
             }],
             "field_media_use": [{
-                "target_id": media_use_tid,
+                "target_id": media_use_tids[0],
                 "target_type": 'taxonomy_term'
             }]
         }
@@ -1782,16 +1984,23 @@ def create_media(config, filename, node_id, node_csv_row):
                 alt_text = clean_image_alt_text(node_csv_row['image_alt_text'])
                 media_json[media_field][0]['alt'] = alt_text
             else:
-                alt_text = clean_image_alt_text(node_csv_row['title'])
+                alt_text = clean_image_alt_text(media_name)
                 media_json[media_field][0]['alt'] = alt_text
 
         media_endpoint_path = '/entity/media'
         media_headers = {
             'Content-Type': 'application/json'
         }
-
         try:
             media_response = issue_request(config, 'POST', media_endpoint_path, media_headers, media_json)
+
+            if len(media_use_tids) > 1:
+                media_response_body = json.loads(media_response.text)
+                if 'mid' in media_response_body:
+                    media_id = media_response_body['mid'][0]['value']
+                    patch_media_use_terms(config, media_id, media_type, media_use_tids)
+                else:
+                    logging.error("Could not PATCH additional media use terms to media created from '%s' because media ID is not available.", filename)
 
             # Execute media-specific post-create scripts, if any are configured.
             if 'media_post_create' in config and len(config['media_post_create']) > 0:
@@ -1814,7 +2023,7 @@ def create_media(config, filename, node_id, node_csv_row):
         return file_result
 
 
-def create_islandora_media(config, filename, node_uri, node_csv_row):
+def create_islandora_media(config, filename, file_fieldname, node_uri, node_csv_row, media_use_tid=None):
     """node_csv_row is an OrderedDict, e.g.
        OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
 
@@ -1828,7 +2037,10 @@ def create_islandora_media(config, filename, node_uri, node_csv_row):
 
     filename = filename.strip()
     if filename.startswith('http'):
-        file_path = download_remote_file(config, filename, node_csv_row)
+        remote_file_http_reponse = ping_remote_file(config, filename)
+        if remote_file_http_reponse != 200:
+            return False
+        file_path = download_remote_file(config, filename, file_fieldname, node_csv_row)
         if file_path is False:
             return False
         filename = file_path.split("/")[-1]
@@ -1839,12 +2051,15 @@ def create_islandora_media(config, filename, node_uri, node_csv_row):
         file_path = os.path.join(config['input_dir'], filename)
 
     mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(config, filename, node_csv_row)
+    media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
 
     if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
         media_use_tid_value = node_csv_row['media_use_tid']
     else:
         media_use_tid_value = config['media_use_tid']
+
+    if media_use_tid is not None:
+        media_use_tid_value = media_use_tid
 
     media_use_tids = []
     media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
@@ -1947,13 +2162,13 @@ def patch_media_use_terms(config, media_id, media_type, media_use_tids):
         media_use_tids_json.append({'target_id': media_use_tid, 'target_type': 'taxonomy_term'})
 
     media_json['field_media_use'] = media_use_tids_json
-    endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+    endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
     headers = {'Content-Type': 'application/json'}
     response = issue_request(config, 'PATCH', endpoint, headers, media_json)
     if response.status_code == 200:
-        logging.info("Media %s Islandora Media Use terms updated.", config['host'] + '/media/' + media_id)
+        logging.info("Media %s Islandora Media Use terms updated.", config['host'] + '/media/' + str(media_id))
     else:
-        logging.warning("Media %s Islandora Media Use terms not updated.", config['host'] + '/media/' + media_id)
+        logging.warning("Media %s Islandora Media Use terms not updated.", config['host'] + '/media/' + str(media_id))
 
 
 def clean_image_alt_text(input_string):
@@ -3344,9 +3559,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             fake_csv_record['title'] = page_title
             fake_csv_record['file'] = page_file_path
             if drupal_8 is True:
-                media_response_status_code = create_islandora_media(config, page_file_path, node_uri, fake_csv_record)
+                media_response_status_code = create_islandora_media(config, page_file_path, 'file', node_uri, fake_csv_record)
             else:
-                media_response_status_code = create_media(config, page_file_path, node_nid, fake_csv_record)
+                media_response_status_code = create_media(config, page_file_path, 'file', node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if media_response_status_code is False:
@@ -3466,8 +3681,9 @@ def get_extension_from_mimetype(mimetype):
     map = {'image/jpeg': '.jpg',
            'image/jp2': '.jp2',
            'image/png': '.png',
-           'application/octet-stream': '.bin',
-           'audio/mpeg': '.mp3'
+           'audio/mpeg': '.mp3',
+           'text/plain': '.txt',
+           'application/octet-stream': '.bin'
            }
     if mimetype in map:
         return map[mimetype]
@@ -3475,7 +3691,79 @@ def get_extension_from_mimetype(mimetype):
         return mimetypes.guess_extension(mimetype)
 
 
-def get_prepocessed_file_path(config, node_csv_row):
+def get_deduped_file_path(path):
+    """Given a file path, return a version of it that contains a version of
+       the same name with an incremented integer inserted before the extension.
+    """
+    """Parameters
+        ----------
+        path : string
+            The file path we want to dedupe.
+        Returns
+        -------
+        string
+            The deduped version of 'path', i.e., the original path with an
+            underscore and an incremented digit inserted before the extension.
+    """
+    [base_path, extension] = os.path.splitext(path)
+
+    numbers = re.findall(r"_\d+$", base_path)
+    if len(numbers) == 0:
+        incremented_path = base_path + '_1' + extension
+    else:
+        number = int(numbers[0].lstrip('_')) + 1
+        base_path_parts = base_path.split('_')
+        del base_path_parts[-1]
+        incremented_path = '_'.join(base_path_parts) + '_' + str(number) + extension
+
+    return incremented_path
+
+
+def check_file_exists(config, filename):
+    """Cconfirms file exists and is a file (not a directory).
+       For remote/downloaded files, checks for a 200 response from a HEAD request.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        filename: string
+            The filename.
+        Returns
+        -------
+        boolean
+            True if the file exists, false if not.
+    """
+    # It's a remote file.
+    if filename.startswith('http'):
+        try:
+            head_response = requests.head(filename, allow_redirects=True, verify=config['secure_ssl_only'])
+            if head_response.status_code == 200:
+                return True
+            else:
+                return False
+        except requests.exceptions.Timeout as err_timeout:
+            message = 'Workbench timed out trying to reach ' + filename + '. Details in next log entry.'
+            logging.error(message)
+            logging.error(err_timeout)
+            return False
+        except requests.exceptions.ConnectionError as error_connection:
+            message = 'Workbench cannot connect to ' + filename + '. Details in next log entry.'
+            logging.error(message)
+            logging.error(error_connection)
+            return False
+    # It's a local file.
+    else:
+        if os.path.isabs(filename):
+            file_path = filename
+        else:
+            file_path = os.path.join(config['input_dir'], filename)
+
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return True
+
+
+def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
     """For remote/downloaded files, generates the path to the local temporary
        copy and returns that path. For local files, just returns the value of
        node_csv_row['file'].
@@ -3484,6 +3772,8 @@ def get_prepocessed_file_path(config, node_csv_row):
         ----------
         config : dict
             The configuration object defined by set_config_defaults().
+        file_fieldname: string
+            The name of the CSV column containing the filename.
         node_csv_row : OrderedDict
             The CSV row for the current item.
         Returns
@@ -3491,15 +3781,34 @@ def get_prepocessed_file_path(config, node_csv_row):
         string
             The path (absolute or relative) to the file.
     """
-    file_path_from_csv = node_csv_row['file'].strip()
+    file_path_from_csv = node_csv_row[file_fieldname].strip()
+    if config['task'] == 'add_media':
+        config['id_field'] = 'node_id'
+
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
         sections = urllib.parse.urlparse(file_path_from_csv)
-        subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+        if config['task'] == 'add_media':
+            subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', 'nid_' + str(node_csv_row['node_id'])))
+        else:
+            subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
         Path(subdir).mkdir(parents=True, exist_ok=True)
 
         if config["use_node_title_for_media"]:
-            filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
+            # CSVs for add_media tasks don't contain 'title', so we need to get it.
+            if config['task'] == 'add_media':
+                node_id = node_csv_row['node_id']
+                node_url = config['host'] + '/node/' + node_id + '?_format=json'
+                node_response = issue_request(config, 'GET', node_url)
+                if node_response.status_code == 200:
+                    node_dict = json.loads(node_response.text)
+                    node_csv_row['title'] = node_dict['title'][0]['value']
+                else:
+                    message = 'Cannot access node " + node_id + ", so cannot get its title for use in media filename. Using filename instead.'
+                    logging.warning(message)
+                    node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
+            filename = re.sub(r'\s+', '_', node_csv_row['title'])
+            filename = re.sub('[^A-Za-z0-9]+', '_', filename)
             if filename[-1] == '_':
                 filename = filename[:-1]
             downloaded_file_path = os.path.join(subdir, filename)
@@ -3525,6 +3834,11 @@ def get_prepocessed_file_path(config, node_csv_row):
             extension_with_dot = get_extension_from_mimetype(mimetype)
             downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
 
+            # Check to see if a file with this path already exists; if so, insert an
+            # incremented digit into the file path before the extension.
+            if os.path.exists(downloaded_file_path):
+                downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+
         return downloaded_file_path
     # It's a local file.
     else:
@@ -3535,7 +3849,7 @@ def get_prepocessed_file_path(config, node_csv_row):
         return file_path
 
 
-def download_remote_file(config, url, node_csv_row):
+def download_remote_file(config, url, file_fieldname, node_csv_row):
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True, verify=config['secure_ssl_only'])
@@ -3554,7 +3868,7 @@ def download_remote_file(config, url, node_csv_row):
         print('Error: ' + message)
         return False
 
-    downloaded_file_path = get_prepocessed_file_path(config, node_csv_row)
+    downloaded_file_path = get_prepocessed_file_path(config, file_fieldname, node_csv_row)
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)

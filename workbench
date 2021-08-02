@@ -111,10 +111,15 @@ def create():
         required_fields = ['file', config['id_field'], 'title']
         custom_fields = list(
             set(csv_column_headers) - set(required_fields))
+        additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
             # Skip updating field if value is empty.
             if len(row[custom_field]) == 0:
                 continue
+
+            if additional_files_entries is not None:
+                if custom_field in additional_files_entries.keys():
+                    continue
 
             # This field can exist in the CSV to create parent/child
             # relationships and is not a Drupal field.
@@ -331,26 +336,57 @@ def create():
         write_rollback_node_id(config, node_nid)
 
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
-        if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
+        if config['nodes_only'] is False and config['allow_missing_files'] is False is True and 'file' in row and len(row['file'].strip()) == 0 and config['paged_content_from_directories'] is False:
             if config['progress_bar'] is False:
-                print('+No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
+                print('- No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
             logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
             continue
 
         if node_response.status_code == 201:
+            allowed_media_response_codes = [201, 204]
             if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
                 if drupal_8 is True:
-                    media_response_status_code = create_islandora_media(config, row['file'], node_uri, row_for_media)
+                    media_response_status_code = create_islandora_media(config, row['file'], 'file', node_uri, row_for_media)
                 else:
-                    media_response_status_code = create_media(config, row['file'], node_nid, row_for_media)
-                allowed_media_response_codes = [201, 204]
+                    media_response_status_code = create_media(config, row['file'], 'file', node_nid, row_for_media)
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
                         print("+ Media for " + row['file'] + " created.")
                     logging.info("Media for %s created.", row['file'])
+                else:
+                    if config['progress_bar'] is False:
+                        print("- Media for " + row['file'] + " not created. See log for more information.")
+                    logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
+                if 'additional_files' in config:
+                    additional_files_config = get_additional_files_config(config)
+                    if additional_files_config is not None:
+                        for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
+                            # If there is no additional media file, move on to the next "additional_files" column.
+                            if config['nodes_only'] is False and additional_file_field in row and len(row[additional_file_field].strip()) == 0:
+                                if config['progress_bar'] is False:
+                                    print('- No media for ' + node_uri + ' created since its "' + additional_file_field + '" field in the CSV is empty.')
+                                logging.warning("No media for %s created since its '%s' field in the CSV is empty.", node_uri, additional_file_field)
+                                continue
+                                file_exists = check_file_exists(config, filename)
+                                if file_exists is False:
+                                    if config['progress_bar'] is False:
+                                        print('- No media for ' + node_uri + ' created since its "' + additional_file_field + '" field in the CSV is empty.')
+                                    logging.warning("No media for %s created since its '%s' field in the CSV is empty.", node_uri, additional_file_field)
+                                    continue
+                            if drupal_8 is True:
+                                media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row_for_media, additional_file_media_use_tid)
+                            else:
+                                media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
+                            if media_response_status_code in allowed_media_response_codes:
+                                if config['progress_bar'] is False:
+                                    print("+ Media for " + row[additional_file_field] + " created.")
+                                logging.info("Media for %s created.", row[additional_file_field])
+                            else:
+                                if config['progress_bar'] is False:
+                                    print("- Media for " + row[additional_file_field] + " not created. See log for more information.")
+                                logging.error("Media for %s not created (HTTP respone code %s).", row[additional_file_field], media_response_status_code)
 
-            if config['nodes_only'] is False and 'file' in row and len(
-                    row['file']) == 0 and config['paged_content_from_directories'] is False:
+            if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                 if config['progress_bar'] is False:
                     print('+ No file specified in CSV for ' + row['title'])
                 logging.info("No file specified for %s, so no media created.", id_field)
@@ -735,25 +771,101 @@ def add_media():
     for row in csv_data:
         row = clean_csv_values(row)
         if not ping_node(config, row['node_id']):
-            print("Node " + row['node_id'] + " not found or not " +
-                  "accessible, skipping adding media.")
+            print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
             continue
 
-        file_path = os.path.join(config['input_dir'], row['file'])
+        allowed_media_response_codes = [201, 204]
 
         node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
         node_uri = config['host'] + '/node/' + row['node_id']
-        node_response = issue_request(config, 'GET', node_json_url)
+        node_response = issue_request(config, 'HEAD', node_json_url)
+
+        if 'media_use_tid' in row:
+            media_use_tid_value = row['media_use_tid']
+        else:
+            # Get media use TID from config within create_media().
+            media_use_tid_value = None
+
         if node_response.status_code == 200:
-            if drupal_8 is True:
-                media_response_status_code = create_islandora_media(config, row['file'], node_uri, None)
-            else:
-                media_response_status_code = create_media(config, row['file'], row['node_id'], None)
-            allowed_media_response_codes = [201, 204]
-            if media_response_status_code in allowed_media_response_codes:
-                if config['progress_bar'] is False:
-                    print("Media for " + row['file'] + " created and added to " + node_uri)
-                logging.info("Media for %s created and added to %s.", row['file'], node_uri)
+            if 'additional_files' not in config:
+                if config['allow_missing_files'] is False:
+                    if not check_file_exists(config, row['file']):
+                        message = 'File ' + row['file'] + ' identified in CSV "file" column in for node ID ' + row['node_id'] + ' not found.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                    if check_file_exists(config, row['file']):
+                        if drupal_8 is True:
+                            media_response_status_code = create_islandora_media(config, 'file', row['file'], node_uri, row, media_use_tid_value)
+                        else:
+                            media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], row, media_use_tid_value)
+                        if media_response_status_code in allowed_media_response_codes:
+                            if config['progress_bar'] is False:
+                                print("Media for " + row['file'] + " created and added to " + node_uri)
+                            logging.info("Media for %s created and added to %s.", row['file'], node_uri)
+                        else:
+                            if config['progress_bar'] is False:
+                                print("ERROR: Media for " + row['file'] + " not created. See log for more information.")
+                            logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
+                    else:
+                        message = "Warning: Media for node " + row['node_id'] + " not created since CSV column 'file' is empty."
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                else:
+                    if check_file_exists(config, row['file']):
+                        if drupal_8 is True:
+                            media_response_status_code = create_islandora_media(config, 'file', row['file'], node_uri, row, media_use_tid_value)
+                        else:
+                            media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], row, media_use_tid_value)
+                        if media_response_status_code in allowed_media_response_codes:
+                            if config['progress_bar'] is False:
+                                print("Media for " + row['file'] + " created and added to " + node_uri)
+                            logging.info("Media for %s created and added to %s.", row['file'], node_uri)
+                        else:
+                            if config['progress_bar'] is False:
+                                print("ERROR: Media for " + row['file'] + " not created. See log for more information.")
+                            logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
+                    else:
+                        message = "Warning: Media for node " + row['node_id'] + " not created since CSV column 'file' is empty."
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+            if 'additional_files' in config:
+                additional_files_config = get_additional_files_config(config)
+                if additional_files_config is not None:
+                    for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
+                        if config['allow_missing_files'] is False:
+                            if not check_file_exists(config, row['file']):
+                                message = 'File ' + row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column in for node ID ' + row['node_id'] + ' not found.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+                        else:
+                            if len(row[additional_file_field].strip()) == 0:
+                                if config['progress_bar'] is False:
+                                    print("Warning: Media for " + row['node_id'] + " not created since CSV column '" + additional_file_field + "' is empty.")
+                                logging.warning("Media for node %s not created since CSV column '" + additional_file_field + "' is empty", row['node_id'])
+                                continue
+                            else:
+                                file_exists = check_file_exists(config, row[additional_file_field])
+                                if file_exists is False:
+                                    if config['progress_bar'] is False:
+                                        print('- No media for ' + node_uri + ' created since its "' + additional_file_field + '" field in the CSV is empty.')
+                                    logging.warning("No media for %s created since its '%s' field in the CSV is empty.", node_uri, additional_file_field)
+                                    continue
+                                if drupal_8 is True:
+                                    media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row, additional_file_media_use_tid)
+                                else:
+                                    media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, row['node_id'], row, additional_file_media_use_tid)
+                                if media_response_status_code in allowed_media_response_codes:
+                                    if config['progress_bar'] is False:
+                                        print("Media for " + row[additional_file_field] + " created and added to " + node_uri + ".")
+                                    logging.info("Media for %s created and added to %s.", row[additional_file_field], node_uri)
+                                else:
+                                    if config['progress_bar'] is False:
+                                        print("ERROR: Media for " + row[additional_file_field] + " not created. See log for more information.")
+                                    logging.error("Media for %s not created (HTTP response code %s).", row[additional_file_field], media_response_status_code)
+        else:
+            if config['progress_bar'] is False:
+                print("ERROR: Node at " + node_uri + " does not exist or is not accessible.")
+            logging.error("Node at %s does not exist or is not accessible (HTTP response code %s)", node_uri, node_response.status_code)
 
         if config['progress_bar'] is True:
             row_count += 1
@@ -807,8 +919,7 @@ def create_from_files():
 
         filename_without_extension = os.path.splitext(file_name)[0]
         if len(filename_without_extension) > 255:
-            message = 'Truncating the filename "' + filename_without_extension + \
-                '" since it exceeds Drupal\'s maximum node title length of 255 characters.'
+            message = 'Truncating the filename "' + filename_without_extension + '" since it exceeds Drupal\'s maximum node title length of 255 characters.'
             logging.error(message)
             filename_without_extension = filename_without_extension[:255]
 
@@ -875,14 +986,14 @@ def create_from_files():
             fake_csv_record['title'] = filename_without_extension
             fake_csv_record['file'] = file_path
 
-            media_type = set_media_type(config, file_path, fake_csv_record)
+            media_type = set_media_type(config, file_path, 'file', fake_csv_record)
 
             if media_type == 'image':
                 fake_csv_record['image_alt_text'] = filename_without_extension
             if drupal_8 is True:
-                media_response_status_code = create_islandora_media(config, file_name, node_uri, fake_csv_record)
+                media_response_status_code = create_islandora_media(config, file_name, 'file', node_uri, fake_csv_record)
             else:
-                media_response_status_code = create_media(config, file_name, node_nid, fake_csv_record)
+                media_response_status_code = create_media(config, file_name, 'file', node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
