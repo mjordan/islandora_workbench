@@ -677,7 +677,7 @@ def check_input(config, args):
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
     # but it doesn't show up in any field configs.
-    reserved_fields = [config['id_field'], 'file', 'media_use_tid', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode']
+    reserved_fields = [config['id_field'], 'file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode']
 
     # Check the config file.
     tasks = [
@@ -1892,6 +1892,13 @@ def create_file(config, filename, file_fieldname, node_csv_row):
                     print("Warning: local and Drupal checksums for '" + file_path + "' do not match. See the log for more detail.")
                     logging.warning('Local and Drupal %s checksums for file "%s" (named in CSV row "%s") do not match (local: %s, Drupal: %s).',
                                     config['fixity_algorithm'], file_path, node_csv_row[config['id_field']], hash_from_local, hash_from_drupal)
+                if 'checksum' in node_csv_row:
+                    if hash_from_local == node_csv_row['checksum'].strip():
+                        logging.info('Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.', config['fixity_algorithm'], file_path, hash_from_local)
+                    else:
+                        print("Warning: local checksum and value in CSV for '" + file_path + "' do not match. See the log for more detail.")
+                        logging.warning('Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
+                                        config['fixity_algorithm'], file_path, node_csv_row[config['id_field']], hash_from_local, node_csv_row['checksum'])
             if is_remote and config['delete_tmp_upload'] is True:
                 containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
                 shutil.rmtree(containing_folder)
