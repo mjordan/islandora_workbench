@@ -1,5 +1,5 @@
-"""unittest tests that require a live Drupal. In most cases, the URL, credentials, etc.
-   are in a configuration file referenced in the test.
+"""unittest tests that require a live Drupal at http://localhost:8000. In most cases, the URL, credentials,
+   etc. are in a configuration file referenced in the test.
 """
 
 import sys
@@ -1104,6 +1104,79 @@ class TestSecondaryTask(unittest.TestCase):
         rollback_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'rollback.csv')
         if os.path.exists(rollback_file_path):
             os.remove(rollback_file_path)
+
+
+class TestAdditionalFilesCreate (unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.yml')
+
+        yaml = YAML()
+        with open(create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config['host']
+        self.islandora_username = config['username']
+        self.islandora_password = config['password']
+
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv')
+        with open(self.rollback_file_path, 'r') as rbf:
+            rollback_file_contents = rbf.read()
+
+        # There will only be one nid in the rollback.csv file.
+        nid = rollback_file_contents.replace('node_id', '')
+        self.nid = nid.strip()
+
+        media_list_url = self.islandora_host + '/node/' + self.nid + '/media?_format=json'
+        media_list_response = requests.get(media_list_url, auth=(self.islandora_username, self.islandora_password))
+        media_list_json = json.loads(media_list_response.text)
+        self.media_sizes = dict()
+        for media in media_list_json:
+            if 'field_file_size' in media:
+                self.media_sizes[media['mid'][0]['value']] = media['field_file_size'][0]['value']
+            # We don't use the transcript file's size here since it's not available via REST. Instead, since this
+            # file will be the only media with 'field_edited_text' (the transcript), we tack its value onto media_sizes
+            # for testing below.
+            if 'field_edited_text' in media:
+                self.media_sizes['transcript'] = media['field_edited_text'][0]['value']
+
+    def test_files(self):
+        # This is the original file.
+        self.assertTrue(217504 in self.media_sizes.values())
+        # This is the preservation file.
+        self.assertTrue(286445 in self.media_sizes.values())
+        # This is the transcript.
+        self.assertIn('This is a transcript.', self.media_sizes['transcript'])
+
+    def tearDown(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        delete_output = subprocess.check_output(delete_cmd)
+        delete_output = delete_output.decode().strip()
+        delete_lines = delete_output.splitlines()
+
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.csv.prepocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv')
+        if os.path.exists(rollback_csv_path):
+            os.remove(rollback_csv_path)
+
+        preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.prepocessed')
+        if os.path.exists(preprocessed_rollback_csv_path):
+            os.remove(preprocessed_rollback_csv_path)
 
 
 if __name__ == '__main__':

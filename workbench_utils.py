@@ -1630,6 +1630,11 @@ def validate_media_use_tid_in_additional_files_setting(config, media_use_tid_val
         media_use_tids.append(media_use_tid_value)
 
     for media_use_tid in media_use_tids:
+        if not value_is_numeric(media_use_tid) and media_use_tid.strip().startswith('http'):
+            media_use_tid = get_term_id_from_uri(config, media_use_tid.strip())
+        if not value_is_numeric(media_use_tid) and not media_use_tid.strip().startswith('http'):
+            media_use_tid = find_term_in_vocab(config, 'islandora_media_use', media_use_tid.strip())
+
         term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_tid).strip() + '?_format=json'
         headers = {'Content-Type': 'application/json'}
         response = issue_request(config, 'GET', term_endpoint, headers)
@@ -2645,7 +2650,7 @@ def prepare_term_id(config, vocab_ids, term):
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
     elif term.startswith('http'):
-        # Note: get_term_from_uri() will return False if the URI doesn't match
+        # Note: get_term_id_from_uri() will return False if the URI doesn't match
         # a term.
         tid_from_uri = get_term_id_from_uri(config, term)
         if value_is_numeric(tid_from_uri):
