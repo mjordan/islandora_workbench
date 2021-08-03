@@ -141,6 +141,8 @@ def set_config_defaults(args):
         config['secondary_tasks'] = None
     if 'secondary_tasks_data_file' not in config:
         config['secondary_tasks_data_file'] = 'id_to_node_map.tsv'
+    if 'fixity_algorithm' not in config:
+        config['fixity_algorithm'] = None
     # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None
@@ -999,6 +1001,13 @@ def check_input(config, args):
         validate_media_use_tid(config)
         validate_media_use_tid_values_csv_data = get_csv_data(config)
         validate_media_use_tids_in_csv(config, validate_media_use_tid_values_csv_data)
+
+        if config['fixity_algorithm'] is not None:
+            allowed_algorithms = ['md5', 'sha1', 'sha256']
+            if config['fixity_algorithm'] not in allowed_algorithms:
+                message = "Configured fixity algorithm '" + config['fixity_algorithm'] + "' must be one of 'md5', 'sha1', or 'sha256'."
+                logging.error(message)
+                sys.exit('Error: ' + message)
 
     if config['task'] == 'update' or config['task'] == 'create':
         validate_geolocation_values_csv_data = get_csv_data(config)
@@ -1873,6 +1882,16 @@ def create_file(config, filename, file_fieldname, node_csv_row):
         if file_response.status_code == 201:
             file_json = json.loads(file_response.text)
             file_id = file_json['fid'][0]['value']
+            if config['fixity_algorithm'] is not None:
+                file_uuid = file_json['uuid'][0]['value']
+                hash_from_drupal = get_file_hash_from_drupal(config, file_uuid, config['fixity_algorithm'])
+                hash_from_local = get_file_hash_from_local(config, file_path, config['fixity_algorithm'])
+                if hash_from_drupal == hash_from_local:
+                    logging.info('Local and Drupal %s checksums for file "%s" (%s) match.', config['fixity_algorithm'], file_path, hash_from_local)
+                else:
+                    print("Warning: local and Drupal checksums for '" + file_path + "' do not match. See the log for more detail.")
+                    logging.warning('Local and Drupal %s checksums for file "%s" (named in CSV row "%s") do not match (local: %s, Drupal: %s).',
+                                    config['fixity_algorithm'], file_path, node_csv_row[config['id_field']], hash_from_local, hash_from_drupal)
             if is_remote and config['delete_tmp_upload'] is True:
                 containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
                 shutil.rmtree(containing_folder)
@@ -3877,6 +3896,66 @@ def download_remote_file(config, url, file_fieldname, node_csv_row):
     f.close
 
     return downloaded_file_path
+
+
+def get_file_hash_from_drupal(config, file_uuid, algorithm):
+    """Query the Integration module's hash controller at '/islandora_workbench_integration/file_hash'
+       to get the hash of the file identified by file_uuid.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        file_uuid : string
+            The file's UUID.
+        algorithm : string
+            One of 'md5', 'sha1', or 'sha256'
+        Returns
+        -------
+        string
+            The requested hash.
+    """
+    url = config['host'] + '/islandora_workbench_integration/file_hash?file_uuid=' + file_uuid + '&algorithm=' + algorithm
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        response_body = json.loads(response.text)
+        return response_body[0]['checksum']
+    else:
+        logging.warning("Request to get %s hash for file %s returned a %s status code", algorithm, file_uuid, response.status_code)
+        return False
+
+
+def get_file_hash_from_local(config, file_path, algorithm):
+    """Get the file's hash/checksum.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        file_path : string
+            The file's path.
+        algorithm : string
+            One of 'md5', 'sha1', or 'sha256'
+        Returns
+        -------
+        string
+            The requested hash.
+    """
+    if algorithm == 'md5':
+        hash_object = hashlib.md5()
+    if algorithm == 'sha1':
+        hash_object = hashlib.sha1()
+    if algorithm == 'sha256':
+        hash_object = hashlib.sha256()
+
+    with open(file_path, 'rb') as file:
+        while True:
+            chunk = file.read(hash_object.block_size)
+            if not chunk:
+                break
+            hash_object.update(chunk)
+
+    return hash_object.hexdigest()
 
 
 def get_csv_template(config, args):
