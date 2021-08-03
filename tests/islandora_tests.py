@@ -1116,12 +1116,12 @@ class TestAdditionalFilesCreate (unittest.TestCase):
         with open(create_config_file_path, 'r') as f:
             config_file_contents = f.read()
         config_data = yaml.load(config_file_contents)
-        config = {}
+        self.config = {}
         for k, v in config_data.items():
-            config[k] = v
-        self.islandora_host = config['host']
-        self.islandora_username = config['username']
-        self.islandora_password = config['password']
+            self.config[k] = v
+        self.islandora_host = self.config['host']
+        self.islandora_username = self.config['username']
+        self.islandora_password = self.config['password']
 
         self.create_cmd = ["./workbench", "--config", create_config_file_path]
         create_output = subprocess.check_output(self.create_cmd)
@@ -1139,7 +1139,9 @@ class TestAdditionalFilesCreate (unittest.TestCase):
         media_list_response = requests.get(media_list_url, auth=(self.islandora_username, self.islandora_password))
         media_list_json = json.loads(media_list_response.text)
         self.media_sizes = dict()
+        self.media_use_tids = dict()
         for media in media_list_json:
+            self.media_use_tids[media['mid'][0]['value']] = media['field_media_use'][0]['target_id']
             if 'field_file_size' in media:
                 self.media_sizes[media['mid'][0]['value']] = media['field_file_size'][0]['value']
             # We don't use the transcript file's size here since it's not available via REST. Instead, since this
@@ -1148,13 +1150,22 @@ class TestAdditionalFilesCreate (unittest.TestCase):
             if 'field_edited_text' in media:
                 self.media_sizes['transcript'] = media['field_edited_text'][0]['value']
 
-    def test_files(self):
-        # This is the original file.
+    def test_media_creation(self):
+        # This is the original file's size.
         self.assertTrue(217504 in self.media_sizes.values())
-        # This is the preservation file.
+        # This is the preservation file's size.
         self.assertTrue(286445 in self.media_sizes.values())
         # This is the transcript.
         self.assertIn('This is a transcript.', self.media_sizes['transcript'])
+
+    def test_media_use_tids(self):
+        '''Doesn't associate media use terms to nodes, but at least it confirms that the intended
+           media use tids are present in the media created by this test.
+        '''
+        preservation_media_use_tid = self.get_term_id_from_uri("http://pcdm.org/use#PreservationMasterFile")
+        self.assertTrue(preservation_media_use_tid in self.media_use_tids.values())
+        transcript_media_use_tid = self.get_term_id_from_uri("http://pcdm.org/use#Transcript")
+        self.assertTrue(transcript_media_use_tid in self.media_use_tids.values())
 
     def tearDown(self):
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.yml')
@@ -1177,6 +1188,15 @@ class TestAdditionalFilesCreate (unittest.TestCase):
         preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.prepocessed')
         if os.path.exists(preprocessed_rollback_csv_path):
             os.remove(preprocessed_rollback_csv_path)
+
+    def get_term_id_from_uri(self, uri):
+        '''We don't use get_term_from_uri() from workbench_utils because it requires a full config object.
+        '''
+        term_from_authority_link_url = self.islandora_host + '/term_from_uri?_format=json&uri=' + uri.replace('#', '%23')
+        response = requests.get(term_from_authority_link_url, auth=(self.islandora_username, self.islandora_password))
+        response_body = json.loads(response.text)
+        tid = response_body[0]['tid'][0]['value']
+        return tid
 
 
 if __name__ == '__main__':

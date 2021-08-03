@@ -2447,8 +2447,7 @@ def get_term_id_from_uri(config, uri):
     term_from_uri_response = issue_request(config, 'GET', term_from_uri_url)
     if term_from_uri_response.status_code == 200:
         term_from_uri_response_body_json = term_from_uri_response.text
-        term_from_uri_response_body = json.loads(
-            term_from_uri_response_body_json)
+        term_from_uri_response_body = json.loads(term_from_uri_response_body_json)
         if len(term_from_uri_response_body) == 1:
             tid = term_from_uri_response_body[0]['tid'][0]['value']
             return tid
@@ -2466,8 +2465,7 @@ def get_term_id_from_uri(config, uri):
             return tid
 
     # And some vocabuluaries use this View.
-    term_from_authority_link_url = config['host'] + \
-        '/term_from_authority_link?_format=json&authority_link=' + uri.replace('#', '%23')
+    term_from_authority_link_url = config['host'] + '/term_from_authority_link?_format=json&authority_link=' + uri.replace('#', '%23')
     term_from_authority_link_response = issue_request(config, 'GET', term_from_authority_link_url)
     if term_from_authority_link_response.status_code == 200:
         term_from_authority_link_response_body_json = term_from_authority_link_response.text
@@ -2477,8 +2475,7 @@ def get_term_id_from_uri(config, uri):
             return tid
         elif len(term_from_authority_link_response_body) > 1:
             for term in term_from_authority_link_response_body:
-                terms_with_uri.append(
-                    {term['tid'][0]['value']: term['vid'][0]['target_id']})
+                terms_with_uri.append({term['tid'][0]['value']: term['vid'][0]['target_id']})
                 tid = term_from_authority_link_response_body[0]['tid'][0]['value']
             print("Warning: See log for important message about use of term URIs.")
             logging.warning(
