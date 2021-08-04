@@ -143,6 +143,8 @@ def set_config_defaults(args):
         config['secondary_tasks_data_file'] = 'id_to_node_map.tsv'
     if 'fixity_algorithm' not in config:
         config['fixity_algorithm'] = None
+    if 'validate_fixity_during_check' not in config:
+        config['validate_fixity_during_check'] = False
     # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None
@@ -1008,6 +1010,35 @@ def check_input(config, args):
                 message = "Configured fixity algorithm '" + config['fixity_algorithm'] + "' must be one of 'md5', 'sha1', or 'sha256'."
                 logging.error(message)
                 sys.exit('Error: ' + message)
+
+        if config['validate_fixity_during_check'] is True and config['fixity_algorithm'] is not None:
+            print("Performing local checksum validation. This might take some time.")
+            if 'file' in csv_column_headers and 'checksum' in csv_column_headers:
+                validate_checksums_csv_data = get_csv_data(config)
+                if config['task'] == 'add_media':
+                    row_id = 'node_id'
+                else:
+                    row_id = config['id_field']
+                checksum_validation_all_ok = True
+                for checksum_validation_row_count, checksum_validation_row in enumerate(validate_checksums_csv_data, start=1):
+                    file_path = checksum_validation_row['file']
+                    hash_from_local = get_file_hash_from_local(config, file_path, config['fixity_algorithm'])
+                    if 'checksum' in checksum_validation_row:
+                        if hash_from_local == checksum_validation_row['checksum'].strip():
+                            logging.info('Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.', config['fixity_algorithm'], file_path, hash_from_local)
+                        else:
+                            checksum_validation_all_ok = False
+                            logging.warning('Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
+                                            config['fixity_algorithm'], file_path, checksum_validation_row[row_id], hash_from_local, checksum_validation_row['checksum'])
+
+                if checksum_validation_all_ok is True:
+                    checksum_validation_message = "OK, checksum validation during complete. All checks pass."
+                    logging.info(checksum_validation_message)
+                    print(checksum_validation_message + " See the log for more detail.")
+                else:
+                    checksum_validation_message = "Not all checksum validation passed."
+                    logging.warning(checksum_validation_message)
+                    print("Warning: " + checksum_validation_message + " See the log for more detail.")
 
     if config['task'] == 'update' or config['task'] == 'create':
         validate_geolocation_values_csv_data = get_csv_data(config)
@@ -1882,7 +1913,9 @@ def create_file(config, filename, file_fieldname, node_csv_row):
         if file_response.status_code == 201:
             file_json = json.loads(file_response.text)
             file_id = file_json['fid'][0]['value']
-            if config['fixity_algorithm'] is not None:
+            # For now, we can only validate checksums for files named in the 'file' CSV column.
+            # See https://github.com/mjordan/islandora_workbench/issues/307.
+            if config['fixity_algorithm'] is not None and file_fieldname == 'file':
                 file_uuid = file_json['uuid'][0]['value']
                 hash_from_drupal = get_file_hash_from_drupal(config, file_uuid, config['fixity_algorithm'])
                 hash_from_local = get_file_hash_from_local(config, file_path, config['fixity_algorithm'])
