@@ -17,6 +17,7 @@ import collections
 import urllib.parse
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
+from unidecode import unidecode
 import shutil
 
 
@@ -113,6 +114,8 @@ def set_config_defaults(args):
         config['nodes_only'] = False
     if 'log_json' not in config:
         config['log_json'] = False
+    if 'log_headers' not in config:
+        config['log_headers'] = False
     if 'progress_bar' not in config:
         config['progress_bar'] = False
     if 'user_agent' not in config:
@@ -299,6 +302,8 @@ def issue_request(
         url = config['host'] + path
 
     if method == 'GET':
+        if config['log_headers'] is True:
+            logging.info(headers)
         response = requests.get(
             url,
             allow_redirects=config['allow_redirects'],
@@ -308,6 +313,8 @@ def issue_request(
             headers=headers
         )
     if method == 'HEAD':
+        if config['log_headers'] is True:
+            logging.info(headers)
         response = requests.head(
             url,
             allow_redirects=config['allow_redirects'],
@@ -316,6 +323,8 @@ def issue_request(
             headers=headers
         )
     if method == 'POST':
+        if config['log_headers'] is True:
+            logging.info(headers)
         if config['log_json'] is True:
             logging.info(json)
         response = requests.post(
@@ -328,6 +337,8 @@ def issue_request(
             data=data
         )
     if method == 'PUT':
+        if config['log_headers'] is True:
+            logging.info(headers)
         if config['log_json'] is True:
             logging.info(json)
         response = requests.put(
@@ -340,6 +351,8 @@ def issue_request(
             data=data
         )
     if method == 'PATCH':
+        if config['log_headers'] is True:
+            logging.info(headers)
         if config['log_json'] is True:
             logging.info(json)
         response = requests.patch(
@@ -352,6 +365,8 @@ def issue_request(
             data=data
         )
     if method == 'DELETE':
+        if config['log_headers'] is True:
+            logging.info(headers)
         response = requests.delete(
             url,
             allow_redirects=config['allow_redirects'],
@@ -1847,7 +1862,6 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
 
 def create_file(config, filename, file_fieldname, node_csv_row):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
-
            Parameters
            ----------
             config : dict
@@ -1899,6 +1913,19 @@ def create_file(config, filename, file_fieldname, node_csv_row):
     else:
         logging.error('File not created for CSV row "%s": media type "%s" not recognized.', node_csv_row[config['id_field']], media_type)
         return False
+
+    # Requests/urllib3 requires filenames used in Content-Disposition headers to be encoded as latin-1.
+    # Since it is impossible to reliably convert to latin-1 without knowing the source encoding of the filename
+    # (which may or may not have originated on the machine running Workbench, so sys.stdout.encoding isn't reliable),
+    # the best we can do for now is to use unidecode to replace non-ASCII characters in filenames with their ASCII
+    # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
+    # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
+    # of both requirements.
+    ascii_only = is_ascii(filename)
+    if ascii_only is False:
+        original_filename = copy.copy(filename)
+        filename = unidecode(filename)
+        logging.warning("Filename '" + original_filename + "' contains non-ASCII characters, normalized to '" + filename + "'.")
 
     file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field + '?_format=json'
     file_headers = {
@@ -1970,20 +1997,6 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     """
     if config['nodes_only'] is True:
         return
-
-    try:
-        # We need to test that the filename is valid Latin-1 since Requests requires that.
-        filename.encode('latin-1')
-    except UnicodeError:
-        logging.error("Filename " + filename + " is not valid Latin-1.")
-        return False
-
-    try:
-        # We also need to test that the filename is valid UTF-8 since Drupal requires that.
-        filename.encode('utf-8')
-    except UnicodeError:
-        logging.error("Filename " + filename + " is not valid UTF-8.")
-        return False
 
     file_result = create_file(config, filename, file_fieldname, node_csv_row)
     if filename.startswith('http'):
@@ -4158,3 +4171,19 @@ def read_node_ids_tsv(config):
 
 def get_percentage(part, whole):
     return 100 * float(part) / float(whole)
+
+
+def is_ascii(input):
+    """Check if a string contains only ASCII characters.
+    """
+    """Parameters
+        ----------
+        input : str
+            The string to test.
+        Returns
+        -------
+        string
+            True if all characters are within the ASCII character set,
+            False otherwise.
+    """
+    return all(ord(c) < 128 for c in input)
