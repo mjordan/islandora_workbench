@@ -564,14 +564,14 @@ def get_nid_from_url_alias(config, url_alias):
         return node['nid'][0]['value']
 
 
-def get_field_definitions(config):
+def get_field_definitions(config, entity_type, bundle_type=None):
     """Get field definitions from Drupal.
     """
     ping_islandora(config, print_message=False)
-    # For media, entity_type will need to be 'media' and bundle_type will
-    # need to be one of 'image', 'document', 'audio', 'video', 'file'
-    entity_type = 'node'
-    bundle_type = config['content_type']
+    # For media, entity_type will need to be 'media' and bundle_type will need
+    # to be one of 'image', 'document', 'audio', 'video', 'file' (not yet used).
+    if entity_type == 'node':
+        bundle_type = config['content_type']
 
     field_definitions = {}
     fields = get_entity_fields(config, entity_type, bundle_type)
@@ -613,6 +613,12 @@ def get_field_definitions(config):
 
 def get_entity_fields(config, entity_type, bundle_type):
     """Get all the fields configured on a bundle.
+
+       Example query for taxo terms: /entity/entity_form_display/taxonomy_term.test_vocab.default?_format=json
+
+       Note that if a vocabulary has no custom fields (like the default "Tags" vocab), this query will return
+       a 404 response. So, we need to figure out if the vocabulary really doesn't exist. A HEAD to
+       /admin/structure/taxonomy/manage/{vocab name}/overview is reliable.
     """
     fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
         entity_type + '.' + bundle_type + '.default?_format=json'
@@ -642,6 +648,8 @@ def get_entity_fields(config, entity_type, bundle_type):
 
 def get_entity_field_config(config, fieldname, entity_type, bundle_type):
     """Get a specific fields's configuration.
+
+       Example query for taxo terms: /entity/field_config/taxonomy_term.islandora_media_use.field_external_uri?_format=json
     """
     field_config_endpoint = config['host'] + '/entity/field_config/' + entity_type + '.' + bundle_type + '.' + fieldname + '?_format=json'
     field_config_response = issue_request(config, 'GET', field_config_endpoint)
@@ -655,6 +663,8 @@ def get_entity_field_config(config, fieldname, entity_type, bundle_type):
 
 def get_entity_field_storage(config, fieldname, entity_type):
     """Get a specific fields's storage configuration.
+
+       Example query for taxo terms: /entity/field_storage_config/taxonomy_term.field_external_uri?_format=json
     """
     field_storage_endpoint = config['host'] + '/entity/field_storage_config/' + entity_type + '.' + fieldname + '?_format=json'
     field_storage_response = issue_request(config, 'GET', field_storage_endpoint)
@@ -835,7 +845,7 @@ def check_input(config, args):
     # Task-specific CSV checks.
     langcode_was_present = False
     if config['task'] == 'create':
-        field_definitions = get_field_definitions(config)
+        field_definitions = get_field_definitions(config, 'node')
         if config['id_field'] not in csv_column_headers:
             message = 'For "create" tasks, your CSV file must have a column containing a unique identifier.'
             logging.error(message)
@@ -959,7 +969,7 @@ def check_input(config, args):
         if 'url_alias' in csv_column_headers:
             validate_url_aliases_csv_data = get_csv_data(config)
             validate_url_aliases(config, validate_url_aliases_csv_data)
-        field_definitions = get_field_definitions(config)
+        field_definitions = get_field_definitions(config, 'node')
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
@@ -3999,7 +4009,7 @@ def get_file_hash_from_local(config, file_path, algorithm):
 
 
 def get_csv_template(config, args):
-    field_definitions = get_field_definitions(config)
+    field_definitions = get_field_definitions(config, 'node')
 
     field_labels = collections.OrderedDict()
     field_labels['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'LABEL (REMOVE THIS ROW)'
