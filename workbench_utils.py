@@ -3416,7 +3416,7 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                     sys.exit('Error: ' + message + message_2)
             else:
                 message = 'Term URI "' + field_value + '" used in CSV column "' + \
-                    csv_field_name + '"" row ' + str(record_number) + ' does not match any terms.'
+                    csv_field_name + '" row ' + str(record_number) + ' does not match any terms.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
         # Finally, check values that are string term names.

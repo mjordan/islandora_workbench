@@ -260,6 +260,7 @@ def create():
                         if len(subvalues) > field_definitions[custom_field]['cardinality']:
                             log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
                         for subvalue in subvalues:
+                            subvalue['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalue['target_id'])
                             field_values.append(subvalue)
                         node[custom_field] = field_values
                     else:
@@ -268,6 +269,7 @@ def create():
                 # Cardinality is 1.
                 else:
                     field_values = split_typed_relation_string(config, row[custom_field], target_type)
+                    field_values[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, field_values[0]['target_id'])
                     node[custom_field] = field_values[0]
                     log_field_cardinality_violation(custom_field, id_field, '1')
 
@@ -393,7 +395,7 @@ def create():
             if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                 if config['progress_bar'] is False:
                     print('+ No file specified in CSV for ' + row['title'])
-                logging.info("No file specified for %s, so no media created.", id_field)
+                logging.info("No file specified for row %s, so no media created.", id_field)
 
             if config['paged_content_from_directories'] is True:
                 # Console output and logging are done in the create_children_from_directory() function.
