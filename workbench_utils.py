@@ -800,10 +800,23 @@ def check_input(config, args):
     print(message)
     logging.info(message)
 
+    '''
+    # Check existence input directory.
+    if os.path.isabs(config['input_dir']):
+        input_dir_path = config['input_dir']
+    else:
+        input_dir_path = os.path.abspath(config['input_dir'])
+    if not os.path.exists(input_dir_path):
+        message = 'Input directory specified in the "input_dir" configuration setting ("' + config['input_dir'] + '") not found.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
+    '''
+    validate_input_dir(config)
+
     # Check existence of CSV file.
     if os.path.isabs(config['input_csv']):
         input_csv = config['input_csv']
-    # The actual "extraction" is fired over in workbench.
+    # For Google Sheets, the "extraction" is fired over in workbench.
     elif config['input_csv'].startswith('http'):
         input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
         message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
@@ -2820,6 +2833,18 @@ def get_csv_record_hash(row):
     serialized_row = bytes(serialized_row.strip().lower(), 'utf-8')
     hash_object = hashlib.md5(serialized_row)
     return hash_object.hexdigest()
+
+
+def validate_input_dir(config):
+    # Check existence input directory.
+    if os.path.isabs(config['input_dir']):
+        input_dir_path = config['input_dir']
+    else:
+        input_dir_path = os.path.abspath(config['input_dir'])
+    if not os.path.exists(input_dir_path):
+        message = 'Input directory specified in the "input_dir" configuration setting ("' + config['input_dir'] + '") not found.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
 
 
 def validate_csv_field_cardinality(config, field_definitions, csv_data):
