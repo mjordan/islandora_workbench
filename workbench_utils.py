@@ -581,48 +581,100 @@ def get_nid_from_url_alias(config, url_alias):
 
 def get_field_definitions(config, entity_type, bundle_type=None):
     """Get field definitions from Drupal.
+
+        Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        entity_type : string
+            One of 'node', 'media', or 'taxonomy_term'.
+        bundle_type : string
+            None for nodes (the content type can optionally be gotten from config),
+            the vocabulary name, or the media type (image', 'document', 'audio',
+            'video', 'file', etc.).
+        Returns
+        -------
+        dict
+            A dictionary with field names as keys and values arrays containing
+            field config data. Config data varies slightly by entity type.
     """
     ping_islandora(config, print_message=False)
-    # For media, entity_type will need to be 'media' and bundle_type will need
-    # to be one of 'image', 'document', 'audio', 'video', 'file' (not yet used).
+    field_definitions = {}
+
     if entity_type == 'node':
         bundle_type = config['content_type']
+        fields = get_entity_fields(config, entity_type, bundle_type)
+        for fieldname in fields:
+            field_definitions[fieldname] = {}
+            raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
+            field_config = json.loads(raw_field_config)
+            field_definitions[fieldname]['entity_type'] = field_config['entity_type']
+            field_definitions[fieldname]['required'] = field_config['required']
+            field_definitions[fieldname]['label'] = field_config['label']
+            raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+            if len(raw_vocabularies) > 0:
+                vocabularies = [x.replace("taxonomy.vocabulary.", '')
+                                for x in raw_vocabularies]
+                field_definitions[fieldname]['vocabularies'] = vocabularies
+            '''
+            if entity_type == 'media' and 'file_extensions' in field_config['settings']:
+                field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
+            if entity_type == 'media':
+                field_definitions[fieldname]['media_type'] = bundle_type
+            '''
+            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
+            field_storage = json.loads(raw_field_storage)
+            field_definitions[fieldname]['field_type'] = field_storage['type']
+            field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
+            if 'max_length' in field_storage['settings']:
+                field_definitions[fieldname]['max_length'] = field_storage['settings']['max_length']
+            else:
+                field_definitions[fieldname]['max_length'] = None
+            if 'target_type' in field_storage['settings']:
+                field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
+            else:
+                field_definitions[fieldname]['target_type'] = None
+            if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
+                field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
 
-    field_definitions = {}
-    fields = get_entity_fields(config, entity_type, bundle_type)
-    for fieldname in fields:
-        field_definitions[fieldname] = {}
-        raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
-        field_config = json.loads(raw_field_config)
-        field_definitions[fieldname]['entity_type'] = field_config['entity_type']
-        field_definitions[fieldname]['required'] = field_config['required']
-        field_definitions[fieldname]['label'] = field_config['label']
-        raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
-        if len(raw_vocabularies) > 0:
-            vocabularies = [x.replace("taxonomy.vocabulary.", '')
-                            for x in raw_vocabularies]
-            field_definitions[fieldname]['vocabularies'] = vocabularies
-        if entity_type == 'media' and 'file_extensions' in field_config['settings']:
-            field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
-        if entity_type == 'media':
-            field_definitions[fieldname]['media_type'] = bundle_type
+        field_definitions['title'] = {'entity_type': 'node', 'required': True, 'label': 'Title', 'field_type': 'string', 'cardinality': 1, 'max_length': 255, 'target_type': None}
 
-        raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
-        field_storage = json.loads(raw_field_storage)
-        field_definitions[fieldname]['field_type'] = field_storage['type']
-        field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
-        if 'max_length' in field_storage['settings']:
-            field_definitions[fieldname]['max_length'] = field_storage['settings']['max_length']
-        else:
-            field_definitions[fieldname]['max_length'] = None
-        if 'target_type' in field_storage['settings']:
-            field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
-        else:
-            field_definitions[fieldname]['target_type'] = None
-        if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
-            field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
+    if entity_type == 'taxonomy_term':
+        fields = get_entity_fields(config, 'taxonomy_term', bundle_type)
+        for fieldname in fields:
+            field_definitions[fieldname] = {}
+            raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
+            field_config = json.loads(raw_field_config)
+            # print(field_config)
+            field_definitions[fieldname]['entity_type'] = field_config['entity_type']
+            field_definitions[fieldname]['required'] = field_config['required']
+            field_definitions[fieldname]['label'] = field_config['label']
+            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
+            field_storage = json.loads(raw_field_storage)
+            # print(field_storage)
+            field_definitions[fieldname]['field_type'] = field_storage['type']
+            field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
+            if 'max_length' in field_storage['settings']:
+                field_definitions[fieldname]['max_length'] = field_storage['settings']['max_length']
+            else:
+                field_definitions[fieldname]['max_length'] = None
+            if 'target_type' in field_storage['settings']:
+                field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
+            else:
+                field_definitions[fieldname]['target_type'] = None
 
-    field_definitions['title'] = {'entity_type': 'node', 'required': True, 'label': 'Title', 'field_type': 'string', 'cardinality': 1, 'max_length': 255, 'target_type': None}
+        field_definitions['term_name'] = {'entity_type': 'taxonomy_term', 'required': True, 'label': 'Name', 'field_type': 'string', 'cardinality': 1, 'max_length': 255, 'target_type': None}
+
+    if entity_type == 'media':
+        # @note: this section is incomplete.
+        fields = get_entity_fields(config, entity_type, bundle_type)
+        for fieldname in fields:
+            field_definitions[fieldname] = {}
+            if entity_type == 'media' and 'file_extensions' in field_config['settings']:
+                field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
+            if entity_type == 'media':
+                field_definitions[fieldname]['media_type'] = bundle_type
+
     return field_definitions
 
 
@@ -800,17 +852,6 @@ def check_input(config, args):
     print(message)
     logging.info(message)
 
-    '''
-    # Check existence input directory.
-    if os.path.isabs(config['input_dir']):
-        input_dir_path = config['input_dir']
-    else:
-        input_dir_path = os.path.abspath(config['input_dir'])
-    if not os.path.exists(input_dir_path):
-        message = 'Input directory specified in the "input_dir" configuration setting ("' + config['input_dir'] + '") not found.'
-        logging.error(message)
-        sys.exit('Error: ' + message)
-    '''
     validate_input_dir(config)
 
     # Check existence of CSV file.
@@ -2588,13 +2629,12 @@ def get_term_id_from_uri(config, uri):
     return False
 
 
-def create_term(config, vocab_id, term_name):
+def create_term(config, vocab_id, term_name, term_csv_row=None):
     """Adds a term to the target vocabulary. Returns the new term's ID
-       if successful (if the term already exists) or False if not.
+       if successful (or if the term already exists) or False if not.
     """
 
-    # Check to see if term exists; if so, return its ID, if not, proceed to
-    # create it.
+    # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
         logging.info(
@@ -2605,8 +2645,7 @@ def create_term(config, vocab_id, term_name):
         return tid
 
     if config['allow_adding_terms'] is False:
-        logging.warning(
-            'To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.')
+        logging.warning('To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.')
         return False
 
     if len(term_name) > 255:
