@@ -503,6 +503,9 @@ def update():
                 if field_definitions[custom_field]['target_type'] == 'node':
                     target_type = 'node_type'
 
+                if field_definitions[custom_field]['target_type'] == 'media':
+                    target_type = 'media_type'
+
                 if field_definitions[custom_field]['cardinality'] == 1:
                     subvalues = row[custom_field].split(config['subdelimiter'])
                     node[custom_field] = [{'target_id': subvalues[0], 'target_type': target_type}]
