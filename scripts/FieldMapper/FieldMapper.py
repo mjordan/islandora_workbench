@@ -202,3 +202,20 @@ class FieldMapper:
 
         physical_description = PhysicalDescription()
         return physical_description.get_extent_fieldname()
+
+    def get_subject_topic_fieldname(self):
+
+        subject = Subject()
+        return subject.getsubject_topic_fieldname()
+
+    def get_subject_geographic_fieldname(self):
+
+        subject = Subject()
+        return subject.getsubject_geographic_fieldname()
+
+
+    def get_subject_temporal_fieldname(self):
+
+        subject = Subject()
+        return subject.getsubject_temporal_fieldname()
+

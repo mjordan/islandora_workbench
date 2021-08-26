@@ -14,6 +14,6 @@ class MemberOf:
 
         return self.memberof
 
-    def get_memberoffieldname(self)
+    def get_memberoffieldname(self):
 
         return self.drupal_fieldnames['memberof']

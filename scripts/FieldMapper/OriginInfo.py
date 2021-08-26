@@ -34,7 +34,7 @@ class OriginInfo:
 
     def get_datecreated_fieldname(self):
 
-        return self.drupalfieldnames['dateCreated']
+        return self.drupal_fieldnames['dateCreated']
 
     def set_dateissued(self, dateissued):
 
@@ -47,7 +47,7 @@ class OriginInfo:
 
     def get_dateissued_fieldname(self):
 
-        return self.drupalfieldnames['dateIssued']
+        return self.drupal_fieldnames['dateIssued']
 
     def set_publisher(self, publisher):
 
@@ -60,7 +60,7 @@ class OriginInfo:
 
     def get_publisher_fieldname(self):
 
-        return self.drupalfieldnames['publisher']
+        return self.drupal_fieldnames['publisher']
 
     def set_place_published(self, place_published):
 
@@ -73,7 +73,7 @@ class OriginInfo:
 
     def get_place_published_fieldname(self):
 
-        return self.drupalfieldnames['place_published']
+        return self.drupal_fieldnames['place_published']
 
     def set_edition(self, edition):
 
@@ -84,5 +84,5 @@ class OriginInfo:
         return self.edition
 
     def get_edition_fieldname(self):
-        return self.drupalfieldnames['edition']
+        return self.drupal_fieldnames['edition']
 

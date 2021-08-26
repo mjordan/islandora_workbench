@@ -125,9 +125,9 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
             #publisher
-            elif field_name = "mods_originInfo_publisher_ms":
+            elif field_name == "mods_originInfo_publisher_ms":
 
-                field_value = field_mapper.get_publisher_fieldname()
+                field_value = field_mapper.get_publisherfieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
             #place published
@@ -152,7 +152,7 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
 
 
             #language code
-            elif field_name = "mods_language_languageTerm_code_ms":
+            elif field_name == "mods_language_languageTerm_code_ms":
 
                 field_value = field_mapper.get_languagefieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
@@ -161,24 +161,45 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
             # IMPORTANT, value for this field needs to be reset to Repository Item
             # Possibly Repository Item should be set as constant value in MemberOf class
 
-            elif field_name = "RELS_EXT_isMemberOfCollection_uri_ms"
+            elif field_name == "RELS_EXT_isMemberOfCollection_uri_ms":
 
                 field_value = field_mapper.get_memberoffieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
             # note
-            elif field_name = "mods_note_ms"
+            elif field_name == "mods_note_ms":
 
                 field_value = field_mapper.get_notefieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
 
             # physical description extent
-            elif field_name = "mods_physicalDescription_extent_ms"
+            elif field_name == "mods_physicalDescription_extent_ms":
 
                 field_value = field_mapper.get_extentfieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
+
+            # subjects
+
+            #subject topic
+            elif field_name == "mods_subject_topic_ms":
+
+                field_value = field_mapper.get_subject_topic_fieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+            #subject geographic
+            elif field_name == "mods_subject_geographic_ms":
+
+                field_value = field_mapper.get_subject_geographic_fieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+            # subject temporal
+
+            elif field_name == "mods_subject_temporal_ms":
+
+                field_value = field_mapper.get_subject_temporal_fieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
 
 
