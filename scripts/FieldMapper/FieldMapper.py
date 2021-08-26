@@ -153,3 +153,52 @@ class FieldMapper:
         dc_date = Date()
         return dc_date.get_date_fieldname()
 
+    def get_dateissuedfieldname(self):
+
+        origin_info = OriginInfo()
+        return origin_info.get_dateissued_fieldname()
+
+    def get_datecreatedfieldname(self):
+
+        origin_info = OriginInfo()
+        return origin_info.get_datecreated_fieldname()
+
+    def get_publisherfieldname(self):
+
+        origin_info = OriginInfo()
+        return origin_info.get_publisher_fieldname()
+
+    def get_placepublishedfieldname(self):
+
+        origin_info = OriginInfo()
+        return origin_info.get_place_published_fieldname()
+
+    def get_editionfieldname(self):
+
+        origin_info = OriginInfo()
+        return origin_info.get_edition_fieldname()
+
+    def get_resourcetypefieldname(self):
+
+        resource_type = ResourceType()
+        return resource_type.get_resourcetype_fieldname()
+
+    def get_languagefieldname(self):
+
+        language = Language()
+        return language.get_language_fieldname()
+
+    def get_memberoffieldname(self):
+
+        member_of = MemberOf()
+        return member_of.get_memberoffieldname()
+
+    def get_notefieldname(self):
+
+        note = Note()
+        return note.get_note_fieldname()
+
+    def get_extentfieldname(self):
+
+        physical_description = PhysicalDescription()
+        return physical_description.get_extent_fieldname()

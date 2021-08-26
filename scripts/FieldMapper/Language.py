@@ -25,11 +25,7 @@ def get_language(self):
     return self.language
 
 
-def set_language_fieldname(self):
-    self.language_fieldname = self.drupalfieldnames['language']
-
-
 def get_language_fieldname(self):
-    return self.language_fieldname
+    return self.drupalfieldnames['language']
 
 

@@ -16,10 +16,10 @@ class Note:
         if isinstance(note, str) and note != '':
             self.note = note
 
-    def get_description(self):
+    def get_note(self):
 
         return self.note
 
-    def get_description_fieldname(self):
-        return self.drupal_fieldnames
+    def get_note_fieldname(self):
+        return self.drupal_fieldnames['note']
 

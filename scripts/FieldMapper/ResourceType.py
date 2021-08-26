@@ -7,7 +7,7 @@ class ResourceType:
 
     def __init__(self):
 
-        self.drupal_fieldname = 'field_resource_type'
+        self.drupal_fieldnames = {'resource_type':'field_resource_type'}
         self.islandora_taxonomy = 'Resource Types'
         self.mods_xpath = 'mods/typeOfResource'
         self.dc_designator = 'type'
@@ -23,4 +23,4 @@ class ResourceType:
 
     def get_resourcetype_fieldname(self):
 
-        return self.drupal_fieldname
+        return self.drupal_fieldnames['resource_type']

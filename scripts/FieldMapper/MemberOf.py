@@ -10,7 +10,10 @@ class MemberOf:
         self.drupal_fieldnames = {'memberof': 'field_member_of'}
         self.memberof = 'Repository Item'
 
-    def getmemberof(self):
+    def get_memberof(self):
 
         return self.memberof
 
+    def get_memberoffieldname(self)
+
+        return self.drupal_fieldnames['memberof']
