@@ -167,11 +167,20 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
             # note
-
             elif field_name = "mods_note_ms"
 
                 field_value = field_mapper.get_notefieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+
+            # physical description extent
+            elif field_name = "mods_physicalDescription_extent_ms"
+
+                field_value = field_mapper.get_extentfieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+
+
 
 
         getCSVHeaderRowMap()

@@ -35,5 +35,5 @@ class PhysicalDescription:
 
     def get_extent_fieldname(self):
 
-        return self.extent_fieldname
+        return self.drupal_fieldnames['extent']
 
