@@ -1,0 +1,6 @@
+task: create
+host: "https://islandora.traefik.me/"
+username: admin
+password: password
+input_dir: /home/borwickja/PhpstormProjects/islandoraworkbenchmigration/inputdata
+allow_adding_terms: true
