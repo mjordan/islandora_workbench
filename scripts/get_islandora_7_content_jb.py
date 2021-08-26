@@ -67,6 +67,15 @@ def getCSVHeaderRowMap():
 
 def mapSearchFieldsToCSVHeaderFields(header_fields):
 
+    #so the issue here is that you are checking for search fields and creating a map
+    #that links them to field headers for the csv
+
+    #But if the field isn't present in the list of search fields, there will be no mapping
+    #so the list has to be complete, otherwise you won't be creating a csv with uniform column
+    #headers
+
+    #Also how do you get the file into this list of headers?
+
     if isinstance(header_fields, str) and header_fields != '':
         csv_header_field_list = header_fields.split(',')
 
