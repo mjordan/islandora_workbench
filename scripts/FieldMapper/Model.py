@@ -12,6 +12,8 @@ class Model:
         self.dc_designators = {'model': ''}
         self.model = ''
         self.model_fieldname = ''
+        self.model_displayhint = ''
+
 
     def set_model(self, model):
 
@@ -43,3 +45,14 @@ class Model:
 
             return self.model
 
+    def set_modeldisplayhintfieldvalue(self):
+
+            if self.model == 'Image':
+
+                self.model_displayhint = 'Open Seadragon'
+
+    def get_modeldisplayhintfieldvalue():
+
+        if self.model_displayhint != '':
+
+            return self.model_displayhint

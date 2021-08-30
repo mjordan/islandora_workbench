@@ -10,7 +10,10 @@ import re
 import requests
 import mimetypes
 import logging
+import urllib3
+import urllib.parse
 from FieldMapper.FieldMapper import FieldMapper
+#from FieldTransformer.FieldValueTransformer import FieldValueTransformer
 from requests_futures.sessions import FuturesSession
 from progress_bar import InitBar
 
@@ -33,6 +36,7 @@ csv_output_path = '/home/borwickja/PhpstormProjects/islandoraworkbench/islandora
 obj_directory = '/home/borwickja/PhpstormProjects/islandoraworkbench/islandora_workbench/input_data'
 log_file_path = 'islandora_content.log'
 field_mapper = FieldMapper()
+#field_value_transformer = FieldValueTransformer()
 # Solr filter criteria. 'namespace' allows you to limit the metadata retrieved
 # from Solr to be limtited to objects with a specific namespace (or namespaces
 # if multiple namespaces start with the same characters). Valid values for the
@@ -51,19 +55,41 @@ field_pattern_do_not_want = '(SFU_custom_metadata|marcrelator|isSequenceNumberOf
 # 'standard_fields' is a list of fieldnames we always want in fields list. They are
 # added added to the field list after list is filtered down using 'field_pattern'.
 # Columns for these fields will appear at the start of the CSV.
-standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms', 'RELS_EXT_isPageOf_uri_ms']
+standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms', 'RELS_EXT_isPageOf_uri_ms','mods_originInfo_edition_ms','mods_physicalDescription_extent_ms','mods_identifier_all_ms','mods_originInfo_place_placeTerm_text_ms','mods_originInfo_dateIssued_ms','dc.date',
+'mods_originInfo_dateCreated_s','mods_language_languageTerm_code_ms', 'mods_physicalDescription_form_ms']
+
+displayhint_csvheaderposition = ''
 
 ##############
 # Functions. #
 ##############
 
+def add_displayhintsfield():
+
+    custom_field = ['displayhint']
+
 def addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value):
 
     field_mapper.add_csv_header_row_mapping(field_name, field_value)
 
+
+def prependFieldsToCSVHeaderRowMap(field_mapper,fields_to_prepend):
+
+    position = 'prepend'
+    field_mapper.update_csv_header_row_mapping(fields_to_prepend, position)
+
+
+def appendFieldsToCSVHeaderRowMap(field_mapper,fields_to_append):
+
+    position = 'append'
+    field_mapper.update_csv_header_row_mapping(fields_to_append, position)
+
+
 def getCSVHeaderRowMap():
 
-    field_mapper.get_csvheader_row_map()
+    fields = field_mapper.get_csvheader_row_map()
+    print(fields)
+    exit()
 
 def mapSearchFieldsToCSVHeaderFields(header_fields):
 
@@ -76,11 +102,13 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
 
     #Also how do you get the file into this list of headers?
 
+    #Figure out display hints
+
+
     if isinstance(header_fields, str) and header_fields != '':
         csv_header_field_list = header_fields.split(',')
 
-
-
+        # Search Fields
         # for the model field the value extracted from SOLR will also need to be translated
         for field_name in csv_header_field_list:
 
@@ -109,11 +137,13 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
                  field_value = field_mapper.get_identifierlocalfieldname()
                  addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
+
             # identifier
-            elif field_name == "mods_identifier_ms":
+            elif field_name == "mods_identifier_all_ms":
 
                  field_value = field_mapper.get_identifierfieldname()
                  addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
 
             # date
             elif field_name == "dc.date":
@@ -130,7 +160,7 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
              # date created - using the _s suffix as _ms usually is associated with two date values, so using _s
             elif field_name == "mods_originInfo_dateCreated_s":
 
-                field_value = field_mapper.get_datecreated_fieldname()
+                field_value = field_mapper.get_datecreatedfieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
             #publisher
@@ -140,18 +170,25 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
             #place published
-            elif field_name == "mods_originInfo_place_placeTerm_ms":
+            elif field_name == "mods_originInfo_place_placeTerm_text_ms":
 
-                field_value = field_mapper.get_place_published_fieldname()
+
+                field_value = field_mapper.get_placepublishedfieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
 
             #edition
             elif field_name == "mods_originInfo_edition_ms":
 
-                field_value = field_mapper.get_edition_fieldname()
+                field_value = field_mapper.get_editionfieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
+
+            #extent
+            elif field_name == "mods_physicalDescription_extent_ms":
+
+                field_value = field_mapper.get_extentfieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
             #resource type
             elif field_name == "mods_typeOfResource_ms":
@@ -165,6 +202,8 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
 
                 field_value = field_mapper.get_languagefieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+
 
             # member of
             # IMPORTANT, value for this field needs to be reset to Repository Item
@@ -210,7 +249,30 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
                 field_value = field_mapper.get_subject_temporal_fieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
+            elif field_name == "mods_physicalDescription_form_ms":
 
+
+                field_value = field_mapper.get_physicalform_fieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+
+
+
+        #computed fields
+
+        #how to resolve display hints
+        field_value = "field_display_hints"
+        field_name = "display_hints"
+        addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+        field_mapper.set_displayhintfield_csvheaderposition()
+        displayhint_csvheaderposition = field_mapper.get_displayhintfield_csvheaderposition()
+
+        fields_to_prepend = {'pid':'PID', 'file':'file', 'title': 'title'}
+        prependFieldsToCSVHeaderRowMap(field_mapper, fields_to_prepend)
+
+        fields_to_append = {'access control': 'field_access_terms'}
+        appendFieldsToCSVHeaderRowMap(field_mapper, fields_to_append)
 
 
         getCSVHeaderRowMap()
@@ -220,6 +282,10 @@ def addStandardFields(modsfields_list):
 
    fields_param = standard_fields + modsfields_list
    return fields_param
+
+
+# next challenge is field ordering
+
 
 
 
@@ -342,6 +408,9 @@ def getcampuscodefrompid(pid):
     return returnval
 
 
+def transformFields(row):
+
+    print('Hi')
 
 def getRequestStatus(requestObject):
 
@@ -367,7 +436,7 @@ logging.basicConfig(
 
 fields_param = ','.join(getFieldListFromFile())
 mapSearchFieldsToCSVHeaderFields(fields_param)
-exit()
+
 
 # This query gets all fields in the index. Does not need to be user-configurable.
 # fields_solr_query = '/select?q=*:*&wt=csv&rows=0&fl=*'
@@ -437,13 +506,20 @@ num_csv_rows = len(rows)
 for row in rows:
     pid = row.split(',')[0]
     campus_code = getcampuscodefrompid(pid)
+    campus_code_pid = pid
+#     params = {value_to_encode}
+#     campus_code_params = urllib.parse.urlencode(params)
+    print("campus_code is " + campus_code)
+    print("pid is " + pid)
+    encoded_pid = pid.replace(':','%3A')
     sequence_number = get_child_sequence_number(pid)
     is_string = isinstance(row,str)
     row = row + ',' + str(sequence_number)
+    transformFields(row)
+
     if fetch_files is True:
         #obj_url = islandora_base_url + '/islandora/object/' + pid + '/datastream/OBJ/download'
-        obj_url = islandora_base_url + campus_code + '/islandora/object/' + pid + '/datastream/OBJ/download'
-        print(obj_url)
+        obj_url = islandora_base_url + campus_code + '/islandora/object/' + encoded_pid + '/datastream/OBJ/download'
         row_count += 1
         row_position = get_percentage(row_count, num_csv_rows)
         pbar(row_position)
@@ -478,6 +554,12 @@ for row in rows:
     else:
         # If we're not fetching files, add an empty 'file' column.
         row = str(starting_unique_id) + ',' + ',' + row
+
+
+ # before you output the row you need to add values
+ # for non-search columns like field_display_hints
+
+
 
 
     csv_output.append(row)

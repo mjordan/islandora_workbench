@@ -18,6 +18,7 @@ from FieldMapper.Model import Model
 from FieldMapper.MemberOf import MemberOf
 from FieldMapper.Subject import Subject
 from FieldMapper.Identifier import Identifier
+from FieldMapper.Date import Date
 
 class FieldMapper:
 
@@ -46,10 +47,42 @@ class FieldMapper:
         self.identifier = Identifier()
         self.csv_header_row_mappings = {}
         self.csv_header_row = []
+        self.displayhint_field_headerposition = ''
+
+    def set_displayhintfield_csvheaderposition(self):
+
+        key_list = list(self.csv_header_row_mappings)
+        keys_of_interest = ['display_hints']
+
+        for key in keys_of_interest:
+
+            display_hint_array_position = key_list.index(key)
+
+
+        self.displayhint_field_headerposition = display_hint_array_position + 1
+
+
+    def get_displayhintfield_csvheaderposition(self):
+
+        return self.displayhint_field_headerposition
 
     def add_csv_header_row_mapping(self, key, value):
 
         self.csv_header_row_mappings[key] = value
+
+    # add mappings of fields either to the beginning or end of the field dictionary
+
+    def update_csv_header_row_mapping(self, fields_to_add, position):
+
+          if position == 'prepend':
+
+            fields_to_add.update(self.csv_header_row_mappings)
+            self.csv_header_row_mappings = fields_to_add
+
+          elif position == "append":
+
+            self.csv_header_row_mappings.update(fields_to_add)
+
 
     def get_csvheader_row_map(self):
 
@@ -198,6 +231,7 @@ class FieldMapper:
         note = Note()
         return note.get_note_fieldname()
 
+    #gets extent fieldname from Physical Description object
     def get_extentfieldname(self):
 
         physical_description = PhysicalDescription()
@@ -218,4 +252,9 @@ class FieldMapper:
 
         subject = Subject()
         return subject.getsubject_temporal_fieldname()
+
+    def get_physicalform_fieldname(self):
+
+        physical_description = PhysicalDescription()
+        return physical_description.get_format_fieldname()
 
