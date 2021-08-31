@@ -3070,7 +3070,7 @@ def validate_edtf_fields(config, field_definitions, csv_data):
                                 sys.exit('Error: ' + message)
 
     if edtf_fields_present is True:
-        message = "OK, ETDF field values in the CSV file validate."
+        message = "OK, EDTF field values in the CSV file validate."
         print(message)
         logging.info(message)
 
