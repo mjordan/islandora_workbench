@@ -737,8 +737,7 @@ def check_input(config, args):
             'password']
         for create_required_option in create_required_options:
             if create_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' \
-                    + joiner.join(create_required_options) + '.'
+                message = 'Please check your config file for required values: ' + joiner.join(create_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'update':
@@ -749,14 +748,12 @@ def check_input(config, args):
             'password']
         for update_required_option in update_required_options:
             if update_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' \
-                    + joiner.join(update_required_options) + '.'
+                message = 'Please check your config file for required values: ' + joiner.join(update_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
         update_mode_options = ['replace', 'append', 'delete']
         if config['update_mode'] not in update_mode_options:
-            message = 'Your "update_mode" config option must be one of the following: ' \
-                + joiner.join(update_mode_options) + '.'
+            message = 'Your "update_mode" config option must be one of the following: ' + joiner.join(update_mode_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
 
@@ -768,8 +765,7 @@ def check_input(config, args):
             'password']
         for delete_required_option in delete_required_options:
             if delete_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' \
-                    + joiner.join(delete_required_options) + '.'
+                message = 'Please check your config file for required values: ' + joiner.join(delete_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'add_media':
@@ -780,8 +776,7 @@ def check_input(config, args):
             'password']
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' \
-                    + joiner.join(add_media_required_options) + '.'
+                message = 'Please check your config file for required values: ' + joiner.join(add_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
@@ -792,25 +787,13 @@ def check_input(config, args):
             'password']
         for delete_media_required_option in delete_media_required_options:
             if delete_media_required_option not in config_keys:
-                message = 'Please check your config file for required values: ' \
-                    + joiner.join(delete_media_required_options) + '.'
+                message = 'Please check your config file for required values: ' + joiner.join(delete_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     message = 'OK, configuration file has all required values (did not check for optional values).'
     print(message)
     logging.info(message)
 
-    '''
-    # Check existence input directory.
-    if os.path.isabs(config['input_dir']):
-        input_dir_path = config['input_dir']
-    else:
-        input_dir_path = os.path.abspath(config['input_dir'])
-    if not os.path.exists(input_dir_path):
-        message = 'Input directory specified in the "input_dir" configuration setting ("' + config['input_dir'] + '") not found.'
-        logging.error(message)
-        sys.exit('Error: ' + message)
-    '''
     validate_input_dir(config)
 
     # Check existence of CSV file.
@@ -937,20 +920,23 @@ def check_input(config, args):
             csv_column_headers.remove('langcode')
             # Set this so we can validate langcode below.
             langcode_was_present = True
+
         for csv_column_header in csv_column_headers:
-            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
-                if csv_column_header in config['ignore_csv_columns']:
-                    continue
-                additional_files_entries = get_additional_files_config(config)
-                if csv_column_header in additional_files_entries.keys():
-                    continue
-                logging.error(
-                    "CSV column header %s does not match any Drupal or reserved field names.",
-                    csv_column_header)
-                sys.exit(
-                    'Error: CSV column header "' +
-                    csv_column_header +
-                    '" does not match any Drupal or reserved field names.')
+            if get_additional_files_config(config) is not None:
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
+                    if csv_column_header in config['ignore_csv_columns']:
+                        continue
+                    additional_files_entries = get_additional_files_config(config)
+                    if csv_column_header in additional_files_entries.keys():
+                        continue
+                    logging.error('CSV column header %s does not match any Drupal, reserved, or "additional_files" field names.', csv_column_header)
+                    sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal, reserved, or "additional_files" field names.')
+            else:
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header:
+                    if csv_column_header in config['ignore_csv_columns']:
+                        continue
+                    logging.error("CSV column header %s does not match any Drupal or reserved field names.", csv_column_header)
+                    sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal or reserved field names.')
         message = 'OK, CSV column headers match Drupal field names.'
         print(message)
         logging.info(message)
@@ -1595,20 +1581,6 @@ def get_target_ids(node_field_values):
     for target in node_field_values:
         target_ids.append(target['target_id'])
     return target_ids
-
-
-def get_additional_files_config(config):
-    """Converts values in 'additional_files' config setting to a simple
-       dictionary for easy access.
-    """
-    if 'additional_files' in config and len(config['additional_files']) > 0:
-        additional_files_entries = dict()
-        for additional_files_entry in config['additional_files']:
-            for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
-                additional_files_entries[additional_file_field] = additional_file_media_use_tid
-        return additional_files_entries
-    else:
-        return None
 
 
 def get_additional_files_config(config):
