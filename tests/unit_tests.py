@@ -199,13 +199,20 @@ class TestValidateNodeCreatedDateValue(unittest.TestCase):
 class TestValideCalendarDate(unittest.TestCase):
 
     def test_validate_good_edtf_values(self):
-        good_values = ['190',
+        good_values = ['190X',
+                       '1900-XX',
                        '1900',
                        '2020-10',
-                       '2021-10-12'
+                       '2021-10-12',
+                       '2001-21',
+                       '2001-22',
+                       '2001-23',
+                       '2001-24',
+                       '2001-31',
+                       '193X/196X'
                        ]
         for good_value in good_values:
-            res = workbench_utils.validate_calendar_date(good_value)
+            res = workbench_utils.validate_edtf_date(good_value)
             self.assertTrue(res, good_value)
 
     def test_validate_bad_edtf_values(self):
@@ -217,7 +224,7 @@ class TestValideCalendarDate(unittest.TestCase):
                       '19000'
                       ]
         for bad_value in bad_values:
-            res = workbench_utils.validate_calendar_date(bad_value)
+            res = workbench_utils.validate_edtf_date(bad_value)
             self.assertFalse(res, bad_value)
 
 
