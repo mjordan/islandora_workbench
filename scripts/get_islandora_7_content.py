@@ -154,7 +154,7 @@ num_csv_rows = len(rows)
 for row in rows:
     pid = row.split(',')[0]
     sequence_number = get_child_sequence_number(pid)
-    row = row + ',' + sequence_number
+    row = row + ',' + str(sequence_number)
     if fetch_files is True:
         obj_url = islandora_base_url + '/islandora/object/' + pid + '/datastream/OBJ/download'
         row_count += 1
