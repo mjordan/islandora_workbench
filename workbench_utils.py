@@ -1147,9 +1147,6 @@ def check_input(config, args):
                         sys.exit('Error: ' + message)
                     check_csv_file_exists(config, 'taxonomy_fields', complex_vocab_csv_file_path)
                     validate_vocabulary_fields_in_csv(config, complex_vocab_id, complex_vocab_csv_file_path)
-                    # @todo: If the vocabulary CSV file exists, validate that all fields in it are also in the
-                    # current vocabulary, and that any required field are present.
-                    print("Vocabulary field validation happens here")
 
         validate_csv_typed_relation_values_csv_data = get_csv_data(config)
         warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
@@ -2394,7 +2391,7 @@ def remove_media_and_file(config, media_id):
     return False
 
 
-def get_csv_data(config):
+def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     """Read the input CSV data and prepare it for use in create, update, etc. tasks.
 
        This function reads the source CSV file (or the CSV dump from Google Sheets or Excel),
@@ -2405,14 +2402,34 @@ def get_csv_data(config):
        CSV file name. It is this .prepocessed file that is used in create, update, etc.
        tasks.
     """
-    if os.path.isabs(config['input_csv']):
-        input_csv_path = config['input_csv']
-    elif config['input_csv'].startswith('http') is True:
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        csv_file_target: string
+            Either 'node_fields' or 'taxonomy_fields'.
+        file_path: string
+            The path to the file to check (applies only to vocabulary CSVs).
+        Returns
+        -------
+        preprocessed_csv_reader
+            The CSV DictReader object.
+    """
+
+    if csv_file_target == 'taxonomy_fields':
+        config['id_field'] = 'term_name'
+
+    if csv_file_target == 'node_fields':
+        file_path = config['input_csv']
+
+    if os.path.isabs(file_path):
+        input_csv_path = file_path
+    elif file_path.startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-    elif config['input_csv'].endswith('.xlsx') is True:
+    elif file_path.endswith('.xlsx') is True:
         input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
     else:
-        input_csv_path = os.path.join(config['input_dir'], config['input_csv'])
+        input_csv_path = os.path.join(config['input_dir'], file_path)
 
     if not os.path.exists(input_csv_path):
         message = 'Error: CSV file ' + input_csv_path + ' not found.'
@@ -2447,7 +2464,7 @@ def get_csv_data(config):
     csv_reader_fieldnames = [x for x in csv_reader_fieldnames if x not in config['ignore_csv_columns']]
 
     tasks = ['create', 'update']
-    if config['task'] in tasks and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
+    if config['task'] in tasks and csv_file_target == 'node_fields' and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
         # If the config file contains CSV field templates, append them to the CSV data.
         # Make a copy of the column headers so we can skip adding templates to the new CSV
         # if they're present in the source CSV. We don't want fields in the source CSV to be
@@ -3219,9 +3236,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 
 
 def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path):
-    """Loop through all fields in field_definitions to ensure that all fields
-       in the CSV match fields from the vocabulary, and that any required fields
-       are present.
+    """Loop through all fields in CSV to ensure that all present fields match field
+       from the vocab's field definitions, and that any required fields are present.
+       Also checks that each row has the same number of columns are headers.
     """
     """Parameters
         ----------
@@ -3232,8 +3249,68 @@ def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path
         vocab_csv_file_path: string
             Location of vocabulary CSV file.
     """
+    csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
+    csv_column_headers = copy.copy(csv_data.fieldnames)
+
+    # Check whether each row contains the same number of columns as there are headers.
+    for count, row in enumerate(csv_data, start=1):
+        extra_headers = False
+        field_count = 0
+        for field in row:
+            # 'stringtopopulateextrafields' is added by get_csv_data() if there are extra headers.
+            if row[field] == 'stringtopopulateextrafields':
+                extra_headers = True
+            else:
+                field_count += 1
+        if extra_headers is True:
+            message = "Row " + str(count) + ' (ID ' + row[config['id_field']] + ') of the vocabulary CSV file "' + \
+                vocab_csv_file_path + '" has fewer columns than there are headers (' + str(len(csv_column_headers)) + ")."
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        # Note: this message is also generated in get_csv_data() since CSV Writer thows an exception if the row has
+        # form fields than headers.
+        if len(csv_column_headers) < field_count:
+            message = "Row " + str(count) + " (ID " + row['term_name'] + ') of the vocabulary CSV file "' + vocab_csv_file_path + \
+                '" has more columns (' + str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")."
+            logging.error(message)
+            sys.exit('Error: ' + message)
+    message = "OK, all " \
+        + str(count) + ' rows in the vocabulary CSV file "' + vocab_csv_file_path + '" have the same number of columns as there are headers (' \
+        + str(len(csv_column_headers)) + ').'
+    print(message)
+    logging.info(message)
+
+    # Check that the required 'term_name' and 'parent' columns are present in the CSV, and that
+    # any fields defined as required in the vocabulary are also present.
     field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary_id.strip())
-    print(field_definitions)
+    for column_name in csv_column_headers:
+        # Check that 'term_name' and 'parent' are in the CSV.
+        if 'term_name' not in csv_column_headers:
+            message = 'Required column "term_name" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        if 'parent' not in csv_column_headers:
+            message = 'Required column "parent" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        # Then vocabulary fields that are defined as required.
+        field_definition_fieldnames = field_definitions.keys()
+        for field in field_definition_fieldnames:
+            if field_definitions[field]['required'] is True and field not in csv_data.fieldnames:
+                message = 'Required column "' + field + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
+    # Check whether remaining fields in the vocabulary CSV are fields defined in the current vocabulary.
+    if 'field_name' in csv_column_headers:
+        csv_column_headers.remove('field_name')
+    if 'parent' in csv_fieldnames:
+        csv_column_headers.remove('parent')
+    for csv_field in csv_column_headers:
+        if csv_field not in field_definitions.keys():
+            message = 'CSV column "' + csv_field + '" in vocabulary CSV file "' + vocab_csv_file_path + '" is not a field in the "' + vocabulary_id + '" vocabulary.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
 
 
 def validate_typed_relation_field_values(config, field_definitions, csv_data):
@@ -3998,6 +4075,10 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             Either 'node_fields' or 'taxonomy_fields'.
         file_path: string
             The path to the file to check (applies only to vocabulary CSVs).
+        Returns
+        -------
+        string
+            The absolute file path to the CSV file.
     """
     if csv_file_target == 'node_fields':
         if os.path.isabs(config['input_csv']):
@@ -4020,6 +4101,7 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             message = 'OK, CSV file ' + input_csv + ' found.'
             print(message)
             logging.info(message)
+            return input_csv
         else:
             message = 'CSV file ' + input_csv + ' not found.'
             logging.error(message)
@@ -4048,6 +4130,7 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             message = 'OK, vocabulary CSV file ' + input_csv + ' found.'
             print(message)
             logging.info(message)
+            return input_csv
         else:
             message = 'Vocabulary CSV file ' + input_csv + ' not found.'
             logging.error(message)
