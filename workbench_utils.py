@@ -481,6 +481,21 @@ def ping_url_alias(config, url_alias):
     return response.status_code
 
 
+def ping_vocabulary(config, vocab_id):
+    """Ping the node to see if it exists.
+    """
+    url = config['host'] + '/entity/taxonomy_vocabulary/' + vocab_id.strip() + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        return True
+    else:
+        logging.warning(
+            "Node ping (HEAD) on %s returned a %s status code",
+            url,
+            response.status_code)
+        return False
+
+
 def ping_islandora(config, print_message=True):
     """Connect to Islandora in prep for subsequent HTTP requests.
     """
@@ -681,16 +696,15 @@ def get_field_definitions(config, entity_type, bundle_type=None):
 
 def get_entity_fields(config, entity_type, bundle_type):
     """Get all the fields configured on a bundle.
-
-       Example query for taxo terms: /entity/entity_form_display/taxonomy_term.test_vocab.default?_format=json
-
-       Note that if a vocabulary has no custom fields (like the default "Tags" vocab), this query will return
-       a 404 response. So, we need to figure out if the vocabulary really doesn't exist. A HEAD to
-       /admin/structure/taxonomy/manage/{vocab name}/overview is reliable.
     """
-    fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
-        entity_type + '.' + bundle_type + '.default?_format=json'
-    bundle_type_response = issue_request(config, 'GET', fields_endpoint)
+    if entity_type == 'taxonomy_term':
+        fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
+            entity_type + '.' + bundle_type + '.default?_format=json'
+        bundle_type_response = issue_request(config, 'GET', fields_endpoint)
+    else:
+        fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
+            entity_type + '.' + bundle_type + '.default?_format=json'
+        bundle_type_response = issue_request(config, 'GET', fields_endpoint)
 
     fields = []
 
@@ -849,30 +863,7 @@ def check_input(config, args):
 
     validate_input_dir(config)
 
-    # Check existence of CSV file.
-    if os.path.isabs(config['input_csv']):
-        input_csv = config['input_csv']
-    # For Google Sheets, the "extraction" is fired over in workbench.
-    elif config['input_csv'].startswith('http'):
-        input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-        message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
-        print(message)
-        logging.info(message)
-    elif config['input_csv'].endswith('xlsx'):
-        input_csv = os.path.join(config['input_dir'], config['excel_csv_filename'])
-        message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
-        print(message)
-        logging.info(message)
-    else:
-        input_csv = os.path.join(config['input_dir'], config['input_csv'])
-    if os.path.exists(input_csv):
-        message = 'OK, CSV file ' + input_csv + ' found.'
-        print(message)
-        logging.info(message)
-    else:
-        message = 'CSV file ' + input_csv + ' not found.'
-        logging.error(message)
-        sys.exit('Error: ' + message)
+    check_csv_file_exists(config, 'node_fields')
 
     # Check column headers in CSV file.
     csv_data = get_csv_data(config)
@@ -924,8 +915,7 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
         if 'output_csv' in config.keys():
             if os.path.exists(config['output_csv']):
-                message = 'Output CSV already exists at ' + \
-                    config['output_csv'] + ', records will be appended to it.'
+                message = 'Output CSV already exists at ' + config['output_csv'] + ', records will be appended to it.'
                 print(message)
                 logging.info(message)
         if 'url_alias' in csv_column_headers:
@@ -1139,14 +1129,27 @@ def check_input(config, args):
         terms_view_url = config['host'] + '/vocabulary/dummyvid?_format=json'
         terms_view_response = issue_request(config, 'GET', terms_view_url)
         if terms_view_response.status_code == 404:
-            logging.warning(
-                'Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
+            logging.warning('Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
             print('Warning: Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
         else:
             validate_taxonomy_field_csv_data = get_csv_data(config)
             warn_user_about_taxo_terms = validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
         if warn_user_about_taxo_terms is True:
             print('Warning: Issues detected with validating taxonomy field values in the CSV file. See the log for more detail.')
+
+        if 'vocab_csv' in config and len(config['vocab_csv']) > 0:
+            for vocab_csv_file in config['vocab_csv']:
+                for complex_vocab_id, complex_vocab_csv_file_path in vocab_csv_file.items():
+                    complex_vocab_exists = ping_vocabulary(config, complex_vocab_id)
+                    if complex_vocab_exists is False:
+                        message = 'Vocabulary "' + complex_vocab_id + '" specified in the "vocab_csv" setting does not exist.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                    check_csv_file_exists(config, 'taxonomy_fields', complex_vocab_csv_file_path)
+                    validate_vocabulary_fields_in_csv(config, complex_vocab_id, complex_vocab_csv_file_path)
+                    # @todo: If the vocabulary CSV file exists, validate that all fields in it are also in the
+                    # current vocabulary, and that any required field are present.
+                    print("Vocabulary field validation happens here")
 
         validate_csv_typed_relation_values_csv_data = get_csv_data(config)
         warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
@@ -1165,8 +1168,7 @@ def check_input(config, args):
         # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
         validate_field_member_of_csv_data = get_csv_data(config)
-        for count, row in enumerate(
-                validate_field_member_of_csv_data, start=1):
+        for count, row in enumerate(validate_field_member_of_csv_data, start=1):
             if 'field_member_of' in csv_column_headers:
                 parent_nids = row['field_member_of'].split(config['subdelimiter'])
                 for parent_nid in parent_nids:
@@ -3096,9 +3098,11 @@ def validate_edtf_fields(config, field_definitions, csv_data):
         print(message)
         logging.info(message)
 
+
 def validate_edtf_date(date):
     valid = edtf_validate.valid_edtf.is_valid(date.strip())
     return valid
+
 
 def validate_url_aliases(config, csv_data):
     """Checks that URL aliases don't already exist.
@@ -3212,6 +3216,24 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         logging.info("OK, term IDs/names in CSV file exist in their respective taxonomies.")
 
     return vocab_validation_issues
+
+
+def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path):
+    """Loop through all fields in field_definitions to ensure that all fields
+       in the CSV match fields from the vocabulary, and that any required fields
+       are present.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        vocabulary_id : string
+            The ID of the vocabulary to validate.
+        vocab_csv_file_path: string
+            Location of vocabulary CSV file.
+    """
+    field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary_id.strip())
+    print(field_definitions)
 
 
 def validate_typed_relation_field_values(config, field_definitions, csv_data):
@@ -3963,6 +3985,73 @@ def get_file_hash_from_local(config, file_path, algorithm):
             hash_object.update(chunk)
 
     return hash_object.hexdigest()
+
+
+def check_csv_file_exists(config, csv_file_target, file_path=None):
+    """Confirms a CSV file exists.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        csv_file_target: string
+            Either 'node_fields' or 'taxonomy_fields'.
+        file_path: string
+            The path to the file to check (applies only to vocabulary CSVs).
+    """
+    if csv_file_target == 'node_fields':
+        if os.path.isabs(config['input_csv']):
+            input_csv = config['input_csv']
+        # For Google Sheets, the "extraction" is fired over in workbench.
+        elif config['input_csv'].startswith('http'):
+            input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+            message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
+            print(message)
+            logging.info(message)
+        elif config['input_csv'].endswith('xlsx'):
+            input_csv = os.path.join(config['input_dir'], config['excel_csv_filename'])
+            message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
+            print(message)
+            logging.info(message)
+        else:
+            input_csv = os.path.join(config['input_dir'], config['input_csv'])
+
+        if os.path.exists(input_csv):
+            message = 'OK, CSV file ' + input_csv + ' found.'
+            print(message)
+            logging.info(message)
+        else:
+            message = 'CSV file ' + input_csv + ' not found.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+    if csv_file_target == 'taxonomy_fields':
+        if os.path.isabs(file_path):
+            input_csv = file_path
+            '''
+            <- because python
+            # For Google Sheets, the "extraction" is fired over in workbench.
+            elif config['input_csv'].startswith('http'):
+                input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+                message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
+                print(message)
+                logging.info(message)
+            elif config['input_csv'].endswith('xlsx'):
+                input_csv = os.path.join(config['input_dir'], config['excel_csv_filename'])
+                message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
+                print(message)
+                logging.info(message)
+            '''
+        else:
+            input_csv = os.path.join(config['input_dir'], file_path)
+
+        if os.path.exists(input_csv):
+            message = 'OK, vocabulary CSV file ' + input_csv + ' found.'
+            print(message)
+            logging.info(message)
+        else:
+            message = 'Vocabulary CSV file ' + input_csv + ' not found.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
 
 
 def get_csv_template(config, args):
