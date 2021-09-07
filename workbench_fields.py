@@ -548,6 +548,9 @@ class EntityReferenceField():
         if field_definitions[custom_field]['target_type'] == 'node':
             target_type = 'node_type'
 
+        if field_definitions[custom_field]['target_type'] == 'media':
+            target_type = 'media_type'
+
         # Cardinality is unlimited.
         if field_definitions[custom_field]['cardinality'] == -1:
             if config['subdelimiter'] in row[custom_field]:
