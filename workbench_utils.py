@@ -2464,6 +2464,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     csv_reader_fieldnames = [x for x in csv_reader_fieldnames if x not in config['ignore_csv_columns']]
 
     tasks = ['create', 'update']
+    # CSV field templates only apply to node CSV files, not vocabulary CSV files.
     if config['task'] in tasks and csv_file_target == 'node_fields' and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
         # If the config file contains CSV field templates, append them to the CSV data.
         # Make a copy of the column headers so we can skip adding templates to the new CSV
@@ -2499,7 +2500,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
                     csv_writer.writerow(row)
                 except (ValueError):
                     # Note: this message is also generated in check_input().
-                    message = "Row " + str(row_num) + " (ID " + row[config['id_field']] + ') of the CSV file ' + \
+                    message = "Row " + str(row_num) + " (ID " + row[config['id_field']] + ') of the CSV file "' + input_csv_path + '" ' + \
                               "has more columns (" + str(len(row)) + ") than there are headers (" + \
                               str(len(csv_reader.fieldnames)) + ').'
                     logging.error(message)
@@ -2528,7 +2529,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
                     csv_writer.writerow(row)
                 except (ValueError):
                     # Note: this message is also generated in check_input().
-                    message = "Row " + str(row_num) + " (ID " + row[config['id_field']] + ') of the CSV file ' + \
+                    message = "Row " + str(row_num) + " (ID " + row[config['id_field']] + ') of the CSV file "' + input_csv_path + '" ' + \
                               "has more columns (" + str(len(row)) + ") than there are headers (" + \
                               str(len(csv_reader.fieldnames)) + ').'
                     logging.error(message)
