@@ -3197,6 +3197,31 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     sys.exit('Error: ' + message)
                 all_tids_for_field = []
                 for vocabulary in vocabularies:
+                    # Check whether the vocabulary has any required fields, and if so, that the
+                    # vocab has an entry in config['vocab_csv'].
+                    vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary.strip())
+                    required_fields_in_vocab = list()
+                    for vocab_field in vocab_field_definitions:
+                        if vocab_field != 'term_name' and vocab_field_definitions[vocab_field]['required'] is True:
+                            required_fields_in_vocab.append(vocab_field)
+
+                    if 'vocab_csv' not in config:
+                        if len(required_fields_in_vocab) > 0:
+                            required_fields_string = ', '.join(required_fields_in_vocab)
+                            message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
+                                ') but the "vocab_csv" configuration setting is not present.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                    else:
+                        if len(config['vocab_csv']) > 0:
+                            if len(required_fields_in_vocab) > 0:
+                                if vocabulary not in config['vocab_csv'].keys():
+                                    required_fields_string = ', '.join(required_fields_in_vocab)
+                                    message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
+                                        ') but is not included in the "vocab_csv" configuration setting.'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
+
                     terms = get_term_pairs(config, vocabulary)
                     if len(terms) == 0:
                         if config['allow_adding_terms'] is True:
@@ -3339,6 +3364,32 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                     sys.exit('Error: ' + message)
                 all_tids_for_field = []
                 for vocabulary in vocabularies:
+
+                    # Check whether the vocabulary has any required fields, and if so, that the
+                    # vocab has an entry in config['vocab_csv'].
+                    vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary.strip())
+                    required_fields_in_vocab = list()
+                    for vocab_field in vocab_field_definitions:
+                        if vocab_field != 'term_name' and vocab_field_definitions[vocab_field]['required'] is True:
+                            required_fields_in_vocab.append(vocab_field)
+
+                    if 'vocab_csv' not in config:
+                        if len(required_fields_in_vocab) > 0:
+                            required_fields_string = ', '.join(required_fields_in_vocab)
+                            message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
+                                ') but the "vocab_csv" configuration setting is not present.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                    else:
+                        if len(config['vocab_csv']) > 0:
+                            if len(required_fields_in_vocab) > 0:
+                                if vocabulary not in config['vocab_csv'].keys():
+                                    required_fields_string = ', '.join(required_fields_in_vocab)
+                                    message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
+                                        ') but is not included in the "vocab_csv" configuration setting.'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
+
                     terms = get_term_pairs(config, vocabulary)
                     if len(terms) == 0:
                         if config['allow_adding_terms'] is True:
