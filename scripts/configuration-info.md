@@ -1,0 +1,1 @@
+Use Case 1: You want to fetch a content type's fields to use as the header 
