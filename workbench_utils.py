@@ -2545,6 +2545,9 @@ def get_term_pairs(config, vocab_id):
     """Get all the term IDs plus associated term names in a vocabulary. If
        the vocabulary does not exist, or is not registered with the view, the
        request to Drupal returns a 200 plus an empty JSON list, i.e., [].
+
+       This approach to finding terms in a vocabulary does not scale. See https://github.com/mjordan/islandora_workbench/issues/312
+       for more information.
     """
     term_dict = dict()
     # Note: this URL requires the view "Terms in vocabulary", which is created by the
@@ -2564,6 +2567,9 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
     """For a given term name, loops through all term names in vocab_id
        to see if term is there already. If so, returns term ID; if not
        returns False.
+
+       This approach to finding terms in a vocabulary does not scale. See https://github.com/mjordan/islandora_workbench/issues/312
+       for more information.
     """
     terms_in_vocab = get_term_pairs(config, vocab_id)
     for tid, term_name in terms_in_vocab.items():
@@ -3330,7 +3336,7 @@ def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path
     # Check whether remaining fields in the vocabulary CSV are fields defined in the current vocabulary.
     if 'field_name' in csv_column_headers:
         csv_column_headers.remove('field_name')
-    if 'parent' in csv_fieldnames:
+    if 'parent' in csv_column_headers:
         csv_column_headers.remove('parent')
     for csv_field in csv_column_headers:
         if csv_field not in field_definitions.keys():

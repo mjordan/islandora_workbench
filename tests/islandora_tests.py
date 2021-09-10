@@ -174,6 +174,54 @@ class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
+class TestMissingVocabCsvCheck(unittest.TestCase):
+
+    def test_missing_vocab_csv(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', 'vocab_csv_missing.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        try:
+            output = subprocess.check_output(cmd)
+            output = output.decode().strip()
+            lines = output.splitlines()
+            self.assertRegex(output, 'tests/assets/vocab_csv_test/assets/vocab_csv_test/person_fields_.csv not found', '')
+        except subprocess.CalledProcessError as err:
+            pass
+
+    def tearDown(self):
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'assets', 'vocab_csv_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', "metadata.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
+
+class TestExtraFieldInVocabCsvCheck(unittest.TestCase):
+
+    def test_extra_field_in_vocab_csv(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', 'extra_field_in_csv.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        try:
+            output = subprocess.check_output(cmd)
+            output = output.decode().strip()
+            lines = output.splitlines()
+            self.assertRegex(output, '"person_fields_extra_field.csv" is not a field in the "person" vocabulary', '')
+        except subprocess.CalledProcessError as err:
+            pass
+
+    def tearDown(self):
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'assets', 'vocab_csv_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', "metadata.csv.prepocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
+
 class TestDelimiterCheck(unittest.TestCase):
 
     def setUp(self):
