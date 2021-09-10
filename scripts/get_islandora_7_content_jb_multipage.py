@@ -18,6 +18,7 @@ from FieldMapper.FieldMapper import FieldMapper
 #from FieldTransformer.FieldValueTransformer import FieldValueTransformer
 from requests_futures.sessions import FuturesSession
 from progress_bar import InitBar
+from MultiPageMedia import MultiPageMedia
 
 ############################
 # Configuration variables. #
@@ -61,14 +62,19 @@ standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollect
 
 displayhint_csvheaderposition = ''
 
+
+
+multipage_file_list = {}
+multipage_pid_list = []
+
 ##############
 # Functions. #
 ##############
 
 def addStandardFields(modsfields_list):
 
-   fields_param = standard_fields + modsfields_list
-   return fields_param
+    fields_param = standard_fields + modsfields_list
+    return fields_param
 
 def add_displayhintsfield():
 
@@ -80,11 +86,11 @@ def getFieldListFromFile():
     #bypasses part of main program logic, some of which isn't encapsulated in functions
     #might think about rewriting
     if os.path.exists('/home/borwickja/PycharmProjects/parseIslandoraCSV/umkclaw_modsfields_sorted.txt'):
-      filehandle =  open('/home/borwickja/PycharmProjects/parseIslandoraCSV/umkclaw_modsfields_sorted.txt','r')
-      modsfields_list = filehandle.readlines()
-      stripped_modsfield_list = list(map(str.strip, modsfields_list))
-      fields_param = addStandardFields(stripped_modsfield_list)
-      return fields_param
+        filehandle =  open('/home/borwickja/PycharmProjects/parseIslandoraCSV/umkclaw_modsfields_sorted.txt','r')
+        modsfields_list = filehandle.readlines()
+        stripped_modsfield_list = list(map(str.strip, modsfields_list))
+        fields_param = addStandardFields(stripped_modsfield_list)
+        return fields_param
 
 
 def get_extension_from_mimetype(mimetype):
@@ -92,9 +98,9 @@ def get_extension_from_mimetype(mimetype):
     # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
     # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
     map = {'image/jpeg': '.jpg',
-        'image/jp2': '.jp2',
-        'image/png': '.png'
-    }
+           'image/jp2': '.jp2',
+           'image/png': '.png'
+           }
     if mimetype in map:
         return map[mimetype]
     else:
@@ -117,14 +123,8 @@ def get_child_pids_using_parent(pid):
     clean_results_list = [child_pid.replace('info:fedora/', '') for child_pid in results_list]
 
     for item in clean_results_list:
-#         print(item)
-         rename_multipage_file(item)
-
-    exit()
-
-    #returns a list with the pid and the page number
-    return clean_results_list
-
+        #
+        rename_multipage_file(item)
 
 def transform_pagenumber(page_number):
 
@@ -162,7 +162,8 @@ def rename_multipage_file(list_item):
         pn = transform_pagenumber(pnumber)
         filename_pid = pid.replace(':','_')
         filename = filename_pid + "-" + pn
-        print(filename)
+        multipage_file_list[filename_pid] = filename
+
 
     except ValueError:
 
@@ -292,13 +293,13 @@ def transformFields(row):
 
 def fetch_multipagemediafiles(pids):
 
-    for pid in pids:
-
+    #     for pid in pids:
+    for pid in multipage_pid_list:
 
         campus_code = getcampuscodefrompid(pid)
         campus_code_pid = pid
-    #     params = {value_to_encode}
-    #     campus_code_params = urllib.parse.urlencode(params)
+        #     params = {value_to_encode}
+        #     campus_code_params = urllib.parse.urlencode(params)
         print("campus_code is " + campus_code)
         print("pid is " + pid)
         encoded_pid = pid.replace(':','%3A')
@@ -310,15 +311,18 @@ def fetch_multipagemediafiles(pids):
 
             if obj_download_response.status_code == 200:
 
-        	            # Get MIMETYPE from 'Content-Type' header
-        	    obj_mimetype = obj_download_response.headers['content-type']
-        	    obj_extension = get_extension_from_mimetype(obj_mimetype)
-        	    obj_filename = pid.replace(':', '_')
-        	    obj_basename = obj_filename + obj_extension
-        	            #row = obj_basename + ',' + row
-        	            # Save to file with name based on PID and extension based on MIMETYPE
-        	    obj_file_path = os.path.join(obj_directory, obj_basename)
-        	    open(obj_file_path, 'wb+').write(obj_download_response.content)
+                # Get MIMETYPE from 'Content-Type' header
+                obj_mimetype = obj_download_response.headers['content-type']
+                obj_extension = get_extension_from_mimetype(obj_mimetype)
+                obj_tmp_filename = pid.replace(':', '_')
+                #                 obj_filename = multipage_file_list.get(obj_tmp_filename)
+
+            obj_filename =  multipage_file_list.get(obj_tmp_filename)
+            obj_basename = obj_filename + obj_extension
+            #row = obj_basename + ',' + row
+            # Save to file with name based on PID and extension based on MIMETYPE
+            obj_file_path = os.path.join(obj_directory, obj_basename)
+            open(obj_file_path, 'wb+').write(obj_download_response.content)
 
             if obj_download_response.status_code == 404:
 
@@ -328,6 +332,12 @@ def fetch_multipagemediafiles(pids):
         except requests.exceptions.RequestException as e:
             logging.info(e)
             continue
+
+
+# def getFileNameToSaveToUsingPid(pid):
+
+
+
 
 
 
@@ -418,25 +428,29 @@ rows[0] = ','.join(header_field_list)
 
 if fetch_files is True:
     if not os.path.exists(obj_directory):
-	    os.makedirs(obj_directory)
+        os.makedirs(obj_directory)
 
 row_count = 0
 pbar = InitBar()
 csv_header_row = rows.pop(0)
 num_csv_rows = len(rows)
 
+multipage_fetcher = MultiPageMedia()
+
+
 for row in rows:
     pid = row.split(',')[0]
     campus_code = getcampuscodefrompid(pid)
     campus_code_pid = pid
-#     params = {value_to_encode}
-#     campus_code_params = urllib.parse.urlencode(params)
+    #     params = {value_to_encode}
+    #     campus_code_params = urllib.parse.urlencode(params)
     print("campus_code is " + campus_code)
     print("pid is " + pid)
     encoded_pid = pid.replace(':','%3A')
-    #sequence_number = get_child_sequence_number(pid)
-    pids = get_child_pids_using_parent(pid)
-    fetch_multipagemediafiles(pids)
+    sequence_number = get_child_sequence_number(pid)
+    multipage_fetcher.set_parent_pid(pid)
+    #how is generating multipage docs for migration going to be wrapped into main code logic?
+
     is_string = isinstance(row,str)
     row = row + ',' + str(sequence_number)
     transformFields(row)
@@ -450,25 +464,25 @@ for row in rows:
         row_position = get_percentage(row_count, num_csv_rows)
         pbar(row_position)
         try:
-#             session = FuturesSession()
+            #             session = FuturesSession()
 
             obj_download_response = requests.get(url=obj_url, allow_redirects=True)
-#             obj_download_response = session.get(url=obj_url, allow_redirects=True)
-#             if(obj_download_response.status_code != 200):
-#                 response = getRequestStatus(obj_download_response)
+            #             obj_download_response = session.get(url=obj_url, allow_redirects=True)
+            #             if(obj_download_response.status_code != 200):
+            #                 response = getRequestStatus(obj_download_response)
 
             if obj_download_response.status_code == 200:
 
-	            # Get MIMETYPE from 'Content-Type' header
-	            obj_mimetype = obj_download_response.headers['content-type']
-	            obj_extension = get_extension_from_mimetype(obj_mimetype)
-	            obj_filename = pid.replace(':', '_')
-	            obj_basename = obj_filename + obj_extension
-	            #row = obj_basename + ',' + row
-	            # Save to file with name based on PID and extension based on MIMETYPE
-	            obj_file_path = os.path.join(obj_directory, obj_basename)
-	            open(obj_file_path, 'wb+').write(obj_download_response.content)
-	            row = str(starting_unique_id) + ','+ obj_basename + ',' + row
+                # Get MIMETYPE from 'Content-Type' header
+                obj_mimetype = obj_download_response.headers['content-type']
+                obj_extension = get_extension_from_mimetype(obj_mimetype)
+                obj_filename = pid.replace(':', '_')
+                obj_basename = obj_filename + obj_extension
+                #row = obj_basename + ',' + row
+                # Save to file with name based on PID and extension based on MIMETYPE
+                obj_file_path = os.path.join(obj_directory, obj_basename)
+                open(obj_file_path, 'wb+').write(obj_download_response.content)
+                row = str(starting_unique_id) + ','+ obj_basename + ',' + row
 
 
             if obj_download_response.status_code == 404:
@@ -482,8 +496,8 @@ for row in rows:
         row = str(starting_unique_id) + ',' + ',' + row
 
 
- # before you output the row you need to add values
- # for non-search columns like field_display_hints
+    # before you output the row you need to add values
+    # for non-search columns like field_display_hints
 
 
 
@@ -498,3 +512,17 @@ csv_fileh = open(csv_output_path, 'w+')
 csv_fileh.write("\n".join(csv_output))
 csv_fileh.close()
 pbar(100)
+multipage_fetcher.set_username(config.username)
+multipage_fetcher.set_password(config.password)
+
+multipage_fetcher.set_sparql_query()
+multipage_fetcher.set_request_uri()
+multipage_fetcher.request_data()
+multipage_fetcher.parse_results()
+multipage_fetcher.build_filename_lookup()
+multipage_fetcher.get_pid_list()
+multipage_fetcher.fetch_files()
+
+
+
+
