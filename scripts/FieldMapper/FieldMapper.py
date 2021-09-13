@@ -48,6 +48,9 @@ class FieldMapper:
         self.csv_header_row_mappings = {}
         self.csv_header_row = []
         self.displayhint_field_headerposition = ''
+        self.date = Date()
+        self.classification = Classification()
+
 
     def set_displayhintfield_csvheaderposition(self):
 
@@ -257,4 +260,19 @@ class FieldMapper:
 
         physical_description = PhysicalDescription()
         return physical_description.get_format_fieldname()
+
+    def get_edtf_date_fieldname(self):
+
+        resource_date = Date()
+        return resource_date.get_edtfdate_fieldname()
+
+    def get_classification_fieldname(self):
+
+        classification = Classification()
+        return classification.get_classification_fieldname()
+
+    def get_cartographic_coordinates_fieldname(self):
+
+        subject = Subject()
+        return subject.get_cartographic_coordinates_fieldname()
 

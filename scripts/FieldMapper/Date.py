@@ -7,7 +7,7 @@
 class Date:
 
     def __init__(self):
-        self.drupal_fieldnames = {'date': 'field_date'}
+        self.drupal_fieldnames = {'date': 'field_date', 'dc.date': 'field_edtf_date'}
         self.mods_xpaths = {'date': 'mods/date'}
         self.dc_designators = {'date': 'dc.date'}
         self.date = ''
@@ -22,5 +22,7 @@ class Date:
     def get_date_fieldname(self):
         return self.drupal_fieldnames['date']
 
+    def get_edtfdate_fieldname(self):
+        return self.drupal_fieldnames['dc.date']
 
 

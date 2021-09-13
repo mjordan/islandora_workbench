@@ -43,7 +43,7 @@ field_mapper = FieldMapper()
 # 'namespace' variabe are a single namespace, a right-truncated string (e.g., island*),
 # or an ansterisk (*).
 #namespace = 'testing'
-namespace = 'umkclaw'
+namespace = 'umkc'
 # 'field_pattern' is a regex pattern that matches Solr field names to include in the
 # CSV. For example,  'mods_.*(_s|_ms)$' will include fields that start with mods_ and
 # end with _s or _ms.
@@ -55,8 +55,7 @@ field_pattern_do_not_want = '(SFU_custom_metadata|marcrelator|isSequenceNumberOf
 # 'standard_fields' is a list of fieldnames we always want in fields list. They are
 # added added to the field list after list is filtered down using 'field_pattern'.
 # Columns for these fields will appear at the start of the CSV.
-standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms', 'RELS_EXT_isPageOf_uri_ms','mods_originInfo_edition_ms','mods_physicalDescription_extent_ms','mods_identifier_all_ms','mods_originInfo_place_placeTerm_text_ms','mods_originInfo_dateIssued_ms','dc.date',
-'mods_originInfo_dateCreated_s','mods_language_languageTerm_code_ms', 'mods_physicalDescription_form_ms']
+standard_fields = ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms', 'RELS_EXT_isPageOf_uri_ms']
 
 displayhint_csvheaderposition = ''
 
@@ -222,10 +221,10 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
 
 
             # physical description extent
-            elif field_name == "mods_physicalDescription_extent_ms":
-
-                field_value = field_mapper.get_extentfieldname()
-                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+#             elif field_name == "mods_physicalDescription_extent_ms":
+#
+#                 field_value = field_mapper.get_extentfieldname()
+#                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
 
             # subjects
@@ -255,6 +254,100 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
                 field_value = field_mapper.get_physicalform_fieldname()
                 addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
 
+            elif field_name == "dc.date":
+
+                field_value = field_mapper.get_edtf_date_fieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+
+            elif field_name == "mods_classification":
+
+                field_value = field_mapper.get_classification_fieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+            elif field_name == "mods_subject_cartographic_coordinates_ms"
+
+                field_value = fieldmapper.get_cartographic_coordinates_fieldname()
+                addFieldToCSVHeaderRowMap(field_mapper, field_name, field_value)
+
+            elif field_name == "mods_titleInfo_title_alternative_ms":
+
+            elif field_name == "mods_tableOfContents":
+
+
+            elif field_name == "mods_subject_name":
+
+
+            elif field_name == "mods_subject_name_conference__namePart_ms":
+
+
+            elif field_name == "mods_accessCondition_ms"
+
+
+            elif field_name == "mods_identifier_OCLC_ms":
+
+
+            elif field_name == "mods_name_namePart":
+
+
+
+            elif field_name == "mods_classification_lcc_ms":
+
+
+            elif field_name == "mods_identifier_ISBN_ms":
+
+
+            elif field_name == "mods_classification_ddc_ms":
+
+            elif field_name == "mods_titleInfo_nonSort_ms":
+
+            elif field_name == "mods_genre_authority_lctgm_ms":
+
+            elif field_name == "mods_name_personal_namePart_ms":
+
+            elif field_name == "mods_genre_authority_local_ms":
+
+            elif field_name == "mods_originInfo_encoding_w3cdtf_keyDate_yes_point_start_qualifier_approximate_dateIssued_ms":
+
+            elif field_name == "mods_originInfo_encoding_w3cdtf_keyDate_yes_point_end_qualifier_approximate_dateIssued_ms":
+
+            elif field_name == "mods_originInfo_encoding_w3cdtf_keyDate_yes_dateIssued_ms":
+
+            elif field_name == "mods_physicalDescription_digitalOrigin_ms":
+
+            elif field_name ==  "mods_subject_name_personal_namePart_ms":
+
+            elif field_name == "mods_subject_name_personal_displayForm_ms":
+
+            elif field_name == "mods_subject_name_conference_namePart_ms":
+
+            elif field_name == "mods_location_physicalLocation_ms":
+
+            elif field_name == "mods_recordInfo_encoding_w3cdtf_recordCreationDate_ms":
+
+            elif field_name == "mods_recordInfo_recordOrigin_ms":
+
+            elif field_name == "mods_name_personal_authority_marcrelator_namePart_termsOfAddress_ms":
+
+            elif field_name == "mods_name_personal__displayForm_ms":
+
+            elif field_name == "mods_subject_authority_lcsh_geographic_ms":
+
+            elif field_name == "mods_subject_authority_lcsh_temporal_ms":
+
+            elif field_name == "mods_subject_authority_lcsh_name_personal_authority_naf_type_date_namePart_ms":
+
+            elif field_name == "mods_subject_authority_naf_titleInfo_uniform_title_ms":
+
+            elif field_name == "mods_location_url_displayLabel_ms":
+
+            elif field_name == "mods_location_url_ms":
+
+
+
+
+
+
 
 
 
@@ -275,7 +368,12 @@ def mapSearchFieldsToCSVHeaderFields(header_fields):
         appendFieldsToCSVHeaderRowMap(field_mapper, fields_to_append)
 
 
-        getCSVHeaderRowMap()
+
+
+        field_mapper.get_csvheader_row_map()
+
+# commented out while just trying a pull
+#         getCSVHeaderRowMap()
 
 
 def addStandardFields(modsfields_list):
@@ -375,7 +473,7 @@ def getFieldListFromSolr():
 
 def createSOLRRequest():
 
-    return solr_base_url + '/select?q=PID:' + namespace + '*&wt=csv&rows=1000000&fl=' + fields_param
+    return solr_base_url + '/select?q=PID:' + namespace + '*&wt=csv&rows=1000&fl=' + fields_param
 
 
 def runSOLRRequest():
@@ -435,6 +533,8 @@ logging.basicConfig(
     datefmt='%d-%b-%y %H:%M:%S')
 
 fields_param = ','.join(getFieldListFromFile())
+
+#  commented out while fetching data
 mapSearchFieldsToCSVHeaderFields(fields_param)
 
 
@@ -465,7 +565,10 @@ mapSearchFieldsToCSVHeaderFields(fields_param)
 # Get the populated CSV from Solr, with the object namespace and field list filters applied.
 #metadata_solr_request = solr_base_url + '/select?q=PID:' + namespace + '*&wt=csv&rows=&fl=' + fields_param
 #metadata_solr_request = solr_base_url + '/select?q=PID%3A' + namespace + '*&wt=csv&rows=&fl=' + fields_param
-metadata_solr_request = solr_base_url + '/select?q=dc.title%3A+california' + '*&wt=csv&rows=25&fl=' + fields_param
+#metadata_solr_request = solr_base_url + '/select?q=dc.title%3A+riot' + '*&wt=csv&rows=700&fl=' + fields_param
+search_string = "%22An+account+of+upper+Louisiana%22"
+metadata_solr_request = solr_base_url + '/select?q=dc.title%3A'+ search_string + '&fl=' + fields_param + '&wt=csv&indent=true'
+
 
 
 
