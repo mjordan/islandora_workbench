@@ -109,8 +109,7 @@ def create():
 
         # Add custom (non-required) CSV fields.
         required_fields = ['file', config['id_field'], 'title']
-        custom_fields = list(
-            set(csv_column_headers) - set(required_fields))
+        custom_fields = list(set(csv_column_headers) - set(required_fields))
         additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
             # Skip updating field if value is empty.
