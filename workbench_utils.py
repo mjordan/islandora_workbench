@@ -1183,8 +1183,7 @@ def check_input(config, args):
             for count, row in enumerate(validate_langcode_csv_data, start=1):
                 langcode_valid = validate_language_code(row['langcode'])
                 if not langcode_valid:
-                    message = "Row " + \
-                        str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
+                    message = "Row " + str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -2415,7 +2414,6 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         preprocessed_csv_reader
             The CSV DictReader object.
     """
-
     if csv_file_target == 'taxonomy_fields':
         config['id_field'] = 'term_name'
 
@@ -2424,6 +2422,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
 
     if os.path.isabs(file_path):
         input_csv_path = file_path
+    # @todo: needs to be modified for vocabulary CSV files.
     elif file_path.startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
     elif file_path.endswith('.xlsx') is True:
@@ -2740,9 +2739,6 @@ def get_term_field_data(config, vocab_id, term_name):
         for vocab_file_entry in config['vocab_csv']:
             for key, path in vocab_file_entry.items():
                 csv_vocabs.append(key)
-                # @todo: adjust this for Google Sheets and Exce.
-                if not os.path.isabs(path):
-                    path = os.path.join(config['input_dir'], path)
                 csv_vocab_id_path_pairs[key] = path
 
     # No vocabulary CSVs in use.
@@ -2784,7 +2780,7 @@ def get_term_field_data(config, vocab_id, term_name):
         }
         return term_field_data
     else:
-        vocab_csv_file_path = vocab_id.strip()
+        vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
         csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
         csv_column_headers = csv_data.fieldnames
         # Check to see if the vocabulary has any required fields; if any of them are absent, log error and return.
@@ -2800,19 +2796,52 @@ def get_term_field_data(config, vocab_id, term_name):
                 logging.error(message)
                 sys.exit('Error: ' + message)
             # Then vocabulary fields that are defined as required.
+            some_required_fields = False
             field_definition_fieldnames = vocab_field_definitions.keys()
             for field in field_definition_fieldnames:
-                if vocab_field_definitions[field]['required'] is True and field not in csv_data.fieldnames:
-                    message = 'Required column "' + field + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
+                if vocab_field_definitions[field]['required'] is True:
+                    some_required_fields = True
+                    if field not in csv_data.fieldnames:
+                        message = 'Required column "' + field + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
 
-        # Check the vocabulary CSV file to see if there is a corresponding row for the term.
+        # Check the vocabulary CSV file to see if there is a corresponding row for the term. If there isn't a matching row,
+        # and some_required_fields is True, what do we do? Should we be doing this check during --check? See check_matching_vocabulary_csv_row().
         vocab_data = dict()
         for count, row in enumerate(csv_data, start=1):
             vocab_data[row['term_name'].strip()] = row
         # debug
         print(vocab_data)
+
+
+def check_matching_vocabulary_csv_row(term_name, vocabulary_csv_data):
+    """If the vocabulary CSV data contains required fields, each new term in the node CSV
+       needs to have a corresponding row in the vocabulary CSV, otherwise Workbench can't
+       create the new term since required field data for that term is missing. This function
+       checks whether a there is a matching row in the vocabulary CSV for a given term name.
+       It returns the number of matches in the vocab CSV (so the caller can check whether
+       there's more than one, which we generally don't want).
+
+       NOTE TO MJ: this should be called both during --check and during ingest.
+    """
+    """Parameters
+        ----------
+        term_name: string
+            The term name from CSV.
+        vocabulary_csv_data : DictReader
+            The CSV data from the vocabulary CSV file.
+        Returns
+        -------
+        int
+            Number of matches.
+    """
+    matches = list()
+    for count, row in enumerate(vocabulary_csv_data, start=1):
+        if term_name.strip() == row['term_name'].strip():
+            matches.append(True)
+
+    return len(matches)
 
 
 def get_term_uuid(config, term_id):
@@ -3350,7 +3379,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path):
     """Loop through all fields in CSV to ensure that all present fields match field
        from the vocab's field definitions, and that any required fields are present.
-       Also checks that each row has the same number of columns are headers.
+       Also checks that each row has the same number of columns as there are headers.
     """
     """Parameters
         ----------
