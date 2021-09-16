@@ -419,6 +419,8 @@ def update():
 
     row_count = 0
     for row in csv_data:
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             if config['progress_bar'] is False:
                 print("Node " + row['node_id'] + " not found or not accessible, skipping update.")
@@ -708,6 +710,8 @@ def delete():
     row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             if config['progress_bar'] is False:
                 print("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
@@ -740,7 +744,7 @@ def delete():
                 "Node %s deleted.",
                 config['host'] +
                 '/node/' +
-                row['node_id'])
+                str(row['node_id']))
         if config['delete_media_with_nodes'] is True and config['progress_bar'] is False:
             if len(media_messages):
                 for media_message in media_messages:
@@ -761,14 +765,16 @@ def add_media():
     row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
             continue
 
         allowed_media_response_codes = [201, 204]
 
-        node_json_url = config['host'] + '/node/' + row['node_id'] + '?_format=json'
-        node_uri = config['host'] + '/node/' + row['node_id']
+        node_json_url = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
+        node_uri = config['host'] + '/node/' + str(row['node_id'])
         node_response = issue_request(config, 'HEAD', node_json_url)
 
         if 'media_use_tid' in row:

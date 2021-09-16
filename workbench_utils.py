@@ -460,7 +460,7 @@ def set_drupal_8(config):
 def ping_node(config, nid):
     """Ping the node to see if it exists.
     """
-    url = config['host'] + '/node/' + nid + '?_format=json'
+    url = config['host'] + '/node/' + str(nid) + '?_format=json'
     response = issue_request(config, 'HEAD', url)
     # @todo: Add 301 and 302 to the allowed status codes?
     if response.status_code == 200:
@@ -558,14 +558,16 @@ def ping_remote_file(config, url):
 
 
 def get_nid_from_url_alias(config, url_alias):
-    """Gets a node ID from a URL alias.
-
+    """Gets a node ID from a URL alias. This function also works with
+       cannonical URLs, e.g. http://localhost:8000/node/1648.
+    """
+    """
         Parameters
         ----------
         config : dict
             The configuration object defined by set_config_defaults().
         url_alias : string
-            The full URL alias, including http://, etc.
+            The full URL alias (or cannonical URL), including http://, etc.
         Returns
         -------
         int
@@ -3046,9 +3048,11 @@ def validate_edtf_fields(config, field_definitions, csv_data):
         print(message)
         logging.info(message)
 
+
 def validate_edtf_date(date):
     valid = edtf_validate.valid_edtf.is_valid(date.strip())
     return valid
+
 
 def validate_url_aliases(config, csv_data):
     """Checks that URL aliases don't already exist.
