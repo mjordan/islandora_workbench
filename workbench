@@ -878,8 +878,9 @@ def delete_media():
     row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
-        media_delete_status_code = remove_media_and_file(
-            config, row['media_id'])
+        if not value_is_numeric(row['media_id']):
+            row['media_id'] = get_nid_from_media_url_alias(config, row['node_id'])
+        media_delete_status_code = remove_media_and_file(config, row['media_id'])
         if media_delete_status_code == 204:
             if config['progress_bar'] is False:
                 print("Media " +

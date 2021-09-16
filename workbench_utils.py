@@ -573,8 +573,8 @@ def ping_remote_file(config, url):
 
 
 def get_nid_from_url_alias(config, url_alias):
-    """Gets a node ID from a URL alias. This function also works with
-       cannonical URLs, e.g. http://localhost:8000/node/1648.
+    """Gets a node ID from a URL alias. This function also works
+       canonical URLs, e.g. http://localhost:8000/node/1648.
     """
     """
         Parameters
@@ -582,11 +582,11 @@ def get_nid_from_url_alias(config, url_alias):
         config : dict
             The configuration object defined by set_config_defaults().
         url_alias : string
-            The full URL alias (or cannonical URL), including http://, etc.
+            The full URL alias (or canonical URL), including http://, etc.
         Returns
         -------
         int
-            The node ID, or False if the URL alias cannot be found.
+            The node ID, or False if the URL cannot be found.
     """
     url = url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -595,6 +595,31 @@ def get_nid_from_url_alias(config, url_alias):
     else:
         node = json.loads(response.text)
         return node['nid'][0]['value']
+
+
+def get_nid_from_media_url_alias(config, url_alias):
+    """Gets a media ID from a media URL alias. This function also works
+       with canonical URLs, e.g. http://localhost:8000/media/1234.
+    """
+    """
+        Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        url_alias : string
+            The full URL alias (or canonical URL), including http://, etc.
+        Returns
+        -------
+        int
+            The media ID, or False if the URL cannot be found.
+    """
+    url = url_alias + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code != 200:
+        return False
+    else:
+        node = json.loads(response.text)
+        return node['mid'][0]['value']
 
 
 def get_field_definitions(config, entity_type, bundle_type=None):
