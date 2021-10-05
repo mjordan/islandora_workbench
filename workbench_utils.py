@@ -3369,7 +3369,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                             # @todo: build the JSON from the CSV row and create term.
                                 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-                    # terms = get_term_pairs(config, vocabulary)
+                    # terms = get_term_pairs(config, vocabulary) <- moved up.
                     if len(terms) == 0:
                         if config['allow_adding_terms'] is True:
                             vocab_validation_issues = True
