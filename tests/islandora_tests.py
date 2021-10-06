@@ -10,6 +10,7 @@ import subprocess
 import argparse
 import requests
 import json
+import urllib.parse
 import unittest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -810,7 +811,7 @@ class TestCreatePagedContentFromDirectoriesDrupal8(unittest.TestCase):
             os.remove(rollback_file_path)
 
 
-class TestTaxonomies (unittest.TestCase):
+class TestTaxonomies(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -831,6 +832,9 @@ class TestTaxonomies (unittest.TestCase):
 
         self.temp_dir = tempfile.gettempdir()
         self.nid_file = os.path.join(self.temp_dir, 'workbenchtaxonomiestestnids.txt')
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
 
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
@@ -860,7 +864,7 @@ class TestTaxonomies (unittest.TestCase):
         cmd = ["./workbench", "--config", taxonomies_term_name_does_not_exist_config_file_path, "--check"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
-        self.assertRegex(str(stdout), '"Posters"', '')
+        self.assertRegex(str(stdout), '"XPosters"', '')
 
     def test_validate_term_id_does_not_exist(self):
         taxonomies_term_id_does_not_exist_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_id_not_in_taxonomy.yml')
@@ -870,22 +874,23 @@ class TestTaxonomies (unittest.TestCase):
         self.assertRegex(str(stdout), '1000000', '')
 
     def tearDown(self):
-        # Delete all terms in the genre taxonomy.
-        vocab_url = self.islandora_host + '/vocabulary/genre?_format=json'
-        response = requests.get(vocab_url, auth=(self.islandora_username, self.islandora_password))
-        vocab_json = json.loads(response.text)
-        vocab = json.loads(response.text)
-        for term in vocab:
-            tid = term['tid'][0]['value']
-            term_url = self.islandora_host + '/taxonomy/term/' + str(tid) + '?_format=json'
-            response = requests.delete(term_url, auth=(self.islandora_username, self.islandora_password))
+        # Delete all terms in the genre taxonomy created by these tests.
+        terms_to_delete = ['XNewspapers', 'XPostcards', 'XCartoons', 'XCertificates', 'XPosters']
+        for term_name in terms_to_delete:
+            get_tid_url = self.islandora_host + '/term_from_term_name?vocab=genre&name=' + urllib.parse.quote(term_name.strip()) + '&_format=json'
+            get_tid_response = requests.get(get_tid_url, auth=(self.islandora_username, self.islandora_password))
+            term_data = json.loads(get_tid_response.text)
+            if len(term_data):
+                term_to_delete_tid = term_data[0]['tid'][0]['value']
+                delete_term_url = self.islandora_host + '/taxonomy/term/' + str(term_to_delete_tid) + '?_format=json'
+                term_delete_response = requests.delete(delete_term_url, auth=(self.islandora_username, self.islandora_password))
 
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
         delete_output = subprocess.check_output(delete_cmd)
-        delete_output = delete_output.decode().strip()
-        delete_lines = delete_output.splitlines()
-        os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
 
         rollback_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'rollback.csv')
         if os.path.exists(rollback_file_path):

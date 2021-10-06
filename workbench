@@ -710,6 +710,7 @@ def delete():
     for row in csv_data:
         row = clean_csv_values(row)
         if not value_is_numeric(row['node_id']):
+            print(row)
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             if config['progress_bar'] is False:

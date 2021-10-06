@@ -1150,17 +1150,8 @@ def check_input(config, args):
         validate_csv_field_length_csv_data = get_csv_data(config)
         validate_csv_field_length(config, field_definitions, validate_csv_field_length_csv_data)
 
-        # Validating values in CSV taxonomy fields requires a View installed by the Islandora Workbench Integration module.
-        # If the View is not enabled, Drupal returns a 404. Use a dummy vocabulary ID or we'll get a 404 even if the View
-        # is enabled.
-        terms_view_url = config['host'] + '/vocabulary/dummyvid?_format=json'
-        terms_view_response = issue_request(config, 'GET', terms_view_url)
-        if terms_view_response.status_code == 404:
-            logging.warning('Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
-            print('Warning: Not validating taxonomy term IDs used in CSV file. To use this feature, install the Islandora Workbench Integration module.')
-        else:
-            validate_taxonomy_field_csv_data = get_csv_data(config)
-            warn_user_about_taxo_terms = validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
+        validate_taxonomy_field_csv_data = get_csv_data(config)
+        warn_user_about_taxo_terms = validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
         if warn_user_about_taxo_terms is True:
             print('Warning: Issues detected with validating taxonomy field values in the CSV file. See the log for more detail.')
 
@@ -2567,44 +2558,38 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     return preprocessed_csv_reader
 
 
-def get_term_pairs(config, vocab_id):
-    """Get all the term IDs plus associated term names in a vocabulary. If
-       the vocabulary does not exist, or is not registered with the view, the
-       request to Drupal returns a 200 plus an empty JSON list, i.e., [].
-
-       This approach to finding terms in a vocabulary does not scale. See https://github.com/mjordan/islandora_workbench/issues/312
-       for more information.
-    """
-    term_dict = dict()
-    # Note: this URL requires the view "Terms in vocabulary", which is created by the
-    # by the Islandora Workbench Integation module, to be present on the target Drupal.
-    vocab_url = config['host'] + '/vocabulary/' + vocab_id + '?_format=json'
-    response = issue_request(config, 'GET', vocab_url)
-    vocab = json.loads(response.text)
-    for term in vocab:
-        name = term['name'][0]['value']
-        tid = term['tid'][0]['value']
-        term_dict[tid] = name
-
-    return term_dict
-
-
 def find_term_in_vocab(config, vocab_id, term_name_to_find):
-    """For a given term name, loops through all term names in vocab_id
-       to see if term is there already. If so, returns term ID; if not
-       returns False.
-
-       This approach to finding terms in a vocabulary does not scale. See https://github.com/mjordan/islandora_workbench/issues/312
-       for more information.
+    """For a given term name, query using the vocab_id to see if term_name_to_find
+       is found in that vocabulary. If so, returns the term ID; if not returns False.
+       If more than one term found, returns the term ID of the first one.
     """
-    terms_in_vocab = get_term_pairs(config, vocab_id)
-    for tid, term_name in terms_in_vocab.items():
-        match = compare_strings(term_name, term_name_to_find)
-        if match:
-            return tid
+    url = config['host'] + '/term_from_term_name?vocab=' + vocab_id.strip() + '&name=' + urllib.parse.quote(term_name_to_find.strip()) + '&_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        term_data = json.loads(response.text)
+        # Term name is not found.
+        if len(term_data) == 0:
+            return False
+        # Term name is found.
+        else:
+            return term_data[0]['tid'][0]['value']
+    else:
+        logging.warning('Query for term "%s" in vocabulary "%s" returned a %s status code', term_name_to_find, vocab_id, response.status_code)
+        return False
 
-    # None matched.
-    return False
+
+def get_term_vocab(config, term_id):
+    """Get the term's parent vocabulary ID and return it. If the term doesn't
+       exist, return False.
+    """
+    url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        term_data = json.loads(response.text)
+        return term_data['vid'][0]['target_id']
+    else:
+        logging.warning('Query for term ID "%s" returned a %s status code', term_id, response.status_code)
+        return False
 
 
 def get_term_id_from_uri(config, uri):
@@ -3314,8 +3299,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
        by the field. Does not validate Typed Relation fields
        (see validate_typed_relation_field_values()).
     """
-    # Define a dictionary to store CSV field: term IDs mappings.
-    fields_with_vocabularies = dict()
+    # Define a list to store names of CSV fields that reference vocabularies.
+    fields_with_vocabularies = list()
     vocab_validation_issues = False
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
@@ -3333,8 +3318,10 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                         column_name + '". Please confirm that field has at least one vocabulary.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
-                all_tids_for_field = []
+
                 for vocabulary in vocabularies:
+                    if column_name not in fields_with_vocabularies:
+                        fields_with_vocabularies.append(column_name)
                     # Check whether the vocabulary has any required fields, and if so, that the
                     # vocab has an entry in config['vocab_csv'].
                     vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary.strip())
@@ -3364,23 +3351,6 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     logging.error(message)
                                     sys.exit('Error: ' + message)
 
-                    terms = get_term_pairs(config, vocabulary)
-                    if len(terms) == 0:
-                        if config['allow_adding_terms'] is True:
-                            vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
-                                '" may not be enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
-                            logging.warning(message)
-                        else:
-                            vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
-                                '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
-                            logging.warning(message)
-                    vocab_term_ids = list(terms.keys())
-                    # If more than one vocab in this field, combine their term IDs into a single list.
-                    all_tids_for_field = all_tids_for_field + vocab_term_ids
-                fields_with_vocabularies.update({column_name: all_tids_for_field})
-
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
         return
@@ -3390,7 +3360,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     for count, row in enumerate(csv_data, start=1):
         for column_name in fields_with_vocabularies:
             if len(row[column_name]):
-                new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, column_name, row[column_name], count)
+                new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, column_name, row[column_name], count)
                 new_term_names_in_csv_results.append(new_term_names_in_csv)
 
     if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
@@ -3487,8 +3457,8 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
        If the last segment is a string, it must be term name, a namespaced term name,
        or an http URI.
     """
-    # Define a dictionary to store CSV field: term IDs mappings.
-    fields_with_vocabularies = dict()
+    # Define a list to store CSV field names that contain vocabularies.
+    fields_with_vocabularies = list()
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     vocab_validation_issues = False
     for column_name in csv_data.fieldnames:
@@ -3506,7 +3476,8 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                     sys.exit('Error: ' + message)
                 all_tids_for_field = []
                 for vocabulary in vocabularies:
-
+                    if column_name not in fields_with_vocabularies:
+                        fields_with_vocabularies.append(column_name)
                     # Check whether the vocabulary has any required fields, and if so, that the
                     # vocab has an entry in config['vocab_csv'].
                     vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary.strip())
@@ -3535,23 +3506,6 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                                         ') but is not included in the "vocab_csv" configuration setting.'
                                     logging.error(message)
                                     sys.exit('Error: ' + message)
-
-                    terms = get_term_pairs(config, vocabulary)
-                    if len(terms) == 0:
-                        if config['allow_adding_terms'] is True:
-                            vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
-                                '" may not be enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
-                            logging.warning(message)
-                        else:
-                            vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
-                                '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
-                            logging.warning(message)
-                    vocab_term_ids = list(terms.keys())
-                    # If more than one vocab in this field, combine their term IDs into a single list.
-                    all_tids_for_field = all_tids_for_field + vocab_term_ids
-                fields_with_vocabularies.update({column_name: all_tids_for_field})
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
@@ -3596,7 +3550,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                                 delimited_field_values_without_relator_strings.append(term_to_check)
 
                             field_value_to_check = config['subdelimiter'].join(delimited_field_values_without_relator_strings)
-                            new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, column_name, field_value_to_check, count)
+                            new_term_names_in_csv = validate_taxonomy_reference_value(config, field_definitions, column_name, field_value_to_check, count)
                             new_term_names_in_csv_results.append(new_term_names_in_csv)
 
     if typed_relation_fields_present is True and True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
@@ -3610,7 +3564,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
     return vocab_validation_issues
 
 
-def validate_taxonomy_reference_value(config, field_definitions, fields_with_vocabularies, csv_field_name, csv_field_value, record_number):
+def validate_taxonomy_reference_value(config, field_definitions, csv_field_name, csv_field_value, record_number):
     this_fields_vocabularies = get_field_vocabularies(config, field_definitions, csv_field_name)
     this_fields_vocabularies_string = ', '.join(this_fields_vocabularies)
 
@@ -3652,7 +3606,12 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
         # check whether field_value is a term ID.
         if value_is_numeric(field_value):
             field_value = field_value.strip()
-            if int(field_value) not in fields_with_vocabularies[csv_field_name]:
+            term_in_vocabs = False
+            for vocab_id in this_fields_vocabularies:
+                term_vocab = get_term_vocab(config, field_value)
+                if term_vocab == vocab_id:
+                    term_in_vocabs = True
+            if term_in_vocabs is False:
                 message = 'CSV field "' + csv_field_name + '" in row ' + \
                     str(record_number) + ' contains a term ID (' + field_value + ') that is '
                 if len(this_fields_vocabularies) > 1:
@@ -3664,10 +3623,16 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
                 logging.error(message + message_2)
                 sys.exit('Error: ' + message + message_2)
         # Then check values that are URIs.
-        elif field_value.startswith('http'):
+        elif field_value.strip().startswith('http'):
+            field_value = field_value.strip()
             tid_from_uri = get_term_id_from_uri(config, field_value)
             if value_is_numeric(tid_from_uri):
-                if tid_from_uri not in fields_with_vocabularies[csv_field_name]:
+                term_vocab = get_term_vocab(config, tid_from_uri)
+                term_in_vocabs = False
+                for vocab_id in this_fields_vocabularies:
+                    if term_vocab == vocab_id:
+                        term_in_vocabs = True
+                if term_in_vocabs is False:
                     message = 'CSV field "' + csv_field_name + '" in row ' + \
                         str(record_number) + ' contains a term URI (' + field_value + ') that is '
                     if len(this_fields_vocabularies) > 1:
