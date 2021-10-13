@@ -1161,8 +1161,8 @@ def check_input(config, args):
         else:
             validate_taxonomy_field_csv_data = get_csv_data(config)
             warn_user_about_taxo_terms = validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
-        if warn_user_about_taxo_terms is True:
-            print('Warning: Issues detected with validating taxonomy field values in the CSV file. See the log for more detail.')
+            if warn_user_about_taxo_terms is True:
+                print('Warning: Issues detected with validating taxonomy field values in the CSV file. See the log for more detail.')
 
         if 'vocab_csv' in config and len(config['vocab_csv']) > 0:
             for vocab_csv_file in config['vocab_csv']:
