@@ -3345,10 +3345,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
-                terms = get_term_pairs(config, vocabulary)
-
                 all_tids_for_field = []
                 for vocabulary in vocabularies:
+                    terms = get_term_pairs(config, vocabulary)
                     # Check whether the vocabulary has any required fields, and if so, that the
                     # vocab has an entry in config['vocab_csv'].
                     vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary.strip())
@@ -3388,13 +3387,15 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     if len(required_fields_in_vocab) > 0:
                                         if required_matching_rows == 0:
                                             # @todo: error out because there are required fields
+                                            pass
                                         elif required_matching_rows > 1:
                                             # @todo: error out because there should only be one matching row. @todo: We should --check for this.
+                                            pass
                                         else:
                                             # @todo: build the JSON from the CSV row and create term.
+                                            pass
                                 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-                    # terms = get_term_pairs(config, vocabulary) <- moved up.
                     if len(terms) == 0:
                         if config['allow_adding_terms'] is True:
                             vocab_validation_issues = True
