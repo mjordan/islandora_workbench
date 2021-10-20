@@ -113,6 +113,15 @@ class TestSplitTypedRelationString(unittest.TestCase):
                               'rel_type': 'relators:pht',
                               'target_type': 'foo'})
 
+    def test_split_typed_relation_string_single_with_delimter_in_value(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_typed_relation_string(
+            config, 'relators:pbl:London: Bar Press', 'foopub')
+        self.assertDictEqual(res[0],
+                             {'target_id': 'London: Bar Press',
+                              'rel_type': 'relators:pbl',
+                              'target_type': 'foopub'})
+
     def test_split_typed_relation_string_multiple(self):
         config = {'subdelimiter': '|'}
         res = workbench_utils.split_typed_relation_string(
