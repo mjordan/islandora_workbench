@@ -355,5 +355,19 @@ class TestDedupedFilePaths(unittest.TestCase):
             self.assertEqual(deduped_path, path_pair[1])
 
 
+class TestValueIsNumeric(unittest.TestCase):
+    def test_value_is_numeric(self):
+        values = ['200', '0', 999]
+        for value in values:
+            res = workbench_utils.value_is_numeric(value)
+            self.assertTrue(res, 'Value ' + str(value) + ' is not numeric.')
+
+    def test_value_is_not_numeric(self):
+        values = ['n200', False, '999-1000']
+        for value in values:
+            res = workbench_utils.value_is_numeric(value)
+            self.assertFalse(res, 'Value ' + str(value) + ' is numeric.')
+
+
 if __name__ == '__main__':
     unittest.main()
