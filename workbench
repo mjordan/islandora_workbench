@@ -108,9 +108,12 @@ def create():
                     row['field_member_of'] = secondary_task_data[row['parent_id']]
 
         # Add custom (non-required) CSV fields.
-        required_fields = ['file', config['id_field'], 'title']
-        custom_fields = list(
-            set(csv_column_headers) - set(required_fields))
+        entity_fields = get_entity_fields(config, 'node', config['content_type'])
+        # Only add config['id_field'] to required_fields if it is not a node field.
+        required_fields = ['file', 'title']
+        if config['id_field'] not in entity_fields:
+            required_fields.append(config['id_field'])
+        custom_fields = list(set(csv_column_headers) - set(required_fields))
         additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
             # Skip updating field if value is empty.
