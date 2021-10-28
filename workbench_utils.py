@@ -3348,8 +3348,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 all_tids_for_field = []
                 for vocabulary in vocabularies:
                     terms = get_term_pairs(config, vocabulary)
-                    # Check whether the vocabulary has any required fields, and if so, that the
-                    # vocab has an entry in config['vocab_csv'].
+                    # Check whether the vocabulary has any required fields; if so,
+                    # check that the vocab has an entry in config['vocab_csv'].
                     vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary.strip())
                     required_fields_in_vocab = list()
                     for vocab_field in vocab_field_definitions:
@@ -3360,10 +3360,13 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                         if len(required_fields_in_vocab) > 0:
                             required_fields_string = ', '.join(required_fields_in_vocab)
                             message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
-                                ') but the "vocab_csv" configuration setting is not present.'
+                                ') so you must include the "vocab_csv" setting in your configuration, and include a column ' + \
+                                "for those fields in the vocabulary's CSV."
                             logging.error(message)
                             sys.exit('Error: ' + message)
                     else:
+                        # debug
+                        print(config['vocab_csv'])
                         if len(config['vocab_csv']) > 0:
                             if len(required_fields_in_vocab) > 0:
                                 csv_vocabs = list()
@@ -3382,18 +3385,21 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 # row in the vocabulary CSV. @todo: complete this, add corresponding code to
                                 # validate_typed_relation_field_values().
                                 term_names = list(terms.values())
+                                vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
                                 for count, row in enumerate(vocab_csv_data, start=1):
                                     required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
                                     if len(required_fields_in_vocab) > 0:
                                         if required_matching_rows == 0:
-                                            # @todo: error out because there are required fields
-                                            pass
-                                        elif required_matching_rows > 1:
-                                            # @todo: error out because there should only be one matching row. @todo: We should --check for this.
-                                            pass
-                                        else:
-                                            # @todo: build the JSON from the CSV row and create term.
-                                            pass
+                                            # Error out because there are required fields in the vocabulary and the term
+                                            # doesn't have a row in the vocabulary CSV.
+                                            message = ''
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
+                                        if required_matching_rows > 1:
+                                            # Error out because there should only be one matching row.
+                                            message = ''
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
                                 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
                     if len(terms) == 0:
