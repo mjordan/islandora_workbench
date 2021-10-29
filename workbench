@@ -108,7 +108,11 @@ def create():
                     row['field_member_of'] = secondary_task_data[row['parent_id']]
 
         # Add custom (non-required) CSV fields.
-        required_fields = ['file', config['id_field'], 'title']
+        entity_fields = get_entity_fields(config, 'node', config['content_type'])
+        # Only add config['id_field'] to required_fields if it is not a node field.
+        required_fields = ['file', 'title']
+        if config['id_field'] not in entity_fields:
+            required_fields.append(config['id_field'])
         custom_fields = list(set(csv_column_headers) - set(required_fields))
         additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
@@ -310,7 +314,7 @@ def create():
                 print('Node for "' + row['title'] + '" (record ' + id_field + ') created at ' + node_uri + '.')
             logging.info("Node for %s (record %s) created at %s.", row['title'], id_field, node_uri)
             if 'output_csv' in config.keys():
-                write_to_output_csv(config, id_field, node_response.text)
+                write_to_output_csv(config, id_field, node_response.text, row)
         else:
             logging.error("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
             continue
@@ -393,8 +397,8 @@ def create():
 
             if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                 if config['progress_bar'] is False:
-                    print('+ No file specified in CSV for ' + row['title'])
-                logging.info("No file specified for row %s, so no media created.", id_field)
+                    print('+ No file specified in CSV for row ' + str(id_field))
+                logging.info("No file specified for row %s, so no media created.", str(id_field))
 
             if config['paged_content_from_directories'] is True:
                 # Console output and logging are done in the create_children_from_directory() function.

@@ -113,6 +113,15 @@ class TestSplitTypedRelationString(unittest.TestCase):
                               'rel_type': 'relators:pht',
                               'target_type': 'foo'})
 
+    def test_split_typed_relation_string_single_with_delimter_in_value(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_typed_relation_string(
+            config, 'relators:pbl:London: Bar Press', 'foopub')
+        self.assertDictEqual(res[0],
+                             {'target_id': 'London: Bar Press',
+                              'rel_type': 'relators:pbl',
+                              'target_type': 'foopub'})
+
     def test_split_typed_relation_string_multiple(self):
         config = {'subdelimiter': '|'}
         res = workbench_utils.split_typed_relation_string(
@@ -344,6 +353,20 @@ class TestDedupedFilePaths(unittest.TestCase):
         for path_pair in paths:
             deduped_path = workbench_utils.get_deduped_file_path(path_pair[0])
             self.assertEqual(deduped_path, path_pair[1])
+
+
+class TestValueIsNumeric(unittest.TestCase):
+    def test_value_is_numeric(self):
+        values = ['200', '0', 999]
+        for value in values:
+            res = workbench_utils.value_is_numeric(value)
+            self.assertTrue(res, 'Value ' + str(value) + ' is not numeric.')
+
+    def test_value_is_not_numeric(self):
+        values = ['n200', False, '999-1000']
+        for value in values:
+            res = workbench_utils.value_is_numeric(value)
+            self.assertFalse(res, 'Value ' + str(value) + ' is numeric.')
 
 
 if __name__ == '__main__':

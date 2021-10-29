@@ -149,6 +149,8 @@ def set_config_defaults(args):
         config['fixity_algorithm'] = None
     if 'validate_fixity_during_check' not in config:
         config['validate_fixity_during_check'] = False
+    if 'output_csv_include_input_csv' not in config:
+        config['output_csv_include_input_csv'] = False
     # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None
@@ -798,7 +800,10 @@ def check_input(config, args):
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
     # but it doesn't show up in any field configs.
-    reserved_fields = [config['id_field'], 'file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode']
+    reserved_fields = ['file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode']
+    entity_fields = get_entity_fields(config, 'node', config['content_type'])
+    if config['id_field'] not in entity_fields:
+        reserved_fields.append(config['id_field'])
 
     # Check the config file.
     tasks = [
@@ -3782,7 +3787,7 @@ def validate_taxonomy_reference_value(config, field_definitions, fields_with_voc
     return new_term_names_in_csv
 
 
-def write_to_output_csv(config, id, node_json):
+def write_to_output_csv(config, id, node_json, input_csv_row=None):
     """Appends a row to the CVS file located at config['output_csv'].
     """
     if config['task'] == 'create_from_files':
@@ -3812,6 +3817,16 @@ def write_to_output_csv(config, id, node_json):
         node_field_names.remove(field_to_remove)
 
     csvfile = open(config['output_csv'], 'a+')
+
+    if input_csv_row is not None and config['output_csv_include_input_csv'] is True:
+        # Remove fields from the input CSV that would overwrite field data from the new node.
+        input_csv_row_fieldnames = list(input_csv_row.keys())
+        if 'title' in input_csv_row:
+            input_csv_row_fieldnames.remove('title')
+        if 'status' in input_csv_row:
+            input_csv_row_fieldnames.remove('status')
+        node_field_names.extend(input_csv_row_fieldnames)
+
     writer = csv.DictWriter(csvfile, fieldnames=node_field_names, lineterminator="\n")
 
     # Check for presence of header row, don't add it if it's already there.
@@ -3827,6 +3842,14 @@ def write_to_output_csv(config, id, node_json):
     row['uuid'] = node_dict['uuid'][0]['value']
     row['title'] = node_dict['title'][0]['value']
     row['status'] = node_dict['status'][0]['value']
+    if input_csv_row is not None and config['output_csv_include_input_csv'] is True:
+        # Remove columns from the input CSV that would overwrite field data from the new node.
+        if 'title' in input_csv_row:
+            del input_csv_row['title']
+        if 'status' in input_csv_row:
+            del input_csv_row['status']
+        # Then append the input row to the new node data.
+        row.update(input_csv_row)
     writer.writerow(row)
     csvfile.close()
 
