@@ -2792,39 +2792,50 @@ def get_term_field_data(config, vocab_id, term_name):
         }
         return term_field_data
     else:
+        # Vocabulary CSVs in use.
         vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
-        csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
-        csv_column_headers = csv_data.fieldnames
+        vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
+        vocab_csv_column_headers = vocab_csv_data.fieldnames
         # Check to see if the vocabulary has any required fields; if any of them are absent, log error and return.
         vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
-        for column_name in csv_column_headers:
+        for vocab_column_name in vocab_csv_column_headers:
             # Check that 'term_name' and 'parent' are in the CSV.
-            if 'term_name' not in csv_column_headers:
+            if 'term_name' not in vocab_csv_column_headers:
                 message = 'Required column "term_name" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
                 logging.error(message)
                 sys.exit('Error: ' + message)
-            if 'parent' not in csv_column_headers:
+            if 'parent' not in vocab_csv_column_headers:
                 message = 'Required column "parent" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
                 logging.error(message)
                 sys.exit('Error: ' + message)
-            # Then vocabulary fields that are defined as required.
+            # Then check for required fields.
             some_required_fields = False
-            field_definition_fieldnames = vocab_field_definitions.keys()
-            for field in field_definition_fieldnames:
+            vocab_field_definition_fieldnames = vocab_field_definitions.keys()
+            for vocab_field in vocab_field_definition_fieldnames:
                 if vocab_field_definitions[field]['required'] is True:
-                    some_required_fields = True
-                    if field not in csv_data.fieldnames:
+                    some_required_vocab_fields = True
+                    if field not in vocab_csv_data.fieldnames:
                         message = 'Required column "' + field + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
                         logging.error(message)
                         sys.exit('Error: ' + message)
 
         # Check the vocabulary CSV file to see if there is a corresponding row for the term. If there isn't a matching row,
-        # and some_required_fields is True, what do we do? Should we be doing this check during --check? See check_matching_vocabulary_csv_row().
-        vocab_data = dict()
-        for count, row in enumerate(csv_data, start=1):
-            vocab_data[row['term_name'].strip()] = row
-        # debug
-        print(vocab_data)
+        # and some_required_fields is True, what do we do? We also perform this during --check in validate_taxonomy_field_values()
+        # and validate_typed_relation_field_values().@todo: pass in a copy of the CSV data since enumerating over it modifies it?
+        '''
+        for count, row in enumerate(vocab_csv_data, start=1):
+            required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
+            if some_required_fields is True:
+                if required_matching_rows == 0:
+                    # @todo: error out because there are required fields
+                    # pass
+                elif required_matching_rows > 1:
+                    # @todo: error out because there should only be one matching row. @todo: We should --check for this.
+                    # pass
+                else:
+                    # @todo: build the JSON from the CSV row and create term.
+                    # pass
+        '''
 
 
 def check_matching_vocabulary_csv_row(term_name, vocabulary_csv_data):
@@ -2842,7 +2853,7 @@ def check_matching_vocabulary_csv_row(term_name, vocabulary_csv_data):
         term_name: string
             The term name from CSV.
         vocabulary_csv_data : DictReader
-            The CSV data from the vocabulary CSV file.
+            The entire CSV data from the vocabulary CSV file (i.e., throwaway copy of the CSV data).
         Returns
         -------
         int
@@ -3334,10 +3345,13 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                         if len(required_fields_in_vocab) > 0:
                             required_fields_string = ', '.join(required_fields_in_vocab)
                             message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
-                                ') but the "vocab_csv" configuration setting is not present.'
+                                ') so you must include the "vocab_csv" setting in your configuration, and include a column ' + \
+                                "for those fields in the vocabulary's CSV."
                             logging.error(message)
                             sys.exit('Error: ' + message)
                     else:
+                        # debug
+                        print(config['vocab_csv'])
                         if len(config['vocab_csv']) > 0:
                             if len(required_fields_in_vocab) > 0:
                                 csv_vocabs = list()
@@ -3350,6 +3364,44 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                         ') but is not included in the "vocab_csv" configuration setting.'
                                     logging.error(message)
                                     sys.exit('Error: ' + message)
+
+                                # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                                # If there are required fields in vocabularies, each new term must have a
+                                # row in the vocabulary CSV. @todo: complete this, add corresponding code to
+                                # validate_typed_relation_field_values().
+                                term_names = list(terms.values())
+                                vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
+                                for count, row in enumerate(vocab_csv_data, start=1):
+                                    required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
+                                    if len(required_fields_in_vocab) > 0:
+                                        if required_matching_rows == 0:
+                                            # Error out because there are required fields in the vocabulary and the term
+                                            # doesn't have a row in the vocabulary CSV.
+                                            message = ''
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
+                                        if required_matching_rows > 1:
+                                            # Error out because there should only be one matching row.
+                                            message = ''
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
+                                # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+                    if len(terms) == 0:
+                        if config['allow_adding_terms'] is True:
+                            vocab_validation_issues = True
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
+                                '" may not be enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
+                            logging.warning(message)
+                        else:
+                            vocab_validation_issues = True
+                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
+                                '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
+                            logging.warning(message)
+                    vocab_term_ids = list(terms.keys())
+                    # If more than one vocab in this field, combine their term IDs into a single list.
+                    all_tids_for_field = all_tids_for_field + vocab_term_ids
+                fields_with_vocabularies.update({column_name: all_tids_for_field})
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
