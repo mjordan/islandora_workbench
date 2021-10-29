@@ -1,0 +1,12 @@
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: "tests/assets/url_alias_test"
+input_csv: testing.csv
+content_type: article
+
+
+nodes_only: true
+allow_missing_files: true
+

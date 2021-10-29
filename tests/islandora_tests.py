@@ -400,6 +400,125 @@ class TestCreate(unittest.TestCase):
             os.remove(self.preprocessed_file_path)
 
 
+class TestUrlAliases(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'create.yml')
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+
+        create_csv_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'testing.csv')
+        self.input_file = create_csv_file_path
+
+        self.nid_file = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'curr_node_ids.csv')
+        self.nids = list()
+
+    def test_create(self):
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+        create_lines = create_output.splitlines()
+        with open(self.nid_file, "w") as fh:
+            fh.write("node_id\n")
+            for line in create_lines:
+                if 'created at' in line:
+                    nid = line.rsplit('/', 1)[-1]
+                    nid = nid.strip('.')
+                    self.nids.append(nid)
+                    fh.write(nid + "\n")
+
+        self.assertEqual(len(self.nids), 2)
+
+        print("Created initial nodes with url alias")
+
+        #print(self.nids)
+     
+    def test_http_req(self):
+        status = 1
+
+        with open(self.input_file, "r") as fh:
+            for line in fh:
+                if '/' in line:
+                    nid = line.rsplit(',', 1)[-1]
+                    nid = nid.strip()
+                    test_url = "http://drupalvm.test/" + nid
+                    #print(test_url)
+                    resp = requests.get(test_url)
+                    #print(resp.text)
+                    #print(resp.status_code)
+                    if resp.status_code != 200:
+                        raise ValueError("Couldn't connect to url alias")
+                        print("fail 1")
+                        status = 0
+
+        if (status):
+            print("[pass1]")
+            print("Connected to all url aliases")
+
+    def test_http_update(self):
+        update_csv_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'update.csv') 
+
+        with open(self.nid_file, "r") as fh:
+            fh.readline()
+            for line in fh:
+                nid = line
+                self.nids.append(nid)
+
+
+        with open(update_csv_file_path, "w") as uf:
+            index = 1
+            uf.write("node_id,url_alias\n")
+            for nid in self.nids:
+                uf.write(nid.strip('\n') + ",/test_update"+str(index)+"\n")
+                index = index+1
+
+        update_config_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'update.yml')
+        update_cmd = ["./workbench", "--config", update_config_file_path]
+        update_output = subprocess.check_output(update_cmd)
+        update_output = update_output.decode().strip()
+        update_lines = update_output.splitlines()
+
+        print("updated url aliases")
+
+
+    def test_http_update_req(self):
+        update_csv_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'update.csv')
+
+        status = 1
+        with open(update_csv_file_path, "r") as fh:
+            for line in fh:
+                if '/' in line:
+                    nid = line.rsplit(',', 1)[-1]
+                    nid = nid.strip()
+                    test_url = "http://drupalvm.test/" + nid
+                    resp = requests.get(test_url)
+                    if resp.status_code != 200:
+                        raise ValueError("Couldn't connect to updated url aliases")
+                        print("fail 2")
+                        status = 0
+
+        if (status):
+            print("[pass2]")
+            print("Connected to all updated url aliases")
+
+
+
+    def tearDown(self):
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'metadata.csv.prepocessed')
+        if os.path.exists(self.preprocessed_file_path):
+            os.remove(self.preprocessed_file_path)
+
+        #delete_config_file_path = os.path.join(self.current_dir, 'assets', 'url_alias_test', 'delete.yml')
+        #delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        #delete_output = subprocess.check_output(delete_cmd)
+        #delete_output = delete_output.decode().strip()
+        #delete_lines = delete_output.splitlines()
+        #os.remove(self.nid_file)
+
+
 class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
 
     def setUp(self):
