@@ -329,18 +329,34 @@ class TestDrupalCoreVersionNumbers(unittest.TestCase):
         minimum_core_version = tuple([8, 6])
         lower_versions = ['8.3.0', '8.5.0-alpha1', '8.5.0', '8.5.6']
         for version in lower_versions:
-            version_number = workbench_utils.convert_drupal_core_version_to_number(version)
+            version_number = workbench_utils.convert_semver_to_number(version)
             res = version_number < minimum_core_version
             self.assertTrue(res, 'Version number ' + str(version_number) + ' is greater than 8.6.')
 
-        version_number = workbench_utils.convert_drupal_core_version_to_number('8.6')
+        version_number = workbench_utils.convert_semver_to_number('8.6')
         self.assertTrue(version_number == minimum_core_version, 'Not sure what failed.')
 
         higher_versions = ['8.6.1', '8.6.4', '8.9.14', '8.10.0-dev', '9.0', '9.1', '9.0.0-dev', '9.1.0-rc3', '9.0.2']
         for version in higher_versions:
-            version_number = workbench_utils.convert_drupal_core_version_to_number(version)
+            version_number = workbench_utils.convert_semver_to_number(version)
             res = version_number >= minimum_core_version
             self.assertTrue(res, 'Version number ' + str(version_number) + ' is less than 8.6.')
+
+
+class TestIntegrationModuleVersionNumbers(unittest.TestCase):
+    def test_version_numbers(self):
+        minimum_version = tuple([1, 0])
+        lower_versions = ['0.9', '0.8', '0.8.0-dev']
+        for version in lower_versions:
+            version_number = workbench_utils.convert_semver_to_number(version)
+            res = version_number < minimum_version
+            self.assertTrue(res, 'Version number ' + str(version_number) + ' is greater than 1.0.')
+
+        higher_versions = ['1.0.0', '1.0.1', '1.2', '1.0.1-dev', '10.0']
+        for version in higher_versions:
+            version_number = workbench_utils.convert_semver_to_number(version)
+            res = version_number >= minimum_version
+            self.assertTrue(res, 'Version number ' + str(version_number) + ' is less than 1.0.')
 
 
 class TestDedupedFilePaths(unittest.TestCase):
