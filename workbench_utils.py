@@ -24,6 +24,8 @@ import shutil
 
 yaml = YAML()
 
+INTEGRATION_MODULE_MIN_VERSION = '1.0'
+
 
 def set_config_defaults(args):
     """Convert the YAML configuration data into an array for easy use.
@@ -378,6 +380,26 @@ def issue_request(
     return response
 
 
+def convert_semver_to_number(version_string):
+    """Convert a Semantic Version number (e.g. Drupal's) string to a number. We only need the major
+       and minor numbers (e.g. 9.2).
+
+        Parameters
+        ----------
+        version_string: string
+            The version string as retrieved from Drupal.
+        Returns
+        -------
+        tuple
+            A tuple containing the major and minor Drupal core version numbers as integers.
+    """
+    parts = version_string.split('.')
+    parts = parts[:2]
+    int_parts = [int(part) for part in parts]
+    version_tuple = tuple(int_parts)
+    return version_tuple
+
+
 def get_drupal_core_version(config):
     """Get Drupal's version number.
 
@@ -401,31 +423,12 @@ def get_drupal_core_version(config):
         return False
 
 
-def convert_drupal_core_version_to_number(version_string):
-    """Convert Drupal's version string to a number. We only need the major and minor numbers (e.g. 9.2).
-
-        Parameters
-        ----------
-        version_string: string
-            The version string as retrieved from Drupal.
-        Returns
-        -------
-        tuple
-            A tuple containing the major and minor Drupal core version numbers as integers.
-    """
-    parts = version_string.split('.')
-    parts = parts[:2]
-    int_parts = [int(part) for part in parts]
-    version_tuple = tuple(int_parts)
-    return version_tuple
-
-
 def check_drupal_core_version(config):
     """Used during --check.
     """
     drupal_core_version = get_drupal_core_version(config)
     if drupal_core_version is not False:
-        core_version_number = convert_drupal_core_version_to_number(drupal_core_version)
+        core_version_number = convert_semver_to_number(drupal_core_version)
     else:
         message = "Workbench cannot determine Drupal's version number."
         logging.error(message)
@@ -438,8 +441,7 @@ def check_drupal_core_version(config):
 
 
 def set_drupal_8(config):
-    """Used for integration tests only, in which case it
-       will either be True or False.
+    """Used for integration tests only, in which case it will either be True or False.
     """
     if config['drupal_8'] is not None:
         return config['drupal_8']
@@ -447,7 +449,7 @@ def set_drupal_8(config):
     drupal_8 = False
     drupal_core_version_string = get_drupal_core_version(config)
     if drupal_core_version_string is not False:
-        drupal_core_version = convert_drupal_core_version_to_number(drupal_core_version_string)
+        drupal_core_version = convert_semver_to_number(drupal_core_version_string)
     else:
         message = "Workbench cannot determine Drupal's version number."
         logging.error(message)
@@ -455,6 +457,48 @@ def set_drupal_8(config):
     if drupal_core_version < tuple([8, 6]):
         drupal_8 = True
     return drupal_8
+
+
+def check_integration_module_version(config):
+    """Used during --check.
+    """
+    version = get_integration_module_version(config)
+    if version is False:
+        message = "Workbench cannot determine the Islandora Workbench Integration module's version number."
+        logging.error(message)
+        sys.exit('Error: ' + message)
+    else:
+        version_number = convert_semver_to_number(version)
+        minimum_version_number = convert_semver_to_number(INTEGRATION_MODULE_MIN_VERSION)
+        if version_number < minimum_version_number:
+            message = "The Islandora Workbench Integration module installed on " + config['host'] + " must be" + \
+                " upgraded to version " + str(INTEGRATION_MODULE_MIN_VERSION) + '.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
+
+def get_integration_module_version(config):
+    """Get the Islandora Workbench Integration module's version number.
+
+        Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        Returns
+        -------
+        string|False
+            The version number string (i.e., may contain -dev, etc.) from the
+            Islandora Workbench Integration module.
+    """
+    url = config['host'] + '/islandora_workbench_integration/version'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        version_body = json.loads(response.text)
+        return version_body['integration_module_version']
+    else:
+        logging.warning(
+            "Attempt to get the Islandora Workbench Integration module's version number returned a %s status code", response.status_code)
+        return False
 
 
 def ping_node(config, nid):
@@ -500,7 +544,7 @@ def ping_islandora(config, print_message=True):
     """Connect to Islandora in prep for subsequent HTTP requests.
     """
     # First, test a known request that requires Administrator-level permissions.
-    url = config['host'] + '/islandora_workbench_integration/upload_max_filesize'
+    url = config['host'] + '/islandora_workbench_integration/version'
     try:
         host_response = issue_request(config, 'GET', url)
     except requests.exceptions.Timeout as err_timeout:
@@ -794,6 +838,7 @@ def check_input(config, args):
         args.config)
 
     ping_islandora(config, print_message=False)
+    check_integration_module_version(config)
 
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
@@ -3350,8 +3395,6 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                             logging.error(message)
                             sys.exit('Error: ' + message)
                     else:
-                        # debug
-                        print(config['vocab_csv'])
                         if len(config['vocab_csv']) > 0:
                             if len(required_fields_in_vocab) > 0:
                                 csv_vocabs = list()
@@ -3386,22 +3429,6 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                             logging.error(message)
                                             sys.exit('Error: ' + message)
                                 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-                    if len(terms) == 0:
-                        if config['allow_adding_terms'] is True:
-                            vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
-                                '" may not be enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
-                            logging.warning(message)
-                        else:
-                            vocab_validation_issues = True
-                            message = 'Vocabulary "' + vocabulary + '" referenced in CSV field "' + column_name + \
-                                '" may not enabled in the "Terms in vocabulary" View (please confirm it is) or may contains no terms.'
-                            logging.warning(message)
-                    vocab_term_ids = list(terms.keys())
-                    # If more than one vocab in this field, combine their term IDs into a single list.
-                    all_tids_for_field = all_tids_for_field + vocab_term_ids
-                fields_with_vocabularies.update({column_name: all_tids_for_field})
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
