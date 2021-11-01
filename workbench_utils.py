@@ -2139,7 +2139,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_field = config['media_fields'][media_type]
 
-        if 'title' in node_csv_row:
+        if config['use_node_title_for_media'] and 'title' in node_csv_row:
             media_name = node_csv_row['title']
         else:
             media_name = os.path.basename(filename)
