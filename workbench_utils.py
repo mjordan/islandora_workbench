@@ -770,20 +770,24 @@ def get_field_definitions(config, entity_type, bundle_type=None):
 def get_entity_fields(config, entity_type, bundle_type):
     """Get all the fields configured on a bundle.
     """
-    if entity_type == 'taxonomy_term':
-        fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
-            entity_type + '.' + bundle_type + '.default?_format=json'
-        bundle_type_response = issue_request(config, 'GET', fields_endpoint)
-    else:
-        fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
-            entity_type + '.' + bundle_type + '.default?_format=json'
-        bundle_type_response = issue_request(config, 'GET', fields_endpoint)
+    fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
+        entity_type + '.' + bundle_type + '.default?_format=json'
+    bundle_type_response = issue_request(config, 'GET', fields_endpoint)
+    # If a vocabulary has no custom fields (like the default "Tags" vocab), this query will
+    # return a 404 response. So, we need to use an alternative way to check if the vocabulary
+    # really doesn't exist.
+    if bundle_type_response.status_code == 404 and entity_type == 'taxonomy_term':
+        fallback_fields_endpoint = '/entity/taxonomy_vocabulary/' + bundle_type + '?_format=json'
+        fallback_bundle_type_response = issue_request(config, 'GET', fallback_fields_endpoint)
+        # If this request confirms the vocabulary exists, its OK to make some assumptions
+        # about what fields it has.
+        if fallback_bundle_type_response.status_code == 200:
+            return []
 
     fields = []
-
     if bundle_type_response.status_code == 200:
         node_config_raw = json.loads(bundle_type_response.text)
-        fieldname_prefix = 'field.field.node.' + bundle_type + '.'
+        fieldname_prefix = 'field.field.' + entity_type + '.' + bundle_type + '.'
         fieldnames = [
             field_dependency.replace(
                 fieldname_prefix,
@@ -3402,10 +3406,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                     else:
                         if len(config['vocab_csv']) > 0:
                             if len(required_fields_in_vocab) > 0:
-                                csv_vocabs = list()
-                                for vocab_file_entry in config['vocab_csv']:
-                                    for key, item in vocab_file_entry.items():
-                                        csv_vocabs.append(key)
+                                csv_vocabs_paths = get_vocabs_csv_paths(config)
+                                csv_vocabs = csv_vocabs_paths.keys()
                                 if vocabulary not in csv_vocabs:
                                     required_fields_string = ', '.join(required_fields_in_vocab)
                                     message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
@@ -3413,11 +3415,12 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     logging.error(message)
                                     sys.exit('Error: ' + message)
 
+                                ''' <- WIP on #111.
                                 # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
                                 # If there are required fields in vocabularies, each new term must have a
                                 # row in the vocabulary CSV. @todo: complete this, add corresponding code to
                                 # validate_typed_relation_field_values().
-                                term_names = list(terms.values())
+                                vocab_csv_file_path = csv_vocabs_paths[vocabulary]
                                 vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
                                 for count, row in enumerate(vocab_csv_data, start=1):
                                     required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
@@ -3434,6 +3437,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                             logging.error(message)
                                             sys.exit('Error: ' + message)
                                 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                '''
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
@@ -3475,9 +3479,11 @@ def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path
     csv_column_headers = copy.copy(csv_data.fieldnames)
 
     # Check whether each row contains the same number of columns as there are headers.
+    row_count = 0
     for count, row in enumerate(csv_data, start=1):
         extra_headers = False
         field_count = 0
+        row_count += 1
         for field in row:
             # 'stringtopopulateextrafields' is added by get_csv_data() if there are extra headers.
             if row[field] == 'stringtopopulateextrafields':
@@ -3497,7 +3503,7 @@ def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path
             logging.error(message)
             sys.exit('Error: ' + message)
     message = "OK, all " \
-        + str(count) + ' rows in the vocabulary CSV file "' + vocab_csv_file_path + '" have the same number of columns as there are headers (' \
+        + str(row_count) + ' rows in the vocabulary CSV file "' + vocab_csv_file_path + '" have the same number of columns as there are headers (' \
         + str(len(csv_column_headers)) + ').'
     print(message)
     logging.info(message)
@@ -3580,7 +3586,8 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                     else:
                         if len(config['vocab_csv']) > 0:
                             if len(required_fields_in_vocab) > 0:
-                                csv_vocabs = list()
+                                csv_vocabs_paths = get_vocabs_csv_paths(config)
+                                csv_vocabs = csv_vocabs_paths.keys()
                                 for vocab_file_entry in config['vocab_csv']:
                                     for key, item in vocab_file_entry.items():
                                         csv_vocabs.append(key)
@@ -4400,6 +4407,29 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             message = 'Vocabulary CSV file ' + input_csv + ' not found.'
             logging.error(message)
             sys.exit('Error: ' + message)
+
+
+def get_vocabs_csv_paths(config):
+    """Converts the 'vocab_csv' config setting value into a dict for easy access.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        Returns
+        -------
+        dict
+            A dictionary of vocab ID/file path pairs, or False if the
+            config setting is absent or empty.
+    """
+    if 'vocab_csv' in config and len(config['vocab_csv']) > 0:
+        csv_vocab_id_path_pairs = dict()
+        for vocab_file_entry in config['vocab_csv']:
+            for key, path in vocab_file_entry.items():
+                csv_vocab_id_path_pairs[key] = path
+        return csv_vocab_id_path_pairs
+    else:
+        return False
 
 
 def get_csv_template(config, args):
