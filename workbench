@@ -21,7 +21,9 @@ import workbench_fields
 def create():
     """Create new nodes via POST, and add media if there are any.
     """
-    prep_rollback_csv(config)
+    path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    prep_rollback_csv(config, path_to_rollback_csv_file)
+    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
 
     if config['secondary_tasks'] is not None:
         if args.config not in config['secondary_tasks']:
@@ -342,7 +344,7 @@ def create():
             row_position = get_percentage(row_count, num_csv_records)
             pbar(row_position)
 
-        write_rollback_node_id(config, node_nid)
+        write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
         if config['nodes_only'] is False and config['allow_missing_files'] is False is True and 'file' in row and len(row['file'].strip()) == 0 and config['paged_content_from_directories'] is False:
@@ -408,7 +410,7 @@ def create():
             if 'url_alias' in row and len(row['url_alias']) > 0:
                 create_url_alias(config, node_nid, row['url_alias'])
 
-            write_rollback_config(config)
+            write_rollback_config(config, path_to_rollback_csv_file)
 
 
 def update():
@@ -911,12 +913,14 @@ def create_from_files():
     file_dir_path = config['input_dir']
     files = os.listdir(file_dir_path)
 
-    prep_rollback_csv(config)
+    path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    prep_rollback_csv(config, path_to_rollback_csv_file)
+    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
 
     num_files = len(files)
     file_count = 0
     for file_name in files:
-        if file_name == 'rollback.csv':
+        if file_name.startswith('rollback.') and file_name.endswith('csv'):
             continue
 
         filename_without_extension = os.path.splitext(file_name)[0]
@@ -972,7 +976,7 @@ def create_from_files():
                 write_to_output_csv(config, '', node_response.text)
 
             node_nid = node_uri.rsplit('/', 1)[-1]
-            write_rollback_node_id(config, node_nid)
+            write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
             # Execute node-specific post-create scripts, if any are configured.
             if 'node_post_create' in config and len(config['node_post_create']) > 0:

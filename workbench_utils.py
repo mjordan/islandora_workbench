@@ -22,8 +22,10 @@ import edtf_validate.valid_edtf
 import shutil
 
 
+# Set some global variables.
 yaml = YAML()
 
+EXECUTION_START_TIME = datetime.datetime.now()
 INTEGRATION_MODULE_MIN_VERSION = '1.0'
 
 
@@ -153,6 +155,8 @@ def set_config_defaults(args):
         config['validate_fixity_during_check'] = False
     if 'output_csv_include_input_csv' not in config:
         config['output_csv_include_input_csv'] = False
+    if 'timestamp_rollback' not in config:
+        config['timestamp_rollback'] = False
     # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None
@@ -3876,6 +3880,9 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
 
 def create_children_from_directory(config, parent_csv_record, parent_node_id, parent_title):
     drupal_8 = set_drupal_8(config)
+
+    path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+
     # These objects will have a title (derived from filename), an ID based on the parent's
     # id, and a config-defined Islandora model. Content type and status are inherited
     # as is from parent. The weight assigned to the page is the last segment in the filename,
@@ -3951,7 +3958,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
                 write_to_output_csv(config, page_identifier, node_response.text)
 
             node_nid = node_uri.rsplit('/', 1)[-1]
-            write_rollback_node_id(config, node_nid)
+            write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
@@ -3981,22 +3988,36 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
                     logging.error("Post node create script " + command + " failed.")
 
 
-def write_rollback_config(config):
-    path_to_rollback_config_file = os.path.join('rollback.yml')
-    rollback_config_file = open(path_to_rollback_config_file, "w")
+def get_rollback_csv_filepath(config):
+    if config['timestamp_rollback'] is True:
+        now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
+        rollback_csv_filename = 'rollback.' + now_string + '.csv'
+    else:
+        rollback_csv_filename = 'rollback.csv'
+    return os.path.join(config['input_dir'], rollback_csv_filename)
+
+
+def write_rollback_config(config, path_to_rollback_csv_file):
+    if config['timestamp_rollback'] is True:
+        now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
+        rollback_config_filename = 'rollback.' + now_string + '.yml'
+    else:
+        rollback_config_filename = 'rollback.yml'
+
+    rollback_config_file = open(rollback_config_filename, "w")
+
     yaml.dump(
         {'task': 'delete',
             'host': config['host'],
             'username': config['username'],
             'password': config['password'],
             'input_dir': config['input_dir'],
-            'input_csv': 'rollback.csv'},
+            'input_csv': os.path.basename(path_to_rollback_csv_file)},
         rollback_config_file)
 
 
-def prep_rollback_csv(config):
-    path_to_rollback_csv_file = os.path.join(
-        config['input_dir'], 'rollback.csv')
+def prep_rollback_csv(config, path_to_rollback_csv_file):
+    path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     if os.path.exists(path_to_rollback_csv_file):
         os.remove(path_to_rollback_csv_file)
     rollback_csv_file = open(path_to_rollback_csv_file, "a+")
@@ -4004,8 +4025,8 @@ def prep_rollback_csv(config):
     rollback_csv_file.close()
 
 
-def write_rollback_node_id(config, node_id):
-    path_to_rollback_csv_file = os.path.join(config['input_dir'], 'rollback.csv')
+def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
+    path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     rollback_csv_file = open(path_to_rollback_csv_file, "a+")
     rollback_csv_file.write(node_id + "\n")
     rollback_csv_file.close()
