@@ -138,7 +138,7 @@ def set_config_defaults(args):
     if 'ignore_csv_columns' not in config:
         config['ignore_csv_columns'] = list()
     if 'use_node_title_for_media' not in config:
-        config['use_node_title_for_media'] = False
+        config['use_node_title_for_media'] = True
     if 'delete_tmp_upload' not in config:
         config['delete_tmp_upload'] = False
     if 'list_missing_drupal_fields' not in config:
