@@ -469,6 +469,7 @@ def check_integration_module_version(config):
     """Used during --check.
     """
     version = get_integration_module_version(config)
+
     if version is False:
         message = "Workbench cannot determine the Islandora Workbench Integration module's version number."
         logging.error(message)
@@ -481,6 +482,8 @@ def check_integration_module_version(config):
                 " upgraded to version " + str(INTEGRATION_MODULE_MIN_VERSION) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
+        else:
+            logging.info("Islandora Workbench Integration module installed on " + config['host'] + " is at version " + str(version) + '.')
 
 
 def get_integration_module_version(config):
