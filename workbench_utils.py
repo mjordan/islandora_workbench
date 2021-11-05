@@ -1319,17 +1319,27 @@ def check_input(config, args):
         empty_file_values_exist = False
         if config['nodes_only'] is False and config['allow_missing_files'] is True:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
+                file_check_row['file'] = file_check_row['file'].strip()
                 if len(file_check_row['file']) == 0:
                     empty_file_values_exist = True
                 else:
-                    if os.path.isabs(file_check_row['file']):
-                        file_path = file_check_row['file']
+                    if file_check_row['file'].startswith('http'):
+                        http_response_code = ping_remote_file(config, file_check_row['file'])
+                        if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
+                            message = 'Remote file ' + file_check_row['file'] + ' identified in CSV "file" column for record with ID field value "' \
+                                + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
                     else:
-                        file_path = os.path.join(config['input_dir'], file_check_row['file'])
-                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                        message = 'File ' + file_path + ' identified in CSV "file" column not found.'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
+                        if os.path.isabs(file_check_row['file']):
+                            file_path = file_check_row['file']
+                        else:
+                            file_path = os.path.join(config['input_dir'], file_check_row['file'])
+                        if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                            message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value "' \
+                                + file_check_row[config['id_field']] + '" not found.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
             if empty_file_values_exist is True:
                 message = 'OK, files named in the CSV "file" column are all present; the "allow_missing_files" option is enabled and empty "file" values exist.'
                 print(message)
