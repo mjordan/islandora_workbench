@@ -65,10 +65,11 @@ def set_config_defaults(args):
             format='%(asctime)s - %(levelname)s - %(message)s',
             datefmt='%d-%b-%y %H:%M:%S')
 
-        message = 'Error: There appears to be a YAML syntax error with the configuration file "' + args.config + '". ' \
-            '\nIf you use an online YAML validator to find the error, *be sure to remove your Drupal hostname and user credentials first.*'
+        message = 'Error: There appears to be a YAML syntax error with the configuration file "' + args.config + '".' + \
+            ' More detail is available in the Workbench log. If you use an online YAML validator to find the error,' + \
+            ' BE SURE to remove your Drupal hostname and user credentials first.'
         logging.exception(message)
-        sys.exit(message + "\n" + str(e))
+        sys.exit(message)
 
     config = {}
     for k, v in config_data.items():
