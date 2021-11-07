@@ -486,7 +486,7 @@ def check_integration_module_version(config):
             logging.error(message)
             sys.exit('Error: ' + message)
         else:
-            logging.info("Islandora Workbench Integration module installed on " + config['host'] + " is at version " + str(version) + '.')
+            logging.info("OK, Islandora Workbench Integration module installed on " + config['host'] + " is at version " + str(version) + '.')
 
 
 def get_integration_module_version(config):
@@ -677,6 +677,7 @@ def get_nid_from_media_url_alias(config, url_alias):
         node = json.loads(response.text)
         return node['mid'][0]['value']
 
+
 def get_node_title_from_nid(config, node_id):
     """Get node title from Drupal.
 
@@ -688,6 +689,7 @@ def get_node_title_from_nid(config, node_id):
         return node_dict['title'][0]['value']
     else:
         return False
+
 
 def get_field_definitions(config, entity_type, bundle_type=None):
     """Get field definitions from Drupal.
@@ -4252,7 +4254,7 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
             # CSVs for add_media tasks don't contain 'title', so we need to get it.
             if config['task'] == 'add_media':
                 node_csv_row['title'] = get_node_title_from_nid(config, node_csv_row['node_id'])
-                if node_csv_row['title'] == False:
+                if node_csv_row['title'] is False:
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media filename. Using filename instead.'
                     logging.warning(message)
                     node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
