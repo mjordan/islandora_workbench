@@ -27,4 +27,3 @@
 * [ ] Have you written unit or integration tests if applicable?
 * [ ] If the changes in this PR require an addiional Python library, have you included it in `setup.py`?
 * [ ] If the changes in this PR add a new configuration option, have you provided a default for when the option is not present in the .yml file?
-* [ ] Did the PR receive at least one approval from a committer, and all issues raised have been addressed?
