@@ -1064,12 +1064,20 @@ if 'get_csv_template' in config.keys():
     if config['get_csv_template']:
         get_csv_template(config, args)
 
-if 'check' in config.keys():
-    if config['check']:
-        if config['task'] == 'create_from_files':
-            check_input_for_create_from_files(config, args)
-        else:
-            check_input(config, args)
+try:
+    if 'check' in config.keys():
+        if config['check']:
+            if config['task'] == 'create_from_files':
+                check_input_for_create_from_files(config, args)
+            else:
+                check_input(config, args)
+except KeyboardInterrupt:
+    print('Exiting before entire --check completed.')
+    logging.warning('Workbench exiting after receiving "ctrl c" during --check.')
+    try:
+        sys.exit(0)
+    except SystemExit:
+        os._exit(0)
 
 # Execute bootstrap scripts, if any are configured.
 if 'bootstrap' in config and len(config['bootstrap']) > 0:
@@ -1077,28 +1085,36 @@ if 'bootstrap' in config and len(config['bootstrap']) > 0:
         print("Executing bootstrap script " + command)
         output, return_code = execute_bootstrap_script(command, args.config)
 
-if config['task'] == 'create':
-    create()
-if config['task'] == 'update':
-    update()
-if config['task'] == 'delete':
-    delete()
-if config['task'] == 'add_media':
-    add_media()
-if config['task'] == 'delete_media':
-    delete_media()
-if config['task'] == 'create_from_files':
-    create_from_files()
+try:
+    if config['task'] == 'create':
+        create()
+    if config['task'] == 'update':
+        update()
+    if config['task'] == 'delete':
+        delete()
+    if config['task'] == 'add_media':
+        add_media()
+    if config['task'] == 'delete_media':
+        delete_media()
+    if config['task'] == 'create_from_files':
+        create_from_files()
 
-if config['secondary_tasks'] is not None:
-    for secondary_config_file in config['secondary_tasks']:
-        message = 'Executing secondary task using configuration file "' + secondary_config_file + '"'
-        print('')
-        print(message)
-        logging.info(message)
-        cmd = ["./workbench", "--config", secondary_config_file]
-        output = subprocess.run(cmd)
+    if config['secondary_tasks'] is not None:
+        for secondary_config_file in config['secondary_tasks']:
+            message = 'Executing secondary task using configuration file "' + secondary_config_file + '"'
+            print('')
+            print(message)
+            logging.info(message)
+            cmd = ["./workbench", "--config", secondary_config_file]
+            output = subprocess.run(cmd)
 
-    map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
-    if os.path.exists(map_file_path):
-        os.remove(map_file_path)
+        map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
+        if os.path.exists(map_file_path):
+            os.remove(map_file_path)
+except KeyboardInterrupt:
+    print('Exiting before entire CSV processed. See log for more info.')
+    logging.warning('Workbench exiting after receiving "ctrl c". Consult the documentation to learn how to resume your batch.')
+    try:
+        sys.exit(0)
+    except SystemExit:
+        os._exit(0)
