@@ -142,6 +142,8 @@ def set_config_defaults(args):
         config['ignore_csv_columns'] = list()
     if 'use_node_title_for_media' not in config:
         config['use_node_title_for_media'] = False
+    if 'use_node_title_for_media_title' not in config:
+        config['use_node_title_for_media_title'] = True
     if 'delete_tmp_upload' not in config:
         config['delete_tmp_upload'] = False
     if 'list_missing_drupal_fields' not in config:
@@ -675,6 +677,17 @@ def get_nid_from_media_url_alias(config, url_alias):
         node = json.loads(response.text)
         return node['mid'][0]['value']
 
+def get_node_title_from_nid(config, node_id):
+    """Get node title from Drupal.
+
+    """
+    node_url = config['host'] + '/node/' + node_id + '?_format=json'
+    node_response = issue_request(config, 'GET', node_url)
+    if node_response.status_code == 200:
+        node_dict = json.loads(node_response.text)
+        return node_dict['title'][0]['value']
+    else:
+        return False
 
 def get_field_definitions(config, entity_type, bundle_type=None):
     """Get field definitions from Drupal.
@@ -2161,8 +2174,15 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_field = config['media_fields'][media_type]
 
-        if 'title' in node_csv_row:
-            media_name = node_csv_row['title']
+        if config['use_node_title_for_media_title']:
+            if 'title' in node_csv_row:
+                media_name = node_csv_row['title']
+            else:
+                media_name = get_node_title_from_nid(config, node_id)
+                if not media_name:
+                    message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using filename instead.'
+                    logging.warning(message)
+                    media_name = os.path.basename(filename)
         else:
             media_name = os.path.basename(filename)
 
@@ -4231,16 +4251,12 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
         if config["use_node_title_for_media"]:
             # CSVs for add_media tasks don't contain 'title', so we need to get it.
             if config['task'] == 'add_media':
-                node_id = node_csv_row['node_id']
-                node_url = config['host'] + '/node/' + node_id + '?_format=json'
-                node_response = issue_request(config, 'GET', node_url)
-                if node_response.status_code == 200:
-                    node_dict = json.loads(node_response.text)
-                    node_csv_row['title'] = node_dict['title'][0]['value']
-                else:
+                node_csv_row['title'] = get_node_title_from_nid(config, node_csv_row['node_id'])
+                if node_csv_row['title'] == False:
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media filename. Using filename instead.'
                     logging.warning(message)
                     node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
+
             filename = re.sub(r'\s+', '_', node_csv_row['title'])
             filename = re.sub('[^A-Za-z0-9]+', '_', filename)
             if filename[-1] == '_':
