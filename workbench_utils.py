@@ -1243,8 +1243,12 @@ def check_input(config, args):
                     check_csv_file_exists(config, 'taxonomy_fields', complex_vocab_csv_file_path)
                     validate_vocabulary_fields_in_csv(config, complex_vocab_id, complex_vocab_csv_file_path)
 
-        validate_csv_typed_relation_values_csv_data = get_csv_data(config)
-        warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_csv_typed_relation_values_csv_data)
+                # validate_taxonomy_field_values() above checks whether vocab has required fields and if so,
+                # that they are present in the vocab CSV. See code in get_term_field_data(). Check the vocabulary CSV
+                # file to see if there is a corresponding row for the term.
+
+        validate_typed_relation_csv_data = get_csv_data(config)
+        warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_typed_relation_csv_data)
         if warn_user_about_typed_relation_terms is True:
             print('Warning: Issues detected with validating typed relation field values in the CSV file. See the log for more detail.')
 
@@ -2526,8 +2530,8 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         preprocessed_csv_reader
             The CSV DictReader object.
     """
-    if csv_file_target == 'taxonomy_fields':
-        config['id_field'] = 'term_name'
+    # if csv_file_target == 'taxonomy_fields':
+        # config['id_field'] = 'term_name'
 
     if csv_file_target == 'node_fields':
         file_path = config['input_csv']
@@ -2847,7 +2851,7 @@ def get_term_field_data(config, vocab_id, term_name):
                 csv_vocabs.append(key)
                 csv_vocab_id_path_pairs[key] = path
 
-    # No vocabulary CSVs in use.
+    # No vocabulary CSV in use for the current vocabulary.
     if 'vocab_csv' not in config or ('vocab_csv' in config and vocab_id not in csv_vocabs):
         term_field_data = {
             "status": [
@@ -2913,23 +2917,25 @@ def get_term_field_data(config, vocab_id, term_name):
                         logging.error(message)
                         sys.exit('Error: ' + message)
 
-        # Check the vocabulary CSV file to see if there is a corresponding row for the term. If there isn't a matching row,
-        # and some_required_fields is True, what do we do? We also perform this during --check in validate_taxonomy_field_values()
-        # and validate_typed_relation_field_values().@todo: pass in a copy of the CSV data since enumerating over it modifies it?
-        '''
+        # Check the vocabulary CSV file to see if there is a corresponding row for the term. We also perform this during
+        # --check in check_input(), and in validate_taxonomy_field_values() and validate_typed_relation_field_values().
         for count, row in enumerate(vocab_csv_data, start=1):
             required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
             if some_required_fields is True:
                 if required_matching_rows == 0:
-                    # @todo: error out because there are required fields
-                    # pass
+                    # Error out because there are required fields
+                    message = 'Term "' + term_name + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
                 elif required_matching_rows > 1:
-                    # @todo: error out because there should only be one matching row. @todo: We should --check for this.
-                    # pass
+                    # Error out because there should only be one matching row (since we only create new terms once).
+                    message = 'Term "' + term_name + '" has ' + str(required_matching_rows) + ' matching rows in vocabulary CSV file "' + \
+                        vocab_csv_file_path + '". There should only be one matching row.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
                 else:
                     # @todo: build the JSON from the CSV row and create term.
-                    # pass
-        '''
+                    pass
 
 
 def check_matching_vocabulary_csv_row(term_name, vocabulary_csv_data):
@@ -3456,27 +3462,23 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                     sys.exit('Error: ' + message)
 
                                 ''' <- WIP on #111.
-                                # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                                # If there are required fields in vocabularies, each new term must have a
-                                # row in the vocabulary CSV. @todo: complete this, add corresponding code to
-                                # validate_typed_relation_field_values().
-                                vocab_csv_file_path = csv_vocabs_paths[vocabulary]
-                                vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
+                                vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                                vocab_csv_data = get_csv_data(config, 'taxonomy_fields', complex_vocab_csv_file_path)
                                 for count, row in enumerate(vocab_csv_data, start=1):
                                     required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
-                                    if len(required_fields_in_vocab) > 0:
+                                    if some_required_fields is True:
                                         if required_matching_rows == 0:
-                                            # Error out because there are required fields in the vocabulary and the term
-                                            # doesn't have a row in the vocabulary CSV.
-                                            message = ''
+                                            # Error out because there are required fields
+                                            message = 'Term "' + term_name + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
                                             logging.error(message)
                                             sys.exit('Error: ' + message)
-                                        if required_matching_rows > 1:
-                                            # Error out because there should only be one matching row.
-                                            message = ''
+                                        elif required_matching_rows > 1:
+                                            # Error out because there should only be one matching row (since we only create new terms once).
+                                            message = 'Term "' + term_name + '" has ' + str(required_matching_rows) + ' matching rows in vocabulary CSV file "' + \
+                                                vocab_csv_file_path + '". There should only be one matching row.'
                                             logging.error(message)
                                             sys.exit('Error: ' + message)
-                                # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                                 '''
 
     # If none of the CSV fields are taxonomy reference fields, return.

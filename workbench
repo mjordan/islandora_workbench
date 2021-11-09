@@ -1073,7 +1073,7 @@ try:
                 check_input(config, args)
 except KeyboardInterrupt:
     print('Exiting before entire --check completed.')
-    logging.warning('Workbench exiting after receiving "ctrl c" during --check.')
+    logging.warning('Workbench exiting after receiving "ctrl-c" during --check.')
     try:
         sys.exit(0)
     except SystemExit:
@@ -1113,7 +1113,7 @@ try:
             os.remove(map_file_path)
 except KeyboardInterrupt:
     print('Exiting before entire CSV processed. See log for more info.')
-    logging.warning('Workbench exiting after receiving "ctrl c". Consult the documentation to learn how to resume your batch.')
+    logging.warning('Workbench exiting after receiving "ctrl-c". Consult the documentation to learn how to resume your batch.')
     try:
         sys.exit(0)
     except SystemExit:
