@@ -469,12 +469,11 @@ def set_drupal_8(config):
 
 
 def check_integration_module_version(config):
-    """Used during --check.
-    """
     version = get_integration_module_version(config)
 
     if version is False:
-        message = "Workbench cannot determine the Islandora Workbench Integration module's version number."
+        message = "Workbench cannot determine the Islandora Workbench Integration module's version number. It must be version " + \
+            str(INTEGRATION_MODULE_MIN_VERSION) + ' or higher.'
         logging.error(message)
         sys.exit('Error: ' + message)
     else:
@@ -576,7 +575,8 @@ def ping_islandora(config, print_message=True):
 
     if host_response.status_code == 404:
         message = 'Workbench cannot detect whether the Islandora Workbench Integration module is ' + \
-            'enabled on ' + config['host'] + '. Please ensure it is enabled.'
+            'enabled on ' + config['host'] + '. Please ensure it is enabled and that its version is ' + \
+            str(INTEGRATION_MODULE_MIN_VERSION) + ' or higher.'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -1243,8 +1243,8 @@ def check_input(config, args):
                     check_csv_file_exists(config, 'taxonomy_fields', complex_vocab_csv_file_path)
                     validate_vocabulary_fields_in_csv(config, complex_vocab_id, complex_vocab_csv_file_path)
 
-                # validate_taxonomy_field_values() above checks whether vocab has required fields and if so,
-                # that they are present in the vocab CSV. See code in get_term_field_data(). Check the vocabulary CSV
+                # validate_taxonomy_field_values(), above, checks whether vocab has required fields and if so,
+                # that they are present in the vocab CSV. @todo: Check the vocabulary CSV
                 # file to see if there is a corresponding row for the term.
 
         validate_typed_relation_csv_data = get_csv_data(config)
@@ -2530,9 +2530,6 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         preprocessed_csv_reader
             The CSV DictReader object.
     """
-    # if csv_file_target == 'taxonomy_fields':
-        # config['id_field'] = 'term_name'
-
     if csv_file_target == 'node_fields':
         file_path = config['input_csv']
 
@@ -2917,8 +2914,8 @@ def get_term_field_data(config, vocab_id, term_name):
                         logging.error(message)
                         sys.exit('Error: ' + message)
 
-        # Check the vocabulary CSV file to see if there is a corresponding row for the term. We also perform this during
-        # --check in check_input(), and in validate_taxonomy_field_values() and validate_typed_relation_field_values().
+        # Check the vocabulary CSV file to see if there is a corresponding row for the term. We also perform this
+        # in validate_taxonomy_field_values() and validate_typed_relation_field_values().
         for count, row in enumerate(vocab_csv_data, start=1):
             required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
             if some_required_fields is True:

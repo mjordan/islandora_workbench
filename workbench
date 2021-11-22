@@ -318,7 +318,9 @@ def create():
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, id_field, node_response.text, row)
         else:
-            logging.error("Node for CSV record %s not created, HTTP response code was %s.", id_field, node_response.status_code)
+            message = "Node for CSV record " + id_field + " not created."
+            print("ERROR: " + message + '.')
+            logging.error(message + ', HTTP response code was ' + node_response.status_code + '.')
             continue
 
         # Execute node-specific post-create scripts, if any are configured.
@@ -366,7 +368,7 @@ def create():
                     logging.info("Media for %s created.", row['file'])
                 else:
                     if config['progress_bar'] is False:
-                        print("- Media for " + row['file'] + " not created. See log for more information.")
+                        print("- ERROR: Media for " + row['file'] + " not created. See log for more information.")
                     logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
                 if 'additional_files' in config:
                     additional_files_config = get_additional_files_config(config)
@@ -1046,6 +1048,7 @@ if config['task'] != 'create_from_files' and config['input_csv'].endswith('.xlsx
 validate_input_dir(config)
 
 ping_islandora(config, print_message=True)
+check_integration_module_version(config)
 
 if config['nodes_only'] is False:
     check_drupal_core_version(config)
