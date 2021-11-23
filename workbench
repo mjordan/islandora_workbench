@@ -318,7 +318,7 @@ def create():
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, id_field, node_response.text, row)
         else:
-            message = "Node for CSV record " + id_field + " not created."
+            message = "Node for CSV record " + id_field + " not created"
             print("ERROR: " + message + '.')
             logging.error(message + ', HTTP response code was ' + str(node_response.status_code) + '.')
             continue
