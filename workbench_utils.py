@@ -3023,8 +3023,17 @@ def prepare_term_id(config, vocab_ids, term):
             return tid_from_uri
     else:
         if len(vocab_ids) == 1:
-            tid = create_term(config, vocab_ids[0].strip(), term.strip())
-            return tid
+            # A namespace is not needed since this vocabulary is the only one linked
+            # to its field, but this check safeguards against accidental/unnecessary
+            # use of a namespace in the CSV value.
+            namespaced = re.search(':', term)
+            if namespaced:
+                [vocab_id, term_name] = term.split(':', maxsplit=1)
+                tid = create_term(config, vocab_id.strip(), term_name.strip())
+                return tid
+            else:
+                tid = create_term(config, vocab_ids[0].strip(), term.strip())
+                return tid
         else:
             # Term names used in mult-taxonomy fields. They need to be namespaced with
             # the taxonomy ID.
