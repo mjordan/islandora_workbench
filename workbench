@@ -227,12 +227,17 @@ def create():
                              'target_type': target_type}]
                 # Cardinality is 1.
                 else:
-                    subvalues = row[custom_field].split(config['subdelimiter'])
-                    node[custom_field] = [
-                        {'target_id': subvalues[0],
-                         'target_type': target_type}]
-                    if len(subvalues) > 1:
-                        log_field_cardinality_violation(custom_field, id_field, '1')
+                    if config['subdelimiter'] in row[custom_field]:
+                        subvalues = row[custom_field].split(config['subdelimiter'])
+                        node[custom_field] = [
+                            {'target_id': subvalues[0],
+                             'target_type': target_type}]
+                        if len(subvalues) > 1:
+                            log_field_cardinality_violation(custom_field, id_field, '1')
+                    else:
+                        node[custom_field] = [
+                            {'target_id': row[custom_field],
+                             'target_type': target_type}]
 
             # Entity reference fields.
             # elif field_definitions[custom_field]['field_type'] == 'entity_reference':
