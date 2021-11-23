@@ -270,15 +270,17 @@ def create():
                         node[custom_field] = field_values
                     else:
                         field_value = split_typed_relation_string(config, row[custom_field], target_type)
+                        field_value[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, field_value[0]['target_id'])
                         node[custom_field] = field_value
                 # Cardinality is 1.
                 else:
-                    field_values = split_typed_relation_string(config, row[custom_field], target_type)
-                    field_values[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, field_values[0]['target_id'])
-                    node[custom_field] = field_values[0]
-                    log_field_cardinality_violation(custom_field, id_field, '1')
+                    subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                    subvalues[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalues[0]['target_id'])
+                    node[custom_field] = [subvalues[0]]
+                    if len(subvalues) > 1:
+                        log_field_cardinality_violation(custom_field, id_field, '1')
 
-            # Typed relation fields.
+            # Typed relation fields. Can't start using workbench_fields.TypedRelation until unit tests are done.
             # elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                 # typed_relation_field = workbench_fields.TypedRelationField()
                 # node = typed_relation_field.create(config, field_definitions, node, row, custom_field)
