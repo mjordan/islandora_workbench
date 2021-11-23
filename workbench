@@ -320,7 +320,7 @@ def create():
         else:
             message = "Node for CSV record " + id_field + " not created."
             print("ERROR: " + message + '.')
-            logging.error(message + ', HTTP response code was ' + node_response.status_code + '.')
+            logging.error(message + ', HTTP response code was ' + str(node_response.status_code) + '.')
             continue
 
         # Execute node-specific post-create scripts, if any are configured.
