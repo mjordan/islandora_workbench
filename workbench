@@ -430,6 +430,7 @@ def update():
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
+    invalid_target_ids = []
 
     row_count = 0
     for row in csv_data:
@@ -594,8 +595,18 @@ def update():
                 # with the incoming ones, we need to remove the 'url' and 'target_uuid' members.
                 node_comparison_values = copy.deepcopy(node_field_values[custom_field])
                 for comparison_value in node_comparison_values:
-                    del comparison_value['url']
-                    del comparison_value['target_uuid']
+                    if comparison_value.get('url'):
+                        del comparison_value['url']
+                    else:
+                        invalid_target_ids.append(comparison_value['target_id'])
+                        node_comparison_values.remove(comparison_value)
+                        continue
+                    if comparison_value.get('target_uuid'):
+                        del comparison_value['target_uuid']
+                    else:
+                        invalid_target_ids.append(comparison_value['target_id'])
+                        node_comparison_values.remove(comparison_value)
+                        continue
 
                 if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                     target_type = 'taxonomy_term'
@@ -688,6 +699,9 @@ def update():
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
         node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
+        for entry in node[custom_field]:
+            if entry['target_id'] in invalid_target_ids:
+                node[custom_field].remove(entry)
         node_headers = {'Content-Type': 'application/json'}
         node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
