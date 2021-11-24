@@ -593,20 +593,17 @@ def update():
                 # Create a copy of the existing values in the current field so we can compare
                 # them to the incoming values in the CSV file for deduping. To compare these values
                 # with the incoming ones, we need to remove the 'url' and 'target_uuid' members.
-                node_comparison_values = copy.deepcopy(node_field_values[custom_field])
-                for comparison_value in node_comparison_values:
+                node_comparison_values = []
+                temp_node_comparison_values = copy.deepcopy(node_field_values[custom_field])
+                for comparison_value in temp_node_comparison_values:
                     if comparison_value.get('url'):
                         del comparison_value['url']
                     else:
                         invalid_target_ids.append(comparison_value['target_id'])
-                        node_comparison_values.remove(comparison_value)
                         continue
                     if comparison_value.get('target_uuid'):
                         del comparison_value['target_uuid']
-                    else:
-                        invalid_target_ids.append(comparison_value['target_id'])
-                        node_comparison_values.remove(comparison_value)
-                        continue
+                        node_comparison_values.append(comparison_value)
 
                 if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                     target_type = 'taxonomy_term'
@@ -699,9 +696,11 @@ def update():
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
         node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
+        temp_field = []
         for entry in node[custom_field]:
-            if entry['target_id'] in invalid_target_ids:
-                node[custom_field].remove(entry)
+            if entry['target_id'] not in invalid_target_ids:
+                temp_field.append(entry)
+        node[custom_field] = temp_field
         node_headers = {'Content-Type': 'application/json'}
         node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
