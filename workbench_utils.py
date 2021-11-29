@@ -3022,8 +3022,8 @@ def prepare_term_id(config, vocab_ids, term):
             return tid_from_uri
     else:
         if len(vocab_ids) == 1:
-            # A namespace is not needed since this vocabulary is the only one linked
-            # to its field, but if there is only one vocab_id, we prepend it here so that
+            # A namespace is not needed since this vocabulary is the only one linked to
+            # its field, but since there is only one vocab_id, we prepend it here so that
             # term names that contain a : are parsed properly.
             namespaced = re.search(':', term)
             if namespaced:
