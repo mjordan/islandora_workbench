@@ -2661,7 +2661,7 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
        is found in that vocabulary. If so, returns the term ID; if not returns False.
        If more than one term found, returns the term ID of the first one.
     """
-    url = config['host'] + '/term_from_term_name?vocab=' + vocab_id.strip() + '&name=' + urllib.parse.quote(term_name_to_find.strip()) + '&_format=json'
+    url = config['host'] + '/term_from_term_name?vocab=' + vocab_id.strip() + '&name=' + urllib.parse.quote_plus(term_name_to_find.strip()) + '&_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         term_data = json.loads(response.text)
@@ -2752,7 +2752,6 @@ def create_term(config, vocab_id, term_name):
     """Adds a term to the target vocabulary. Returns the new term's ID
        if successful (or if the term already exists) or False if not.
     """
-
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
@@ -3026,11 +3025,12 @@ def prepare_term_id(config, vocab_ids, term):
             return tid_from_uri
     else:
         if len(vocab_ids) == 1:
-            # A namespace is not needed since this vocabulary is the only one linked
-            # to its field, but this check safeguards against accidental/unnecessary
-            # use of a namespace in the CSV value.
+            # A namespace is not needed since this vocabulary is the only one linked to
+            # its field, but since there is only one vocab_id, we prepend it here so that
+            # term names that contain a : are parsed properly.
             namespaced = re.search(':', term)
             if namespaced:
+                term = vocab_ids[0] + ':' + term
                 [vocab_id, term_name] = term.split(':', maxsplit=1)
                 tid = create_term(config, vocab_id.strip(), term_name.strip())
                 return tid
