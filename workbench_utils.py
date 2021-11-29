@@ -28,6 +28,7 @@ yaml = YAML()
 
 EXECUTION_START_TIME = datetime.datetime.now()
 INTEGRATION_MODULE_MIN_VERSION = '1.0'
+# Workaround for https://github.com/mjordan/islandora_workbench/issues/360.
 http.client._MAXHEADERS = 10000
 
 
