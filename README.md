@@ -38,9 +38,9 @@ This script will also tell you if you need to run Python's `setup.py` script to 
 #!/bin/sh
 #
 # Git hook script that notifies you to update the Islandora Worbench Integration
-# module if the last 3 commit messsages contain the word 'module.' Also notifies 
+# module if the last 3 commit messsages contain the word 'module.' Also notifies
 # you if you need to run setup.py to install newly added libraries.
-# 
+#
 # To enable this hook, place create a file in your .git/hooks directory named 'post-merge'.
 
 if git log -n3 --format=format:"%s" | grep -qi module; then
@@ -70,7 +70,7 @@ Also provide tests where applicable. Tests in Workbench fall into two categories
 
 * Unit tests (that do not require Islandora) which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
    * Unit tests on Workbench's Drupal fields handlers (these also does not require Islandora) are in `tests/field_tests.py` and can be run with `python3 tests/field_tests.py`
-* Integration tests that require a live Islandora instance running at `http://localhost:8000`, which are all in `tests/islandora_tests.py` and can be run with `python3 tests/islandora_tests.py`
+* Integration tests that require a live Islandora instance running at `http://localhost:8000`, which are in `tests/islandora_tests.py`, `tests/islandora_tests_check.py`,  `tests/islandora_tests_hooks.py`, and `tests/islandora_tests_paged_content.py` can be run with `python3 tests/islandora_tests.py`, etc.
    * The [Islandora Playbook](https://github.com/Islandora-Devops/islandora-playbook) is recommended way to deploy the Islandora used in these tests. Note that if an Islandora integration test fails, nodes and taxonomy terms created by the test before it fails may not be removed from Islandora.
    * Some integration and field tests output text that beings with "Error:." This is normal, it's the text that Workbench outputs when it finds something wrong (which is probably what the test is testing). Successful test (whether they test for success or failure) runs will exit with "OK". If you can figure out how to suppress this output, please visit [this issue](https://github.com/mjordan/islandora_workbench/issues/160).
 * If you want to run the tests within a specific class in one of these files, include the class name like this: `python3 tests/unit_tests.py TestCompareStings`
