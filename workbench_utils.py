@@ -121,8 +121,14 @@ def set_config_defaults(args):
         config['allow_adding_terms'] = False
     if 'nodes_only' not in config:
         config['nodes_only'] = False
+    if 'log_request_url' not in config:
+        config['log_request_url'] = False
     if 'log_json' not in config:
         config['log_json'] = False
+    if 'log_response_body' not in config:
+        config['log_response_body'] = False
+    if 'log_response_status_code' not in config:
+        config['log_response_status_code'] = False
     if 'log_headers' not in config:
         config['log_headers'] = False
     if 'progress_bar' not in config:
@@ -316,6 +322,9 @@ def issue_request(
     else:
         url = config['host'] + path
 
+    if config['log_request_url'] is True:
+        logging.info(method + ' ' + url)
+
     if method == 'GET':
         if config['log_headers'] is True:
             logging.info(headers)
@@ -389,6 +398,13 @@ def issue_request(
             auth=(config['username'], config['password']),
             headers=headers
         )
+
+    if config['log_response_status_code'] is True:
+        logging.info(response.status_code)
+
+    if config['log_response_body'] is True:
+        logging.info(response.text)
+
     return response
 
 
