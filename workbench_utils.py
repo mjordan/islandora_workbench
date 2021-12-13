@@ -169,6 +169,8 @@ def set_config_defaults(args):
         config['output_csv_include_input_csv'] = False
     if 'timestamp_rollback' not in config:
         config['timestamp_rollback'] = False
+    if 'enable_http_cache' not in config:
+        config['enable_http_cache'] = True
     # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None

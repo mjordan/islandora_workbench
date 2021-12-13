@@ -13,6 +13,7 @@ import datetime
 import argparse
 import collections
 import subprocess
+import requests_cache
 from progress_bar import InitBar
 from workbench_utils import *
 import workbench_fields
@@ -1070,6 +1071,9 @@ validate_input_dir(config)
 ping_islandora(config, print_message=True)
 check_integration_module_version(config)
 
+if config['enable_http_cache'] is True:
+    requests_cache.install_cache(backend='memory')
+
 if config['nodes_only'] is False:
     check_drupal_core_version(config)
 
@@ -1134,6 +1138,7 @@ try:
         map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
         if os.path.exists(map_file_path):
             os.remove(map_file_path)
+
 except KeyboardInterrupt:
     print('Exiting before entire CSV processed. See log for more info.')
     logging.warning('Workbench exiting after receiving "ctrl-c". Consult the documentation to learn how to resume your batch.')
