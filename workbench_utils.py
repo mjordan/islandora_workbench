@@ -2577,7 +2577,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         sys.exit(message)
 
     # 'restval' is what is used to populate superfluous fields/labels.
-    csv_writer_file_handle = open(input_csv_path + '.prepocessed', 'w+', newline='')
+    csv_writer_file_handle = open(input_csv_path + '.prepocessed', 'w+', newline='', encoding='utf-8')
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
 
     csv_reader_fieldnames = csv_reader.fieldnames
@@ -3903,7 +3903,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     for field_to_remove in fields_to_remove:
         node_field_names.remove(field_to_remove)
 
-    csvfile = open(config['output_csv'], 'a+')
+    csvfile = open(config['output_csv'], 'a+', encoding='utf-8')
 
     if input_csv_row is not None and config['output_csv_include_input_csv'] is True:
         # Remove fields from the input CSV that would overwrite field data from the new node.
@@ -4148,7 +4148,7 @@ def get_csv_from_excel(config):
         records.append(record)
 
     input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
-    csv_writer_file_handle = open(input_csv_path, 'w+', newline='')
+    csv_writer_file_handle = open(input_csv_path, 'w+', newline='', encoding='utf-8')
     csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
     csv_writer.writeheader()
     for record in records:
@@ -4568,7 +4568,7 @@ def get_csv_template(config, args):
             sample_data[field_name] = ''
 
     csv_file_path = os.path.join(config['input_dir'], config['input_csv'] + '.csv_file_template')
-    csv_file = open(csv_file_path, 'a+')
+    csv_file = open(csv_file_path, 'a+', encoding='utf-8')
     writer = csv.DictWriter(csv_file, fieldnames=sample_data.keys(), lineterminator="\n")
     writer.writeheader()
     # We want the labels and required rows to appear as the second and third rows so
@@ -4630,7 +4630,7 @@ def prep_node_ids_tsv(config):
     if os.path.exists(path_to_tsv_file):
         os.remove(path_to_tsv_file)
     if len(config['secondary_tasks']) > 0:
-        tsv_file = open(path_to_tsv_file, "a+")
+        tsv_file = open(path_to_tsv_file, "a+", encoding='utf-8')
     else:
         return False
 
@@ -4644,7 +4644,7 @@ def prep_node_ids_tsv(config):
 
 def write_to_node_ids_tsv(config, row_id, node_id):
     path_to_tsv_file = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
-    tsv_file = open(path_to_tsv_file, "a+")
+    tsv_file = open(path_to_tsv_file, "a+", encoding='utf-8')
     tsv_file.write(str(row_id) + "\t" + str(node_id) + "\n")
     tsv_file.close()
 
