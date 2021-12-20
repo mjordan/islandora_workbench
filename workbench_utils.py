@@ -1716,11 +1716,15 @@ def validate_language_code(langcode):
 
 
 def clean_csv_values(row):
-    """Convert row values to strings and strip leading and trailing whitespace.
-       Could be used in the future for other normalization tasks.
+    """Performs basic string cleanup on CSV values. Could be used in the future for
+       other normalization tasks.
     """
     for field in row:
+        # Strip leading and trailing whitespace.
         row[field] = str(row[field]).strip()
+        # Replace smart/curly quotes with straight ones.
+        row[field] = row[field].replace('“', '"').replace('”', '"')
+        row[field] = row[field].replace("‘", "'").replace("’", "'")
     return row
 
 
