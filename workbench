@@ -123,7 +123,7 @@ def create():
             if len(row[custom_field]) == 0:
                 continue
 
-            if additional_files_entries is not None:
+            if len(additional_files_entries) > 0:
                 if custom_field in additional_files_entries.keys():
                     continue
 
@@ -380,7 +380,7 @@ def create():
                     logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
                 if 'additional_files' in config:
                     additional_files_config = get_additional_files_config(config)
-                    if additional_files_config is not None:
+                    if len(additional_files_config) > 0:
                         for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
                             # If there is no additional media file, move on to the next "additional_files" column.
                             if config['nodes_only'] is False and additional_file_field in row and len(row[additional_file_field].strip()) == 0:
@@ -749,7 +749,7 @@ def delete():
 
         # Delete the node's media first.
         if config['delete_media_with_nodes'] is True:
-            media_endpoint = config['host'] + '/node/' + str(row['node_id']) + '/media/?_format=json'
+            media_endpoint = config['host'] + '/node/' + str(row['node_id']) + '/media?_format=json'
             media_response = issue_request(config, 'GET', media_endpoint)
             media_response_body = json.loads(media_response.text)
             media_messages = []
@@ -856,7 +856,7 @@ def add_media():
                         sys.exit('Error: ' + message)
             if 'additional_files' in config:
                 additional_files_config = get_additional_files_config(config)
-                if additional_files_config is not None:
+                if len(additional_files_config) > 0:
                     for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
                         if config['allow_missing_files'] is False:
                             if not check_file_exists(config, row['file']):
@@ -1073,6 +1073,13 @@ check_integration_module_version(config)
 
 if config['enable_http_cache'] is True:
     requests_cache.install_cache(backend='memory')
+
+cache_enabled = requests_cache.patcher.is_installed()
+if cache_enabled:
+    message = "Client-side request caching is enabled."
+else:
+    message = "Client-side request caching is not enabled."
+logging.info(message)
 
 if config['nodes_only'] is False:
     check_drupal_core_version(config)

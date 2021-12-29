@@ -1090,7 +1090,7 @@ def check_input(config, args):
             langcode_was_present = True
 
         for csv_column_header in csv_column_headers:
-            if get_additional_files_config(config) is not None:
+            if len(get_additional_files_config(config)) > 0:
                 if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
                     if csv_column_header in config['ignore_csv_columns']:
                         continue
@@ -1768,14 +1768,14 @@ def get_additional_files_config(config):
     """Converts values in 'additional_files' config setting to a simple
        dictionary for easy access.
     """
+    additional_files_entries = dict()
     if 'additional_files' in config and len(config['additional_files']) > 0:
-        additional_files_entries = dict()
         for additional_files_entry in config['additional_files']:
             for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
                 additional_files_entries[additional_file_field] = additional_file_media_use_tid
         return additional_files_entries
     else:
-        return None
+        return additional_files_entries
 
 
 def split_typed_relation_string(config, typed_relation_string, target_type):
@@ -2686,6 +2686,15 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
         # Term name is not found.
         if len(term_data) == 0:
             return False
+        elif len(term_data) > 1:
+            print("Warning: See log for important message about duplicate terms within the same vocabulary.")
+            logging.warning(
+                'Query for term "%s" found %s terms with that name in the %s vocabulary. Workbench is choosing the first term ID (%s)).',
+                term_name_to_find,
+                len(term_data),
+                vocab_id,
+                term_data[0]['tid'][0]['value'])
+            return term_data[0]['tid'][0]['value']
         # Term name is found.
         else:
             return term_data[0]['tid'][0]['value']
