@@ -30,6 +30,8 @@ EXECUTION_START_TIME = datetime.datetime.now()
 INTEGRATION_MODULE_MIN_VERSION = '1.0'
 # Workaround for https://github.com/mjordan/islandora_workbench/issues/360.
 http.client._MAXHEADERS = 10000
+checked_terms = list()
+newly_created_terms = list()
 
 
 def set_config_defaults(args):
@@ -169,6 +171,10 @@ def set_config_defaults(args):
         config['output_csv_include_input_csv'] = False
     if 'timestamp_rollback' not in config:
         config['timestamp_rollback'] = False
+    if 'enable_http_cache' not in config:
+        config['enable_http_cache'] = True
+    if 'validate_term_existence' not in config:
+        config['validate_term_existence'] = True
     # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None
@@ -1088,7 +1094,7 @@ def check_input(config, args):
             langcode_was_present = True
 
         for csv_column_header in csv_column_headers:
-            if get_additional_files_config(config) is not None:
+            if len(get_additional_files_config(config)) > 0:
                 if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
                     if csv_column_header in config['ignore_csv_columns']:
                         continue
@@ -1770,14 +1776,14 @@ def get_additional_files_config(config):
     """Converts values in 'additional_files' config setting to a simple
        dictionary for easy access.
     """
+    additional_files_entries = dict()
     if 'additional_files' in config and len(config['additional_files']) > 0:
-        additional_files_entries = dict()
         for additional_files_entry in config['additional_files']:
             for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
                 additional_files_entries[additional_file_field] = additional_file_media_use_tid
         return additional_files_entries
     else:
-        return None
+        return additional_files_entries
 
 
 def split_typed_relation_string(config, typed_relation_string, target_type):
@@ -2678,18 +2684,67 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
 
 def find_term_in_vocab(config, vocab_id, term_name_to_find):
     """For a given term name, query using the vocab_id to see if term_name_to_find
-       is found in that vocabulary. If so, returns the term ID; if not returns False.
-       If more than one term found, returns the term ID of the first one.
+       is found in that vocabulary. If so, returns the term ID; if not returns False. If
+       more than one term found, returns the term ID of the first one. Also populates global
+       lists of terms (checked_terms and newly_created_terms) to reduce queries to Drupal.
     """
+    if 'check' in config.keys() and config['check'] is True:
+        if config['validate_term_existence'] is False:
+            return False
+
+        # Namespaced terms (inc. typed relation terms): if there is a vocabulary namespace, we need to split it out
+        # from the term name. This only applies in --check since namespaced terms are parsed in prepare_term_id().
+        # Assumptions: the term namespace always directly precedes the term name, and the term name doesn't
+        # contain a colon. See https://github.com/mjordan/islandora_workbench/issues/361 for related logic.
+        namespaced = re.search(':', term_name_to_find)
+        if namespaced:
+            namespaced_term_parts = term_name_to_find.split(':')
+            # Assumption is that the term name is the last part, and the namespace is the second-last.
+            term_name_to_find = namespaced_term_parts[-1]
+            vocab_id = namespaced_term_parts[-2]
+
+        term_name_for_check_matching = term_name_to_find.lower().strip()
+        for checked_term in checked_terms:
+            if checked_term['vocab_id'] == vocab_id and checked_term['name_for_matching'] == term_name_for_check_matching:
+                if value_is_numeric(checked_term['tid']):
+                    return checked_term['tid']
+                else:
+                    return False
+
+    for newly_created_term in newly_created_terms:
+        if newly_created_term['vocab_id'] == vocab_id and newly_created_term['name_for_matching'] == term_name_to_find.lower().strip():
+            return newly_created_term['tid']
+
     url = config['host'] + '/term_from_term_name?vocab=' + vocab_id.strip() + '&name=' + urllib.parse.quote_plus(term_name_to_find.strip()) + '&_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         term_data = json.loads(response.text)
         # Term name is not found.
         if len(term_data) == 0:
+            if 'check' in config.keys() and config['check'] is True:
+                checked_term_to_add = {'tid': None, 'vocab_id': vocab_id, 'name': term_name_to_find, 'name_for_matching': term_name_for_check_matching}
+                if checked_term_to_add not in checked_terms:
+                    checked_terms.append(checked_term_to_add)
             return False
+        elif len(term_data) > 1:
+            print("Warning: See log for important message about duplicate terms within the same vocabulary.")
+            logging.warning(
+                'Query for term "%s" found %s terms with that name in the %s vocabulary. Workbench is choosing the first term ID (%s)).',
+                term_name_to_find,
+                len(term_data),
+                vocab_id,
+                term_data[0]['tid'][0]['value'])
+            if 'check' in config.keys() and config['check'] is True:
+                checked_term_to_add = {'tid': term_data[0]['tid'][0]['value'], 'vocab_id': vocab_id, 'name': term_name_to_find, 'name_for_matching': term_name_for_check_matching}
+                if checked_term_to_add not in checked_terms:
+                    checked_terms.append(checked_term_to_add)
+            return term_data[0]['tid'][0]['value']
         # Term name is found.
         else:
+            if 'check' in config.keys() and config['check'] is True:
+                checked_term_to_add = {'tid': term_data[0]['tid'][0]['value'], 'vocab_id': vocab_id, 'name': term_name_to_find, 'name_for_matching': term_name_for_check_matching}
+                if checked_term_to_add not in checked_terms:
+                    checked_terms.append(checked_term_to_add)
             return term_data[0]['tid'][0]['value']
     else:
         logging.warning('Query for term "%s" in vocabulary "%s" returned a %s status code', term_name_to_find, vocab_id, response.status_code)
@@ -2832,6 +2887,8 @@ def create_term(config, vocab_id, term_name):
             tid,
             term_name,
             vocab_id)
+        newly_created_term_name_for_matching = term_name.lower().strip()
+        newly_created_terms.append({'tid': tid, 'vocab_id': vocab_id, 'name': term_name, 'name_for_matching': newly_created_term_name_for_matching})
         return tid
     else:
         logging.warning(
@@ -3523,7 +3580,11 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 new_term_names_in_csv_results.append(new_term_names_in_csv)
 
     if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
-        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
+        if config['validate_term_existence'] is True:
+            print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
+        else:
+            print("Skipping check for existence of terms (but new terms will be created as noted in the Workbench log).")
+            logging.warning("Skipping check for existence of terms (but new terms will be created).")
     else:
         # All term IDs are in their field's vocabularies.
         print("OK, term IDs/names in CSV file exist in their respective taxonomies.")
@@ -3827,7 +3888,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                                     str(record_number) + ' contains a term ("' + field_value.strip() + '") that is '
                                 message_2 = 'not in the referenced vocabulary ("' + \
                                     this_fields_vocabularies[0] + '"). That term will be created.'
-                                logging.warning(message + message_2)
+                                if config['validate_term_existence'] is True:
+                                    logging.warning(message + message_2)
                         else:
                             new_term_names_in_csv = True
                             message = 'CSV field "' + csv_field_name + '" in row ' + \
@@ -3861,7 +3923,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                                     str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
                                 message_2 = 'not in the referenced vocabulary ("' + \
                                     namespace_vocab_id + '"). That term will be created.'
-                                logging.warning(message + message_2)
+                                if config['validate_term_existence'] is True:
+                                    logging.warning(message + message_2)
                                 new_terms_to_add.append(split_field_value)
 
                                 validate_term_name_length(split_field_value, str(record_number), csv_field_name)
