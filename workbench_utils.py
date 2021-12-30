@@ -264,13 +264,18 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
 
     extension = extension_with_dot[1:]
     normalized_extension = extension.lower()
+    media_type = 'file'
     for types in config['media_types']:
         for type, extensions in types.items():
             if normalized_extension in extensions:
-                return type
-
+                media_type = type
+    if 'media_types_override' in config:
+        for override in config['media_types_override']:
+            for type, extensions in override.items():
+                if normalized_extension in extensions:
+                    media_type = type
     # If extension isn't in one of the lists, default to 'file' bundle.
-    return 'file'
+    return media_type
 
 
 def set_model_from_extension(file_name, config):
@@ -1770,14 +1775,12 @@ def get_additional_files_config(config):
     """Converts values in 'additional_files' config setting to a simple
        dictionary for easy access.
     """
+    additional_files_entries = dict()
     if 'additional_files' in config and len(config['additional_files']) > 0:
-        additional_files_entries = dict()
         for additional_files_entry in config['additional_files']:
             for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
                 additional_files_entries[additional_file_field] = additional_file_media_use_tid
-        return additional_files_entries
-    else:
-        return None
+    return additional_files_entries
 
 
 def split_typed_relation_string(config, typed_relation_string, target_type):
