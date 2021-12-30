@@ -173,6 +173,8 @@ def set_config_defaults(args):
         config['timestamp_rollback'] = False
     if 'enable_http_cache' not in config:
         config['enable_http_cache'] = True
+    if 'validate_term_existence' not in config:
+        config['validate_term_existence'] = True
     # Used for integration tests only, in which case it will either be True or False.
     if 'drupal_8' not in config:
         config['drupal_8'] = None
@@ -2683,6 +2685,9 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
        lists of terms (checked_terms and newly_created_terms) to reduce queries to Drupal.
     """
     if 'check' in config.keys() and config['check'] is True:
+        if config['validate_term_existence'] is False:
+            return False
+
         # Namespaced terms (inc. typed relation terms): if there is a vocabulary namespace, we need to split it out
         # from the term name. This only applies in --check since namespaced terms are parsed in prepare_term_id().
         # Assumptions: the term namespace always directly precedes the term name, and the term name doesn't
@@ -3571,7 +3576,11 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 new_term_names_in_csv_results.append(new_term_names_in_csv)
 
     if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
-        print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
+        if config['validate_term_existence'] is True:
+            print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
+        else:
+            print("Skipping check for existence of terms (but new terms will be created as noted in the Workbench log).")
+            logging.warning("Skipping check for existence of terms (but new terms will be created).")
     else:
         # All term IDs are in their field's vocabularies.
         print("OK, term IDs/names in CSV file exist in their respective taxonomies.")
@@ -3875,7 +3884,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                                     str(record_number) + ' contains a term ("' + field_value.strip() + '") that is '
                                 message_2 = 'not in the referenced vocabulary ("' + \
                                     this_fields_vocabularies[0] + '"). That term will be created.'
-                                logging.warning(message + message_2)
+                                if config['validate_term_existence'] is True:
+                                    logging.warning(message + message_2)
                         else:
                             new_term_names_in_csv = True
                             message = 'CSV field "' + csv_field_name + '" in row ' + \
@@ -3909,7 +3919,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                                     str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
                                 message_2 = 'not in the referenced vocabulary ("' + \
                                     namespace_vocab_id + '"). That term will be created.'
-                                logging.warning(message + message_2)
+                                if config['validate_term_existence'] is True:
+                                    logging.warning(message + message_2)
                                 new_terms_to_add.append(split_field_value)
 
                                 validate_term_name_length(split_field_value, str(record_number), csv_field_name)
