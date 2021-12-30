@@ -30,6 +30,8 @@ EXECUTION_START_TIME = datetime.datetime.now()
 INTEGRATION_MODULE_MIN_VERSION = '1.0'
 # Workaround for https://github.com/mjordan/islandora_workbench/issues/360.
 http.client._MAXHEADERS = 10000
+checked_terms = list()
+newly_created_terms = list()
 
 
 def set_config_defaults(args):
@@ -2676,15 +2678,44 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
 
 def find_term_in_vocab(config, vocab_id, term_name_to_find):
     """For a given term name, query using the vocab_id to see if term_name_to_find
-       is found in that vocabulary. If so, returns the term ID; if not returns False.
-       If more than one term found, returns the term ID of the first one.
+       is found in that vocabulary. If so, returns the term ID; if not returns False. If
+       more than one term found, returns the term ID of the first one. Also populates global
+       lists of terms (checked_terms and newly_created_terms) to reduce queries to Drupal.
     """
+    if 'check' in config.keys() and config['check'] is True:
+        # Namespaced terms (inc. typed relation terms): if there is a vocabulary namespace, we need to split it out
+        # from the term name. This only applies in --check since namespaced terms are parsed in prepare_term_id().
+        # Assumptions: the term namespace always directly precedes the term name, and the term name doesn't
+        # contain a colon. See https://github.com/mjordan/islandora_workbench/issues/361 for related logic.
+        namespaced = re.search(':', term_name_to_find)
+        if namespaced:
+            namespaced_term_parts = term_name_to_find.split(':')
+            # Assumption is that the term name is the last part, and the namespace is the second-last.
+            term_name_to_find = namespaced_term_parts[-1]
+            vocab_id = namespaced_term_parts[-2]
+
+        term_name_for_check_matching = term_name_to_find.lower().strip()
+        for checked_term in checked_terms:
+            if checked_term['vocab_id'] == vocab_id and checked_term['name_for_matching'] == term_name_for_check_matching:
+                if value_is_numeric(checked_term['tid']):
+                    return checked_term['tid']
+                else:
+                    return False
+
+    for newly_created_term in newly_created_terms:
+        if newly_created_term['vocab_id'] == vocab_id and newly_created_term['name_for_matching'] == term_name_to_find.lower().strip():
+            return newly_created_term['tid']
+
     url = config['host'] + '/term_from_term_name?vocab=' + vocab_id.strip() + '&name=' + urllib.parse.quote_plus(term_name_to_find.strip()) + '&_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         term_data = json.loads(response.text)
         # Term name is not found.
         if len(term_data) == 0:
+            if 'check' in config.keys() and config['check'] is True:
+                checked_term_to_add = {'tid': None, 'vocab_id': vocab_id, 'name': term_name_to_find, 'name_for_matching': term_name_for_check_matching}
+                if checked_term_to_add not in checked_terms:
+                    checked_terms.append(checked_term_to_add)
             return False
         elif len(term_data) > 1:
             print("Warning: See log for important message about duplicate terms within the same vocabulary.")
@@ -2694,9 +2725,17 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
                 len(term_data),
                 vocab_id,
                 term_data[0]['tid'][0]['value'])
+            if 'check' in config.keys() and config['check'] is True:
+                checked_term_to_add = {'tid': term_data[0]['tid'][0]['value'], 'vocab_id': vocab_id, 'name': term_name_to_find, 'name_for_matching': term_name_for_check_matching}
+                if checked_term_to_add not in checked_terms:
+                    checked_terms.append(checked_term_to_add)
             return term_data[0]['tid'][0]['value']
         # Term name is found.
         else:
+            if 'check' in config.keys() and config['check'] is True:
+                checked_term_to_add = {'tid': term_data[0]['tid'][0]['value'], 'vocab_id': vocab_id, 'name': term_name_to_find, 'name_for_matching': term_name_for_check_matching}
+                if checked_term_to_add not in checked_terms:
+                    checked_terms.append(checked_term_to_add)
             return term_data[0]['tid'][0]['value']
     else:
         logging.warning('Query for term "%s" in vocabulary "%s" returned a %s status code', term_name_to_find, vocab_id, response.status_code)
@@ -2839,6 +2878,8 @@ def create_term(config, vocab_id, term_name):
             tid,
             term_name,
             vocab_id)
+        newly_created_term_name_for_matching = term_name.lower().strip()
+        newly_created_terms.append({'tid': tid, 'vocab_id': vocab_id, 'name': term_name, 'name_for_matching': newly_created_term_name_for_matching})
         return tid
     else:
         logging.warning(
