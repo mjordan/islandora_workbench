@@ -274,8 +274,6 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     for types in config['media_types']:
         for type, extensions in types.items():
             if normalized_extension in extensions:
-                return type
-
                 media_type = type
     if 'media_types_override' in config:
         for override in config['media_types_override']:
