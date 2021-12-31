@@ -1786,9 +1786,7 @@ def get_additional_files_config(config):
         for additional_files_entry in config['additional_files']:
             for additional_file_field, additional_file_media_use_tid in additional_files_entry.items():
                 additional_files_entries[additional_file_field] = additional_file_media_use_tid
-        return additional_files_entries
-    else:
-        return additional_files_entries
+    return additional_files_entries
 
 
 def split_typed_relation_string(config, typed_relation_string, target_type):
