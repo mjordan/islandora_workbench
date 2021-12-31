@@ -239,6 +239,7 @@ class TestValideEdtfDate(unittest.TestCase):
 
 class TestSetMediaType(unittest.TestCase):
 
+
     def setUp(self):
         yaml = YAML()
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -285,6 +286,21 @@ class TestSetMediaType(unittest.TestCase):
         fake_csv_record['file'] = '/tmp/foo.xxx'
         res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.xxx', 'file', fake_csv_record)
         self.assertEqual(res, 'file')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.wp'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.wp', 'file', fake_csv_record)
+        self.assertEqual(res, 'document')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.ogg'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.ogg', 'file', fake_csv_record)
+        self.assertEqual(res, 'video')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/xxx.foo'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/xxx.foo', 'file', fake_csv_record)
+        self.assertEqual(res, 'foomedia')
 
     def test_single_type_set_media_type(self):
         fake_csv_record = collections.OrderedDict()
