@@ -10,3 +10,4 @@ media_types_override:
  - document: ['wp']
  - video: ['ogg']
  - foomedia: ['foo']
+ - sometextmedia: ['txt']

@@ -260,7 +260,7 @@ class TestSetMediaType(unittest.TestCase):
         fake_csv_record = collections.OrderedDict()
         fake_csv_record['file'] = '/tmp/foo.txt'
         res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.txt', 'file', fake_csv_record)
-        self.assertEqual(res, 'extracted_text')
+        self.assertEqual(res, 'sometextmedia')
 
         fake_csv_record = collections.OrderedDict()
         fake_csv_record['file'] = '/tmp/foo.tif'
