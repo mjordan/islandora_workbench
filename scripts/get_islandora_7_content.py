@@ -11,7 +11,7 @@ import requests
 import logging
 import argparse
 from progress_bar import InitBar
-from scripts.i7ImportUtilities import i7ImportUtilities
+from i7ImportUtilities import i7ImportUtilities
 import csv
 
 ############################
@@ -22,52 +22,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--config', required=True, help='Configuration file to use.')
 args = parser.parse_args()
 config = args.config
-utils = i7ImportUtilities()
-config = utils.get_config(args.config)
-
-
-##############
-# Functions. #
-##############
-
-def get_child_sequence_number(pid):
-    '''For a given Islandora 7.x PID, get the object's sequence number in relation
-       to its parent from the RELS-EXT datastream. Assumes child objects are only
-       children of a single parent.
-    '''
-    rels_ext_url = config['islandora_base_url'] + '/islandora/object/' + pid + '/datastream/RELS-EXT/download'
-    try:
-        rels_ext_download_response = requests.get(url=rels_ext_url, allow_redirects=True)
-        if rels_ext_download_response.status_code == 200:
-            rels_ext_xml = rels_ext_download_response.content.decode()
-            matches = re.findall('<(islandora:isPageOf|fedora:isConstituentOf)\s+rdf:resource="info:fedora/(.*)">',
-                                 rels_ext_xml, re.MULTILINE)
-            # matches contains tuples, but we only want the values from the second value in each tuple,
-            # pids corresponding to the second set of () in the pattern.
-            parent_pids = [pids[1] for pids in matches]
-            if len(parent_pids) > 0:
-                parent_pid = parent_pids[0].replace(':', '_')
-                sequence_numbers = re.findall('<islandora:isSequenceNumberOf' + parent_pid + '>(\d+)', rels_ext_xml,
-                                              re.MULTILINE)
-                # Paged content stores sequence values in <islandora:isSequenceNumber>, so we look there
-                # if we didn't get any in isSequenceNumberOfxxx.
-                if len(sequence_numbers) == 0:
-                    sequence_numbers = re.findall('<islandora:isSequenceNumber>(\d+)', rels_ext_xml, re.MULTILINE)
-                if len(sequence_numbers) > 0:
-                    return sequence_numbers[0]
-                else:
-                    logging.warning("Can't get sequence number for " + pid)
-                    return ''
-            else:
-                logging.warning("Can't get parent PID for " + pid)
-                return ''
-    except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
-
-
-def get_percentage(part, whole):
-    return 100 * float(part) / float(whole)
-
+utils = i7ImportUtilities(config)
+config = utils.config
 
 #######################
 # Main program logic. #
@@ -134,12 +90,12 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=headers)
     writer.writeheader()
     for row in reader:
-        sequence_number = get_child_sequence_number(row['PID'])
+        sequence_number = utils.get_child_sequence_number(row['PID'])
         row['sequence'] = str(sequence_number)
         if config['fetch_files'] is True:
             obj_url = config['islandora_base_url'] + '/islandora/object/' + row['PID'] + '/datastream/OBJ/download'
             row_count += 1
-            row_position = get_percentage(row_count, num_csv_rows)
+            row_position = utils.get_percentage(row_count, num_csv_rows)
             pbar(row_position)
             try:
                 obj_download_response = requests.get(url=obj_url, allow_redirects=True)
