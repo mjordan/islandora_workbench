@@ -4,6 +4,7 @@ import requests
 import os
 import re
 import logging
+import xml.etree.ElementTree as ET
 
 class i7ImportUtilities:
 
@@ -16,7 +17,6 @@ class i7ImportUtilities:
             filemode='a',
             format='%(asctime)s - %(levelname)s - %(message)s',
             datefmt='%d-%b-%y %H:%M:%S')
-
 
     default_config = {
         'solr_base_url': 'http://localhost:8080/solr',
@@ -94,5 +94,25 @@ class i7ImportUtilities:
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
 
-    def get_percentage(self,part, whole):
+    def get_percentage(self, part, whole):
         return 100 * float(part) / float(whole)
+
+    def parse_rels_ext(self, pid):
+        rels_ext_url = self.config['islandora_base_url'] + '/islandora/object/' + pid + '/datastream/RELS-EXT/download'
+        try:
+            rels_ext_download_response = requests.get(url=rels_ext_url, allow_redirects=True)
+            if rels_ext_download_response.status_code == 200:
+                rel_ext = {}
+                rels_ext_xml = rels_ext_download_response.content.decode()
+                root = ET.fromstring(rels_ext_xml)
+                description = root.find('.//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description')
+                for x in description:
+                    tag = x.tag[x.tag.find('}') + 1:]
+                    text = x.text
+                    if x.attrib.items():
+                        text = next(iter(x.attrib.items()))[1]
+                        text = text[text.find('/') + 1:]
+                    rel_ext[tag] = text
+                return rel_ext
+        except requests.exceptions.RequestException as e:
+            raise SystemExit(e)

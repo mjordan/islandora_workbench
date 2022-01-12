@@ -90,8 +90,10 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=headers)
     writer.writeheader()
     for row in reader:
-        sequence_number = utils.get_child_sequence_number(row['PID'])
-        row['sequence'] = str(sequence_number)
+        rels_ext = utils.parse_rels_ext(row['PID'])
+        for key,value in rels_ext.items():
+            if 'isSequenceNumber' in key:
+                row['sequence'] = str(value)
         if config['fetch_files'] is True:
             obj_url = config['islandora_base_url'] + '/islandora/object/' + row['PID'] + '/datastream/OBJ/download'
             row_count += 1
