@@ -60,9 +60,7 @@ for standard_field in config['standard_fields']:
 fields_param = ','.join(filtered_field_list)
 
 # Get the populated CSV from Solr, with the object namespace and field list filters applied.
-metadata_solr_request = config[
-                            'solr_base_url'] + '/select?q=PID:' + config[
-                            'namespace'] + '*&wt=csv&rows=1000000&fl=' + fields_param
+metadata_solr_request = f"{config['solr_base_url']}/select?q=PID:{config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
 try:
     metadata_solr_response = requests.get(url=metadata_solr_request, allow_redirects=True)
 except requests.exceptions.RequestException as e:
@@ -95,7 +93,7 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
             if 'isSequenceNumber' in key:
                 row['sequence'] = str(value)
         if config['fetch_files'] is True:
-            obj_url = config['islandora_base_url'] + '/islandora/object/' + row['PID'] + '/datastream/OBJ/download'
+            obj_url = f"{config['islandora_base_url']}/islandora/object/{row['PID']}/datastream/OBJ/download"
             row_count += 1
             row_position = utils.get_percentage(row_count, num_csv_rows)
             pbar(row_position)
@@ -112,7 +110,7 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
                     open(obj_file_path, 'wb+').write(obj_download_response.content)
                     row['file'] = obj_basename
                 if obj_download_response.status_code == 404:
-                    logging.warning(obj_url + " not found.")
+                    logging.warning(f"{obj_url} not found.")
 
             except requests.exceptions.RequestException as e:
                 logging.info(e)
