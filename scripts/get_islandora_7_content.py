@@ -20,9 +20,9 @@ import csv
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', required=True, help='Configuration file to use.')
+parser.add_argument('--metadata_solr_request', required=False, help='Option to solr metadata request.')
 args = parser.parse_args()
-config = args.config
-utils = i7ImportUtilities(config)
+utils = i7ImportUtilities(args.config)
 config = utils.config
 
 #######################
@@ -36,31 +36,11 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%d-%b-%y %H:%M:%S')
 
-# This query gets all fields in the index. Does not need to be user-configurable.
-fields_solr_query = '/select?q=*:*&wt=csv&rows=0&fl=*'
-fields_solr_url = config['solr_base_url'] + fields_solr_query
+if args.metadata_solr_request:
+    metadata_solr_request = utils.get_metadata_solr_request(args.metadata_solr_request)
+else:
+    metadata_solr_request = utils.get_default_metadata_solr_query()
 
-# Get the complete field list from Solr and filter it. The filtered field list is
-# then used in another query to get the populated CSV data.
-try:
-    field_list_response = requests.get(url=fields_solr_url, allow_redirects=True)
-    raw_field_list = field_list_response.content.decode()
-except requests.exceptions.RequestException as e:
-    raise SystemExit(e)
-
-field_list = raw_field_list.split(',')
-filtered_field_list = [keep for keep in field_list if re.search(config['field_pattern'], keep)]
-filtered_field_list = [discard for discard in filtered_field_list if
-                       not re.search(config['field_pattern_do_not_want'], discard)]
-
-# Add required fieldnames.
-config['standard_fields'].reverse()
-for standard_field in config['standard_fields']:
-    filtered_field_list.insert(0, standard_field)
-fields_param = ','.join(filtered_field_list)
-
-# Get the populated CSV from Solr, with the object namespace and field list filters applied.
-metadata_solr_request = f"{config['solr_base_url']}/select?q=PID:{config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
 try:
     metadata_solr_response = requests.get(url=metadata_solr_request, allow_redirects=True)
 except requests.exceptions.RequestException as e:

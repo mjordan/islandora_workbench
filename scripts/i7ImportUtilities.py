@@ -46,6 +46,11 @@ class i7ImportUtilities:
             config[key] = value
         return config
 
+    def get_metadata_solr_request(self, location):
+        with open(location, 'r') as file:
+            solr_metadata_request = file.read()
+        return solr_metadata_request
+
     def get_extension_from_mimetype(self, mimetype):
         # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
         # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
@@ -81,3 +86,30 @@ class i7ImportUtilities:
                 return rel_ext
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
+
+    def get_default_metadata_solr_query(self):
+        # This query gets all fields in the index. Does not need to be user-configurable.
+        fields_solr_query = '/select?q=*:*&wt=csv&rows=0&fl=*'
+        fields_solr_url = f"{self.config['solr_base_url']}{fields_solr_query}"
+
+        # Get the complete field list from Solr and filter it. The filtered field list is
+        # then used in another query to get the populated CSV data.
+        try:
+            field_list_response = requests.get(url=fields_solr_url, allow_redirects=True)
+            raw_field_list = field_list_response.content.decode()
+        except requests.exceptions.RequestException as e:
+            raise SystemExit(e)
+
+        field_list = raw_field_list.split(',')
+        filtered_field_list = [keep for keep in field_list if re.search(self.config['field_pattern'], keep)]
+        filtered_field_list = [discard for discard in filtered_field_list if
+                               not re.search(self.config['field_pattern_do_not_want'], discard)]
+
+        # Add required fieldnames.
+        self.config['standard_fields'].reverse()
+        for standard_field in self.config['standard_fields']:
+            filtered_field_list.insert(0, standard_field)
+        fields_param = ','.join(filtered_field_list)
+
+        # Get the populated CSV from Solr, with the object namespace and field list filters applied.
+        return f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
