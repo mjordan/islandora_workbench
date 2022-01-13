@@ -87,7 +87,7 @@ class i7ImportUtilities:
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
 
-    def get_default_metadata_solr_query(self):
+    def get_default_metadata_solr_request(self):
         # This query gets all fields in the index. Does not need to be user-configurable.
         fields_solr_query = '/select?q=*:*&wt=csv&rows=0&fl=*'
         fields_solr_url = f"{self.config['solr_base_url']}{fields_solr_query}"
