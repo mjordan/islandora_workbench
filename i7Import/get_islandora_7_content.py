@@ -6,7 +6,8 @@
 '''
 
 import os
-import re
+import sys
+
 import requests
 import logging
 import argparse
@@ -45,7 +46,9 @@ try:
     metadata_solr_response = requests.get(url=metadata_solr_request, allow_redirects=True)
 except requests.exceptions.RequestException as e:
     raise SystemExit(e)
-
+if not metadata_solr_response.ok:
+    print ("Illegal request - the default query may be too long for a url request.  See docs")
+    sys.exit()
 rows = metadata_solr_response.content.decode().splitlines()
 reader = csv.DictReader(rows)
 headers = reader.fieldnames
