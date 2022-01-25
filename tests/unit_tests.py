@@ -239,7 +239,6 @@ class TestValideEdtfDate(unittest.TestCase):
 
 class TestSetMediaType(unittest.TestCase):
 
-
     def setUp(self):
         yaml = YAML()
         dir_path = os.path.dirname(os.path.realpath(__file__))

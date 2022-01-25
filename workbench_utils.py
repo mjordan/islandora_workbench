@@ -2210,7 +2210,14 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip()))
 
         media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
-        media_field = config['media_fields'][media_type]
+        media_bundle_response_code = ping_media_bundle(config, media_type)
+        if media_bundle_response_code == 404:
+            message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+                ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
+            logging.error(message)
+            return False
+
+        media_field = config['media_bundle_file_fields'][media_type]
 
         if config['use_node_title_for_media_title']:
             if 'title' in node_csv_row:
@@ -2323,6 +2330,12 @@ def create_islandora_media(config, filename, file_fieldname, node_uri, node_csv_
 
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
+    media_bundle_response_code = ping_media_bundle(config, media_type)
+    if media_bundle_response_code == 404:
+        message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+            ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
+        logging.error(message)
+        return False
 
     if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
         media_use_tid_value = node_csv_row['media_use_tid']

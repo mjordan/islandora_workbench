@@ -786,7 +786,7 @@ def delete():
 
 
 def add_media():
-    """Add media to existing nodes using PUT.
+    """Add media to existing nodes.
     """
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
