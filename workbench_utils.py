@@ -153,8 +153,8 @@ def set_config_defaults(args):
         config['ignore_csv_columns'] = list()
     if 'use_node_title_for_media' not in config:
         config['use_node_title_for_media'] = False
-    if 'use_node_title_for_media_title' not in config:
-        config['use_node_title_for_media_title'] = True
+    if 'use_nid_in_media_title' not in config:
+        config['use_nid_in_media_title'] = False
     if 'delete_tmp_upload' not in config:
         config['delete_tmp_upload'] = False
     if 'list_missing_drupal_fields' not in config:
@@ -2219,7 +2219,8 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
 
         media_field = config['media_bundle_file_fields'][media_type]
 
-        if config['use_node_title_for_media_title']:
+        media_name = os.path.basename(filename)
+        if config['use_node_title_for_media']:
             if 'title' in node_csv_row:
                 media_name = node_csv_row['title']
             else:
@@ -2228,8 +2229,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using filename instead.'
                     logging.warning(message)
                     media_name = os.path.basename(filename)
-        else:
-            media_name = os.path.basename(filename)
+        if config['use_nid_in_media_title']:
+            media_name = f"{node_id}-Original"
+
 
         media_json = {
             "bundle": [{
@@ -4379,6 +4381,7 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
             extension = os.path.splitext(sections.path)[1]
             filename = sections.path.split("/")[-1]
             downloaded_file_path = os.path.join(subdir, filename)
+
 
         if extension == '':
             try:
