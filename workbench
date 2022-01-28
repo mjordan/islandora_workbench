@@ -17,7 +17,7 @@ import requests_cache
 from progress_bar import InitBar
 from workbench_utils import *
 import workbench_fields
-
+from WorkbenchConfig import WorkbenchConfig
 
 def create():
     """Create new nodes via POST, and add media if there are any.
@@ -1052,8 +1052,10 @@ parser.add_argument('--config', required=True, help='Configuration file to use.'
 parser.add_argument('--check', help='Check input data and exit without creating/updating/etc.', action='store_true')
 parser.add_argument('--get_csv_template', help='Generate a CSV template using the specified configuration file.', action='store_true')
 args = parser.parse_args()
+workbench_config = WorkbenchConfig(args)
 
-config = set_config_defaults(args)
+config = workbench_config.get_config()
+
 logging.basicConfig(
     filename=config['log_file_path'],
     level=logging.INFO,
