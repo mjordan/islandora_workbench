@@ -2049,7 +2049,7 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
     return result, cmd.returncode
 
 
-def create_file(config, filename, file_fieldname, node_csv_row):
+def create_file(config, filename, file_fieldname, node_csv_row, node_id = ''):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
            Parameters
            ----------
@@ -2085,7 +2085,7 @@ def create_file(config, filename, file_fieldname, node_csv_row):
             return False
 
         filename_parts = urllib.parse.urlparse(filename)
-        file_path = download_remote_file(config, filename, file_fieldname, node_csv_row)
+        file_path = download_remote_file(config, filename, file_fieldname, node_csv_row, node_id)
         if file_path is False:
             return False
         filename = file_path.split("/")[-1]
@@ -2187,11 +2187,11 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     if config['nodes_only'] is True:
         return
 
-    file_result = create_file(config, filename, file_fieldname, node_csv_row)
+    file_result = create_file(config, filename, file_fieldname, node_csv_row, node_id)
     if filename.startswith('http'):
         if file_result is False:
             return False
-        filename = get_prepocessed_file_path(config, file_fieldname, node_csv_row)
+        filename = get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id)
     if isinstance(file_result, int):
         if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
             media_use_tid_value = node_csv_row['media_use_tid']
@@ -2232,7 +2232,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                     logging.warning(message)
                     media_name = os.path.basename(filename)
         if config['use_nid_in_media_title']:
-            media_name = f"{node_id}-Original"
+            media_name = f"{node_id}-Original File"
         if config['field_for_media_title']:
             media_name = node_csv_row[config['field_for_media_title']].replace(':', '_')
 
@@ -4335,7 +4335,7 @@ def check_file_exists(config, filename):
             return True
 
 
-def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
+def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id):
     """For remote/downloaded files, generates the path to the local temporary
        copy and returns that path. For local files, just returns the value of
        node_csv_row['file'].
@@ -4388,6 +4388,9 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
         if config['field_for_media_title']:
             filename =node_csv_row[config['field_for_media_title']]
             downloaded_file_path = os.path.join(subdir, filename)
+        if config['use_nid_in_media_title']:
+            filename = f"Original File-{node_id}"
+            downloaded_file_path = os.path.join(subdir, filename)
 
 
         if extension == '':
@@ -4421,7 +4424,7 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row):
         return file_path
 
 
-def download_remote_file(config, url, file_fieldname, node_csv_row):
+def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.get(url, allow_redirects=True, verify=config['secure_ssl_only'])
@@ -4440,7 +4443,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row):
         print('Error: ' + message)
         return False
 
-    downloaded_file_path = get_prepocessed_file_path(config, file_fieldname, node_csv_row)
+    downloaded_file_path = get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id)
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)
