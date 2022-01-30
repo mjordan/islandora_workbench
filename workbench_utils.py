@@ -34,224 +34,6 @@ checked_terms = list()
 newly_created_terms = list()
 
 
-def set_config_defaults(args):
-    """Convert the YAML configuration data into an array for easy use.
-       Also set some sensible default config values.
-    """
-    # Check existence of configuration file.
-    if not os.path.exists(args.config):
-        # Since the main logger gets its log file location from this file, we
-        # need to define a local logger to write to the default log file location,
-        # 'workbench.log'.
-        logging.basicConfig(
-            filename='workbench.log',
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%d-%b-%y %H:%M:%S')
-        message = 'Error: Configuration file "' + args.config + '" not found.'
-        logging.error(message)
-        sys.exit(message)
-
-    try:
-        with open(args.config, 'r') as f:
-            config_file_contents = f.read()
-            original_config_data = yaml.load(config_file_contents)
-            # Convert all keys to lower case.
-            config_data = collections.OrderedDict()
-            for k, v in original_config_data.items():
-                if isinstance(k, str):
-                    k = k.lower()
-                    config_data[k] = v
-    except YAMLError as e:
-        # Since the main logger gets its log file location from this file, we
-        # need to define a local logger to write to the default log file location,
-        # 'workbench.log'.
-        logging.basicConfig(
-            filename='workbench.log',
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%d-%b-%y %H:%M:%S')
-
-        message = 'Error: There appears to be a YAML syntax error with the configuration file "' + args.config + '".' + \
-            ' More detail is available in the Workbench log. If you use an online YAML validator to find the error,' + \
-            ' BE SURE to remove your Drupal hostname and user credentials first.'
-        logging.exception(message)
-        sys.exit(message)
-
-    config = {}
-    for k, v in config_data.items():
-        config[k] = v
-
-    # Add the location of the config file. We do not
-    # check for this in the config file itself.
-    if os.path.isabs(args.config):
-        config['config_file_path'] = args.config
-    else:
-        config['config_file_path'] = os.path.join(os.getcwd(), args.config)
-    # Set up defaults for some settings.
-    if 'input_dir' not in config:
-        config['input_dir'] = 'input_data'
-    if 'input_csv' not in config:
-        config['input_csv'] = 'metadata.csv'
-    if 'media_use_tid' not in config:
-        config['media_use_tid'] = 'http://pcdm.org/use#OriginalFile'
-    # @todo: remove 'drupal_filesystem' when Workbench drops support
-    # for create_islandora_media().
-    if 'drupal_filesystem' not in config:
-        config['drupal_filesystem'] = 'fedora://'
-    if 'id_field' not in config:
-        config['id_field'] = 'id'
-    if 'content_type' not in config:
-        config['content_type'] = 'islandora_object'
-    if 'delimiter' not in config:
-        config['delimiter'] = ','
-    if 'subdelimiter' not in config:
-        config['subdelimiter'] = '|'
-    if 'log_file_path' not in config:
-        config['log_file_path'] = 'workbench.log'
-    if 'log_file_mode' not in config:
-        config['log_file_mode'] = 'a'
-    if 'allow_missing_files' not in config:
-        config['allow_missing_files'] = False
-    if 'update_mode' not in config:
-        config['update_mode'] = 'replace'
-    if 'validate_title_length' not in config:
-        config['validate_title_length'] = True
-    if 'paged_content_from_directories' not in config:
-        config['paged_content_from_directories'] = False
-    if 'delete_media_with_nodes' not in config:
-        config['delete_media_with_nodes'] = True
-    if 'allow_adding_terms' not in config:
-        config['allow_adding_terms'] = False
-    if 'nodes_only' not in config:
-        config['nodes_only'] = False
-    if 'log_request_url' not in config:
-        config['log_request_url'] = False
-    if 'log_json' not in config:
-        config['log_json'] = False
-    if 'log_response_body' not in config:
-        config['log_response_body'] = False
-    if 'log_response_status_code' not in config:
-        config['log_response_status_code'] = False
-    if 'log_headers' not in config:
-        config['log_headers'] = False
-    if 'progress_bar' not in config:
-        config['progress_bar'] = False
-    if 'user_agent' not in config:
-        config['user_agent'] = 'Islandora Workbench'
-    if 'allow_redirects' not in config:
-        config['allow_redirects'] = True
-    if 'secure_ssl_only' not in config:
-        config['secure_ssl_only'] = True
-    if 'google_sheets_csv_filename' not in config:
-        config['google_sheets_csv_filename'] = 'google_sheet.csv'
-    if 'google_sheets_gid' not in config:
-        config['google_sheets_gid'] = '0'
-    if 'excel_worksheet' not in config:
-        config['excel_worksheet'] = 'Sheet1'
-    if 'excel_csv_filename' not in config:
-        config['excel_csv_filename'] = 'excel.csv'
-    if 'ignore_csv_columns' not in config:
-        config['ignore_csv_columns'] = list()
-    if 'use_node_title_for_media' not in config:
-        config['use_node_title_for_media'] = False
-    if 'use_node_title_for_media_title' not in config:
-        config['use_node_title_for_media_title'] = True
-    if 'delete_tmp_upload' not in config:
-        config['delete_tmp_upload'] = False
-    if 'list_missing_drupal_fields' not in config:
-        config['list_missing_drupal_fields'] = False
-    if 'secondary_tasks' not in config:
-        config['secondary_tasks'] = None
-    if 'secondary_tasks_data_file' not in config:
-        config['secondary_tasks_data_file'] = 'id_to_node_map.tsv'
-    if 'fixity_algorithm' not in config:
-        config['fixity_algorithm'] = None
-    if 'validate_fixity_during_check' not in config:
-        config['validate_fixity_during_check'] = False
-    if 'output_csv_include_input_csv' not in config:
-        config['output_csv_include_input_csv'] = False
-    if 'timestamp_rollback' not in config:
-        config['timestamp_rollback'] = False
-    if 'enable_http_cache' not in config:
-        config['enable_http_cache'] = True
-    if 'validate_terms_exist' not in config:
-        config['validate_terms_exist'] = True
-    # Used for integration tests only, in which case it will either be True or False.
-    if 'drupal_8' not in config:
-        config['drupal_8'] = None
-
-    if config['task'] == 'create':
-        if 'id_field' not in config:
-            config['id_field'] = 'id'
-    if config['task'] == 'add_media':
-        if 'id_field' not in config:
-            config['id_field'] = 'node_id'
-    if config['task'] == 'create' or config['task'] == 'create_from_files':
-        if 'published' not in config:
-            config['published'] = 1
-
-    if config['task'] == 'create' or config['task'] == 'add_media' or config['task'] == 'create_from_files':
-        if 'preprocessors' in config_data:
-            config['preprocessors'] = {}
-            for preprocessor in config_data['preprocessors']:
-                for key, value in preprocessor.items():
-                    config['preprocessors'][key] = value
-
-        if 'media_types' not in config:
-            config['media_types'] = []
-            image = collections.OrderedDict({'image': ['png', 'gif', 'jpg', 'jpeg']})
-            config['media_types'].append(image)
-            document = collections.OrderedDict({'document': ['pdf', 'doc', 'docx', 'ppt', 'pptx']})
-            config['media_types'].append(document)
-            file = collections.OrderedDict({'file': ['tif', 'tiff', 'jp2', 'zip', 'tar']})
-            config['media_types'].append(file)
-            audio = collections.OrderedDict({'audio': ['mp3', 'wav', 'aac']})
-            config['media_types'].append(audio)
-            video = collections.OrderedDict({'video': ['mp4']})
-            config['media_types'].append(video)
-            extracted_text = collections.OrderedDict({'extracted_text': ['txt']})
-            config['media_types'].append(extracted_text)
-
-        # Set config['media_bundle_file_fields']. If 'media_fields' option is present in
-        # the config file, determine which field to use for the file, per media bundle.
-        # Note that 'media_file_fields' is the option used in the config file, and that
-        # config['media_bundle_file_fields'] is the internal name of the setting.
-        media_fields = dict({
-            'file': 'field_media_file',
-            'document': 'field_media_document',
-            'image': 'field_media_image',
-            'audio': 'field_media_audio_file',
-            'video': 'field_media_video_file',
-            'extracted_text': 'field_media_file',
-            'fits_technical_metadata': 'field_media_file'
-        })
-        if 'media_file_fields' in config:
-            for media_field in config['media_file_fields']:
-                for media_type, media_field in media_field.items():
-                    media_fields[media_type] = media_field
-        else:
-            config['media_fields'] = media_fields
-
-        config['media_bundle_file_fields'] = media_fields
-
-    if config['task'] == 'create':
-        if 'paged_content_sequence_seprator' not in config:
-            config['paged_content_sequence_seprator'] = '-'
-        if 'paged_content_page_content_type' not in config:
-            config['paged_content_page_content_type'] = config['content_type']
-
-    if args.check:
-        config['check'] = True
-    else:
-        config['check'] = False
-
-    if args.get_csv_template:
-        config['get_csv_template'] = True
-    else:
-        config['get_csv_template'] = False
-
-    return config
-
-
 def set_media_type(config, filepath, file_fieldname, csv_row):
     """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from
@@ -1534,7 +1316,7 @@ def check_input(config, args):
                     ' is empty; is that intentional?')
                 logging.warning('Page directory ' + dir_path + ' is empty.')
             for page_file_name in page_files:
-                if config['paged_content_sequence_seprator'] not in page_file_name:
+                if config['paged_content_sequence_separator'] not in page_file_name:
                     message = 'Page file ' + os.path.join(
                         dir_path,
                         page_file_name) + ' does not contain a sequence separator (' + config['paged_content_sequence_seprator'] + ').'
@@ -4042,14 +3824,14 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
     # id, and a config-defined Islandora model. Content type and status are inherited
     # as is from parent. The weight assigned to the page is the last segment in the filename,
     # split from the rest of the filename using the character defined in the
-    # 'paged_content_sequence_seprator' config option.
+    # 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config['id_field']]
     page_dir_path = os.path.join(config['input_dir'], parent_id)
     page_files = os.listdir(page_dir_path)
     page_file_return_dict = dict()
     for page_file_name in page_files:
         filename_without_extension = os.path.splitext(page_file_name)[0]
-        filename_segments = filename_without_extension.split(config['paged_content_sequence_seprator'])
+        filename_segments = filename_without_extension.split(config['paged_content_sequence_separator'])
         weight = filename_segments[-1]
         weight = weight.lstrip("0")
         # @todo: come up with a templated way to generate the page_identifier,
