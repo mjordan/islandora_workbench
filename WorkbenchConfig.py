@@ -4,6 +4,7 @@ import logging
 from ruamel.yaml import YAML
 import os
 import sys
+from workbench_utils import *
 
 
 class WorkbenchConfig:
@@ -11,6 +12,7 @@ class WorkbenchConfig:
         self.args = args
         self.path_check()
         self.config = self.get_config()
+        self.validate()
         logging.basicConfig(
             filename=self.config['log_file_path'],
             level=logging.INFO,
@@ -149,3 +151,12 @@ class WorkbenchConfig:
             message = 'Error: Configuration file "' + self.args.config + '" not found.'
             logging.error(message)
             sys.exit(message)
+
+    def validate(self):
+        error_messages = []
+        type_check = issue_request(self.config, 'GET', f"{self.config['host']}/admin/structure/types/manage/{self.config['content_type']}")
+        if type_check.status_code == 404:
+            message = f"Content type {self.config['content_type']} not defined on {self.config['host']}."
+            error_messages.append(message)
+        if error_messages:
+           sys.exit('Error: ' + message)
