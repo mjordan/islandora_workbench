@@ -33,6 +33,7 @@ http.client._MAXHEADERS = 10000
 checked_terms = list()
 newly_created_terms = list()
 
+
 def set_media_type(config, filepath, file_fieldname, csv_row):
     """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from

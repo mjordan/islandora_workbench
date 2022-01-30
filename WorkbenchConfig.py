@@ -5,6 +5,8 @@ from ruamel.yaml import YAML
 import os
 import sys
 from workbench_utils import *
+from rich.console import Console
+from rich.table import Table
 
 
 class WorkbenchConfig:
@@ -61,6 +63,7 @@ class WorkbenchConfig:
             loaded['config_file_path'] = os.path.join(os.getcwd(), self.args.config)
         return loaded
 
+    # Returns standard media fields
     def get_media_fields(self):
         return dict({
             'file': 'field_media_file',
@@ -72,6 +75,7 @@ class WorkbenchConfig:
             'fits_technical_metadata': 'field_media_file'
         })
 
+    # Returns standard media extensions for given media type.
     def get_media_types(self):
         return [
             {'image': ['png', 'gif', 'jpg', 'jpeg']},
@@ -82,6 +86,7 @@ class WorkbenchConfig:
             {'extracted_text': ['txt']}
         ]
 
+    # Returns default configs, to be updated by user-supplied config.
     def get_default_config(self):
         return {
             'input_dir': 'input_data',
@@ -138,6 +143,7 @@ class WorkbenchConfig:
             'media_fields': self.get_media_fields(),
         }
 
+    # Tests validity and existence of path.
     def path_check(self):
         # Check existence of configuration file.
         if not os.path.exists(self.args.config):
@@ -152,11 +158,23 @@ class WorkbenchConfig:
             logging.error(message)
             sys.exit(message)
 
+    # Validates config.
     def validate(self):
         error_messages = []
-        type_check = issue_request(self.config, 'GET', f"{self.config['host']}/admin/structure/types/manage/{self.config['content_type']}")
+        type_check = issue_request(self.config, 'GET',
+                                   f"{self.config['host']}/admin/structure/types/manage/{self.config['content_type']}")
         if type_check.status_code == 404:
             message = f"Content type {self.config['content_type']} not defined on {self.config['host']}."
             error_messages.append(message)
         if error_messages:
-           sys.exit('Error: ' + message)
+            sys.exit('Error: ' + message)
+
+    # Convenience function for debugging - Prints config to console screen.
+    def print_config(self):
+        table = Table(title="Workbench Configuration")
+        table.add_column("Parameter", justify="left")
+        table.add_column("Total", justify="left")
+        for key, value in self.config.items():
+            table.add_row(key, str(value))
+        console = Console()
+        console.print(table)
