@@ -19,6 +19,7 @@ from workbench_utils import *
 import workbench_fields
 from WorkbenchConfig import WorkbenchConfig
 
+
 def create():
     """Create new nodes via POST, and add media if there are any.
     """
