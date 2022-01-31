@@ -1,4 +1,4 @@
 task: create
-host: "https://islandora.traefik.me"
+host: "http://localhost:8000"
 username: admin
-password: elmwood
+password: islandora
