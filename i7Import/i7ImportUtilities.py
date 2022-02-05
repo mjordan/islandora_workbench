@@ -6,6 +6,8 @@ import logging
 import xml.etree.ElementTree as ET
 import sys
 import os
+from rich.console import Console
+from rich.table import Table
 
 class i7ImportUtilities:
 
@@ -36,7 +38,8 @@ class i7ImportUtilities:
         'id_field': 'PID',
         'id_start_number': 1,
         'get_file_url': False,
-        'datastreams': ['OBJ', 'PDF']
+        'datastreams': ['OBJ', 'PDF'],
+        'debug': False
     }
 
     def get_config(self):
@@ -156,3 +159,13 @@ class i7ImportUtilities:
         except requests.exceptions.RequestException as e:
             logging.info(e)
             return None
+
+    # Convenience function for debugging - Prints config to console screen.
+    def print_config(self):
+        table = Table(title="i7 Import Script Configuration")
+        table.add_column("Parameter", justify="left")
+        table.add_column("Value", justify="left")
+        for key, value in self.config.items():
+            table.add_row(key, str(value))
+        console = Console()
+        console.print(table)

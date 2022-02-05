@@ -41,6 +41,9 @@ if args.metadata_solr_request:
     metadata_solr_request = utils.get_metadata_solr_request(args.metadata_solr_request)
 else:
     metadata_solr_request = utils.get_default_metadata_solr_request()
+if config['debug']:
+    print(f"Solr Request:\n{metadata_solr_request}")
+    utils.print_config()
 
 try:
     metadata_solr_response = requests.get(url=metadata_solr_request, allow_redirects=True)
