@@ -4,12 +4,15 @@ import requests
 import re
 import logging
 import xml.etree.ElementTree as ET
+import sys
+import os
 
 class i7ImportUtilities:
 
     def __init__(self, config_location):
         self.config_location = config_location
         self.config = self.get_config()
+        self.validate()
         logging.basicConfig(
             filename=self.config['log_file_path'],
             level=logging.INFO,
@@ -31,7 +34,9 @@ class i7ImportUtilities:
         'field_pattern': 'mods_.*(_s|_ms)$',
         'field_pattern_do_not_want': '(marcrelator|isSequenceNumberOf)',
         'id_field': 'PID',
-        'id_start_number': 1
+        'id_start_number': 1,
+        'get_file_url': False,
+        'datastreams': ['OBJ', 'PDF']
     }
 
     def get_config(self):
@@ -40,10 +45,12 @@ class i7ImportUtilities:
         with open(self.config_location, 'r') as stream:
             try:
                 loaded = yaml.load(stream)
-            except yaml.YAMLError as exc:
-                print(exc)
+            except OSError:
+                print('Failed')
         for key, value in loaded.items():
             config[key] = value
+        if 'get_file_url' in loaded.keys() and 'fetch_files' not in loaded.keys():
+            config['fetch_files'] = False
         return config
 
     def get_metadata_solr_request(self, location):
@@ -113,3 +120,39 @@ class i7ImportUtilities:
 
         # Get the populated CSV from Solr, with the object namespace and field list filters applied.
         return f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
+
+    # Validates config.
+    def validate(self):
+        error_messages = []
+        if self.config['get_file_url'] and self.config['fetch_files']:
+            message = f"'get_file_url' and 'fetch_files' cannot both be selected."
+            error_messages.append(message)
+        if error_messages:
+            sys.exit('Error: ' + message)
+
+    # Gets file from i7 installation
+    def get_i7_asset(self, pid, datastream):
+        try:
+            obj_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/{datastream}/download"
+            obj_download_response = requests.get(url=obj_url, allow_redirects=True)
+            if obj_download_response.status_code == 200:
+                # Get MIMETYPE from 'Content-Type' header
+                obj_mimetype = obj_download_response.headers['content-type']
+                obj_extension = self.get_extension_from_mimetype(obj_mimetype)
+                if self.config['fetch_files'] and obj_extension:
+                    obj_filename = pid.replace(':', '_')
+                    obj_basename = obj_filename + obj_extension
+                    # Save to file with name based on PID and extension based on MIMETYPE
+                    obj_file_path = os.path.join(self.config['obj_directory'], obj_basename)
+                    open(obj_file_path, 'wb+').write(obj_download_response.content)
+                    return obj_basename
+
+                if self.config['get_file_url'] and obj_extension:
+                    return obj_url
+                if obj_download_response.status_code == 404:
+                    logging.warning(f"{obj_url} not found.")
+                    return None
+
+        except requests.exceptions.RequestException as e:
+            logging.info(e)
+            return None

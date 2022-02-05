@@ -47,7 +47,7 @@ try:
 except requests.exceptions.RequestException as e:
     raise SystemExit(e)
 if not metadata_solr_response.ok:
-    print ("Illegal request - the default query may be too long for a url request.  See docs")
+    print("Illegal request - the default query may be too long for a url request.  See docs")
     sys.exit()
 rows = metadata_solr_response.content.decode().splitlines()
 reader = csv.DictReader(rows)
@@ -72,35 +72,22 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
     writer.writeheader()
     for row in reader:
         rels_ext = utils.parse_rels_ext(row['PID'])
-        for key,value in rels_ext.items():
+        for key, value in rels_ext.items():
             if 'isSequenceNumber' in key:
                 row['sequence'] = str(value)
-        if config['fetch_files'] is True:
+        if config['fetch_files'] or config['get_file_url']:
             obj_url = f"{config['islandora_base_url']}/islandora/object/{row['PID']}/datastream/OBJ/download"
             row_count += 1
             row_position = utils.get_percentage(row_count, num_csv_rows)
             pbar(row_position)
-            try:
-                obj_download_response = requests.get(url=obj_url, allow_redirects=True)
-                if obj_download_response.status_code == 200:
-                    # Get MIMETYPE from 'Content-Type' header
-                    obj_mimetype = obj_download_response.headers['content-type']
-                    obj_extension = utils.get_extension_from_mimetype(obj_mimetype)
-                    obj_filename = row['PID'].replace(':', '_')
-                    obj_basename = obj_filename + obj_extension
-                    # Save to file with name based on PID and extension based on MIMETYPE
-                    obj_file_path = os.path.join(config['obj_directory'], obj_basename)
-                    open(obj_file_path, 'wb+').write(obj_download_response.content)
-                    row['file'] = obj_basename
-                if obj_download_response.status_code == 404:
-                    logging.warning(f"{obj_url} not found.")
+            for datastream in config['datastreams']:
+                file = utils.get_i7_asset(row['PID'], datastream)
+                if file:
+                    row['file'] = file
+                    break
 
-            except requests.exceptions.RequestException as e:
-                logging.info(e)
-                continue
-
-            if config['id_field'] in headers:
-                row[config['id_field']] = index + reader.line_num - 2
-            writer.writerow(row)
+        if config['id_field'] in headers:
+            row[config['id_field']] = index + reader.line_num - 2
+        writer.writerow(row)
 
 pbar(100)
