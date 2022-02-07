@@ -83,7 +83,7 @@ class i7ImportUtilities:
             print(rels_ext_url)
         try:
             rels_ext_download_response = requests.get(url=rels_ext_url, allow_redirects=True)
-            if rels_ext_download_response.status_code == 200:
+            if rels_ext_download_response.ok:
                 rel_ext = {}
                 rels_ext_xml = rels_ext_download_response.content.decode()
                 if self.config['deep_debug']:
