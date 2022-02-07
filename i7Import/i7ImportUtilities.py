@@ -79,11 +79,15 @@ class i7ImportUtilities:
 
     def parse_rels_ext(self, pid):
         rels_ext_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/RELS-EXT/download"
+        if self.config['deep_debug']:
+            print(rels_ext_url)
         try:
             rels_ext_download_response = requests.get(url=rels_ext_url, allow_redirects=True)
             if rels_ext_download_response.status_code == 200:
                 rel_ext = {}
                 rels_ext_xml = rels_ext_download_response.content.decode()
+                if self.config['deep_debug']:
+                    print(rels_ext_xml)
                 root = ET.fromstring(rels_ext_xml)
                 description = root.find('.//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description')
                 for x in description:
@@ -94,6 +98,8 @@ class i7ImportUtilities:
                         text = text[text.find('/') + 1:]
                     rel_ext[tag] = text
                 return rel_ext
+            else:
+                print(f"Bad response from server: {rels_ext_download_response.status_code}")
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
 
