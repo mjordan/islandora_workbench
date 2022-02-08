@@ -42,7 +42,8 @@ if args.metadata_solr_request:
 else:
     metadata_solr_request = utils.get_default_metadata_solr_request()
 if config['debug']:
-    print(f"Solr Request: {len(metadata_solr_request)} characters long.  A maximum of 2000 characters is recommended.\n{metadata_solr_request}")
+    print(
+        f"Solr Request: {len(metadata_solr_request)} characters long.  A maximum of 2000 characters is recommended.\n{metadata_solr_request}")
     utils.print_config()
 
 try:
@@ -100,8 +101,7 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
         for pid in failed_pids:
             output += f"{pid}\n"
         print(output)
-    with open("failure_report.txt", "w") as f:
-        f.write(output)
-
+        with open("failure_report.txt", "w") as f:
+            f.write(output)
 
 pbar(100)
