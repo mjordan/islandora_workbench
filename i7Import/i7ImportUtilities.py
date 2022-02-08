@@ -9,6 +9,7 @@ import os
 from rich.console import Console
 from rich.table import Table
 
+
 class i7ImportUtilities:
 
     def __init__(self, config_location):
@@ -27,8 +28,10 @@ class i7ImportUtilities:
         'islandora_base_url': 'http://localhost:8000',
         'csv_output_path': 'islandora7_metadata.csv',
         'obj_directory': '/tmp/objs',
+        'failure_report': 'failure_report.txt',
         'log_file_path': 'islandora_content.log',
         'fetch_files': True,
+        'get_file_url': False,
         'namespace': '*',
         'standard_fields': ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms',
                             'RELS_EXT_isMemberOf_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms',
@@ -37,9 +40,9 @@ class i7ImportUtilities:
         'field_pattern_do_not_want': '(marcrelator|isSequenceNumberOf)',
         'id_field': 'PID',
         'id_start_number': 1,
-        'get_file_url': False,
         'datastreams': ['OBJ', 'PDF'],
-        'debug': False
+        'debug': False,
+        'deep_debug': False
     }
 
     def get_config(self):
@@ -54,6 +57,8 @@ class i7ImportUtilities:
             config[key] = value
         if 'get_file_url' in loaded.keys() and 'fetch_files' not in loaded.keys():
             config['fetch_files'] = False
+        if config['deep_debug']:
+            config['debug'] = True
         return config
 
     def get_metadata_solr_request(self, location):
@@ -80,7 +85,7 @@ class i7ImportUtilities:
     def parse_rels_ext(self, pid):
         rels_ext_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/RELS-EXT/download"
         if self.config['deep_debug']:
-            print(rels_ext_url)
+            print(f"\n{rels_ext_url}")
         try:
             rels_ext_download_response = requests.get(url=rels_ext_url, allow_redirects=True)
             if rels_ext_download_response.ok:
@@ -99,14 +104,13 @@ class i7ImportUtilities:
                     rel_ext[tag] = text
                 return rel_ext
             else:
-                print(f"Bad response from server: {rels_ext_download_response.status_code}")
+                print(f"\nBad response from server: {rels_ext_download_response.status_code}")
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
 
     def get_default_metadata_solr_request(self):
         # This query gets all fields in the index. Does not need to be user-configurable.
-        fields_solr_query = '/select?q=*:*&wt=csv&rows=0&fl=*'
-        fields_solr_url = f"{self.config['solr_base_url']}{fields_solr_query}"
+        fields_solr_url = f"{self.config['solr_base_url']}/select?q=*:*&wt=csv&rows=0&fl=*"
 
         # Get the complete field list from Solr and filter it. The filtered field list is
         # then used in another query to get the populated CSV data.

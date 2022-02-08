@@ -173,7 +173,7 @@ class WorkbenchConfig:
     def print_config(self):
         table = Table(title="Workbench Configuration")
         table.add_column("Parameter", justify="left")
-        table.add_column("Total", justify="left")
+        table.add_column("Value", justify="left")
         for key, value in self.config.items():
             table.add_row(key, str(value))
         console = Console()

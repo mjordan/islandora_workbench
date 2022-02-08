@@ -42,7 +42,7 @@ if args.metadata_solr_request:
 else:
     metadata_solr_request = utils.get_default_metadata_solr_request()
 if config['debug']:
-    print(f"Solr Request:\n{metadata_solr_request}")
+    print(f"Solr Request: {len(metadata_solr_request)} characters long.  A maximum of 2000 characters is recommended.\n{metadata_solr_request}")
     utils.print_config()
 
 try:
@@ -73,13 +73,16 @@ num_csv_rows = len(rows)
 with open(config['csv_output_path'], 'w', newline='') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=headers)
     writer.writeheader()
+    failed_pids = []
     for row in reader:
         rels_ext = utils.parse_rels_ext(row['PID'])
-        for key, value in rels_ext.items():
-            if 'isSequenceNumber' in key:
-                row['sequence'] = str(value)
+        if rels_ext:
+            for key, value in rels_ext.items():
+                if 'isSequenceNumber' in key:
+                    row['sequence'] = str(value)
+        else:
+            failed_pids.append(row['PID'])
         if config['fetch_files'] or config['get_file_url']:
-            obj_url = f"{config['islandora_base_url']}/islandora/object/{row['PID']}/datastream/OBJ/download"
             row_count += 1
             row_position = utils.get_percentage(row_count, num_csv_rows)
             pbar(row_position)
@@ -92,5 +95,13 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
         if config['id_field'] in headers:
             row[config['id_field']] = index + reader.line_num - 2
         writer.writerow(row)
+    if failed_pids:
+        output = 'The following PIDS returned no data:\n'
+        for pid in failed_pids:
+            output += f"{pid}\n"
+        print(output)
+    with open("failure_report.txt", "w") as f:
+        f.write(output)
+
 
 pbar(100)
