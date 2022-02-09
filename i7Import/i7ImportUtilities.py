@@ -104,7 +104,10 @@ class i7ImportUtilities:
                     rel_ext[tag] = text
                 return rel_ext
             else:
-                print(f"\nBad response from server: {rels_ext_download_response.status_code}")
+                message = f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}"
+                logging.error(f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}")
+                if self.config['debug']:
+                    print(message)
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
 
