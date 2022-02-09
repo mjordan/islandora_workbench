@@ -42,8 +42,6 @@ if args.metadata_solr_request:
 else:
     metadata_solr_request = utils.get_default_metadata_solr_request()
 if config['debug']:
-    print(
-        f"Solr Request: {len(metadata_solr_request)} characters long.  A maximum of 2000 characters is recommended.\n{metadata_solr_request}")
     utils.print_config()
 
 try:
@@ -51,7 +49,10 @@ try:
 except requests.exceptions.RequestException as e:
     raise SystemExit(e)
 if not metadata_solr_response.ok:
-    print("Illegal request - the default query may be too long for a url request.  See docs")
+    warning = ''
+    if len(metadata_solr_request) > 2000:
+        warning = 'The default query may be too long for a url request.  See docs'
+    print(f"Illegal request: Server returned status of {metadata_solr_response.status_code} \n{warning} ")
     sys.exit()
 rows = metadata_solr_response.content.decode().splitlines()
 reader = csv.DictReader(rows)
