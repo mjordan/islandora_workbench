@@ -47,6 +47,7 @@ if config['debug']:
 try:
     metadata_solr_response = requests.get(url=metadata_solr_request, allow_redirects=True)
 except requests.exceptions.RequestException as e:
+    logging.info("Solr Query failed.")
     raise SystemExit(e)
 if not metadata_solr_response.ok:
     warning = ''
@@ -55,6 +56,7 @@ if not metadata_solr_response.ok:
     print(f"Illegal request: Server returned status of {metadata_solr_response.status_code} \n{warning} ")
     sys.exit()
 rows = metadata_solr_response.content.decode().splitlines()
+logging.info(f"Processing {len(rows)} items.")
 reader = csv.DictReader(rows)
 headers = reader.fieldnames
 # We add a 'sequence' column to store the Islandora 7.x property "isSequenceNumberOfxxx"/"isSequenceNumber".
@@ -84,6 +86,8 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
                     row['sequence'] = str(value)
         else:
             failed_pids.append(row['PID'])
+            logging.error(f"{row['PID']} was unsuccessful.")
+            continue
         if config['fetch_files'] or config['get_file_url']:
             row_count += 1
             row_position = utils.get_percentage(row_count, num_csv_rows)
