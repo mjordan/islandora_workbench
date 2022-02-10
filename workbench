@@ -697,12 +697,15 @@ def update():
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
+            temp_field = []
+            added = []
+            if custom_field in node.keys():
+                for entry in node[custom_field]:
+                    if int(entry['target_id']) not in added:
+                        temp_field.append(entry)
+                        added.append(entry['target_id'])
+                node[custom_field] = temp_field
         node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
-        temp_field = []
-        for entry in node[custom_field]:
-            if entry['target_id'] not in invalid_target_ids:
-                temp_field.append(entry)
-        node[custom_field] = temp_field
         node_headers = {'Content-Type': 'application/json'}
         node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
