@@ -106,7 +106,7 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
         for pid in failed_pids:
             output += f"{pid}\n"
         print(output)
-        with open("failure_report.txt", "w") as f:
-            f.write(output)
-
+        if config['debug']:
+            with open("failure_report.txt", "w") as f:
+                f.write(output)
 pbar(100)
