@@ -57,6 +57,7 @@ class WorkbenchConfig:
                 for media_type, media_field in media_field.items():
                     media_fields[media_type] = media_field
             loaded['media_fields'] = media_fields
+            loaded['media_bundle_file_fields'] = media_fields
         if os.path.isabs(self.args.config):
             loaded['config_file_path'] = self.args.config
         else:
