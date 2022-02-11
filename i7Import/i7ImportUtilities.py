@@ -42,7 +42,9 @@ class i7ImportUtilities:
         'id_start_number': 1,
         'datastreams': ['OBJ', 'PDF'],
         'debug': False,
-        'deep_debug': False
+        'deep_debug': False,
+        'collection': False,
+        'content_model': False
     }
 
     def get_config(self):
@@ -133,9 +135,17 @@ class i7ImportUtilities:
         for standard_field in self.config['standard_fields']:
             filtered_field_list.insert(0, standard_field)
         fields_param = ','.join(filtered_field_list)
+        collection_filter = ''
+        model_filter = ''
+        if self.config['collection']:
+            collection = self.config['collection']
+            collection_filter = f'&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
+        if self.config['content_model']:
+            model = self.config['content_model']
+            model_filter = f'&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
 
         # Get the populated CSV from Solr, with the object namespace and field list filters applied.
-        return f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
+        return f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}{collection_filter}{model_filter}"
 
     # Validates config.
     def validate(self):
@@ -150,7 +160,10 @@ class i7ImportUtilities:
     def get_i7_asset(self, pid, datastream):
         try:
             obj_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/{datastream}/download"
-            obj_download_response = requests.get(url=obj_url, allow_redirects=True)
+            if self.config['get_file_url']:
+                obj_download_response = requests.head(url=obj_url, allow_redirects=True)
+            else:
+                obj_download_response = requests.get(url=obj_url, allow_redirects=True)
             if obj_download_response.status_code == 200:
                 # Get MIMETYPE from 'Content-Type' header
                 obj_mimetype = obj_download_response.headers['content-type']
