@@ -44,7 +44,8 @@ class i7ImportUtilities:
         'debug': False,
         'deep_debug': False,
         'collection': False,
-        'content_model': False
+        'content_model': False,
+        'solr_filters': False
     }
 
     def get_config(self):
@@ -135,17 +136,20 @@ class i7ImportUtilities:
         for standard_field in self.config['standard_fields']:
             filtered_field_list.insert(0, standard_field)
         fields_param = ','.join(filtered_field_list)
-        collection_filter = ''
-        model_filter = ''
+        query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
         if self.config['collection']:
             collection = self.config['collection']
-            collection_filter = f'&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
+            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
         if self.config['content_model']:
             model = self.config['content_model']
-            model_filter = f'&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
+            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
+        if self.config['solr_filters']:
+            for filter in self.config['solr_filters']:
+                for key, value in filter.items():
+                    query = f'{query}&fq={key}:"{value}"'
 
         # Get the populated CSV from Solr, with the object namespace and field list filters applied.
-        return f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}{collection_filter}{model_filter}"
+        return query
 
     # Validates config.
     def validate(self):
