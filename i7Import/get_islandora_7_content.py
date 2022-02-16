@@ -87,6 +87,7 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
             for key, value in rels_ext.items():
                 if 'isSequenceNumber' in key:
                     row['sequence'] = str(value)
+            content_model = rels_ext.get('hasModel')
         else:
             failed_pids.append(row['PID'])
             logging.error(f"{row['PID']} was unsuccessful.")
@@ -95,11 +96,14 @@ with open(config['csv_output_path'], 'w', newline='') as csvfile:
             row_count += 1
             row_position = utils.get_percentage(row_count, num_csv_rows)
             pbar(row_position)
-            for datastream in config['datastreams']:
-                file = utils.get_i7_asset(row['PID'], datastream)
-                if file:
-                    row['file'] = file
-                    break
+            datastream = 'OBJ'
+            if content_model == 'islandora:sp_pdf':
+                datastream = 'PDF'
+            if config['datastreams'].get(content_model):
+                datastream = config['datastreams'][content_model]
+            file = utils.get_i7_asset(row['PID'], datastream)
+            if file:
+                row['file'] = file
 
         if config['id_field'] in headers:
             row[config['id_field']] = index + reader.line_num - 2

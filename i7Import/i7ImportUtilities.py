@@ -40,7 +40,7 @@ class i7ImportUtilities:
         'field_pattern_do_not_want': '(marcrelator|isSequenceNumberOf)',
         'id_field': 'PID',
         'id_start_number': 1,
-        'datastreams': ['OBJ', 'PDF'],
+        'datastreams': False,
         'debug': False,
         'deep_debug': False,
         'collection': False,
@@ -168,6 +168,9 @@ class i7ImportUtilities:
                 obj_download_response = requests.head(url=obj_url, allow_redirects=True)
             else:
                 obj_download_response = requests.get(url=obj_url, allow_redirects=True)
+            if obj_download_response.status_code != 200:
+                logging.warning(f"{obj_url} not found.")
+
             if obj_download_response.status_code == 200:
                 # Get MIMETYPE from 'Content-Type' header
                 obj_mimetype = obj_download_response.headers['content-type']
@@ -179,6 +182,7 @@ class i7ImportUtilities:
                     obj_file_path = os.path.join(self.config['obj_directory'], obj_basename)
                     open(obj_file_path, 'wb+').write(obj_download_response.content)
                     return obj_basename
+
 
                 if self.config['get_file_url'] and obj_extension:
                     return obj_url
