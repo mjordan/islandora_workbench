@@ -40,7 +40,7 @@ class i7ImportUtilities:
         'field_pattern_do_not_want': '(marcrelator|isSequenceNumberOf)',
         'id_field': 'PID',
         'id_start_number': 1,
-        'datastreams': False,
+        'datastreams': {},
         'debug': False,
         'deep_debug': False,
         'collection': False,
