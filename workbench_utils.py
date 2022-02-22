@@ -4121,7 +4121,7 @@ def check_file_exists(config, filename):
             return True
 
 
-def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id):
+def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id = None):
     """For remote/downloaded files, generates the path to the local temporary
        copy and returns that path. For local files, just returns the value of
        node_csv_row['file'].
