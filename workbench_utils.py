@@ -4040,6 +4040,7 @@ def get_extension_from_mimetype(mimetype):
            'image/jp2': '.jp2',
            'image/png': '.png',
            'audio/mpeg': '.mp3',
+           'audio/mp3': '.mp3',
            'text/plain': '.txt',
            'application/octet-stream': '.bin'
            }
