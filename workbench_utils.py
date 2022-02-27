@@ -2003,7 +2003,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_bundle_response_code = ping_media_bundle(config, media_type)
         if media_bundle_response_code == 404:
-            message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+            message = 'File "' + node_csv_row[file_fieldname] + '" identified in CSV row ' + node_csv_row[config['id_field']] + \
                 ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
             logging.error(message)
             return False
@@ -4032,22 +4032,19 @@ def get_csv_from_excel(config):
     csv_writer_file_handle.close()
 
 
-def get_extension_from_mimetype(mimetype):
+def get_extension_from_mimetype(config, mimetype):
     # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
     # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
     # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
-    map = {'image/jpeg': '.jpg',
-           'image/jp2': '.jp2',
-           'image/png': '.png',
-           'audio/mpeg': '.mp3',
-           'audio/mp3': '.mp3',
-           'text/plain': '.txt',
-           'application/octet-stream': '.bin'
-           }
+    map = config['mimetype_extensions']
     if mimetype in map:
         return map[mimetype]
     else:
-        return mimetypes.guess_extension(mimetype)
+        extension = mimetypes.guess_extension(mimetype)
+        if (extension):
+            return mimetypes.guess_extension(mimetype)
+        else:
+            print (f"There is no mapping available for  {mimetype}")
 
 
 def get_deduped_file_path(path):
@@ -4194,7 +4191,7 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id = No
             except KeyError:
                 mimetype = 'application/octet-stream'
 
-            extension_with_dot = get_extension_from_mimetype(mimetype)
+            extension_with_dot = get_extension_from_mimetype(config, mimetype)
             downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
 
             # Check to see if a file with this path already exists; if so, insert an
