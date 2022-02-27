@@ -4044,7 +4044,7 @@ def get_extension_from_mimetype(config, mimetype):
         if (extension):
             return mimetypes.guess_extension(mimetype)
         else:
-            print (f"There is no mapping available for  {mimetype}")
+            print(f"There is no mapping available for  {mimetype}")
 
 
 def get_deduped_file_path(path):
@@ -4119,7 +4119,7 @@ def check_file_exists(config, filename):
             return True
 
 
-def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id = None):
+def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id=None):
     """For remote/downloaded files, generates the path to the local temporary
        copy and returns that path. For local files, just returns the value of
        node_csv_row['file'].
