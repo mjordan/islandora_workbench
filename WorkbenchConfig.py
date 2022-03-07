@@ -204,6 +204,11 @@ class WorkbenchConfig:
         table.add_column("Parameter", justify="left")
         table.add_column("Value", justify="left")
         for key, value in self.config.items():
+            if str(type(value)) == '<class \'ruamel.yaml.comments.CommentedMap\'>':
+                new_value = ''
+                for k, v in value.items():
+                    new_value += f"{k}: {v}\n"
+                value = new_value
             table.add_row(key, str(value))
         console = Console()
         console.print(table)
