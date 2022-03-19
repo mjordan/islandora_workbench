@@ -2020,7 +2020,11 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                     logging.warning(message)
                     media_name = os.path.basename(filename)
         if config['use_nid_in_media_title']:
-            media_name = f"{node_id}-Original File"
+            if file_fieldname == 'file':
+                identifier = 'Original File'
+            else:
+                identifier = file_fieldname
+            media_name = f"{node_id}-{identifier}"
         if config['field_for_media_title']:
             media_name = node_csv_row[config['field_for_media_title']].replace(':', '_')
         media_json = {
@@ -4175,7 +4179,11 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id=None
             downloaded_file_path = os.path.join(subdir, filename)
 
         if config['use_nid_in_media_title']:
-            filename = f"{node_id}-Original File"
+            if file_fieldname == 'file':
+                file_identifier = 'Original File'
+            else:
+                file_identifier = file_fieldname
+            filename = f"{node_id}-{file_identifier}"
             downloaded_file_path = os.path.join(subdir, filename)
 
         if extension == '':
