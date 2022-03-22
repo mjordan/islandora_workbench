@@ -21,7 +21,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Cross platform (written in Python, tested on Linux, Mac, and Windows)
 * Well tested
 * Well documented
-* Provides both sensible default configuration values and rich configuation options for power users
+* Provides both sensible default configuration values and rich configuration options for power users
 * A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), will add a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 
 ## Documentation
