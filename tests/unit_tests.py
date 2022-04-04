@@ -230,7 +230,8 @@ class TestValideEdtfDate(unittest.TestCase):
                       '1900-02-31',
                       '1900-00-31',
                       '1900-00',
-                      '19000'
+                      '19000',
+                      '7/5/51'
                       ]
         for bad_value in bad_values:
             res = workbench_utils.validate_edtf_date(bad_value)
