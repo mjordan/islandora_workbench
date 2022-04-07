@@ -26,6 +26,12 @@ class WorkbenchConfig:
     def get_config(self):
         config = self.get_default_config()
         user_mods = self.get_user_config()
+        # Allow extension additions and overrides.
+        if user_mods.get('mimetype_extensions'):
+            for candidate in user_mods.get('mimetype_extensions'):
+                for mimetype, extension in candidate.items():
+                    config['mimetype_extensions'][mimetype] = extension
+            del user_mods['mimetype_extensions']
         # Blend defaults with user mods
         for key, value in user_mods.items():
             config[key] = value
@@ -87,6 +93,17 @@ class WorkbenchConfig:
             {'extracted_text': ['txt']}
         ]
 
+    # Returns default file extensions for mimetypes
+    def get_default_extensions(self):
+        return {'image/jpeg': '.jpg',
+                'image/jp2': '.jp2',
+                'image/png': '.png',
+                'audio/mpeg': '.mp3',
+                'audio/mp3': '.mp3',
+                'text/plain': '.txt',
+                'application/octet-stream': '.bin'
+                }
+
     # Returns default configs, to be updated by user-supplied config.
     def get_default_config(self):
         return {
@@ -143,6 +160,7 @@ class WorkbenchConfig:
             'paged_content_sequence_separator': '-',
             'media_bundle_file_fields': self.get_media_fields(),
             'media_fields': self.get_media_fields(),
+            'mimetype_extensions': self.get_default_extensions(),
         }
 
     # Tests validity and existence of path.
