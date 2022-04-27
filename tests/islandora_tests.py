@@ -18,6 +18,7 @@ import unittest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
+from WorkbenchConfig import WorkbenchConfig
 
 
 class TestCreate(unittest.TestCase):
