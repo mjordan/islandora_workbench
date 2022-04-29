@@ -149,8 +149,8 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
 
         self.assertEqual(int(parent_node_id_to_test), field_member_of)
 
-        # Test that the 'field_weight' value of the second node is 3.
-        self.assertEqual(3, node_json['field_weight'][0]['value'])
+        # Test that the 'field_weight' value of the second page is 2.
+        self.assertEqual(2, node_json['field_weight'][0]['value'])
 
     def tearDown(self):
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'delete.yml')
@@ -224,8 +224,8 @@ class TestCreatePagedContentFromDirectoriesDrupal8(unittest.TestCase):
 
         self.assertEqual(int(parent_node_id_to_test), field_member_of)
 
-        # Test that the 'field_weight' value of the second node is 3.
-        self.assertEqual(3, node_json['field_weight'][0]['value'])
+        # Test that the 'field_weight' value of the second page is 2.
+        self.assertEqual(2, node_json['field_weight'][0]['value'])
 
     def tearDown(self):
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'delete.yml')

@@ -1,0 +1,6 @@
+task: create
+host: "http://localhost:8000/"
+username: admin
+password: islandora
+input_csv: 'https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0'
+nodes_only: true

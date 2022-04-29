@@ -36,10 +36,12 @@ class WorkbenchConfig:
         for key, value in user_mods.items():
             config[key] = value
         # Modify some conditional values
+        if 'task' in ['add_media', 'update', 'delete']:
+            config['id_field'] = 'node_id'
+        if 'task' == 'delete_media':
+            config['id_field'] = 'media_id'
         if 'paged_content_page_content_type' not in user_mods:
             config['paged_content_page_content_type'] = config['content_type']
-        if 'id' not in user_mods and config['task'] == 'add_media':
-            config['id'] = 'node_id'
         # Add preprocessor, if specified.
         if 'preprocessors' in user_mods:
             config['preprocessors'] = {}

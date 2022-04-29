@@ -696,14 +696,15 @@ def update():
             else:
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
+                print(node)
 
             temp_field = []
             added = []
             if custom_field in node.keys():
                 for entry in node[custom_field]:
-                    if int(entry['target_id']) not in added:
+                    if entry['value'] not in added:
                         temp_field.append(entry)
-                        added.append(entry['target_id'])
+                        added.append(entry['value'])
                 node[custom_field] = temp_field
         node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
         node_headers = {'Content-Type': 'application/json'}
@@ -743,7 +744,6 @@ def delete():
     for row in csv_data:
         row = clean_csv_values(row)
         if not value_is_numeric(row['node_id']):
-            print(row)
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             if config['progress_bar'] is False:

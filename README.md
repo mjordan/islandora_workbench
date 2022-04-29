@@ -81,4 +81,4 @@ Contributions to Islandora Workbench's documentation are welcome. If you have a 
 
 ## License
 
-[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
