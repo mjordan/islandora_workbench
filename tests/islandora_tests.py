@@ -158,7 +158,8 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         parser.add_argument('--get_csv_template')
         parser.set_defaults(config=config_file_path, check=False)
         args = parser.parse_args()
-        config = workbench_utils.set_config_defaults(args)
+        workbench_config = WorkbenchConfig(args)
+        config = workbench_config.get_config()
         self.config = config
 
     def test_create_with_new_typed_relation(self):
@@ -248,7 +249,8 @@ class TestTermFromUri(unittest.TestCase):
         parser.add_argument('--get_csv_template')
         parser.set_defaults(config=config_file_path, check=False)
         args = parser.parse_args()
-        config = workbench_utils.set_config_defaults(args)
+        workbench_config = WorkbenchConfig(args)
+        config = workbench_config.get_config()
 
         tid = workbench_utils.get_term_id_from_uri(config, 'http://mozilla.github.io/pdf.js')
         self.assertEqual(tid, 3)
