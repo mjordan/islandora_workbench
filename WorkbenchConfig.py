@@ -103,6 +103,7 @@ class WorkbenchConfig:
             'log_file_path': 'workbench.log',
             'log_file_mode': 'a',
             'allow_missing_files': False,
+            'exit_on_first_missing_file_during_check': True,
             'update_mode': 'replace',
             'validate_title_length': True,
             'paged_content_from_directories': False,

@@ -1129,21 +1129,35 @@ def check_input(config, args):
 
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
+
+        # start issue 406 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
         file_check_csv_data = get_csv_data(config)
         if config['nodes_only'] is False and config['allow_missing_files'] is False:
+            # Initialize a variable that accumulates names of missing files.
+            rows_with_missing_files = list()
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
                 if len(file_check_row['file']) == 0:
                     message = 'CSV row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
+                    if config['exit_on_first_missing_file_during_check'] is True:
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                    else:
+                        if file_check_row[config['id_field']] not in rows_with_missing_files:
+                            rows_with_missing_files.append(file_check_row[config['id_field']])
+                            logging.error(message)
                 file_check_row['file'] = file_check_row['file'].strip()
                 if file_check_row['file'].startswith('http'):
                     http_response_code = ping_remote_file(config, file_check_row['file'])
                     if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
                         message = 'Remote file ' + file_check_row['file'] + ' identified in CSV "file" column for record with ID field value ' \
                             + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
+                        if config['exit_on_first_missing_file_during_check'] is True:
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                        else:
+                            if file_check_row[config['id_field']] not in rows_with_missing_files:
+                                rows_with_missing_files.append(file_check_row[config['id_field']])
+                                logging.error(message)
                 if os.path.isabs(file_check_row['file']):
                     file_path = file_check_row['file']
                 else:
@@ -1152,11 +1166,22 @@ def check_input(config, args):
                     if not os.path.exists(file_path) or not os.path.isfile(file_path):
                         message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value ' \
                             + file_check_row[config['id_field']] + ' not found.'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
-            message = 'OK, files named in the CSV "file" column are all present.'
-            print(message)
-            logging.info(message)
+                        if config['exit_on_first_missing_file_during_check'] is True:
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                        else:
+                            if file_check_row[config['id_field']] not in rows_with_missing_files:
+                                rows_with_missing_files.append(file_check_row[config['id_field']])
+                                logging.error(message)
+            if len(rows_with_missing_files) > 0:
+                # message = "Missing or empty files detected. See the log for more information."
+                logging.error('Missing or empty CSV "file" column values detected.')
+                sys.exit('Error: Missing or empty CSV "file" column values detected. See the log for more information.')
+            else:
+                message = 'OK, files named in the CSV "file" column are all present.'
+                print(message)
+                logging.info(message)
+
         empty_file_values_exist = False
         if config['nodes_only'] is False and config['allow_missing_files'] is True:
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
@@ -1167,28 +1192,37 @@ def check_input(config, args):
                     if file_check_row['file'].startswith('http'):
                         http_response_code = ping_remote_file(config, file_check_row['file'])
                         if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
-                            message = 'Remote file ' + file_check_row['file'] + ' identified in CSV "file" column for record with ID field value "' \
-                                + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
+                            if config['exit_on_first_missing_file_during_check'] is True:
+                                message = 'Remote file ' + file_check_row['file'] + ' identified in CSV "file" column for record with ID field value "' \
+                                    + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
                     else:
                         if os.path.isabs(file_check_row['file']):
                             file_path = file_check_row['file']
                         else:
                             file_path = os.path.join(config['input_dir'], file_check_row['file'])
                         if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                            message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value "' \
-                                + file_check_row[config['id_field']] + '" not found.'
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
+                            if config['exit_on_first_missing_file_during_check'] is True:
+                                message = 'File ' + file_path + ' identified in CSV "file" column for record with ID field value "' \
+                                    + file_check_row[config['id_field']] + '" not found.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
             if empty_file_values_exist is True:
                 message = 'OK, files named in the CSV "file" column are all present; the "allow_missing_files" option is enabled and empty "file" values exist.'
                 print(message)
                 logging.info(message)
             else:
-                message = 'OK, files named in the CSV "file" column are all present.'
-                print(message)
-                logging.info(message)
+                if len(missing_files) == 0:
+                    message = 'OK, files named in the CSV "file" column are all present.'
+                    print(message)
+                    logging.info(message)
+                else:
+                    message = 'Some files named in the CSV "file" column are missing.'
+                    print('Error: ' + message)
+                    logging.error(message)
+
+        # end issue 406 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         # Verify that all media bundles/types exist.
         if config['nodes_only'] is False:
@@ -4121,7 +4155,7 @@ def check_file_exists(config, filename):
             return True
 
 
-def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id = None):
+def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id=None):
     """For remote/downloaded files, generates the path to the local temporary
        copy and returns that path. For local files, just returns the value of
        node_csv_row['file'].
