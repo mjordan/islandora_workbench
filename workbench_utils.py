@@ -1129,8 +1129,6 @@ def check_input(config, args):
 
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
-
-        # start issue 406 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
         file_check_csv_data = get_csv_data(config)
         if config['nodes_only'] is False and config['allow_missing_files'] is False:
             # Initialize a variable that accumulates names of missing files.
@@ -1221,8 +1219,6 @@ def check_input(config, args):
                     message = 'Some files named in the CSV "file" column are missing.'
                     print('Error: ' + message)
                     logging.error(message)
-
-        # end issue 406 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         # Verify that all media bundles/types exist.
         if config['nodes_only'] is False:
@@ -1552,15 +1548,15 @@ def validate_language_code(langcode):
 
 
 def clean_csv_values(row):
-    """Performs basic string cleanup on CSV values. Could be used in the future for
-       other normalization tasks.
+    """Performs basic string cleanup on CSV values.
     """
     for field in row:
-        # Strip leading and trailing whitespace.
-        row[field] = str(row[field]).strip()
         # Replace smart/curly quotes with straight ones.
         row[field] = row[field].replace('“', '"').replace('”', '"')
         row[field] = row[field].replace("‘", "'").replace("’", "'")
+
+        # Strip leading and trailing whitespace.
+        row[field] = str(row[field]).strip()
     return row
 
 
