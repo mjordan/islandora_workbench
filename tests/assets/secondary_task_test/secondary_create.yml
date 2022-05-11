@@ -1,0 +1,9 @@
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: "tests/assets/secondary_task_test"
+nodes_only: true
+csv_field_templates:
+ - field_model: https://schema.org/DigitalDocument
+input_csv: secondary.csv

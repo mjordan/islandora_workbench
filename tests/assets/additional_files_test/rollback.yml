@@ -1,0 +1,6 @@
+task: delete
+host: http://localhost:8000
+username: admin
+password: islandora
+input_dir: tests/assets/additional_files_test
+input_csv: rollback.csv

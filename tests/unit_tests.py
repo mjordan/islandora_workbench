@@ -90,6 +90,17 @@ class TestSplitLinkString(unittest.TestCase):
         self.assertDictEqual(res[0], {'uri': 'http://foobar.net', 'title': 'Foobardotnet website'})
         self.assertDictEqual(res[1], {'uri': 'http://baz.com', 'title': 'Baz website'})
 
+    def test_split_link_string_no_title_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_link_string(config, 'http://www.foo.bar')
+        self.assertDictEqual(res[0], {'uri': 'http://www.foo.bar', 'title': 'http://www.foo.bar'})
+
+    def test_split_geolocation_string_no_title_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_link_string(config, 'http://foobar.net|http://baz.com%%Baz website')
+        self.assertDictEqual(res[0], {'uri': 'http://foobar.net', 'title': 'http://foobar.net'})
+        self.assertDictEqual(res[1], {'uri': 'http://baz.com', 'title': 'Baz website'})
+
 
 class TestSplitTypedRelationString(unittest.TestCase):
 
@@ -101,6 +112,15 @@ class TestSplitTypedRelationString(unittest.TestCase):
                              {'target_id': int(5),
                               'rel_type': 'relators:pht',
                               'target_type': 'foo'})
+
+    def test_split_typed_relation_string_single_with_delimter_in_value(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_typed_relation_string(
+            config, 'relators:pbl:London: Bar Press', 'foopub')
+        self.assertDictEqual(res[0],
+                             {'target_id': 'London: Bar Press',
+                              'rel_type': 'relators:pbl',
+                              'target_type': 'foopub'})
 
     def test_split_typed_relation_string_multiple(self):
         config = {'subdelimiter': '|'}
@@ -155,6 +175,21 @@ class TestValidateLatlongValue(unittest.TestCase):
             self.assertFalse(res)
 
 
+class TestValidateLinkValue(unittest.TestCase):
+
+    def test_validate_good_link_values(self):
+        values = ['http://foo.com', 'https://foo1.com%%Foo Hardware']
+        for value in values:
+            res = workbench_utils.validate_link_value(value)
+            self.assertTrue(res)
+
+    def test_validate_bad_link_values(self):
+        values = ['foo.com', 'http:/foo.com', 'file://server/folder/data.xml', 'mailto:someone@example.com']
+        for value in values:
+            res = workbench_utils.validate_link_value(value)
+            self.assertFalse(res)
+
+
 class TestValidateNodeCreatedDateValue(unittest.TestCase):
 
     def test_validate_good_date_string_values(self):
@@ -170,16 +205,23 @@ class TestValidateNodeCreatedDateValue(unittest.TestCase):
             self.assertFalse(res)
 
 
-class TestValideCalendarDate(unittest.TestCase):
+class TestValideEdtfDate(unittest.TestCase):
 
     def test_validate_good_edtf_values(self):
-        good_values = ['190',
+        good_values = ['190X',
+                       '1900-XX',
                        '1900',
                        '2020-10',
-                       '2021-10-12'
+                       '2021-10-12',
+                       '2001-21',
+                       '2001-22',
+                       '2001-23',
+                       '2001-24',
+                       '2001-31',
+                       '193X/196X'
                        ]
         for good_value in good_values:
-            res = workbench_utils.validate_calendar_date(good_value)
+            res = workbench_utils.validate_edtf_date(good_value)
             self.assertTrue(res, good_value)
 
     def test_validate_bad_edtf_values(self):
@@ -188,10 +230,11 @@ class TestValideCalendarDate(unittest.TestCase):
                       '1900-02-31',
                       '1900-00-31',
                       '1900-00',
-                      '19000'
+                      '19000',
+                      '7/5/51'
                       ]
         for bad_value in bad_values:
-            res = workbench_utils.validate_calendar_date(bad_value)
+            res = workbench_utils.validate_edtf_date(bad_value)
             self.assertFalse(res, bad_value)
 
 
@@ -211,37 +254,58 @@ class TestSetMediaType(unittest.TestCase):
         type_config_file_path = os.path.join(dir_path, 'assets', 'set_media_type_test', 'single_type_config.yml')
         with open(type_config_file_path, 'r') as f:
             single_type_config_file_contents = f.read()
-        self.single_type_config_yaml = yaml.load(
-            single_type_config_file_contents)
+        self.single_type_config_yaml = yaml.load(single_type_config_file_contents)
 
     def test_multi_types_set_media_type(self):
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.txt', self.multi_types_config_yaml)
-        self.assertEqual(res, 'extracted_text')
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.txt'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.txt', 'file', fake_csv_record)
+        self.assertEqual(res, 'sometextmedia')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.tif', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.tif'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.tif', 'file', fake_csv_record)
         self.assertEqual(res, 'file')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.mp4', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.mp4'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.mp4', 'file', fake_csv_record)
         self.assertEqual(res, 'video')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.png', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.png'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.png', 'file', fake_csv_record)
         self.assertEqual(res, 'image')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.pptx', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.pptx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.pptx', 'file', fake_csv_record)
         self.assertEqual(res, 'document')
 
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.xxx', self.multi_types_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.xxx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.xxx', 'file', fake_csv_record)
         self.assertEqual(res, 'file')
 
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.wp'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.wp', 'file', fake_csv_record)
+        self.assertEqual(res, 'document')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.ogg'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.ogg', 'file', fake_csv_record)
+        self.assertEqual(res, 'video')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/xxx.foo'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/xxx.foo', 'file', fake_csv_record)
+        self.assertEqual(res, 'foomedia')
+
     def test_single_type_set_media_type(self):
-        res = workbench_utils.set_media_type(
-            '/tmp/foo.bar', self.single_type_config_yaml)
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.xxx'
+        res = workbench_utils.set_media_type(self.single_type_config_yaml, '/tmp/foo.xxx', 'file', fake_csv_record)
         self.assertEqual(res, 'barmediatype')
 
 
@@ -274,6 +338,85 @@ class TestGetCsvFromExcel(unittest.TestCase):
 
     def tearDown(self):
         os.remove(self.csv_file_path)
+
+
+class TestDrupalCoreVersionNumbers(unittest.TestCase):
+    def test_version_numbers(self):
+        minimum_core_version = tuple([8, 6])
+        lower_versions = ['8.3.0', '8.5.0-alpha1', '8.5.0', '8.5.6']
+        for version in lower_versions:
+            version_number = workbench_utils.convert_semver_to_number(version)
+            res = version_number < minimum_core_version
+            self.assertTrue(res, 'Version number ' + str(version_number) + ' is greater than 8.6.')
+
+        version_number = workbench_utils.convert_semver_to_number('8.6')
+        self.assertTrue(version_number == minimum_core_version, 'Not sure what failed.')
+
+        higher_versions = ['8.6.1', '8.6.4', '8.9.14', '8.10.0-dev', '9.0', '9.1', '9.0.0-dev', '9.1.0-rc3', '9.0.2']
+        for version in higher_versions:
+            version_number = workbench_utils.convert_semver_to_number(version)
+            res = version_number >= minimum_core_version
+            self.assertTrue(res, 'Version number ' + str(version_number) + ' is less than 8.6.')
+
+
+class TestIntegrationModuleVersionNumbers(unittest.TestCase):
+    def test_version_numbers(self):
+        minimum_version = tuple([1, 0])
+        lower_versions = ['0.9', '0.8', '0.8.0-dev']
+        for version in lower_versions:
+            version_number = workbench_utils.convert_semver_to_number(version)
+            res = version_number < minimum_version
+            self.assertTrue(res, 'Version number ' + str(version_number) + ' is greater than 1.0.')
+
+        higher_versions = ['1.0.0', '1.0.1', '1.2', '1.0.1-dev', '10.0']
+        for version in higher_versions:
+            version_number = workbench_utils.convert_semver_to_number(version)
+            res = version_number >= minimum_version
+            self.assertTrue(res, 'Version number ' + str(version_number) + ' is less than 1.0.')
+
+
+class TestDedupedFilePaths(unittest.TestCase):
+    def test_deduped_file_paths(self):
+        paths = [
+            ['/home/foo/bar.txt', '/home/foo/bar_1.txt'],
+            ['/home/foo/bar_1.txt', '/home/foo/bar_2.txt'],
+            ['/tmp/dir/dog_05.zip', '/tmp/dir/dog_6.zip']
+        ]
+        for path_pair in paths:
+            deduped_path = workbench_utils.get_deduped_file_path(path_pair[0])
+            self.assertEqual(deduped_path, path_pair[1])
+
+
+class TestValueIsNumeric(unittest.TestCase):
+    def test_value_is_numeric(self):
+        values = ['200', '0', 999]
+        for value in values:
+            res = workbench_utils.value_is_numeric(value)
+            self.assertTrue(res, 'Value ' + str(value) + ' is not numeric.')
+
+    def test_value_is_not_numeric(self):
+        values = ['n200', False, '999-1000']
+        for value in values:
+            res = workbench_utils.value_is_numeric(value)
+            self.assertFalse(res, 'Value ' + str(value) + ' is numeric.')
+
+
+class TestCleanCsvValues(unittest.TestCase):
+    def test_clean_csv_values(self):
+        csv_record = collections.OrderedDict()
+        csv_record['one'] = ' blsidlw  '
+        csv_record['two'] = 'hheo "s7s9w9"'
+        csv_record['three'] = "b‘bbbbb’"
+        csv_record['four'] = 'لدولي, العاشر []ليونيكود'
+
+        clean_csv_record = collections.OrderedDict()
+        clean_csv_record['one'] = 'blsidlw'
+        clean_csv_record['two'] = 'hheo "s7s9w9"'
+        clean_csv_record['three'] = "b'bbbbb'"
+        clean_csv_record['four'] = 'لدولي, العاشر []ليونيكود'
+
+        csv_record = workbench_utils.clean_csv_values(csv_record)
+        self.assertEqual(clean_csv_record, csv_record)
 
 
 if __name__ == '__main__':

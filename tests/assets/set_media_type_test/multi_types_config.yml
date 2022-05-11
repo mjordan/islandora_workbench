@@ -5,3 +5,9 @@ media_types:
  - audio: ['mp3', 'wav', 'aac']
  - video: ['mp4']
  - extracted_text: ['txt']
+
+media_types_override:
+ - document: ['wp']
+ - video: ['ogg']
+ - foomedia: ['foo']
+ - sometextmedia: ['txt']

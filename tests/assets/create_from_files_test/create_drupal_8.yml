@@ -1,0 +1,13 @@
+task: create_from_files
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: tests/assets/create_from_files_test/files
+models:
+ - 23: ['zip', 'tar', '']
+ - 27: ['pdf', 'doc', 'docx', 'ppt', 'pptx']
+ - 25: ['tif', 'tiff', 'jp2', 'png', 'gif', 'jpg', 'jpeg']
+ - 22: ['mp3', 'wav', 'aac']
+ - 26: ['mp4']
+log_json: true
+drupal_8: true

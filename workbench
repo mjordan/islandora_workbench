@@ -12,21 +12,30 @@ import logging
 import datetime
 import argparse
 import collections
+import subprocess
+import requests_cache
 from progress_bar import InitBar
 from workbench_utils import *
 import workbench_fields
+from WorkbenchConfig import WorkbenchConfig
 
 
 def create():
     """Create new nodes via POST, and add media if there are any.
     """
-    prep_rollback_csv(config)
+    path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    prep_rollback_csv(config, path_to_rollback_csv_file)
+    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
+
+    if config['secondary_tasks'] is not None:
+        if args.config not in config['secondary_tasks']:
+            prep_node_ids_tsv(config)
 
     logging.info('"Create" task started using config file %s', args.config)
     temp = config
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     node_ids = dict()
-    field_definitions = get_field_definitions(config)
+    field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
@@ -79,19 +88,45 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['created'] = ''
 
+        if 'langcode' in csv_column_headers:
+            if len(row['langcode']) > 0:
+                node['langcode'] = [{'value': row['langcode']}]
+            # Reset it to empty so it doesn't throw a key error in the code
+            # in the "Assemble Drupal field structures..." section below.
+            row['langcode'] = ''
+
         # If a node with an ID that matches the current item's 'parent_id'
-        # value has just been created, make the item # a child of the node.
+        # value has just been created, make the item a child of the node.
         if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
             row['field_member_of'] = node_ids[row['parent_id']]
 
+        # For children whose parent node was created in the 'primary' job.
+        # The secondary task data file contains the names of the YAML config
+        # files registered in the primary task's 'secondary_tasks' config option.
+        # Therefore, only tasks whose names are registered there should populate
+        # their objects' 'field_member_of'.
+        secondary_task_data = read_node_ids_tsv(config)
+        if args.config in secondary_task_data:
+            if len(secondary_task_data) > 0:
+                if 'field_member_of' in row and 'parent_id' in row:
+                    row['field_member_of'] = secondary_task_data[row['parent_id']]
+
         # Add custom (non-required) CSV fields.
-        required_fields = ['file', config['id_field'], 'title']
-        custom_fields = list(
-            set(csv_column_headers) - set(required_fields))
+        entity_fields = get_entity_fields(config, 'node', config['content_type'])
+        # Only add config['id_field'] to required_fields if it is not a node field.
+        required_fields = ['file', 'title']
+        if config['id_field'] not in entity_fields:
+            required_fields.append(config['id_field'])
+        custom_fields = list(set(csv_column_headers) - set(required_fields))
+        additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
             # Skip updating field if value is empty.
             if len(row[custom_field]) == 0:
                 continue
+
+            if len(additional_files_entries) > 0:
+                if custom_field in additional_files_entries.keys():
+                    continue
 
             # This field can exist in the CSV to create parent/child
             # relationships and is not a Drupal field.
@@ -110,14 +145,21 @@ def create():
             if custom_field == 'url_alias':
                 continue
 
+            # 'media_use_tid' is a reserved CSV field.
+            if custom_field == 'media_use_tid':
+                continue
+
+            # 'checksum' is a reserved CSV field.
+            if custom_field == 'checksum':
+                continue
+
             # Execute field preprocessor scripts, if any are configured. Note that these scripts
             # are applied to the entire value from the CSV field and not split field values,
             # e.g., if a field is multivalued, the preprocesor must split it and then reassemble
             # it back into a string before returning it. Note that preprocessor scripts work only
             # on string data and not on binary data like images, etc. and only on custom fields
             # (so not title).
-            if 'preprocessors' in config and len(
-                    config['preprocessors']) > 0:
+            if 'preprocessors' in config and len(config['preprocessors']) > 0:
                 for field, command in config['preprocessors'].items():
                     if field in csv_column_headers:
                         output, return_code = preprocess_field_data(
@@ -187,12 +229,22 @@ def create():
                              'target_type': target_type}]
                 # Cardinality is 1.
                 else:
-                    subvalues = row[custom_field].split(config['subdelimiter'])
-                    node[custom_field] = [
-                        {'target_id': subvalues[0],
-                         'target_type': target_type}]
-                    if len(subvalues) > 1:
-                        log_field_cardinality_violation(custom_field, id_field, '1')
+                    if config['subdelimiter'] in row[custom_field]:
+                        subvalues = row[custom_field].split(config['subdelimiter'])
+                        node[custom_field] = [
+                            {'target_id': subvalues[0],
+                             'target_type': target_type}]
+                        if len(subvalues) > 1:
+                            log_field_cardinality_violation(custom_field, id_field, '1')
+                    else:
+                        node[custom_field] = [
+                            {'target_id': row[custom_field],
+                             'target_type': target_type}]
+
+            # Entity reference fields.
+            # elif field_definitions[custom_field]['field_type'] == 'entity_reference':
+                # entity_reference_field = workbench_fields.EntityReferenceField()
+                # node = entity_reference_field.create(config, field_definitions, node, row, custom_field)
 
             # Typed relation fields.
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
@@ -220,49 +272,35 @@ def create():
                         if len(subvalues) > field_definitions[custom_field]['cardinality']:
                             log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
                         for subvalue in subvalues:
+                            subvalue['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalue['target_id'])
                             field_values.append(subvalue)
                         node[custom_field] = field_values
                     else:
                         field_value = split_typed_relation_string(config, row[custom_field], target_type)
+                        field_value[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, field_value[0]['target_id'])
                         node[custom_field] = field_value
                 # Cardinality is 1.
                 else:
-                    field_values = split_typed_relation_string(config, row[custom_field], target_type)
-                    node[custom_field] = field_value[0]
-                    log_field_cardinality_violation(custom_field, id_field, '1')
+                    subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                    subvalues[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalues[0]['target_id'])
+                    node[custom_field] = [subvalues[0]]
+                    if len(subvalues) > 1:
+                        log_field_cardinality_violation(custom_field, id_field, '1')
+
+            # Typed relation fields. Can't start using workbench_fields.TypedRelation until unit tests are done.
+            # elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                # typed_relation_field = workbench_fields.TypedRelationField()
+                # node = typed_relation_field.create(config, field_definitions, node, row, custom_field)
 
             # Geolocation fields.
             elif field_definitions[custom_field]['field_type'] == 'geolocation':
-                target_type = field_definitions[custom_field]['target_type']
-                # Cardinality is unlimited.
-                if field_definitions[custom_field]['cardinality'] == -1:
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_geolocation_string(config, row[custom_field])
-                        for subvalue in subvalues:
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        field_value = split_geolocation_string(config, row[custom_field])
-                        node[custom_field] = field_value
-                # Cardinality has a limit.
-                elif field_definitions[custom_field]['cardinality'] > 1:
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_geolocation_string(config, row[custom_field])
-                        subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
-                        log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
-                        for subvalue in subvalues:
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        field_value = split_geolocation_string(config, row[custom_field])
-                        node[custom_field] = field_value
-                # Cardinality is 1.
-                else:
-                    field_values = split_geolocation_string(config, row[custom_field])
-                    node[custom_field] = field_value[0]
-                    log_field_cardinality_violation(custom_field, id_field, '1')
+                geolocation_field = workbench_fields.GeolocationField()
+                node = geolocation_field.create(config, field_definitions, node, row, custom_field)
+
+            # Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'link':
+                link_field = workbench_fields.LinkField()
+                node = link_field.create(config, field_definitions, node, row, custom_field)
 
             # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
             else:
@@ -274,94 +312,116 @@ def create():
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
+            returned_node = json.loads(node_response.text)
+
+            # If Pathauto URL alias creation for nodes is enabled, the location header
+            # returns the alias, not the /node/xxx URL, which includes the node ID. In
+            # this case, get the node ID from the response body.
+            if not re.match(r'/node/\d+$', node_uri):
+                node_id = returned_node['nid'][0]['value']
+                node_uri = config['host'] + '/node/' + str(node_id)
+
             if config['progress_bar'] is False:
-                print(
-                    'Node for "' +
-                    row['title'] +
-                    '" (record ' +
-                    id_field +
-                    ') created at ' +
-                    node_uri +
-                    '.')
-            logging.info(
-                "Node for %s (record %s) created at %s.",
-                row['title'],
-                id_field,
-                node_uri)
+                print('Node for "' + row['title'] + '" (record ' + id_field + ') created at ' + node_uri + '.')
+            logging.info("Node for %s (record %s) created at %s.", row['title'], id_field, node_uri)
             if 'output_csv' in config.keys():
-                write_to_output_csv(config, id_field, node_response.text)
+                write_to_output_csv(config, id_field, node_response.text, row)
         else:
-            logging.error(
-                "Node for CSV record %s not created, HTTP response code was %s.",
-                id_field,
-                node_response.status_code)
+            message = "Node for CSV record " + id_field + " not created"
+            print("ERROR: " + message + '.')
+            logging.error(message + ', HTTP response code was ' + str(node_response.status_code) + '.')
             continue
 
-        # Map ID from CSV of newly created node to its node ID so we
-        # can use it for linking child nodes, etc.
+        # Execute node-specific post-create scripts, if any are configured.
+        if 'node_post_create' in config and len(config['node_post_create']) > 0:
+            for command in config['node_post_create']:
+                post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                if post_task_return_code == 0:
+                    logging.info("Post node create script " + command + " executed successfully.")
+                else:
+                    logging.error("Post node create script " + command + " failed.")
+
+        # Map ID from CSV of newly created node to its node ID so we can use it for linking child nodes, etc.
         if node_response.status_code == 201:
             node_nid = node_uri.rsplit('/', 1)[-1]
             node_ids[id_field] = node_nid
+
+            if config['secondary_tasks'] is not None:
+                if args.config not in config['secondary_tasks']:
+                    write_to_node_ids_tsv(config, id_field, node_id)
 
         if config['progress_bar'] is True:
             row_count += 1
             row_position = get_percentage(row_count, num_csv_records)
             pbar(row_position)
 
-        write_rollback_node_id(config, node_nid)
+        write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
-        if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
+        if config['nodes_only'] is False and config['allow_missing_files'] is False is True and 'file' in row and len(row['file'].strip()) == 0 and config['paged_content_from_directories'] is False:
             if config['progress_bar'] is False:
-                print(
-                    '+No media for ' +
-                    node_uri +
-                    ' created since its "file" field in the CSV is empty.')
-            logging.warning(
-                "No media for %s created since its 'file' field in the CSV is empty.",
-                node_uri)
+                print('- No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
+            logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
             continue
 
-        # If there is a media file, add it.
-        if config['nodes_only'] is False and 'file' in row:
-            file_path = os.path.join(config['input_dir'], row['file'])
-            media_type = set_media_type(file_path, config)
-
         if node_response.status_code == 201:
-            # If there is something in the 'file' field, create the media from it.
+            allowed_media_response_codes = [201, 204]
             if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
-                media_response_status_code = create_media(config, row['file'], node_uri, row_for_media)
-                allowed_media_response_codes = [201, 204]
+                if drupal_8 is True:
+                    media_response_status_code = create_islandora_media(config, row['file'], 'file', node_uri, row_for_media)
+                else:
+                    media_response_status_code = create_media(config, row['file'], 'file', node_nid, row_for_media)
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
-                        print(
-                            '+' +
-                            media_type.title() +
-                            " media for " +
-                            row['file'] +
-                            " created.")
-                    logging.info(
-                        "%s media for %s created.",
-                        media_type.title(),
-                        row['file'])
+                        print("+ Media for " + row['file'] + " created.")
+                    logging.info("Media for %s created.", row['file'])
+                else:
+                    if config['progress_bar'] is False:
+                        print("- ERROR: Media for " + row['file'] + " not created. See log for more information.")
+                    logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
+                if 'additional_files' in config:
+                    additional_files_config = get_additional_files_config(config)
+                    if len(additional_files_config) > 0:
+                        for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
+                            # If there is no additional media file, move on to the next "additional_files" column.
+                            if config['nodes_only'] is False and additional_file_field in row and len(row[additional_file_field].strip()) == 0:
+                                if config['progress_bar'] is False:
+                                    print('- No media for ' + node_uri + ' created since its "' + additional_file_field + '" field in the CSV is empty.')
+                                logging.warning("No media for %s created since its '%s' field in the CSV is empty.", node_uri, additional_file_field)
+                                continue
+                                file_exists = check_file_exists(config, filename)
+                                if file_exists is False:
+                                    if config['progress_bar'] is False:
+                                        print('- No media for ' + node_uri + ' created since its "' + additional_file_field + '" field in the CSV is empty.')
+                                    logging.warning("No media for %s created since its '%s' field in the CSV is empty.", node_uri, additional_file_field)
+                                    continue
+                            if drupal_8 is True:
+                                media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row_for_media, additional_file_media_use_tid)
+                            else:
+                                media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
+                            if media_response_status_code in allowed_media_response_codes:
+                                if config['progress_bar'] is False:
+                                    print("+ Media for " + row[additional_file_field] + " created.")
+                                logging.info("Media for %s created.", row[additional_file_field])
+                            else:
+                                if config['progress_bar'] is False:
+                                    print("- Media for " + row[additional_file_field] + " not created. See log for more information.")
+                                logging.error("Media for %s not created (HTTP respone code %s).", row[additional_file_field], media_response_status_code)
 
-            if config['nodes_only'] is False and 'file' in row and len(
-                    row['file']) == 0 and config['paged_content_from_directories'] is False:
+            if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
                 if config['progress_bar'] is False:
-                    print('+ No file specified in CSV for ' + row['title'])
-                logging.info("No file specified for %s, so no media created.", id_field)
+                    print('+ No file specified in CSV for row ' + str(id_field))
+                logging.info("No file specified for row %s, so no media created.", str(id_field))
 
             if config['paged_content_from_directories'] is True:
-                # Console output and logging are done in the
-                # create_children_from_directory function.
-                create_children_from_directory(
-                    config, row_as_parent, node_nid, row['title'])
+                # Console output and logging are done in the create_children_from_directory() function.
+                create_children_from_directory(config, row_as_parent, node_nid, row['title'])
 
             # If 'url_alias' is in the CSV, create the alias.
             if 'url_alias' in row and len(row['url_alias']) > 0:
                 create_url_alias(config, node_nid, row['url_alias'])
 
-            write_rollback_config(config)
+            write_rollback_config(config, path_to_rollback_csv_file)
 
 
 def update():
@@ -369,12 +429,15 @@ def update():
        so if we are adding an additional value to a multivalued field, we need
        to include the existing value(s) in our PATCH.
     """
-    field_definitions = get_field_definitions(config)
+    field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
+    invalid_target_ids = []
 
     row_count = 0
     for row in csv_data:
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             if config['progress_bar'] is False:
                 print("Node " + row['node_id'] + " not found or not accessible, skipping update.")
@@ -389,8 +452,20 @@ def update():
             ]
         }
 
-        node_field_values = get_node_field_values(
-            config, row['node_id'])
+        node_field_values = get_node_field_values(config, row['node_id'])
+
+        # Some optional base fields.
+        if 'uid' in csv_column_headers:
+            if len(row['uid']) > 0:
+                node['uid'] = [{'target_id': row['uid']}]
+
+        if 'langcode' in csv_column_headers:
+            if len(row['langcode']) > 0:
+                node['langcode'] = [{'value': row['langcode']}]
+
+        if 'created' in csv_column_headers:
+            if len(row['created']) > 0:
+                node['created'] = [{'value': row['created']}]
 
         # Add custom (non-required) fields.
         required_fields = ['node_id']
@@ -409,6 +484,18 @@ def update():
             if custom_field == 'image_alt_text':
                 continue
 
+            # 'langcode' is a core Drupal field, but is not considered a base field.
+            if custom_field == 'langcode':
+                continue
+
+            # 'created' is a base field.
+            if custom_field == 'created':
+                continue
+
+            # 'uid' is a base field.
+            if custom_field == 'uid':
+                continue
+
             # Entity reference fields: for taxonomy terms, target_type is 'taxonomy_term';
             # for nodes, it's 'node_type'.
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
@@ -418,32 +505,29 @@ def update():
                         config, field_definitions, custom_field)
                     if config['subdelimiter'] in row[custom_field]:
                         prepared_tids = []
-                        delimited_values = row[custom_field].split(
-                            config['subdelimiter'])
+                        delimited_values = row[custom_field].split(config['subdelimiter'])
                         for delimited_value in delimited_values:
-                            tid = prepare_term_id(
-                                config, field_vocabs, delimited_value)
+                            tid = prepare_term_id(config, field_vocabs, delimited_value)
                             if value_is_numeric(tid):
                                 tid = str(tid)
                                 prepared_tids.append(tid)
                             else:
                                 continue
-                        row[custom_field] = config['subdelimiter'].join(
-                            prepared_tids)
+                        row[custom_field] = config['subdelimiter'].join(prepared_tids)
                     else:
-                        row[custom_field] = prepare_term_id(
-                            config, field_vocabs, row[custom_field])
+                        row[custom_field] = prepare_term_id(config, field_vocabs, row[custom_field])
                         if value_is_numeric(row[custom_field]):
                             row[custom_field] = str(row[custom_field])
 
                 if field_definitions[custom_field]['target_type'] == 'node':
                     target_type = 'node_type'
 
+                if field_definitions[custom_field]['target_type'] == 'media':
+                    target_type = 'media_type'
+
                 if field_definitions[custom_field]['cardinality'] == 1:
-                    subvalues = row[custom_field].split(
-                        config['subdelimiter'])
-                    node[custom_field] = [
-                        {'target_id': subvalues[0], 'target_type': target_type}]
+                    subvalues = row[custom_field].split(config['subdelimiter'])
+                    node[custom_field] = [{'target_id': subvalues[0], 'target_type': target_type}]
                     if len(subvalues) > 1:
                         log_field_cardinality_violation(custom_field, row['node_id'], '1')
                 # Cardinality has a limit.
@@ -460,8 +544,7 @@ def update():
                         # Slice the incoming values to a length that matches the field's
                         # cardinality minus its existing length. Also log fact that we're
                         # slicing off values.
-                        num_values_to_add = field_definitions[custom_field]['cardinality'] - \
-                            num_existing_values
+                        num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values
                         subvalues = subvalues[:num_values_to_add]
                         if len(subvalues) > 0:
                             logging.warning(
@@ -477,16 +560,14 @@ def update():
                                 num_values_to_add)
                             for subvalue in subvalues:
                                 field_values.append({'target_id': subvalue, 'target_type': target_type})
-                            node[custom_field] = node_field_values[custom_field] + \
-                                field_values
+                            node[custom_field] = node_field_values[custom_field] + field_values
                         else:
                             logging.info(
                                 "Not updating field %s node for %s, provided values do not contain any new values for this field.",
                                 custom_field,
                                 row['node_id'])
                     else:
-                        if num_existing_values + \
-                                1 <= int(field_definitions[custom_field]['cardinality']):
+                        if num_existing_values + 1 <= int(field_definitions[custom_field]['cardinality']):
                             node[custom_field] = node_field_values[custom_field] + [
                                 {'target_id': row[custom_field],
                                  'target_type': 'taxonomy_term'}]
@@ -500,13 +581,10 @@ def update():
                     # Append to existing values.
                     if config['subdelimiter'] in row[custom_field]:
                         field_values = []
-                        subvalues = row[custom_field].split(
-                            config['subdelimiter'])
+                        subvalues = row[custom_field].split(config['subdelimiter'])
                         for subvalue in subvalues:
-                            field_values.append(
-                                {'target_id': subvalue, 'target_type': target_type})
-                            node[custom_field] = node_field_values[custom_field] + \
-                                field_values
+                            field_values.append({'target_id': subvalue, 'target_type': target_type})
+                            node[custom_field] = node_field_values[custom_field] + field_values
                     else:
                         node[custom_field] = node_field_values[custom_field] + [
                             {'target_id': row[custom_field],
@@ -517,47 +595,53 @@ def update():
                 # Create a copy of the existing values in the current field so we can compare
                 # them to the incoming values in the CSV file for deduping. To compare these values
                 # with the incoming ones, we need to remove the 'url' and 'target_uuid' members.
-                node_comparison_values = copy.deepcopy(
-                    node_field_values[custom_field])
-                for comparison_value in node_comparison_values:
-                    del comparison_value['url']
-                    del comparison_value['target_uuid']
+                node_comparison_values = []
+                temp_node_comparison_values = copy.deepcopy(node_field_values[custom_field])
+                for comparison_value in temp_node_comparison_values:
+                    if comparison_value.get('url'):
+                        del comparison_value['url']
+                    else:
+                        invalid_target_ids.append(comparison_value['target_id'])
+                        continue
+                    if comparison_value.get('target_uuid'):
+                        del comparison_value['target_uuid']
+                        node_comparison_values.append(comparison_value)
 
                 if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
                     target_type = 'taxonomy_term'
                 if field_definitions[custom_field]['target_type'] == 'node':
                     target_type = 'node_type'
+
+                this_fields_vocabularies = field_definitions[custom_field]['vocabularies']
+
                 # Cardinality is unlimited.
                 if field_definitions[custom_field]['cardinality'] == -1:
                     # Append to existing values.
                     if config['subdelimiter'] in row[custom_field]:
                         field_values = []
-                        subvalues = split_typed_relation_string(
-                            config, row[custom_field], target_type)
+                        subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                         for subvalue in subvalues:
+                            subvalue['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalue['target_id'])
                             field_values.append(subvalue)
                         node[custom_field] = node_field_values[custom_field] + field_values
                     # Append to existing values.
                     else:
-                        value = split_typed_relation_string(
-                            config, row[custom_field], target_type)
-                        node[custom_field] = node_field_values[custom_field] + [value]
+                        value = split_typed_relation_string(config, row[custom_field], target_type)
+                        value[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, value[0]['target_id'])
+                        node[custom_field] = node_field_values[custom_field] + value
                 # Cardinality has a limit.
                 elif field_definitions[custom_field]['cardinality'] > 1:
-                    existing_target_ids = get_target_ids(
-                        node_field_values[custom_field])
+                    existing_target_ids = get_target_ids(node_field_values[custom_field])
                     num_existing_values = len(existing_target_ids)
-
                     if config['subdelimiter'] in row[custom_field]:
                         field_values = []
-                        subvalues = split_typed_relation_string(
-                            config, row[custom_field], target_type)
+                        subvalues = split_typed_relation_string(config, row[custom_field], target_type)
                         for subvalue in subvalues:
                             if subvalue not in node_comparison_values:
+                                subvalue['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalue['target_id'])
                                 field_values.append(subvalue)
-                        # Slice the incoming values to a length that matches the field's
-                        # cardinality minus its existing length. Also log fact that we're
-                        # slicing off values.
+                        # Slice the incoming values to a length that matches the field's cardinality minus its existing length.
+                        # Also log fact that we're slicing off values.
                         num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values
                         if num_values_to_add > 0:
                             logging.warning(
@@ -580,10 +664,8 @@ def update():
                                 custom_field,
                                 row['node_id'])
                     else:
-                        if num_existing_values + \
-                                1 <= int(field_definitions[custom_field]['cardinality']):
-                            field_value = split_typed_relation_string(
-                                config, row[custom_field], target_type)
+                        if num_existing_values + 1 <= int(field_definitions[custom_field]['cardinality']):
+                            field_value = split_typed_relation_string(config, row[custom_field], target_type)
                             node[custom_field] = node_field_values[custom_field] + field_value
                         else:
                             logging.warning(
@@ -591,80 +673,56 @@ def update():
                                 custom_field,
                                 row['node_id'],
                                 field_definitions[custom_field]['cardinality'])
-                # Cardinality is 1. Do not append to existing values,
-                # replace existing value.
+                # Cardinality is 1. Do not append to existing values, replace existing value.
                 else:
-                    field_values = split_typed_relation_string(
-                        config, row[custom_field], target_type)
+                    field_values = split_typed_relation_string(config, row[custom_field], target_type)
+                    field_values[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, field_values[0]['target_id'])
+                    node[custom_field] = [field_values[0]]
                     if len(field_values) > 1:
-                        node[custom_field] = [field_values[0]]
-                        log_field_cardinality_violation(
-                            custom_field, row['node_id'], '1')
-                        logging.info(
-                            "Updating node %s with 1 values from CSV record.", row['node_id'])
+                        log_field_cardinality_violation(custom_field, row['node_id'], '1')
+                        logging.info("Updating node %s with first value from CSV record.", row['node_id'])
 
             # Geolocation fields.
             elif field_definitions[custom_field]['field_type'] == 'geolocation':
-                target_type = field_definitions[custom_field]['target_type']
-                # Cardinality is unlimited.
-                if field_definitions[custom_field]['cardinality'] == -1:
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_geolocation_string(
-                            config, row[custom_field])
-                        for subvalue in subvalues:
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        field_value = split_geolocation_string(
-                            config, row[custom_field])
-                        node[custom_field] = field_value
-                # Cardinality has a limit.
-                elif int(field_definitions[custom_field]['cardinality']) > 1:
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_geolocation_string(
-                            config, row[custom_field])
-                        if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
-                            log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
-                        subvalues = subvalues[:field_definitions[custom_field]
-                                              ['cardinality']]
-                        for subvalue in subvalues:
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        field_value = split_geolocation_string(
-                            config, row[custom_field])
-                        node[custom_field] = field_value
-                # Cardinality is 1.
-                else:
-                    field_values = split_geolocation_string(
-                        config, row[custom_field])
-                    node[custom_field] = [field_values[0]]
-                    if len(field_values) > 1:
-                        log_field_cardinality_violation(
-                            custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                geolocation_field = workbench_fields.GeolocationField()
+                node = geolocation_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
+
+            # Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'link':
+                link_field = workbench_fields.LinkField()
+                node = link_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # For non-entity reference and non-typed relation fields (text, etc.).
             else:
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
+                print(node)
 
-        node_endpoint = config['host'] + \
-            '/node/' + row['node_id'] + '?_format=json'
+            temp_field = []
+            added = []
+            if custom_field in node.keys():
+                for entry in node[custom_field]:
+                    if entry['value'] not in added:
+                        temp_field.append(entry)
+                        added.append(entry['value'])
+                node[custom_field] = temp_field
+        node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
         node_headers = {'Content-Type': 'application/json'}
-        node_response = issue_request(
-            config, 'PATCH', node_endpoint, node_headers, node)
+        node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
         if node_response.status_code == 200:
             if config['progress_bar'] is False:
-                print("Node for " + config['host'] + '/node/' +
-                      row['node_id'] + " updated.")
-            logging.info(
-                "Node for %s updated.",
-                config['host'] +
-                '/node/' +
-                row['node_id'])
+                print("Node for " + config['host'] + '/node/' + row['node_id'] + " updated.")
+            logging.info("Node for %s updated.", config['host'] + '/node/' + row['node_id'])
+
+        # Execute node-specific post-create scripts, if any are configured.
+        if 'node_post_update' in config and len(config['node_post_update']) > 0:
+            for command in config['node_post_update']:
+                post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                if post_task_return_code == 0:
+                    logging.info("Post node update script " + command + " executed successfully.")
+                else:
+                    logging.error("Post node update script " + command + " failed.")
 
         if config['progress_bar'] is True:
             row_count += 1
@@ -685,6 +743,8 @@ def delete():
     row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             if config['progress_bar'] is False:
                 print("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
@@ -693,19 +753,16 @@ def delete():
 
         # Delete the node's media first.
         if config['delete_media_with_nodes'] is True:
-            media_endpoint = config['host'] + '/node/' + \
-                str(row['node_id']) + '/media/?_format=json'
-            media_response = issue_request(
-                config, 'GET', media_endpoint)
+            media_endpoint = config['host'] + '/node/' + str(row['node_id']) + '/media?_format=json'
+            media_response = issue_request(config, 'GET', media_endpoint)
             media_response_body = json.loads(media_response.text)
             media_messages = []
             for media in media_response_body:
-                media_id = media['mid'][0]['value']
-                media_delete_status_code = remove_media_and_file(
-                    config, media_id)
-                if media_delete_status_code == 204:
-                    media_messages.append(
-                        "+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
+                if 'mid' in media:
+                    media_id = media['mid'][0]['value']
+                    media_delete_status_code = remove_media_and_file(config, media_id)
+                    if media_delete_status_code == 204:
+                        media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
 
         node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
         node_response = issue_request(config, 'DELETE', node_endpoint)
@@ -720,7 +777,7 @@ def delete():
                 "Node %s deleted.",
                 config['host'] +
                 '/node/' +
-                row['node_id'])
+                str(row['node_id']))
         if config['delete_media_with_nodes'] is True and config['progress_bar'] is False:
             if len(media_messages):
                 for media_message in media_messages:
@@ -733,7 +790,7 @@ def delete():
 
 
 def add_media():
-    """Add media to existing nodes using PUT.
+    """Add media to existing nodes.
     """
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
@@ -741,35 +798,104 @@ def add_media():
     row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
-            print("Node " + row['node_id'] + " not found or not " +
-                  "accessible, skipping adding media.")
+            print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
             continue
 
-        file_path = os.path.join(config['input_dir'], row['file'])
-        media_type = set_media_type(file_path, config)
+        allowed_media_response_codes = [201, 204]
 
-        node_json_url = config['host'] + \
-            '/node/' + row['node_id'] + '?_format=json'
-        node_uri = config['host'] + '/node/' + row['node_id']
-        node_response = issue_request(config, 'GET', node_json_url)
+        node_json_url = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
+        node_uri = config['host'] + '/node/' + str(row['node_id'])
+        node_response = issue_request(config, 'HEAD', node_json_url)
+
+        if 'media_use_tid' in row:
+            media_use_tid_value = row['media_use_tid']
+        else:
+            # Get media use TID from config within create_media().
+            media_use_tid_value = None
+
         if node_response.status_code == 200:
-            media_response_status_code = create_media(
-                config, row['file'], node_uri, None)
-            allowed_media_response_codes = [201, 204]
-            if media_response_status_code in allowed_media_response_codes:
-                if config['progress_bar'] is False:
-                    print(
-                        media_type.title() +
-                        " media for " +
-                        row['file'] +
-                        " created and added to " +
-                        node_uri)
-                logging.info(
-                    "%s media for %s created and added to %s.",
-                    media_type.title(),
-                    row['file'],
-                    node_uri)
+            if 'additional_files' not in config:
+                if config['allow_missing_files'] is False:
+                    if not check_file_exists(config, row['file']):
+                        message = 'File ' + row['file'] + ' identified in CSV "file" column in for node ID ' + row['node_id'] + ' not found.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                    if check_file_exists(config, row['file']):
+                        if drupal_8 is True:
+                            media_response_status_code = create_islandora_media(config, 'file', row['file'], node_uri, row, media_use_tid_value)
+                        else:
+                            media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], row, media_use_tid_value)
+                        if media_response_status_code in allowed_media_response_codes:
+                            if config['progress_bar'] is False:
+                                print("Media for " + row['file'] + " created and added to " + node_uri)
+                            logging.info("Media for %s created and added to %s.", row['file'], node_uri)
+                        else:
+                            if config['progress_bar'] is False:
+                                print("ERROR: Media for " + row['file'] + " not created. See log for more information.")
+                            logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
+                    else:
+                        message = "Warning: Media for node " + row['node_id'] + " not created since CSV column 'file' is empty."
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+                else:
+                    if check_file_exists(config, row['file']):
+                        if drupal_8 is True:
+                            media_response_status_code = create_islandora_media(config, 'file', row['file'], node_uri, row, media_use_tid_value)
+                        else:
+                            media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], row, media_use_tid_value)
+                        if media_response_status_code in allowed_media_response_codes:
+                            if config['progress_bar'] is False:
+                                print("Media for " + row['file'] + " created and added to " + node_uri)
+                            logging.info("Media for %s created and added to %s.", row['file'], node_uri)
+                        else:
+                            if config['progress_bar'] is False:
+                                print("ERROR: Media for " + row['file'] + " not created. See log for more information.")
+                            logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
+                    else:
+                        message = "Warning: Media for node " + row['node_id'] + " not created since CSV column 'file' is empty."
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+            if 'additional_files' in config:
+                additional_files_config = get_additional_files_config(config)
+                if len(additional_files_config) > 0:
+                    for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
+                        if config['allow_missing_files'] is False:
+                            if not check_file_exists(config, row['file']):
+                                message = 'File ' + row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column in for node ID ' + row['node_id'] + ' not found.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+                        else:
+                            if len(row[additional_file_field].strip()) == 0:
+                                if config['progress_bar'] is False:
+                                    print("Warning: Media for " + row['node_id'] + " not created since CSV column '" + additional_file_field + "' is empty.")
+                                logging.warning("Media for node %s not created since CSV column '" + additional_file_field + "' is empty", row['node_id'])
+                                continue
+                            else:
+                                file_exists = check_file_exists(config, row[additional_file_field])
+                                if file_exists is False:
+                                    if config['progress_bar'] is False:
+                                        print('- No media for ' + node_uri + ' created since its "' + additional_file_field + '" field in the CSV is empty.')
+                                    logging.warning("No media for %s created since its '%s' field in the CSV is empty.", node_uri, additional_file_field)
+                                    continue
+                                if drupal_8 is True:
+                                    media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row, additional_file_media_use_tid)
+                                else:
+                                    media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, row['node_id'], row, additional_file_media_use_tid)
+                                if media_response_status_code in allowed_media_response_codes:
+                                    if config['progress_bar'] is False:
+                                        print("Media for " + row[additional_file_field] + " created and added to " + node_uri + ".")
+                                    logging.info("Media for %s created and added to %s.", row[additional_file_field], node_uri)
+                                else:
+                                    if config['progress_bar'] is False:
+                                        print("ERROR: Media for " + row[additional_file_field] + " not created. See log for more information.")
+                                    logging.error("Media for %s not created (HTTP response code %s).", row[additional_file_field], media_response_status_code)
+        else:
+            if config['progress_bar'] is False:
+                print("ERROR: Node at " + node_uri + " does not exist or is not accessible.")
+            logging.error("Node at %s does not exist or is not accessible (HTTP response code %s)", node_uri, node_response.status_code)
 
         if config['progress_bar'] is True:
             row_count += 1
@@ -786,8 +912,9 @@ def delete_media():
     row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
-        media_delete_status_code = remove_media_and_file(
-            config, row['media_id'])
+        if not value_is_numeric(row['media_id']):
+            row['media_id'] = get_nid_from_media_url_alias(config, row['node_id'])
+        media_delete_status_code = remove_media_and_file(config, row['media_id'])
         if media_delete_status_code == 204:
             if config['progress_bar'] is False:
                 print("Media " +
@@ -813,22 +940,21 @@ def create_from_files():
     file_dir_path = config['input_dir']
     files = os.listdir(file_dir_path)
 
-    prep_rollback_csv(config)
+    path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    prep_rollback_csv(config, path_to_rollback_csv_file)
+    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
 
     num_files = len(files)
     file_count = 0
     for file_name in files:
-        if file_name == 'rollback.csv':
+        if file_name.startswith('rollback.') and file_name.endswith('csv'):
             continue
 
         filename_without_extension = os.path.splitext(file_name)[0]
         if len(filename_without_extension) > 255:
-            message = 'Truncating the filename "' + filename_without_extension + \
-                '" since it exceeds Drupal\'s maximum node title length of 255 characters.'
+            message = 'Truncating the filename "' + filename_without_extension + '" since it exceeds Drupal\'s maximum node title length of 255 characters.'
             logging.error(message)
             filename_without_extension = filename_without_extension[:255]
-
-        islandora_model = set_model_from_extension(file_name, config)
 
         node_json = {
             'type': [
@@ -840,12 +966,14 @@ def create_from_files():
             ],
             'status': [
                 {'value': config['published']}
-            ],
-            'field_model': [
-                {'target_id': islandora_model,
-                 'target_type': 'taxonomy_term'}
             ]
         }
+
+        # Add field_model if that field exists in the current content type.
+        entity_fields = get_entity_fields(config, 'node', config['content_type'])
+        if 'field_model' in entity_fields:
+            islandora_model = set_model_from_extension(file_name, config)
+            node_json['field_model'] = [{'target_id': islandora_model, 'target_type': 'taxonomy_term'}]
 
         node_headers = {
             'Content-Type': 'application/json'
@@ -875,24 +1003,34 @@ def create_from_files():
                 write_to_output_csv(config, '', node_response.text)
 
             node_nid = node_uri.rsplit('/', 1)[-1]
-            write_rollback_node_id(config, node_nid)
+            write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
+
+            # Execute node-specific post-create scripts, if any are configured.
+            if 'node_post_create' in config and len(config['node_post_create']) > 0:
+                for command in config['node_post_create']:
+                    post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                    if post_task_return_code == 0:
+                        logging.info("Post node create script " + command + " executed successfully.")
+                    else:
+                        logging.error("Post node create script " + command + " failed.")
 
             file_path = os.path.join(config['input_dir'], file_name)
-            media_type = set_media_type(file_path, config)
             fake_csv_record = collections.OrderedDict()
+            fake_csv_record['title'] = filename_without_extension
+            fake_csv_record['file'] = file_path
+
+            media_type = set_media_type(config, file_path, 'file', fake_csv_record)
+
             if media_type == 'image':
                 fake_csv_record['image_alt_text'] = filename_without_extension
-            media_response_status_code = create_media(
-                config, file_name, node_uri, fake_csv_record)
+            if drupal_8 is True:
+                media_response_status_code = create_islandora_media(config, file_name, 'file', node_uri, fake_csv_record)
+            else:
+                media_response_status_code = create_media(config, file_name, 'file', node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if config['progress_bar'] is False:
-                    print(
-                        '+ ' +
-                        media_type.title() +
-                        " media for " +
-                        filename_without_extension +
-                        " created.")
+                    print("+ Media for " + filename_without_extension + " created.")
                 logging.info("Media for %s created.", file_path)
         else:
             logging.error(
@@ -918,8 +1056,10 @@ parser.add_argument('--config', required=True, help='Configuration file to use.'
 parser.add_argument('--check', help='Check input data and exit without creating/updating/etc.', action='store_true')
 parser.add_argument('--get_csv_template', help='Generate a CSV template using the specified configuration file.', action='store_true')
 args = parser.parse_args()
+workbench_config = WorkbenchConfig(args)
 
-config = set_config_defaults(args)
+config = workbench_config.get_config()
+
 logging.basicConfig(
     filename=config['log_file_path'],
     level=logging.INFO,
@@ -932,9 +1072,27 @@ if config['task'] != 'create_from_files' and config['input_csv'].startswith('htt
 if config['task'] != 'create_from_files' and config['input_csv'].endswith('.xlsx') is True:
     get_csv_from_excel(config)
 
-ping_islandora(config, print_message=True)
+validate_input_dir(config)
 
-# Apparently, there's no builtin way of getting the number of items in a
+ping_islandora(config, print_message=True)
+check_integration_module_version(config)
+
+if config['enable_http_cache'] is True:
+    requests_cache.install_cache(backend='memory')
+
+cache_enabled = requests_cache.patcher.is_installed()
+if cache_enabled:
+    message = "Client-side request caching is enabled."
+else:
+    message = "Client-side request caching is not enabled."
+logging.info(message)
+
+if config['nodes_only'] is False:
+    check_drupal_core_version(config)
+
+drupal_8 = set_drupal_8(config)
+
+# Apparently, there's no built-in way of getting the number of items in a
 # DictReader, so we read the CSV file, convert it to a list, and get its length.
 if config['progress_bar'] is True:
     if config['task'] != 'create_from_files':
@@ -946,12 +1104,20 @@ if 'get_csv_template' in config.keys():
     if config['get_csv_template']:
         get_csv_template(config, args)
 
-if 'check' in config.keys():
-    if config['check']:
-        if config['task'] == 'create_from_files':
-            check_input_for_create_from_files(config, args)
-        else:
-            check_input(config, args)
+try:
+    if 'check' in config.keys():
+        if config['check']:
+            if config['task'] == 'create_from_files':
+                check_input_for_create_from_files(config, args)
+            else:
+                check_input(config, args)
+except KeyboardInterrupt:
+    print('Exiting before entire --check completed.')
+    logging.warning('Workbench exiting after receiving "ctrl-c" during --check.')
+    try:
+        sys.exit(0)
+    except SystemExit:
+        os._exit(0)
 
 # Execute bootstrap scripts, if any are configured.
 if 'bootstrap' in config and len(config['bootstrap']) > 0:
@@ -959,15 +1125,37 @@ if 'bootstrap' in config and len(config['bootstrap']) > 0:
         print("Executing bootstrap script " + command)
         output, return_code = execute_bootstrap_script(command, args.config)
 
-if config['task'] == 'create':
-    create()
-if config['task'] == 'update':
-    update()
-if config['task'] == 'delete':
-    delete()
-if config['task'] == 'add_media':
-    add_media()
-if config['task'] == 'delete_media':
-    delete_media()
-if config['task'] == 'create_from_files':
-    create_from_files()
+try:
+    if config['task'] == 'create':
+        create()
+    if config['task'] == 'update':
+        update()
+    if config['task'] == 'delete':
+        delete()
+    if config['task'] == 'add_media':
+        add_media()
+    if config['task'] == 'delete_media':
+        delete_media()
+    if config['task'] == 'create_from_files':
+        create_from_files()
+
+    if config['secondary_tasks'] is not None:
+        for secondary_config_file in config['secondary_tasks']:
+            message = 'Executing secondary task using configuration file "' + secondary_config_file + '"'
+            print('')
+            print(message)
+            logging.info(message)
+            cmd = ["./workbench", "--config", secondary_config_file]
+            output = subprocess.run(cmd)
+
+        map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
+        if os.path.exists(map_file_path):
+            os.remove(map_file_path)
+
+except KeyboardInterrupt:
+    print('Exiting before entire CSV processed. See log for more info.')
+    logging.warning('Workbench exiting after receiving "ctrl-c". Consult the documentation to learn how to resume your batch.')
+    try:
+        sys.exit(0)
+    except SystemExit:
+        os._exit(0)
