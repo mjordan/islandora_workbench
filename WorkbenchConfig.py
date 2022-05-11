@@ -22,14 +22,14 @@ class WorkbenchConfig:
             format='%(asctime)s - %(levelname)s - %(message)s',
             datefmt='%d-%b-%y %H:%M:%S')
 
-    # Get fully constructed config dictionary
+    # Get fully constructed config dictionary.
     def get_config(self):
         config = self.get_default_config()
         user_mods = self.get_user_config()
         # Blend defaults with user mods
         for key, value in user_mods.items():
             config[key] = value
-        # Modify some conditional values
+        # Modify some conditional values.
         if 'task' in ['add_media', 'update', 'delete']:
             config['id_field'] = 'node_id'
         if 'task' == 'delete_media':
@@ -45,7 +45,7 @@ class WorkbenchConfig:
 
         return config
 
-    # Get user input as dictionary
+    # Get user input as dictionary.
     def get_user_config(self):
         yaml = YAML()
         with open(self.args.config, 'r') as stream:
@@ -66,7 +66,7 @@ class WorkbenchConfig:
             loaded['config_file_path'] = os.path.join(os.getcwd(), self.args.config)
         return loaded
 
-    # Returns standard media fields
+    # Returns standard media fields.
     def get_media_fields(self):
         return dict({
             'file': 'field_media_file',
@@ -95,6 +95,8 @@ class WorkbenchConfig:
             'input_dir': 'input_data',
             'input_csv': 'metadata.csv',
             'media_use_tid': 'http://pcdm.org/use#OriginalFile',
+            # 'drupal_filesystem' is used only in Drupal 8.x - 9.1; after that,
+            # the filesystem is automatically detected from the media's configuration.
             'drupal_filesystem': 'fedora://',
             'id_field': 'id',
             'content_type': 'islandora_object',
