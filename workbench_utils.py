@@ -1122,8 +1122,6 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
 
-    # Issue 415 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
         file_check_csv_data = get_csv_data(config)
@@ -1182,8 +1180,6 @@ def check_input(config, args):
             message = 'OK, files named in the CSV "file" column are all present.'
             print(message)
             logging.info(message)
-
-        # Issue 415 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         # Verify that all media bundles/types exist.
         if config['nodes_only'] is False:
