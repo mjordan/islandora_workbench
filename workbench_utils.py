@@ -410,7 +410,7 @@ def ping_islandora(config, print_message=True):
 
 
 def ping_content_type(config):
-    url = f"{config['host']}/admin/structure/types/manage/{config['content_type']}"
+    url = f"{config['host']}/entity/entity_form_display/node/.{config['content_type']}.default?_format=json"
     return issue_request(config, 'GET', url).status_code
 
 
@@ -611,11 +611,10 @@ def get_entity_fields(config, entity_type, bundle_type):
     """Get all the fields configured on a bundle.
     """
     if ping_content_type(config) == 404:
-        message = f"Content type '{config['content_type']}' not defined on {config['host']}."
+        message = f"Content type '{config['content_type']}' does not exist on {config['host']}."
         logging.error(message)
         sys.exit('Error: ' + message)
-    fields_endpoint = config['host'] + '/entity/entity_form_display/' + \
-        entity_type + '.' + bundle_type + '.default?_format=json'
+    fields_endpoint = config['host'] + '/entity/entity_form_display/' + entity_type + '.' + bundle_type + '.default?_format=json'
     bundle_type_response = issue_request(config, 'GET', fields_endpoint)
     # If a vocabulary has no custom fields (like the default "Tags" vocab), this query will
     # return a 404 response. So, we need to use an alternative way to check if the vocabulary
