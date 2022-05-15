@@ -696,15 +696,14 @@ def update():
             else:
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
-                print(node)
 
             temp_field = []
             added = []
             if custom_field in node.keys():
                 for entry in node[custom_field]:
-                    if entry['value'] not in added:
+                    if entry not in added:
                         temp_field.append(entry)
-                        added.append(entry['value'])
+                        added.append(entry)
                 node[custom_field] = temp_field
         node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
         node_headers = {'Content-Type': 'application/json'}

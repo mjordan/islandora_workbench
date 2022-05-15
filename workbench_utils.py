@@ -3607,8 +3607,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                     # the vocabulary IDs referenced by this field.
                     field_value_parts = field_value.split(':')
                     if field_value_parts[0] not in this_fields_vocabularies:
-                        message = 'Vocabulary ID ' + field_value_parts[0] + \
-                            ' used in CSV column "' + csv_field_name + '", row ' + str(record_number) + \
+                        message = 'Vocabulary ID "' + field_value_parts[0] + \
+                            '" used in CSV column "' + csv_field_name + '", row ' + str(record_number) + \
                             ' does not match any of the vocabularies referenced by the' + \
                             ' corresponding Drupal field (' + this_fields_vocabularies_string + ').'
                         logging.error(message)
