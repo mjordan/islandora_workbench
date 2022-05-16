@@ -86,7 +86,7 @@ class TestSimpleField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'simple_002 would exceed maximum number of allowed values \(1\)')
+            self.assertRegex(str(message.output), r'simple_002 would exceed maximum number of allowed values \(1\)')
 
         # Create a node with a simple field of cardinality unlimited, no subdelimiters.
         self.field_definitions = {
@@ -194,7 +194,7 @@ class TestSimpleField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(self.node, expected_node)
-            self.assertRegex(str(message.output), 'simple_006 would exceed maximum number of allowed values \(2\)')
+            self.assertRegex(str(message.output), r'simple_006 would exceed maximum number of allowed values \(2\)')
 
     def test_update_with_simple_field(self):
         existing_node = {
@@ -289,7 +289,7 @@ class TestSimpleField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'record 2 would exceed maximum number of allowed values \(1\)')
+            self.assertRegex(str(message.output), r'record 2 would exceed maximum number of allowed values \(1\)')
 
         # Update a node with a simple field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
         self.field_definitions = {
@@ -510,7 +510,7 @@ class TestSimpleField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'record 9 would exceed maximum number of allowed values \(2\)')
+            self.assertRegex(str(message.output), r'record 9 would exceed maximum number of allowed values \(2\)')
 
         # Update a node with a simple field of cardinality limited, with subdelimiters. update_mode is 'append'.
         self.field_definitions = {
@@ -545,7 +545,7 @@ class TestSimpleField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'record 10 would exceed maximum number of allowed values \(3\)')
+            self.assertRegex(str(message.output), r'record 10 would exceed maximum number of allowed values \(3\)')
 
         # Update a node with update_mode of 'delete'.
         self.field_definitions = {
@@ -653,7 +653,7 @@ class TestGeolocationField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record geo_002 would exceed maximum number of allowed values \(1\)')
+            self.assertRegex(str(message.output), r'for record geo_002 would exceed maximum number of allowed values \(1\)')
 
         # Create a node with a geolocation field of cardinality unlimited, no subdelimiters.
         self.field_definitions = {
@@ -849,7 +849,7 @@ class TestGeolocationField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record 101 would exceed maximum number of allowed values \(1\)')
+            self.assertRegex(str(message.output), r'for record 101 would exceed maximum number of allowed values \(1\)')
 
         # Update a node with a geolocation field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
         self.config['update_mode'] = 'replace'
@@ -1270,7 +1270,7 @@ class TestLinkField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record link_002 would exceed maximum number of allowed values.+1')
+            self.assertRegex(str(message.output), r'for record link_002 would exceed maximum number of allowed values \(1\)')
 
         # Create a node with a link field of cardinality unlimited, no subdelimiters.
         self.field_definitions = {
@@ -1466,7 +1466,7 @@ class TestLinkField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record 101 would exceed maximum number of allowed values.+1')
+            self.assertRegex(str(message.output), r'for record 101 would exceed maximum number of allowed values \(1\)')
 
         # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
         self.config['update_mode'] = 'replace'
@@ -1967,7 +1967,7 @@ class TestEntityRefererenceField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record term_entity_reference_002 would exceed maximum number of allowed values \(1\)')
+            self.assertRegex(str(message.output), r'for record term_entity_reference_002 would exceed maximum number of allowed values \(1\)')
 
         self.field_definitions = {
             'field_foo': {
@@ -1997,7 +1997,7 @@ class TestEntityRefererenceField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record node_entity_reference_002 would exceed maximum number of allowed values \(1\)')
+            self.assertRegex(str(message.output), r'for record node_entity_reference_002 would exceed maximum number of allowed values \(1\)')
 
         # Create a node with an entity_reference field of cardinality unlimited, no subdelimiters,
         # for both taxonomy term and node references.
@@ -2206,7 +2206,7 @@ class TestEntityRefererenceField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record term_entity_reference_006 would exceed maximum number of allowed values \(2\)')
+            self.assertRegex(str(message.output), r'for record term_entity_reference_006 would exceed maximum number of allowed values \(2\)')
 
         self.field_definitions = {
             'field_foo': {
@@ -2237,7 +2237,7 @@ class TestEntityRefererenceField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record node_entity_reference_006 would exceed maximum number of allowed values \(2\)')
+            self.assertRegex(str(message.output), r'for record node_entity_reference_006 would exceed maximum number of allowed values \(2\)')
 
     def test_update_with_entity_reference_field(self):
         existing_node = {
@@ -2347,7 +2347,7 @@ class TestEntityRefererenceField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record 102 would exceed maximum number of allowed values.+1')
+            self.assertRegex(str(message.output), r'for record 102 would exceed maximum number of allowed values \(1\)')
 
         self.field_definitions = {
             'field_foo': {
@@ -2705,7 +2705,7 @@ class TestEntityRefererenceField(unittest.TestCase):
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object',
-                    'target_type': 'node_type'}
+                     'target_type': 'node_type'}
                 ],
                 'title': [
                     {'value': "Test node"}
@@ -2719,7 +2719,7 @@ class TestEntityRefererenceField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record 113 would exceed maximum number of allowed values \(2\)')
+            self.assertRegex(str(message.output), r'for record 113 would exceed maximum number of allowed values \(2\)')
 
         # Do not violate cardinality.
         self.config['update_mode'] = 'append'
@@ -2739,7 +2739,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object',
-                'target_type': 'node_type'}
+                 'target_type': 'node_type'}
             ],
             'title': [
                 {'value': "Test node"}
@@ -2754,6 +2754,12 @@ class TestEntityRefererenceField(unittest.TestCase):
             ]
         }
         self.assertDictEqual(node, expected_node)
+
+        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # @todo: node reference
+
+
+        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         # Update a node with an entity_reference field of cardinality limited, with subdelimiters. update_mode is 'replace',
         # for both taxonomy term and node references.
@@ -2789,10 +2795,49 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+        # Violate cardinality
+        with self.assertLogs() as message:
+            self.config['update_mode'] = 'replace'
+            self.field_definitions = {
+                'field_foo': {
+                    'cardinality': 2,
+                    'target_type': 'taxonomy_term'
+                }
+            }
+
+            field = workbench_fields.EntityReferenceField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 116
+            csv_record['field_foo'] = '115|116|117'
+            node_field_values = [{'target_id': '70', 'target_type': 'taxonomy_term'}, {'target_id': '71', 'target_type': 'taxonomy_term'}]
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object',
+                     'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'target_id': '115', 'target_type': 'taxonomy_term'},
+                    {'target_id': '116', 'target_type': 'taxonomy_term'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record 116 would exceed maximum number of allowed values \(2\)')
+
+        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # @todo: node reference
+
+
+        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         # Update a node with an entity_reference field of cardinality limited, with subdelimiters. update_mode is 'append',
         # for both taxonomy term and node references.
-        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
         self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
@@ -2811,7 +2856,7 @@ class TestEntityRefererenceField(unittest.TestCase):
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object',
-                    'target_type': 'node_type'}
+                     'target_type': 'node_type'}
                 ],
                 'title': [
                     {'value': "Test node"}
@@ -2825,7 +2870,7 @@ class TestEntityRefererenceField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record 116 would exceed maximum number of allowed values \(2\)')
+            self.assertRegex(str(message.output), r'for record 116 would exceed maximum number of allowed values \(2\)')
 
 
         # Do not violate cardinality.
@@ -2846,7 +2891,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object',
-                'target_type': 'node_type'}
+                 'target_type': 'node_type'}
             ],
             'title': [
                 {'value': "Test node"}
@@ -2863,12 +2908,41 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # @todo: node reference
+
 
         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-        # Update a node with update_mode of 'delete', for both taxonomy term and node references.
-        pass
+        # Update a node with update_mode of 'delete'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 3,
+            }
+        }
+
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 130
+        csv_record['field_foo'] = ''
+        node_field_values = [{'target_id': '1300', 'target_type': 'taxonomy_term'}, {'target_id': '1301', 'target_type': 'taxonomy_term'}]
+        self.config['update_mode'] = 'delete'
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': []
+        }
+        self.assertDictEqual(node, expected_node)
 
 
 if __name__ == '__main__':

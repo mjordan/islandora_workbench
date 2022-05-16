@@ -657,7 +657,6 @@ class EntityReferenceField():
                 else:
                     node[custom_field] = [{'target_id': row[custom_field], 'target_type': target_type}]
             if config['update_mode'] == 'append':
-                field_values = []
                 if config['subdelimiter'] in row[custom_field]:
                     subvalues = row[custom_field].split(config['subdelimiter'])
                     for subvalue in subvalues:
@@ -666,9 +665,9 @@ class EntityReferenceField():
                         node[custom_field] = node_field_values[:field_definitions[custom_field]['cardinality']]
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
                     else:
-                        node[custom_field] = field_values
+                        node[custom_field] = node_field_values
                 else:
-                    node_field_values.append({'target_id': row[custom_field],'target_type': target_type})
+                    node_field_values.append({'target_id': row[custom_field], 'target_type': target_type})
                     if len(node_field_values) > int(field_definitions[custom_field]['cardinality']):
                         node[custom_field] = node_field_values[:field_definitions[custom_field]['cardinality']]
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
@@ -741,7 +740,7 @@ class EntityReferenceField():
                         node_field_values.append({'target_id': subvalue, 'target_type': target_type})
                     node[custom_field] = node_field_values
                 else:
-                    node_field_values.append({'target_id': row[custom_field],'target_type': target_type})
+                    node_field_values.append({'target_id': row[custom_field], 'target_type': target_type})
                     node[custom_field] = node_field_values
 
         return node
