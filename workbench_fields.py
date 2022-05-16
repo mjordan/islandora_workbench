@@ -568,8 +568,11 @@ class EntityReferenceField():
                 subvalues = row[custom_field].split(config['subdelimiter'])
                 for subvalue in subvalues:
                     field_values.append({'target_id': subvalue, 'target_type': target_type})
-                node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]
-                log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
+                if len(field_values) > int(field_definitions[custom_field]['cardinality']):
+                    node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]
+                    log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
+                else:
+                    node[custom_field] = field_values
             else:
                 node[custom_field] = [{'target_id': row[custom_field], 'target_type': target_type}]
         # Cardinality is 1.
@@ -636,8 +639,44 @@ class EntityReferenceField():
             node[custom_field] = [{'target_id': subvalues[0], 'target_type': target_type}]
             if len(subvalues) > 1:
                 log_field_cardinality_violation(custom_field, row['node_id'], '1')
+
         # Cardinality has a limit.
         elif field_definitions[custom_field]['cardinality'] > 1:
+            if config['update_mode'] == 'replace':
+                # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    subvalues = row[custom_field].split(config['subdelimiter'])
+                    for subvalue in subvalues:
+                        field_values.append({'target_id': subvalue, 'target_type': target_type})
+                    if len(field_values) > int(field_definitions[custom_field]['cardinality']):
+                        node[custom_field] = field_values[:field_definitions[custom_field]['cardinality']]
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                    else:
+                        node[custom_field] = field_values
+                else:
+                    node[custom_field] = [{'target_id': row[custom_field], 'target_type': target_type}]
+            if config['update_mode'] == 'append':
+                field_values = []
+                if config['subdelimiter'] in row[custom_field]:
+                    subvalues = row[custom_field].split(config['subdelimiter'])
+                    for subvalue in subvalues:
+                        node_field_values.append({'target_id': subvalue, 'target_type': target_type})
+                    if len(node_field_values) > int(field_definitions[custom_field]['cardinality']):
+                        node[custom_field] = node_field_values[:field_definitions[custom_field]['cardinality']]
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                    else:
+                        node[custom_field] = field_values
+                else:
+                    node_field_values.append({'target_id': row[custom_field],'target_type': target_type})
+                    if len(node_field_values) > int(field_definitions[custom_field]['cardinality']):
+                        node[custom_field] = node_field_values[:field_definitions[custom_field]['cardinality']]
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                    else:
+                        node[custom_field] = node_field_values
+
+            # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            '''
             # Append to existing values.
             existing_target_ids = get_target_ids(node_field_values[custom_field])
             num_existing_values = len(existing_target_ids)
@@ -682,6 +721,7 @@ class EntityReferenceField():
                         "Not updating field %s node for %s, adding provided value would exceed maxiumum number of allowed values.",
                         custom_field,
                         row['node_id'])
+            '''
         # Cardinality is unlimited.
         else:
             if config['update_mode'] == 'replace':
