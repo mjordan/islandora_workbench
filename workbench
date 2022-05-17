@@ -183,6 +183,11 @@ def create():
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.create(config, field_definitions, node, row, custom_field)
 
+            # Typed relation fields. Uncomment when #417 is done.
+            # elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                # typed_relation_field = workbench_fields.TypedRelationField()
+                # node = typed_relation_field.create(config, field_definitions, node, row, custom_field)
+
             # Typed relation fields.
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                 this_fields_vocabularies = field_definitions[custom_field]['vocabularies']
@@ -223,11 +228,6 @@ def create():
                     node[custom_field] = [subvalues[0]]
                     if len(subvalues) > 1:
                         log_field_cardinality_violation(custom_field, id_field, '1')
-
-            # Typed relation fields. Can't start using workbench_fields.TypedRelation until unit tests are done.
-            # elif field_definitions[custom_field]['field_type'] == 'typed_relation':
-                # typed_relation_field = workbench_fields.TypedRelationField()
-                # node = typed_relation_field.create(config, field_definitions, node, row, custom_field)
 
             # Geolocation fields.
             elif field_definitions[custom_field]['field_type'] == 'geolocation':
@@ -437,6 +437,11 @@ def update():
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
+
+            # Uncomment when #417 is complete.
+            # elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                # typed_relation_field = workbench_fields.TypedRelationField()
+                # node = typed_relation_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # Typed relation fields.
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':

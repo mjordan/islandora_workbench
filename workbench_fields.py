@@ -450,58 +450,6 @@ class LinkField():
         return node
 
 
-class TypedRelationField():
-    """Functions for handling fields with 'typed_relation' Drupal field data type.
-       All functions return a "node" dictionary that is passed to Requests' "json"
-       parameter.
-    """
-    def create(self, config, field_definitions, node, row, custom_field):
-        """Parameters
-           ----------
-            config : dict
-                The configuration object defined by set_config_defaults().
-            field_definitions : dict
-                The field definitions object defined by get_field_definitions().
-            node : dict
-                The dict that will be POSTed to Drupal as JSON.
-            row : OrderedDict.
-                The current CSV record.
-            custom_field : string
-                The Drupal fieldname/CSV column header.
-            Returns
-            -------
-            dictionary
-                A dictionary represeting the node that is POSTed to Drupal as JSON.
-        """
-        pass
-
-    def update(self, config, field_definitions, node, row, custom_field, node_field_values):
-        """Note: this method both adds incoming CSV values to existing values and replaces entire
-           fields with incoming values, depending on whether config['update_mode'] is 'append'
-           or 'replace'. It doesn not replace specific values.
-        """
-        """Parameters
-           ----------
-            config : dict
-                The configuration object defined by set_config_defaults().
-            field_definitions : dict
-                The field definitions object defined by get_field_definitions().
-            node : dict
-                The dict that will be POSTed to Drupal as JSON.
-            row : OrderedDict.
-                The current CSV record.
-            custom_field : string
-                The Drupal fieldname/CSV column header.
-            node_field_values : list
-                List of dictionaries containing value(s) for custom_field in the node being updated.
-            Returns
-            -------
-            dictionary
-                A dictionary represeting the node that is POSTed to Drupal as JSON.
-        """
-        pass
-
-
 class EntityReferenceField():
     """Functions for handling fields with 'entity_reference' Drupal field data type.
        All functions return a "node" dictionary that is passed to Requests' "json"
@@ -696,3 +644,75 @@ class EntityReferenceField():
                     node[custom_field] = node_field_values
 
         return node
+
+
+class TypedRelationField():
+    """Functions for handling fields with 'typed_relation' Drupal field data type.
+       All functions return a "node" dictionary that is passed to Requests' "json"
+       parameter.
+    """
+    def create(self, config, field_definitions, node, row, custom_field):
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            node : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            custom_field : string
+                The Drupal fieldname/CSV column header.
+            Returns
+            -------
+            dictionary
+                A dictionary represeting the node that is POSTed to Drupal as JSON.
+        """
+        id_field = row[config['id_field']]
+        if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
+            target_type = 'taxonomy_term'
+            field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
+            # Cardinality is unlimited.
+            if field_definitions[custom_field]['cardinality'] == -1:
+                pass
+
+            # Cardinality has a limit.
+            elif field_definitions[custom_field]['cardinality'] > 1:
+                pass
+
+            # Cardinality is 1.
+            else:
+                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
+                node[custom_field] = [subvalues[0]]
+                if len(subvalues) > 1:
+                    log_field_cardinality_violation(custom_field, id_field, '1')
+
+        return node
+
+    def update(self, config, field_definitions, node, row, custom_field, node_field_values):
+        """Note: this method both adds incoming CSV values to existing values and replaces entire
+           fields with incoming values, depending on whether config['update_mode'] is 'append'
+           or 'replace'. It doesn not replace specific values.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            node : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            custom_field : string
+                The Drupal fieldname/CSV column header.
+            node_field_values : list
+                List of dictionaries containing value(s) for custom_field in the node being updated.
+            Returns
+            -------
+            dictionary
+                A dictionary represeting the node that is POSTed to Drupal as JSON.
+        """
+        pass

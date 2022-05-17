@@ -1824,37 +1824,6 @@ class TestLinkField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
 
-class TestTypedRelationField(unittest.TestCase):
-
-    def setUp(self):
-        pass
-
-    def test_create_with_typed_relation_field(self):
-        # Create a node with a typed_relation field of cardinality 1, no subdelimiters.
-        # Create a node with a typed_relation field of cardinality 1, with subdelimiters.
-        # Create a node with a typed_relation field of cardinality unlimited, no subdelimiters.
-        # Create a node with a typed_relation field of cardinality unlimited, with subdelimiters.
-        # Create a node with a typed_relation field of cardinality limited, no subdelimiters.
-        # Create a node with a typed_relation field of cardinality limited, with subdelimiters.
-        pass
-
-    def test_update_with_typed_relation_field(self):
-        # Update a node with a typed_relation field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
-        # Update a node with a typed_relation field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
-        # Update a node with a typed_relation field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
-        # Update a node with a typed_relation field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
-        # Update a node with a typed_relation field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
-        # Update a node with a typed_relation field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
-        # Update a node with a typed_relation field of cardinality limited, no subdelimiters. update_mode is 'replace'.
-        # Update a node with a typed_relation field of cardinality limited, no subdelimiters. update_mode is 'append'.
-        # Update a node with a typed_relation field of cardinality limited, with subdelimiters. update_mode is 'replace'.
-        # Update a node with a typed_relation field of cardinality limited, with subdelimiters. update_mode is 'append'.
-        # Update a node with update_mode of 'delete'.
-        pass
-
-
 class TestEntityRefererenceField(unittest.TestCase):
 
     def setUp(self):
@@ -3033,6 +3002,105 @@ class TestEntityRefererenceField(unittest.TestCase):
             'field_foo': []
         }
         self.assertDictEqual(node, expected_node)
+
+
+class TestTypedRelationField(unittest.TestCase):
+
+    def setUp(self):
+        self.maxDiff = None
+
+        self.config = {
+            'subdelimiter': '|',
+            'id_field': 'id',
+            'update_mode': 'replace'
+        }
+
+        self.existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
+    def test_create_with_typed_relation_field(self):
+        # Create a node with a typed_relation field of cardinality 1, no subdelimiters.
+        field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.TypedRelationField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "typed_relation_001"
+        csv_record['field_foo'] = "relators:pht:1"
+        node = field.create(self.config, field_definitions, self.existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:pht', 'target_id': '1', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a typed_relation field of cardinality 1, with subdelimiters.
+        with self.assertLogs() as message:
+            field = workbench_fields.TypedRelationField()
+            csv_record = collections.OrderedDict()
+            csv_record['id'] = "typed_relation_002"
+            csv_record['field_foo'] = "relators:art:2|relators:art:22"
+            node = field.create(self.config, field_definitions, self.existing_node, csv_record, "field_foo")
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'rel_type': 'relators:art', 'target_id': '2', 'target_type': 'taxonomy_term'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record typed_relation_002 would exceed maximum number of allowed values \(1\)')
+
+        # Create a node with a typed_relation field of cardinality unlimited, no subdelimiters.
+        # Create a node with a typed_relation field of cardinality unlimited, with subdelimiters.
+        # Create a node with a typed_relation field of cardinality limited, no subdelimiters.
+        # Create a node with a typed_relation field of cardinality limited, with subdelimiters.
+
+    def test_update_with_typed_relation_field(self):
+        # Update a node with a typed_relation field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
+        # always replaced with incoming values, they are never appended to.
+        # Update a node with a typed_relation field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
+        # always replaced with incoming values, they are never appended to.
+        # Update a node with a typed_relation field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
+        # Update a node with a typed_relation field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+        # Update a node with a typed_relation field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
+        # Update a node with a typed_relation field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
+        # Update a node with a typed_relation field of cardinality limited, no subdelimiters. update_mode is 'replace'.
+        # Update a node with a typed_relation field of cardinality limited, no subdelimiters. update_mode is 'append'.
+        # Update a node with a typed_relation field of cardinality limited, with subdelimiters. update_mode is 'replace'.
+        # Update a node with a typed_relation field of cardinality limited, with subdelimiters. update_mode is 'append'.
+        # Update a node with update_mode of 'delete'.
+        pass
 
 
 if __name__ == '__main__':
