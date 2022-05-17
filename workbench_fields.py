@@ -675,12 +675,32 @@ class TypedRelationField():
             field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
             # Cardinality is unlimited.
             if field_definitions[custom_field]['cardinality'] == -1:
-                pass
-
+                field_values = []
+                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                if config['subdelimiter'] in row[custom_field]:
+                    for subvalue in subvalues:
+                        subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
+                        field_values.append(subvalue)
+                    node[custom_field] = field_values
+                else:
+                    subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
+                    node[custom_field] = subvalues
             # Cardinality has a limit.
             elif field_definitions[custom_field]['cardinality'] > 1:
-                pass
-
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                    if len(subvalues) > field_definitions[custom_field]['cardinality']:
+                        log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
+                        subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                    for subvalue in subvalues:
+                        subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
+                        field_values.append(subvalue)
+                    node[custom_field] = field_values
+                else:
+                    field_value = split_typed_relation_string(config, row[custom_field], target_type)
+                    field_value[0]['target_id'] = prepare_term_id(config, field_vocabs, field_value[0]['target_id'])
+                    node[custom_field] = field_value
             # Cardinality is 1.
             else:
                 subvalues = split_typed_relation_string(config, row[custom_field], target_type)

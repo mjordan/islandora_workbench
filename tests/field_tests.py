@@ -1,4 +1,7 @@
 """unittest tests for Drupal field handlers.
+
+   @todo: add tests for duplicate values in incoming CSV (create and update, append and replace)
+   and for values in incoming CSV that already exist in target field (update, append and replace).
 """
 
 import sys
@@ -3028,6 +3031,7 @@ class TestTypedRelationField(unittest.TestCase):
         }
 
     def test_create_with_typed_relation_field(self):
+
         # Create a node with a typed_relation field of cardinality 1, no subdelimiters.
         field_definitions = {
             'field_foo': {
@@ -3082,9 +3086,126 @@ class TestTypedRelationField(unittest.TestCase):
             self.assertRegex(str(message.output), r'for record typed_relation_002 would exceed maximum number of allowed values \(1\)')
 
         # Create a node with a typed_relation field of cardinality unlimited, no subdelimiters.
+        field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.TypedRelationField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "typed_relation_003"
+        csv_record['field_foo'] = "relators:pht:3"
+        node = field.create(self.config, field_definitions, self.existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:pht', 'target_id': '3', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Create a node with a typed_relation field of cardinality unlimited, with subdelimiters.
+        field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.TypedRelationField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "typed_relation_004"
+        csv_record['field_foo'] = "relators:pht:1|relators:pht:2|relators:pht:3"
+        node = field.create(self.config, field_definitions, self.existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:pht', 'target_id': '1', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:pht', 'target_id': '2', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:pht', 'target_id': '3', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Create a node with a typed_relation field of cardinality limited, no subdelimiters.
+        field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        field = workbench_fields.TypedRelationField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "typed_relation_005"
+        csv_record['field_foo'] = "relators:art:51"
+        node = field.create(self.config, field_definitions, self.existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '51', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Create a node with a typed_relation field of cardinality limited, with subdelimiters.
+        field_definitions = {
+            'field_foo': {
+                'cardinality': 3,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        with self.assertLogs() as message:
+            field = workbench_fields.TypedRelationField()
+            csv_record = collections.OrderedDict()
+            csv_record['id'] = "typed_relation_006"
+            csv_record['field_foo'] = "relators:art:26|relators:art:36|relators:art:46|relators:art:56"
+            node = field.create(self.config, field_definitions, self.existing_node, csv_record, "field_foo")
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'rel_type': 'relators:art', 'target_id': '26', 'target_type': 'taxonomy_term'},
+                    {'rel_type': 'relators:art', 'target_id': '36', 'target_type': 'taxonomy_term'},
+                    {'rel_type': 'relators:art', 'target_id': '46', 'target_type': 'taxonomy_term'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record typed_relation_006 would exceed maximum number of allowed values \(3\)')
 
     def test_update_with_typed_relation_field(self):
         # Update a node with a typed_relation field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
