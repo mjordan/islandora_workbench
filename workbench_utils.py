@@ -1483,8 +1483,7 @@ def log_field_cardinality_violation(field_name, record_id, cardinality):
        configured id_field or a node ID.
     """
     logging.warning(
-        "Adding all values in CSV field %s for record %s would exceed maximum " +
-        "number of allowed values (%s), so only adding first value.",
+        "Adding all values in CSV field %s for record %s would exceed maximum number of allowed values (%s). Skipping adding extra values.",
         field_name,
         record_id,
         cardinality)
