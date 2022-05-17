@@ -643,7 +643,6 @@ class EntityReferenceField():
         # Cardinality has a limit.
         elif field_definitions[custom_field]['cardinality'] > 1:
             if config['update_mode'] == 'replace':
-                # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = row[custom_field].split(config['subdelimiter'])
@@ -674,53 +673,6 @@ class EntityReferenceField():
                     else:
                         node[custom_field] = node_field_values
 
-            # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-            '''
-            # Append to existing values.
-            existing_target_ids = get_target_ids(node_field_values[custom_field])
-            num_existing_values = len(existing_target_ids)
-            if config['subdelimiter'] in row[custom_field]:
-                field_values = []
-                subvalues = row[custom_field].split(config['subdelimiter'])
-                for subvalue in subvalues:
-                    if subvalue in existing_target_ids:
-                        existing_target_ids.remove(subvalue)
-                # Slice the incoming values to a length that matches the field's
-                # cardinality minus its existing length. Also log fact that we're
-                # slicing off values.
-                num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values
-                subvalues = subvalues[:num_values_to_add]
-                if len(subvalues) > 0:
-                    logging.warning(
-                        "Adding all values in CSV field %s for node %s would exceed maximum number of " +
-                        "allowed values (%s), so only adding %s values.",
-                        custom_field,
-                        row['node_id'],
-                        field_definitions[custom_field]['cardinality'],
-                        num_values_to_add)
-                    logging.info(
-                        "Updating node %s with %s values from CSV record.",
-                        row['node_id'],
-                        num_values_to_add)
-                    for subvalue in subvalues:
-                        field_values.append({'target_id': subvalue, 'target_type': target_type})
-                    node[custom_field] = node_field_values[custom_field] + field_values
-                else:
-                    logging.info(
-                        "Not updating field %s node for %s, provided values do not contain any new values for this field.",
-                        custom_field,
-                        row['node_id'])
-            else:
-                if num_existing_values + 1 <= int(field_definitions[custom_field]['cardinality']):
-                    node[custom_field] = node_field_values[custom_field] + [
-                        {'target_id': row[custom_field],
-                         'target_type': 'taxonomy_term'}]
-                else:
-                    logging.warning(
-                        "Not updating field %s node for %s, adding provided value would exceed maxiumum number of allowed values.",
-                        custom_field,
-                        row['node_id'])
-            '''
         # Cardinality is unlimited.
         else:
             if config['update_mode'] == 'replace':

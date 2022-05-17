@@ -2349,6 +2349,7 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record 102 would exceed maximum number of allowed values \(1\)')
 
+        # Node reference.
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
@@ -2414,6 +2415,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+        # Node reference.
         self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
@@ -2486,6 +2488,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+        # Node reference.
         self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
@@ -2552,6 +2555,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+        # Node reference.
         self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
@@ -2619,6 +2623,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+        # Node reference.
         self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
@@ -2755,11 +2760,40 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-        # @todo: node reference
+        # Node reference.
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+                'target_type': 'node'
+            }
+        }
 
-
-        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        with self.assertLogs() as message:
+            field = workbench_fields.EntityReferenceField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 1141
+            csv_record['field_foo'] = '101|102'
+            node_field_values = [{'target_id': '60', 'target_type': 'node_type'}]
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object',
+                     'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'target_id': '60', 'target_type': 'node_type'},
+                    {'target_id': '101', 'target_type': 'node_type'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record 1141 would exceed maximum number of allowed values \(2\)')
 
         # Update a node with an entity_reference field of cardinality limited, with subdelimiters. update_mode is 'replace',
         # for both taxonomy term and node references.
@@ -2830,11 +2864,41 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record 116 would exceed maximum number of allowed values \(2\)')
 
-        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-        # @todo: node reference
+        # Node reference.
+        with self.assertLogs() as message:
+            self.config['update_mode'] = 'replace'
+            self.field_definitions = {
+                'field_foo': {
+                    'cardinality': 3,
+                    'target_type': 'node'
+                }
+            }
 
-
-        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            field = workbench_fields.EntityReferenceField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 1161
+            csv_record['field_foo'] = '101|102|103|104'
+            node_field_values = [{'target_id': '60', 'target_type': 'node_type'}]
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object',
+                     'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'target_id': '101', 'target_type': 'node_type'},
+                    {'target_id': '102', 'target_type': 'node_type'},
+                    {'target_id': '103', 'target_type': 'node_type'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record 1161 would exceed maximum number of allowed values \(3\)')
 
         # Update a node with an entity_reference field of cardinality limited, with subdelimiters. update_mode is 'append',
         # for both taxonomy term and node references.
@@ -2872,7 +2936,6 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record 116 would exceed maximum number of allowed values \(2\)')
 
-
         # Do not violate cardinality.
         self.config['update_mode'] = 'append'
         self.field_definitions = {
@@ -2908,12 +2971,39 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-        # @todo: node reference
+        # Node reference.
+        self.config['update_mode'] = 'append'
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 3,
+                'target_type': 'node'
+            }
+        }
 
-
-        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+        field = workbench_fields.EntityReferenceField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 1162
+        csv_record['field_foo'] = '102|103'
+        node_field_values = [{'target_id': '60', 'target_type': 'node_type'}]
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object',
+                 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '60', 'target_type': 'node_type'},
+                {'target_id': '102', 'target_type': 'node_type'},
+                {'target_id': '103', 'target_type': 'node_type'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
 
         # Update a node with update_mode of 'delete'.
         self.field_definitions = {
