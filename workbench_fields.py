@@ -5,8 +5,8 @@ from workbench_utils import *
 
 class SimpleField():
     """Functions for handling fields with text and other "simple" Drupal field data types,
-       e.g. fields that have a "{'value': 'xxx'}" structure. All functions return a
-       "node" dictionary that is passed to Requests' "json" parameter.
+       e.g. fields that have a "{'value': 'xxx'}" structure such as ETDF fields. All functions
+       return a "node" dictionary that is passed to Requests' "json" parameter.
 
        Note: this class assumes that the node has the field identified in 'custom_field'.
        Callers should pre-emptively confirm that. For an example, see code near the top
@@ -71,8 +71,8 @@ class SimpleField():
 
     def update(self, config, field_definitions, node, row, custom_field, node_field_values):
         """Note: this method both adds incoming CSV values to existing values and replaces entire
-           fields with incoming values, depending on whether config['update_mode'] is 'append'
-           or 'replace'. It doesn not replace specific values.
+           fields with incoming values, depending on whether config['update_mode'] is 'append',
+           'replace', or 'delete'. It doesn not replace specific values within fields.
         """
         """Parameters
            ----------
@@ -91,7 +91,7 @@ class SimpleField():
             Returns
             -------
             dictionary
-                A dictionary represeting the node that is POSTed to Drupal as JSON.
+                A dictionary represeting the node that is PATCHed to Drupal as JSON.
         """
         if config['update_mode'] == 'delete':
             node[custom_field] = []
@@ -238,8 +238,8 @@ class GeolocationField():
 
     def update(self, config, field_definitions, node, row, custom_field, node_field_values):
         """Note: this method both adds incoming CSV values to existing values and replaces entire
-           fields with incoming values, depending on whether config['update_mode'] is 'append'
-           or 'replace'. It doesn not replace specific values.
+           fields with incoming values, depending on whether config['update_mode'] is 'append',
+           'replace', or 'delete'. It doesn not replace specific values wthin fields.
 
            Note: this class assumes that the node has the field identified in 'custom_field'.
            Callers should pre-emptively confirm that. For an example, see code near the top
@@ -262,7 +262,7 @@ class GeolocationField():
             Returns
             -------
             dictionary
-                A dictionary represeting the node that is POSTed to Drupal as JSON.
+                A dictionary represeting the node that is PATCHed to Drupal as JSON.
         """
         if config['update_mode'] == 'delete':
             node[custom_field] = []
@@ -380,8 +380,8 @@ class LinkField():
 
     def update(self, config, field_definitions, node, row, custom_field, node_field_values):
         """Note: this method both adds incoming CSV values to existing values and replaces entire
-           fields with incoming values, depending on whether config['update_mode'] is 'append'
-           or 'replace'. It doesn not replace specific values.
+           fields with incoming values, depending on whether config['update_mode'] is 'append',
+           'replace', or 'delete'. It doesn not replace specific values within fields.
         """
         """Parameters
            ----------
@@ -400,7 +400,7 @@ class LinkField():
             Returns
             -------
             dictionary
-                A dictionary represeting the node that is POSTed to Drupal as JSON.
+                A dictionary represeting the node that is PATCHed to Drupal as JSON.
         """
         if config['update_mode'] == 'delete':
             node[custom_field] = []
@@ -554,8 +554,8 @@ class EntityReferenceField():
 
     def update(self, config, field_definitions, node, row, custom_field, node_field_values):
         """Note: this method both adds incoming CSV values to existing values and replaces entire
-           fields with incoming values, depending on whether config['update_mode'] is 'append'
-           or 'replace'. It doesn not replace specific values.
+           fields with incoming values, depending on whether config['update_mode'] is 'append',
+           'replace', or 'delete'. It doesn not replace specific values within fields.
         """
         """Parameters
            ----------
@@ -574,7 +574,7 @@ class EntityReferenceField():
             Returns
             -------
             dictionary
-                A dictionary represeting the node that is POSTed to Drupal as JSON.
+                A dictionary represeting the node that is PATCHed to Drupal as JSON.
         """
         if config['update_mode'] == 'delete':
             node[custom_field] = []
@@ -602,6 +602,7 @@ class EntityReferenceField():
         if field_definitions[custom_field]['target_type'] == 'node':
             target_type = 'node_type'
 
+        # Cardinality is 1. Do not append to existing values, replace existing value.
         if field_definitions[custom_field]['cardinality'] == 1:
             subvalues = row[custom_field].split(config['subdelimiter'])
             node[custom_field] = [{'target_id': subvalues[0], 'target_type': target_type}]
@@ -671,6 +672,9 @@ class TypedRelationField():
        All functions return a "node" dictionary that is passed to Requests' "json"
        parameter.
 
+       Currently this field type only supports Typed Relation Taxonomies (not other
+       Typed Relation entity types).
+
        Note: this class assumes that the node has the field identified in 'custom_field'.
        Callers should pre-emptively confirm that. For an example, see code near the top
        of workbench.update().
@@ -694,6 +698,7 @@ class TypedRelationField():
                 A dictionary represeting the node that is POSTed to Drupal as JSON.
         """
         id_field = row[config['id_field']]
+        # Currently only supports Typed Relation taxonomy entities.
         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
             field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
@@ -737,8 +742,8 @@ class TypedRelationField():
 
     def update(self, config, field_definitions, node, row, custom_field, node_field_values):
         """Note: this method both adds incoming CSV values to existing values and replaces entire
-           fields with incoming values, depending on whether config['update_mode'] is 'append'
-           or 'replace'. It doesn not replace specific values.
+           fields with incoming values, depending on whether config['update_mode'] is 'append',
+           'replace', or 'delete'. It doesn not replace specific values.
         """
         """Parameters
            ----------
@@ -757,6 +762,31 @@ class TypedRelationField():
             Returns
             -------
             dictionary
-                A dictionary represeting the node that is POSTed to Drupal as JSON.
+                A dictionary represeting the node that is PATCHed to Drupal as JSON.
         """
-        pass
+        if config['update_mode'] == 'delete':
+            node[custom_field] = []
+            return node
+
+        if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
+            target_type = 'taxonomy_term'
+            field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
+
+            # Cardinality is 1. Do not append to existing values, replace existing value.
+            if field_definitions[custom_field]['cardinality'] == 1:
+                field_values = split_typed_relation_string(config, row[custom_field], target_type)
+                field_values[0]['target_id'] = prepare_term_id(config, field_vocabs, field_values[0]['target_id'])
+                node[custom_field] = [field_values[0]]
+                if len(field_values) > 1:
+                    log_field_cardinality_violation(custom_field, row['node_id'], '1')
+                    logging.info("Updating node %s with first value from CSV record.", row['node_id'])
+
+            # Cardinality has a limit.
+            elif field_definitions[custom_field]['cardinality'] == -1:
+                pass
+
+            # Cardinality is unlimited.
+            else:
+                pass
+
+        return node
