@@ -323,7 +323,8 @@ def create():
 def update():
     """Update nodes via PATCH. Note that PATCHing replaces the target field,
        so if we are adding an additional value to a multivalued field, we need
-       to include the existing value(s) in our PATCH.
+       to include the existing value(s) in our PATCH. The field classes take
+       care of preserving existing values in 'append' updates.
     """
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
@@ -334,11 +335,12 @@ def update():
     for row in csv_data:
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
-        if not ping_node(config, row['node_id']):
+        node_ping_result = ping_node(config, row['node_id'], 'GET', True)
+        if node_ping_result is False:
             if config['progress_bar'] is False:
                 print("Node " + row['node_id'] + " not found or not accessible, skipping update.")
             logging.warning("Node " + row['node_id'] + " not found or not accessible, skipping update.")
-            continue
+            break
 
         row = clean_csv_values(row)
         # Add the target_id field.
@@ -367,6 +369,15 @@ def update():
         required_fields = ['node_id']
         custom_fields = list(set(csv_column_headers) - set(required_fields))
         for custom_field in custom_fields:
+            node_has_all_fields = True
+            # If node doesn't have the field, log that fact and skip updating the field.
+            if custom_field not in json.loads(node_ping_result):
+                message = f'Node {row["node_id"]} does no have a "{custom_field}" field, skipping update.'
+                print(f'ERROR: ' + message)
+                logging.warning(message)
+                node_has_all_fields = False
+                break
+
             # Skip updating field if value is empty.
             if len(row[custom_field]) == 0:
                 continue
@@ -514,41 +525,33 @@ def update():
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
-            # @todo: Remove this block of code as part of #417?
-            temp_field = []
-            added = []
-            if custom_field in node.keys():
-                for entry in node[custom_field]:
-                    if entry not in added:
-                        temp_field.append(entry)
-                        added.append(entry)
-                node[custom_field] = temp_field
-        node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
-        node_headers = {'Content-Type': 'application/json'}
-        node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
+        if node_has_all_fields is True:
+            node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
+            node_headers = {'Content-Type': 'application/json'}
+            node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
-        if node_response.status_code == 200:
-            if config['progress_bar'] is False:
-                print("Node for " + config['host'] + '/node/' + row['node_id'] + " updated.")
-            logging.info("Node for %s updated.", config['host'] + '/node/' + row['node_id'])
+            if node_response.status_code == 200:
+                if config['progress_bar'] is False:
+                    print("Node for " + config['host'] + '/node/' + row['node_id'] + " updated.")
+                logging.info("Node for %s updated.", config['host'] + '/node/' + row['node_id'])
 
-        # Execute node-specific post-create scripts, if any are configured.
-        if 'node_post_update' in config and len(config['node_post_update']) > 0:
-            for command in config['node_post_update']:
-                post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
-                if post_task_return_code == 0:
-                    logging.info("Post node update script " + command + " executed successfully.")
-                else:
-                    logging.error("Post node update script " + command + " failed.")
+            # Execute node-specific post-create scripts, if any are configured.
+            if 'node_post_update' in config and len(config['node_post_update']) > 0:
+                for command in config['node_post_update']:
+                    post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                    if post_task_return_code == 0:
+                        logging.info("Post node update script " + command + " executed successfully.")
+                    else:
+                        logging.error("Post node update script " + command + " failed.")
 
-        if config['progress_bar'] is True:
-            row_count += 1
-            row_position = get_percentage(row_count, num_csv_records)
-            pbar(row_position)
+            if config['progress_bar'] is True:
+                row_count += 1
+                row_position = get_percentage(row_count, num_csv_records)
+                pbar(row_position)
 
-        # If 'url_alias' is in the CSV, create the alias.
-        if 'url_alias' in row and len(row['url_alias']) > 0:
-            create_url_alias(config, row['node_id'], row['url_alias'])
+            # If 'url_alias' is in the CSV, create the alias.
+            if 'url_alias' in row and len(row['url_alias']) > 0:
+                create_url_alias(config, row['node_id'], row['url_alias'])
 
 
 def delete():

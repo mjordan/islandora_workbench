@@ -324,17 +324,31 @@ def get_integration_module_version(config):
         return False
 
 
-def ping_node(config, nid):
+def ping_node(config, nid, method='HEAD', return_json=False):
     """Ping the node to see if it exists.
+
+        Parameters
+        ----------
+        method: string
+            Either 'HEAD' or 'GET'.
+        return_json: boolean
+        Returns
+        ------
+            True if method is HEAD and node was found, the response JSON
+            response body if method was GET. False if node not found.
     """
     url = config['host'] + '/node/' + str(nid) + '?_format=json'
-    response = issue_request(config, 'HEAD', url)
+    response = issue_request(config, method.upper(), url)
     # @todo: Add 301 and 302 to the allowed status codes?
     if response.status_code == 200:
-        return True
+        if return_json is True:
+            return response.text
+        else:
+            return True
     else:
         logging.warning(
-            "Node ping (HEAD) on %s returned a %s status code",
+            "Node ping (%s) on %s returned a %s status code",
+            method.upper(),
             url,
             response.status_code)
         return False

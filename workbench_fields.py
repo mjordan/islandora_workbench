@@ -7,6 +7,10 @@ class SimpleField():
     """Functions for handling fields with text and other "simple" Drupal field data types,
        e.g. fields that have a "{'value': 'xxx'}" structure. All functions return a
        "node" dictionary that is passed to Requests' "json" parameter.
+
+       Note: this class assumes that the node has the field identified in 'custom_field'.
+       Callers should pre-emptively confirm that. For an example, see code near the top
+       of workbench.update().
     """
     def create(self, config, field_definitions, node, row, custom_field):
         """Parameters
@@ -172,6 +176,10 @@ class GeolocationField():
     """Functions for handling fields with 'geolocation' Drupal field data type.
        All functions return a "node" dictionary that is passed to Requests'
        "json" parameter.
+
+       Note: this class assumes that the node has the field identified in 'custom_field'.
+       Callers should pre-emptively confirm that. For an example, see code near the top
+       of workbench.update().
     """
     def create(self, config, field_definitions, node, row, custom_field):
         """Parameters
@@ -232,6 +240,10 @@ class GeolocationField():
         """Note: this method both adds incoming CSV values to existing values and replaces entire
            fields with incoming values, depending on whether config['update_mode'] is 'append'
            or 'replace'. It doesn not replace specific values.
+
+           Note: this class assumes that the node has the field identified in 'custom_field'.
+           Callers should pre-emptively confirm that. For an example, see code near the top
+           of workbench.update().
         """
         """Parameters
            ----------
@@ -306,6 +318,10 @@ class LinkField():
     """Functions for handling fields with 'link' Drupal field data type.
        All functions return a "node" dictionary that is passed to Requests'
        "json" parameter.
+
+       Note: this class assumes that the node has the field identified in 'custom_field'.
+       Callers should pre-emptively confirm that. For an example, see code near the top
+       of workbench.update().
     """
     def create(self, config, field_definitions, node, row, custom_field):
         """Parameters
@@ -454,6 +470,10 @@ class EntityReferenceField():
     """Functions for handling fields with 'entity_reference' Drupal field data type.
        All functions return a "node" dictionary that is passed to Requests' "json"
        parameter.
+
+       Note: this class assumes that the node has the field identified in 'custom_field'.
+       Callers should pre-emptively confirm that. For an example, see code near the top
+       of workbench.update().
     """
     def create(self, config, field_definitions, node, row, custom_field):
         """Parameters
@@ -650,6 +670,10 @@ class TypedRelationField():
     """Functions for handling fields with 'typed_relation' Drupal field data type.
        All functions return a "node" dictionary that is passed to Requests' "json"
        parameter.
+
+       Note: this class assumes that the node has the field identified in 'custom_field'.
+       Callers should pre-emptively confirm that. For an example, see code near the top
+       of workbench.update().
     """
     def create(self, config, field_definitions, node, row, custom_field):
         """Parameters
