@@ -3188,10 +3188,127 @@ class TestTypedRelationField(unittest.TestCase):
             self.assertRegex(str(message.output), r'for record typed_relation_008 would exceed maximum number of allowed values \(1\)')
 
         # Update a node with a typed_relation field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+        self.config['update_mode'] = 'replace'
+
+        field = workbench_fields.TypedRelationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 'typed_relation_009'
+        csv_record['field_foo'] = 'relators:aaa:901'
+        node_field_values = [{'rel_type': 'relators:art', 'target_id': '902', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:aaa', 'target_id': '901', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with a typed_relation field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+        field = workbench_fields.TypedRelationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 'typed_relation_010'
+        csv_record['field_foo'] = 'relators:aaa:902|relators:bbb:903|relators:ccc:904'
+        node_field_values = [{'rel_type': 'relators:art', 'target_id': '902', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:aaa', 'target_id': '902', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:bbb', 'target_id': '903', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:ccc', 'target_id': '904', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with a typed_relation field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+        self.config['update_mode'] = 'append'
+
+        field = workbench_fields.TypedRelationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 'typed_relation_011'
+        csv_record['field_foo'] = 'relators:aaa:11'
+        node_field_values = [{'rel_type': 'relators:art', 'target_id': '10', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '10', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:aaa', 'target_id': '11', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with a typed_relation field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
+        field = workbench_fields.TypedRelationField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 'typed_relation_012'
+        csv_record['field_foo'] = 'relators:bbb:12|relators:ccc:13|relators:ddd:14'
+        node_field_values = [{'rel_type': 'relators:art', 'target_id': '10', 'target_type': 'taxonomy_term'}]
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '10', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:bbb', 'target_id': '12', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:ccc', 'target_id': '13', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:ddd', 'target_id': '14', 'target_type': 'taxonomy_term'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
         # Update a node with a typed_relation field of cardinality limited, no subdelimiters. update_mode is 'replace'.
+        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+
+        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
         # Update a node with a typed_relation field of cardinality limited, no subdelimiters. update_mode is 'append'.
         # Update a node with a typed_relation field of cardinality limited, with subdelimiters. update_mode is 'replace'.
         # Update a node with a typed_relation field of cardinality limited, with subdelimiters. update_mode is 'append'.

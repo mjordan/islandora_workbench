@@ -768,6 +768,7 @@ class TypedRelationField():
             node[custom_field] = []
             return node
 
+        # Currently only supports Typed Relation taxonomy entities.
         if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
             field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
@@ -782,11 +783,35 @@ class TypedRelationField():
                     logging.info("Updating node %s with first value from CSV record.", row['node_id'])
 
             # Cardinality has a limit.
-            elif field_definitions[custom_field]['cardinality'] == -1:
+            elif field_definitions[custom_field]['cardinality'] > 1:
+                # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
                 pass
+                # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
             # Cardinality is unlimited.
             else:
-                pass
+                if config['update_mode'] == 'replace':
+                    subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                    if config['subdelimiter'] in row[custom_field]:
+                        field_values = []
+                        for subvalue in subvalues:
+                            subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
+                            field_values.append(subvalue)
+                        node[custom_field] = field_values
+                    else:
+                        subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
+                        node[custom_field] = subvalues
+                if config['update_mode'] == 'append':
+                    subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                    if config['subdelimiter'] in row[custom_field]:
+                        field_values = []
+                        for subvalue in subvalues:
+                            subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
+                            node_field_values.append(subvalue)
+                        node[custom_field] = node_field_values
+                    else:
+                        subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
+                        node_field_values.append(subvalues[0])
+                        node[custom_field] = node_field_values
 
         return node
