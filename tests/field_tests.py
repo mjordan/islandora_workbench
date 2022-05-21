@@ -3,6 +3,10 @@
    @todo: Audit for tests for *all* cardinatlity violation situations, including cardinatlity of 1
    and limited, for all field types across create and update tasks.
 
+   @todo: Is "ields with cardinality of 1 are always replaced with incoming values, they are never appended to."
+   the behavior users would expect, e.g. when update_mode is 'append'? Shouldn't we just leave the node's field
+   value intact and log a cardinality violation?
+
    @todo: add tests for duplicate values within incoming CSV (create, update/append, and update/replace)
    and for values in incoming CSV that already exist in target field (update, append and replace).
 """

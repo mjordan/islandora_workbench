@@ -408,107 +408,10 @@ def update():
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
-            # Uncomment when #417 is complete.
-            # elif field_definitions[custom_field]['field_type'] == 'typed_relation':
-                # typed_relation_field = workbench_fields.TypedRelationField()
-                # node = typed_relation_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
-
-            # Typed relation fields.
+            # Typed relation fields (currently, only taxonomy term)
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
-                # Quick fix to make Workbench replace instead of append, as per issue 401.
-                node[custom_field] = []
-
-                # Create a copy of the existing values in the current field so we can compare
-                # them to the incoming values in the CSV file for deduping. To compare these values
-                # with the incoming ones, we need to remove the 'url' and 'target_uuid' members.
-                node_comparison_values = []
-                temp_node_comparison_values = copy.deepcopy(node_field_values[custom_field])
-                for comparison_value in temp_node_comparison_values:
-                    if comparison_value.get('url'):
-                        del comparison_value['url']
-                    else:
-                        invalid_target_ids.append(comparison_value['target_id'])
-                        continue
-                    if comparison_value.get('target_uuid'):
-                        del comparison_value['target_uuid']
-                        node_comparison_values.append(comparison_value)
-
-                if field_definitions[custom_field]['target_type'] == 'taxonomy_term':
-                    target_type = 'taxonomy_term'
-                if field_definitions[custom_field]['target_type'] == 'node':
-                    target_type = 'node_type'
-
-                this_fields_vocabularies = field_definitions[custom_field]['vocabularies']
-
-                # Cardinality is unlimited.
-                if field_definitions[custom_field]['cardinality'] == -1:
-                    # Replace existing values.
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_typed_relation_string(config, row[custom_field], target_type)
-                        for subvalue in subvalues:
-                            subvalue['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalue['target_id'])
-                            field_values.append(subvalue)
-                        # node[custom_field] = node_field_values[custom_field] + field_values
-                        node[custom_field] = field_values
-                    # Replace existing values.
-                    else:
-                        value = split_typed_relation_string(config, row[custom_field], target_type)
-                        value[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, value[0]['target_id'])
-                        # node[custom_field] = node_field_values[custom_field] + value
-                        node[custom_field] = value
-                # Cardinality has a limit.
-                elif field_definitions[custom_field]['cardinality'] > 1:
-                    existing_target_ids = get_target_ids(node_field_values[custom_field])
-                    num_existing_values = len(existing_target_ids)
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        subvalues = split_typed_relation_string(config, row[custom_field], target_type)
-                        for subvalue in subvalues:
-                            if subvalue not in node_comparison_values:
-                                subvalue['target_id'] = prepare_term_id(config, this_fields_vocabularies, subvalue['target_id'])
-                                field_values.append(subvalue)
-                        # Slice the incoming values to a length that matches the field's cardinality minus its existing length.
-                        # Also log fact that we're slicing off values.
-                        num_values_to_add = field_definitions[custom_field]['cardinality'] - num_existing_values
-                        if num_values_to_add > 0:
-                            logging.warning(
-                                "Adding all values in CSV field %s for node %s would exceed maximum number of " +
-                                "allowed values (%s), so only adding %s values.",
-                                custom_field,
-                                row['node_id'],
-                                field_definitions[custom_field]['cardinality'],
-                                num_values_to_add)
-                            logging.info(
-                                "Updating node %s with %s values from CSV record.",
-                                row['node_id'],
-                                num_values_to_add)
-                            field_values = field_values[:num_values_to_add]
-                            node[custom_field] = node_field_values[custom_field] + \
-                                field_values
-                        else:
-                            logging.info(
-                                "Not updating field %s node for %s, provided values do not contain any new values for this field.",
-                                custom_field,
-                                row['node_id'])
-                    else:
-                        if num_existing_values + 1 <= int(field_definitions[custom_field]['cardinality']):
-                            field_value = split_typed_relation_string(config, row[custom_field], target_type)
-                            node[custom_field] = node_field_values[custom_field] + field_value
-                        else:
-                            logging.warning(
-                                "Not updating field %s node for %s, adding provided value would exceed maxiumum number of allowed values (%s).",
-                                custom_field,
-                                row['node_id'],
-                                field_definitions[custom_field]['cardinality'])
-                # Cardinality is 1. Do not append to existing values, replace existing value.
-                else:
-                    field_values = split_typed_relation_string(config, row[custom_field], target_type)
-                    field_values[0]['target_id'] = prepare_term_id(config, this_fields_vocabularies, field_values[0]['target_id'])
-                    node[custom_field] = [field_values[0]]
-                    if len(field_values) > 1:
-                        log_field_cardinality_violation(custom_field, row['node_id'], '1')
-                        logging.info("Updating node %s with first value from CSV record.", row['node_id'])
+                typed_relation_field = workbench_fields.TypedRelationField()
+                node = typed_relation_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # Geolocation fields.
             elif field_definitions[custom_field]['field_type'] == 'geolocation':
@@ -972,8 +875,7 @@ try:
         if os.path.exists(map_file_path):
             os.remove(map_file_path)
 
-    if 'check' not in config.keys():
-        logging.info(f"Islandora Workbench \"{config['task']}\"task successfully completed.")
+    logging.info(f"Islandora Workbench successfully completed.")
 
 except KeyboardInterrupt:
     print('Exiting before entire CSV processed. See log for more info.')

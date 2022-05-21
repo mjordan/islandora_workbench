@@ -103,14 +103,11 @@ class SimpleField():
             if custom_field == 'title':
                 node[custom_field] = [{'value': row[custom_field]}]
             else:
-                if config['update_mode'] == 'delete':
-                    node[custom_field] = []
-                else:
-                    subvalues = row[custom_field].split(config['subdelimiter'])
-                    subvalues[0] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalues[0])
-                    node[custom_field] = [{'value': subvalues[0]}]
-                    if len(subvalues) > 1:
-                        log_field_cardinality_violation(custom_field, row['node_id'], '1')
+                subvalues = row[custom_field].split(config['subdelimiter'])
+                subvalues[0] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalues[0])
+                node[custom_field] = [{'value': subvalues[0]}]
+                if len(subvalues) > 1:
+                    log_field_cardinality_violation(custom_field, row['node_id'], '1')
         elif int(field_definitions[custom_field]['cardinality']) > 1:
             if config['update_mode'] == 'append':
                 # Append to existing values.
