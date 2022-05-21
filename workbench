@@ -972,6 +972,9 @@ try:
         if os.path.exists(map_file_path):
             os.remove(map_file_path)
 
+    if 'check' not in config.keys():
+        logging.info(f"Islandora Workbench \"{config['task']}\"task successfully completed.")
+
 except KeyboardInterrupt:
     print('Exiting before entire CSV processed. See log for more info.')
     logging.warning('Workbench exiting after receiving "ctrl-c". Consult the documentation to learn how to resume your batch.')

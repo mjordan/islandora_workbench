@@ -5,8 +5,9 @@ from workbench_utils import *
 
 class SimpleField():
     """Functions for handling fields with text and other "simple" Drupal field data types,
-       e.g. fields that have a "{'value': 'xxx'}" structure such as ETDF fields. All functions
-       return a "node" dictionary that is passed to Requests' "json" parameter.
+       e.g. fields that have a "{'value': 'xxx'}" structure such as plain text fields, ETDF
+       fields. All functions return a "node" dictionary that is passed to Requests' "json"
+       parameter.
 
        Note: this class assumes that the node has the field identified in 'custom_field'.
        Callers should pre-emptively confirm that. For an example, see code near the top
@@ -773,45 +774,77 @@ class TypedRelationField():
             target_type = 'taxonomy_term'
             field_vocabs = get_field_vocabularies(config, field_definitions, custom_field)
 
-            # Cardinality is 1. Do not append to existing values, replace existing value.
-            if field_definitions[custom_field]['cardinality'] == 1:
-                field_values = split_typed_relation_string(config, row[custom_field], target_type)
-                field_values[0]['target_id'] = prepare_term_id(config, field_vocabs, field_values[0]['target_id'])
-                node[custom_field] = [field_values[0]]
-                if len(field_values) > 1:
-                    log_field_cardinality_violation(custom_field, row['node_id'], '1')
-                    logging.info("Updating node %s with first value from CSV record.", row['node_id'])
+        # Cardinality is 1. Do not append to existing values, replace existing value.
+        if field_definitions[custom_field]['cardinality'] == 1:
+            field_values = split_typed_relation_string(config, row[custom_field], target_type)
+            field_values[0]['target_id'] = prepare_term_id(config, field_vocabs, field_values[0]['target_id'])
+            node[custom_field] = [field_values[0]]
+            if len(field_values) > 1:
+                log_field_cardinality_violation(custom_field, row['node_id'], '1')
+                logging.info("Updating node %s with first value from CSV record.", row['node_id'])
 
-            # Cardinality has a limit.
-            elif field_definitions[custom_field]['cardinality'] > 1:
-                # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                pass
-                # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # Cardinality has a limit.
+        elif field_definitions[custom_field]['cardinality'] > 1:
+            if config['update_mode'] == 'replace':
+                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    for subvalue in subvalues:
+                        subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
+                        field_values.append(subvalue)
+                    if len(field_values) > int(field_definitions[custom_field]['cardinality']):
+                        field_values = field_values[:field_definitions[custom_field]['cardinality']]
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                    node[custom_field] = field_values
+                else:
+                    subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
+                    node[custom_field] = subvalues
+            if config['update_mode'] == 'append':
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                    for subvalue in subvalues:
+                        subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
+                        node_field_values.append(subvalue)
+                    if len(node_field_values) > int(field_definitions[custom_field]['cardinality']):
+                        node[custom_field] = node_field_values[:field_definitions[custom_field]['cardinality']]
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                    else:
+                        node[custom_field] = node_field_values
+                else:
+                    csv_typed_relation_value = split_typed_relation_string(config, row[custom_field], target_type)
+                    csv_typed_relation_value[0]['target_id'] = prepare_term_id(config, field_vocabs, csv_typed_relation_value[0]['target_id'])
+                    node_field_values.append(csv_typed_relation_value[0])
+                    if len(node_field_values) > int(field_definitions[custom_field]['cardinality']):
+                        node[custom_field] = node_field_values[:field_definitions[custom_field]['cardinality']]
+                        log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
+                    else:
+                        node[custom_field] = node_field_values
 
-            # Cardinality is unlimited.
-            else:
-                if config['update_mode'] == 'replace':
-                    subvalues = split_typed_relation_string(config, row[custom_field], target_type)
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        for subvalue in subvalues:
-                            subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
-                            field_values.append(subvalue)
-                        node[custom_field] = field_values
-                    else:
-                        subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
-                        node[custom_field] = subvalues
-                if config['update_mode'] == 'append':
-                    subvalues = split_typed_relation_string(config, row[custom_field], target_type)
-                    if config['subdelimiter'] in row[custom_field]:
-                        field_values = []
-                        for subvalue in subvalues:
-                            subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
-                            node_field_values.append(subvalue)
-                        node[custom_field] = node_field_values
-                    else:
-                        subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
-                        node_field_values.append(subvalues[0])
-                        node[custom_field] = node_field_values
+        # Cardinality is unlimited.
+        else:
+            if config['update_mode'] == 'replace':
+                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    for subvalue in subvalues:
+                        subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
+                        field_values.append(subvalue)
+                    node[custom_field] = field_values
+                else:
+                    subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
+                    node[custom_field] = subvalues
+            if config['update_mode'] == 'append':
+                subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                if config['subdelimiter'] in row[custom_field]:
+                    field_values = []
+                    for subvalue in subvalues:
+                        subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
+                        node_field_values.append(subvalue)
+                    node[custom_field] = node_field_values
+                else:
+                    subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
+                    node_field_values.append(subvalues[0])
+                    node[custom_field] = node_field_values
 
         return node
