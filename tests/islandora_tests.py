@@ -15,6 +15,7 @@ import requests
 import json
 import urllib.parse
 import unittest
+import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
@@ -231,6 +232,71 @@ class TestDelete(unittest.TestCase):
 
     def tearDown(self):
         os.remove(self.nid_file)
+
+
+class TestUpdate(unittest.TestCase):
+
+    def setUp(self):
+        self.maxDiff = None
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'create.yml')
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+
+        self.temp_dir = tempfile.gettempdir()
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchupdatetestnids.txt')
+        self.update_metadata_file = os.path.join(self.current_dir, 'assets', 'update_test', 'workbenchupdatetest.csv')
+
+        yaml = YAML()
+        with open(create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config['host']
+
+        self.nids = list()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+        create_lines = create_output.splitlines()
+
+        with open(self.nid_file, "a") as nids_fh:
+            nids_fh.write("node_id\n")
+            for line in create_lines:
+                if 'created at' in line:
+                    nid = line.rsplit('/', 1)[-1]
+                    nid = nid.strip('.')
+                    nids_fh.write(nid + "\n")
+                    self.nids.append(nid)
+
+        # Add some values to the update CSV file to test against.
+        with open(self.update_metadata_file, "a") as update_fh:
+            update_fh.write("node_id,field_identifier,field_coordinates\n")
+            update_fh.write(f'{self.nids[0]},identifier-0001,"99.1,-123.2"')
+
+    def test_update(self):
+        # Run update task.
+        time.sleep(5)
+        update_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'update.yml')
+        self.update_cmd = ["./workbench", "--config", update_config_file_path]
+        subprocess.check_output(self.update_cmd)
+
+        # Confirm that fields have been updated.
+        url = self.islandora_host + '/node/' + str(self.nids[0]) + '?_format=json'
+        response = requests.get(url)
+        node = json.loads(response.text)
+        identifier = str(node['field_identifier'][0]['value'])
+        self.assertEqual(identifier, 'identifier-0001')
+        coodinates = str(node['field_coordinates'][0]['lat'])
+        self.assertEqual(coodinates, '99.1')
+
+    def tearDown(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'delete.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        subprocess.check_output(delete_cmd)
+
+        os.remove(self.nid_file)
+        os.remove(self.update_metadata_file)
 
 
 class TestTermFromUri(unittest.TestCase):

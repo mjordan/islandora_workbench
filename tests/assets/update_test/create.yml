@@ -1,0 +1,7 @@
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: "tests/assets/update_test"
+input_csv: create.csv
+allow_missing_files: true
