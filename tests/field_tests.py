@@ -3,10 +3,6 @@
    @todo: Audit for tests for *all* cardinatlity violation situations, including cardinatlity of 1
    and limited, for all field types across create and update tasks.
 
-   @todo: Is "ields with cardinality of 1 are always replaced with incoming values, they are never appended to."
-   the behavior users would expect, e.g. when update_mode is 'append'? Shouldn't we just leave the node's field
-   value intact and log a cardinality violation?
-
    @todo: add tests for duplicate values within incoming CSV (create, update/append, and update/replace)
    and for values in incoming CSV that already exist in target field (update, append and replace).
 """
@@ -26,8 +22,7 @@ class TestSimpleField(unittest.TestCase):
     def setUp(self):
         self.config = {
             'subdelimiter': '|',
-            'id_field': 'id',
-            'update_mode': 'replace'
+            'id_field': 'id'
         }
 
     def test_create_with_simple_field(self):
@@ -199,7 +194,89 @@ class TestSimpleField(unittest.TestCase):
             self.assertDictEqual(self.node, expected_node)
             self.assertRegex(str(message.output), r'simple_006 would exceed maximum number of allowed values \(2\)')
 
-    def test_update_with_simple_field(self):
+    def test_simple_field_title_update_replace(self):
+        # Update the node title, first with an 'update_mode' of replace.
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Old title - replace."}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
+        self.field_definitions = {
+            'title': {
+                'cardinality': 1,
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['title'] = "New title - replace."
+        csv_record['node_id'] = 1
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "title", existing_node["title"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "New title - replace."}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_title_update_append(self):
+        # Update the node title, first with an update_mode of 'append'.
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Old title - append."}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
+        self.field_definitions = {
+            'title': {
+                'cardinality': 1,
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['title'] = "New title - append."
+            csv_record['node_id'] = 1
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "title", existing_node["title"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Old title - append."}
+                ],
+                'status': [
+                    {'value': 1}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 1 would exceed maximum number of allowed values \(1\)')
+
+    def test_simple_field_update_replace_cardinality_1_no_subdelims(self):
         existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -209,22 +286,25 @@ class TestSimpleField(unittest.TestCase):
             ],
             'status': [
                 {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
             ]
         }
-        # Update a node with a simple field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to. First, when the field already exists.
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['field_foo'] = "Field foo new value"
         csv_record['node_id'] = 1
-        node_field_values = [{'value': "Field foo original value"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -241,14 +321,8 @@ class TestSimpleField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Then when the field doesn't already exist.
-        field = workbench_fields.SimpleField()
-        csv_record = collections.OrderedDict()
-        csv_record['field_foo'] = "Field foo new value"
-        csv_record['node_id'] = 1
-        node_field_values = [{'value': "Field foo original value"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
-        expected_node = {
+    def test_simple_field_update_append_cardinality_1_no_subdelims(self):
+        existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
             ],
@@ -259,13 +333,65 @@ class TestSimpleField(unittest.TestCase):
                 {'value': 1}
             ],
             'field_foo': [
-                {'value': "Field foo new value"}
+                {'value': "Field foo original value"}
             ]
         }
-        self.assertDictEqual(node, expected_node)
 
-        # Update a node with a simple field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['field_foo'] = "Field foo new value"
+            csv_record['node_id'] = 1
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "Field foo original value"}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 1 would exceed maximum number of allowed values \(1\)')
+
+    def test_simple_field_update_replace_cardinality_1_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
         with self.assertLogs() as message:
             field = workbench_fields.SimpleField()
             csv_record = collections.OrderedDict()
@@ -290,20 +416,36 @@ class TestSimpleField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'record 2 would exceed maximum number of allowed values \(1\)')
 
-        # Update a node with a simple field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
+    def test_simple_field_update_replace_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 3
         csv_record['field_foo'] = "New value"
-        node_field_values = [{'value': "Field foo original value"}]
         self.config['update_mode'] = 'replace'
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -320,20 +462,35 @@ class TestSimpleField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a simple field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+    def test_simple_field_update_replace_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 4
         csv_record['field_foo'] = "New value 1|New value 2"
-        node_field_values = [{'value': "Field foo original value"}]
-        self.config['update_mode'] = 'replace'
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -351,20 +508,35 @@ class TestSimpleField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a simple field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
+    def test_simple_field_update_append_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
+
+        self.config['update_mode'] = 'append'
 
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 5
         csv_record['field_foo'] = "New value"
-        node_field_values = [{'value': "Field foo original value"}]
-        self.config['update_mode'] = 'append'
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -383,20 +555,50 @@ class TestSimpleField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a simple field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
+        }
+
+    def test_simple_field_update_append_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 6
         csv_record['field_foo'] = "New value 1|New value 2"
-        node_field_values = [{'value': "Field foo original value"}]
-        self.config['update_mode'] = 'append'
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -416,20 +618,35 @@ class TestSimpleField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a simple field of cardinality limited, no subdelimiters. update_mode is 'replace'.
+    def test_simple_field_update_replace_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 7
         csv_record['field_foo'] = "New value"
-        node_field_values = [{'value': "Field foo original value"}]
-        self.config['update_mode'] = 'replace'
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -446,21 +663,57 @@ class TestSimpleField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a simple field of cardinality limited, no subdelimiters. update_mode is 'append'.
+    def test_simple_field_update_append_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value 1"},
+                {'value': "Field foo original value 2"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
             }
         }
 
-        field = workbench_fields.SimpleField()
-        csv_record = collections.OrderedDict()
-        csv_record['node_id'] = 8
-        csv_record['field_foo'] = "New value"
-        node_field_values = [{'value': "Field foo original value"}]
         self.config['update_mode'] = 'append'
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
-        expected_node = {
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 8
+            csv_record['field_foo'] = "New value 3"
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "Field foo original value 1"},
+                    {'value': "Field foo original value 2"}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 8 would exceed maximum number of allowed values \(2\)')
+
+    def test_simple_field_update_replace_cardinality_limited_with_subdelims(self):
+        existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
             ],
@@ -471,21 +724,25 @@ class TestSimpleField(unittest.TestCase):
                 {'value': 1}
             ],
             'field_foo': [
-                {'value': "Field foo original value"},
-                {'value': "New value"}
+                {'value': "Field foo original value 1"},
+                {'value': "Field foo original value 2"}
             ]
         }
-        self.assertDictEqual(node, expected_node)
 
-        # Update a node with a simple field of cardinality limited, with subdelimiters. update_mode is 'replace'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
         with self.assertLogs() as message:
             field = workbench_fields.SimpleField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 9
             csv_record['field_foo'] = "First node 9 value|Second node 9 value|Third node 9 value"
-            node_field_values = [{'value': "Field foo original value"}]
-            self.config['update_mode'] = 'replace'
-            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -504,11 +761,44 @@ class TestSimpleField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'record 9 would exceed maximum number of allowed values \(2\)')
 
-        # Update a node with a simple field of cardinality limited, with subdelimiters. update_mode is 'append'.
+    def test_simple_field_update_append_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value 1"},
+                {'value': "Field foo original value 2"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
             }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
         }
 
         with self.assertLogs() as message:
@@ -516,9 +806,7 @@ class TestSimpleField(unittest.TestCase):
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 10
             csv_record['field_foo'] = "First node 10 value|Second node 10 value|Third node 10 value"
-            node_field_values = [{'value': "Field foo original value"}]
-            self.config['update_mode'] = 'append'
-            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -538,20 +826,36 @@ class TestSimpleField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'record 10 would exceed maximum number of allowed values \(3\)')
 
-        # Update a node with update_mode of 'delete'.
+    def test_simple_field_update_delete(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value 1"},
+                {'value': "Field foo original value 2"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
             }
         }
 
+        self.config['update_mode'] = 'delete'
+
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 11
         csv_record['field_foo'] = "First node 11 value|Second node 11 value"
-        node_field_values = [{'value': "Field foo original value"}]
-        self.config['update_mode'] = 'delete'
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -573,8 +877,7 @@ class TestGeolocationField(unittest.TestCase):
         self.maxDiff = None
         self.config = {
             'subdelimiter': '|',
-            'id_field': 'id',
-            'update_mode': 'replace'
+            'id_field': 'id'
         }
 
     def test_create_with_geolocation_field(self):
@@ -734,29 +1037,31 @@ class TestGeolocationField(unittest.TestCase):
             }
         }
 
-        field = workbench_fields.GeolocationField()
-        csv_record = collections.OrderedDict()
-        csv_record['id'] = "geo_006"
-        csv_record['field_foo'] = "51.16667,-123.93333|61.16667,-123.93333|63.16667,-123.93333"
-        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
-        expected_node = {
-            'type': [
-                {'target_id': 'islandora_object', 'target_type': 'node_type'}
-            ],
-            'title': [
-                {'value': "Test node"}
-            ],
-            'status': [
-                {'value': 1}
-            ],
-            'field_foo': [
-                {'lat': '51.16667', 'lng': '-123.93333'},
-                {'lat': '61.16667', 'lng': '-123.93333'}
-            ]
-        }
-        self.assertDictEqual(node, expected_node)
+        with self.assertLogs() as message:
+            field = workbench_fields.GeolocationField()
+            csv_record = collections.OrderedDict()
+            csv_record['id'] = "geo_006"
+            csv_record['field_foo'] = "51.16667,-123.93333|61.16667,-123.93333|63.16667,-123.93333"
+            node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'lat': '51.16667', 'lng': '-123.93333'},
+                    {'lat': '61.16667', 'lng': '-123.93333'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record geo_006 would exceed maximum number of allowed values \(2\)')
 
-    def test_update_with_geolocation_field(self):
+    def test_geolocation_field_update_replace_cardinality_1_no_subdelims(self):
         existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -769,13 +1074,13 @@ class TestGeolocationField(unittest.TestCase):
             ]
         }
 
-        # Update a node with a geolocation field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
@@ -799,13 +1104,26 @@ class TestGeolocationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a geolocation field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
+    def test_geolocation_field_update_replace_cardinality_1_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         with self.assertLogs() as message:
             geolocation = workbench_fields.GeolocationField()
@@ -831,13 +1149,26 @@ class TestGeolocationField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record 101 would exceed maximum number of allowed values \(1\)')
 
-        # Update a node with a geolocation field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
-        self.config['update_mode'] = 'replace'
+    def test_geolocation_field_update_replace_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
@@ -861,7 +1192,19 @@ class TestGeolocationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a geolocation field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+    def test_geolocation_field_update_replace_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
         self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
@@ -892,20 +1235,35 @@ class TestGeolocationField(unittest.TestCase):
         }
         self.assertDictEqual(node103, expected_node)
 
-        # Update a node with a geolocation field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
-        self.config['update_mode'] = 'append'
+    def test_geolocation_field_update_append_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"lat": "49.1", "lng": "-122.9"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 104
         csv_record['field_foo'] = "35.2,-99.9"
-        node_field_values = [{"lat": "49.1", "lng": "-122.9"}]
-        node104 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -921,16 +1279,36 @@ class TestGeolocationField(unittest.TestCase):
                 {'lat': '35.2', 'lng': '-99.9'}
             ]
         }
-        self.assertDictEqual(node104, expected_node)
+        self.assertDictEqual(node, expected_node)
 
-        # Update a node with a geolocation field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
+    def test_geolocation_field_update_append_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'lat': "49.1", 'lng': "-122.9"}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+            }
+        }
+
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
         self.config['update_mode'] = 'append'
         csv_record['node_id'] = 105
         csv_record['field_foo'] = "56.2,-113.9|51.2,-100.9"
-        node_field_values = [{'lat': "49.1", 'lng': "-122.9"}]
-        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -949,13 +1327,26 @@ class TestGeolocationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a geolocation field of cardinality limited, no subdelimiters. update_mode is 'replace'.
-        self.config['update_mode'] = 'replace'
+    def test_geolocation_field_update_replace_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
@@ -979,20 +1370,56 @@ class TestGeolocationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+    def test_geolocation_field_update_replace_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"lat": "43.16667", "lng": "-123.63"}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
         self.config['update_mode'] = 'replace'
-        self.field_definitions = {
-            'field_foo': {
-                'cardinality': 2,
-            }
-        }
 
-        geolocation = workbench_fields.GeolocationField()
-        csv_record = collections.OrderedDict()
-        csv_record['node_id'] = 106
-        csv_record['field_foo'] = "53.26667,-133.93333|51.34,-111.1|51.51,-111.999"
-        node_field_values = [{"lat": "43.16667", "lng": "-123.63"}]
-        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
-        expected_node = {
+        with self.assertLogs() as message:
+            geolocation = workbench_fields.GeolocationField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 106
+            csv_record['field_foo'] = "53.26667,-133.93333|51.34,-111.1|51.51,-111.999"
+            node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'lat': '53.26667', 'lng': '-133.93333'},
+                    {'lat': '51.34', 'lng': '-111.1'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record 106 would exceed maximum number of allowed values \(2\)')
+
+    def test_geolocation_field_update_append_cardinality_limited_no_subdelims(self):
+        existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
             ],
@@ -1003,42 +1430,40 @@ class TestGeolocationField(unittest.TestCase):
                 {'value': 1}
             ],
             'field_foo': [
-                {'lat': '53.26667', 'lng': '-133.93333'},
-                {'lat': '51.34', 'lng': '-111.1'}
+                {"lat": "47.1", "lng": "-127.6"}
             ]
         }
-        self.assertDictEqual(node, expected_node)
 
-        # Update a node with a geolocation field of cardinality limited, no subdelimiters. update_mode is 'append'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+            }
+        }
+
         self.config['update_mode'] = 'append'
-        self.field_definitions = {
-            'field_foo': {
-                'cardinality': 2,
-            }
-        }
 
-        geolocation = workbench_fields.GeolocationField()
-        csv_record = collections.OrderedDict()
-        csv_record['node_id'] = 107
-        csv_record['field_foo'] = "57.2,-133.7"
-        node_field_values = [{"lat": "47.1", "lng": "-127.6"}]
-        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
-        expected_node = {
-            'type': [
-                {'target_id': 'islandora_object', 'target_type': 'node_type'}
-            ],
-            'title': [
-                {'value': "Test node"}
-            ],
-            'status': [
-                {'value': 1}
-            ],
-            'field_foo': [
-                {'lat': '47.1', 'lng': '-127.6'},
-                {'lat': '57.2', 'lng': '-133.7'}
-            ]
-        }
-        self.assertDictEqual(node, expected_node)
+        with self.assertLogs() as message:
+            geolocation = workbench_fields.GeolocationField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 107
+            csv_record['field_foo'] = "57.2,-133.7"
+            node_107 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'lat': '47.1', 'lng': '-127.6'}
+                ]
+            }
+            self.assertDictEqual(node_107, expected_node)
+            self.assertRegex(str(message.output), r'for record 107 would exceed maximum number of allowed values \(1\)')
 
         self.config['update_mode'] = 'append'
         self.field_definitions = {
@@ -1047,13 +1472,8 @@ class TestGeolocationField(unittest.TestCase):
             }
         }
 
-        geolocation = workbench_fields.GeolocationField()
-        csv_record = collections.OrderedDict()
-        csv_record['node_id'] = 107
-        csv_record['field_foo'] = "57.2,-133.7"
-        node_field_values = [{"lat": "47.1", "lng": "-127.6"}, {"lat": "47.11", "lng": "-127.61"}]
-        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
-        expected_node = {
+    def test_geolocation_field_update_replace_cardinality_limited_with_subdelims(self):
+        existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
             ],
@@ -1064,28 +1484,44 @@ class TestGeolocationField(unittest.TestCase):
                 {'value': 1}
             ],
             'field_foo': [
-                {'lat': '47.1', 'lng': '-127.6'},
-                {'lat': '47.11', 'lng': '-127.61'},
-                {'lat': '57.2', 'lng': '-133.7'}
+                {"lat": "49.16667", "lng": "-122.93333"}
             ]
         }
-        self.assertDictEqual(node, expected_node)
 
-        # Update a node with a geolocation field of cardinality limited, with subdelimiters. update_mode is 'replace'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
         self.config['update_mode'] = 'replace'
-        self.field_definitions = {
-            'field_foo': {
-                'cardinality': 2,
-            }
-        }
 
-        geolocation = workbench_fields.GeolocationField()
-        csv_record = collections.OrderedDict()
-        csv_record['node_id'] = 108
-        csv_record['field_foo'] = "55.80,-113.80|55.82,-113.82|55.83,-113.83"
-        node_field_values = [{"lat": "49.16667", "lng": "-122.93333"}]
-        node103 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
-        expected_node = {
+        with self.assertLogs() as message:
+            geolocation = workbench_fields.GeolocationField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 108
+            csv_record['field_foo'] = "55.80,-113.80|55.82,-113.82|55.83,-113.83"
+            node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'lat': '55.80', 'lng': '-113.80'},
+                    {'lat': '55.82', 'lng': '-113.82'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record 108 would exceed maximum number of allowed values \(2\)')
+
+    def test_geolocation_field_update_append_cardinality_limited_with_subdelims(self):
+        existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
             ],
@@ -1096,27 +1532,45 @@ class TestGeolocationField(unittest.TestCase):
                 {'value': 1}
             ],
             'field_foo': [
-                {'lat': '55.80', 'lng': '-113.80'},
-                {'lat': '55.82', 'lng': '-113.82'}
+                {"lat": "49.9", "lng": "-122.9"}
             ]
         }
-        self.assertDictEqual(node103, expected_node)
 
-        # Update a node with a geolocation field of cardinality limited, with subdelimiters. update_mode is 'append'.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+            }
+        }
+
         self.config['update_mode'] = 'append'
-        self.field_definitions = {
-            'field_foo': {
-                'cardinality': 2,
-            }
-        }
 
-        geolocation = workbench_fields.GeolocationField()
-        csv_record = collections.OrderedDict()
-        csv_record['node_id'] = 109
-        csv_record['field_foo'] = "55.90,-113.90|55.92,-113.92|55.93,-113.93"
-        node_field_values = [{"lat": "49.9", "lng": "-122.9"}]
-        node103 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
-        expected_node = {
+        with self.assertLogs() as message:
+            geolocation = workbench_fields.GeolocationField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 109
+            csv_record['field_foo'] = "55.90,-113.90|55.92,-113.92|55.93,-113.93"
+            # node_field_values = []
+            node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node['field_foo'])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'lat': '49.9', 'lng': '-122.9'},
+                    {'lat': '55.90', 'lng': '-113.90'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record 109 would exceed maximum number of allowed values \(2\)')
+
+    def test_geolocation_field_update_delete(self):
+        existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
             ],
@@ -1127,26 +1581,24 @@ class TestGeolocationField(unittest.TestCase):
                 {'value': 1}
             ],
             'field_foo': [
-                {'lat': '49.9', 'lng': '-122.9'},
-                {'lat': '55.90', 'lng': '-113.90'}
+                {"lat": "49.9", "lng": "-122.9"}
             ]
         }
-        self.assertDictEqual(node103, expected_node)
 
         # Update a node with update_mode of 'delete'.
-        self.config['update_mode'] = 'delete'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
             }
         }
 
+        self.config['update_mode'] = 'delete'
+
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
-        csv_record['node_id'] = 109
+        csv_record['node_id'] = 110
         csv_record['field_foo'] = "55.90,-113.90|55.92,-113.92|55.93,-113.93"
-        node_field_values = [{"lat": "49.9", "lng": "-122.9"}]
-        node103 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1159,18 +1611,16 @@ class TestGeolocationField(unittest.TestCase):
             ],
             'field_foo': []
         }
-        self.assertDictEqual(node103, expected_node)
+        self.assertDictEqual(node, expected_node)
 
 
 class TestLinkField(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-
         self.config = {
             'subdelimiter': '|',
-            'id_field': 'id',
-            'update_mode': 'replace'
+            'id_field': 'id'
         }
 
     def test_create_with_link_field(self):
@@ -1219,7 +1669,7 @@ class TestLinkField(unittest.TestCase):
             field = workbench_fields.LinkField()
             csv_record = collections.OrderedDict()
             csv_record['id'] = "link_002"
-            csv_record['field_foo'] = "http://bar.com%%Bar webiste|http://biz.com%%Biz website"
+            csv_record['field_foo'] = "http://bar.com%%Bar website|http://biz.com%%Biz website"
             node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
             expected_node = {
                 'type': [
@@ -1232,7 +1682,7 @@ class TestLinkField(unittest.TestCase):
                     {'value': 1}
                 ],
                 'field_foo': [
-                    {'uri': 'http://bar.com', 'title': 'Bar webiste'}
+                    {'uri': 'http://bar.com', 'title': 'Bar website'}
                 ]
             }
             self.assertDictEqual(node, expected_node)
@@ -1330,29 +1780,31 @@ class TestLinkField(unittest.TestCase):
             }
         }
 
-        field = workbench_fields.LinkField()
-        csv_record = collections.OrderedDict()
-        csv_record['id'] = "link_006"
-        csv_record['field_foo'] = "http://link6-1.net%%Link 006-1 website|http://link6-2.net%%Link 006-2 website|http://link6-3.net%%Link 006-3 website"
-        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
-        expected_node = {
-            'type': [
-                {'target_id': 'islandora_object', 'target_type': 'node_type'}
-            ],
-            'title': [
-                {'value': "Test node"}
-            ],
-            'status': [
-                {'value': 1}
-            ],
-            'field_foo': [
-                {'uri': 'http://link6-1.net', 'title': 'Link 006-1 website'},
-                {'uri': 'http://link6-2.net', 'title': 'Link 006-2 website'}
-            ]
-        }
-        self.assertDictEqual(node, expected_node)
+        with self.assertLogs() as message:
+            field = workbench_fields.LinkField()
+            csv_record = collections.OrderedDict()
+            csv_record['id'] = "link_006"
+            csv_record['field_foo'] = "http://link6-1.net%%Link 006-1 website|http://link6-2.net%%Link 006-2 website|http://link6-3.net%%Link 006-3 website"
+            node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'uri': 'http://link6-1.net', 'title': 'Link 006-1 website'},
+                    {'uri': 'http://link6-2.net', 'title': 'Link 006-2 website'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'for record link_006 would exceed maximum number of allowed values \(2\)')
 
-    def test_update_with_link_field(self):
+    def test_link_field_update_replace_cardinality_1_no_subdelims(self):
         existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1362,23 +1814,25 @@ class TestLinkField(unittest.TestCase):
             ],
             'status': [
                 {'value': 1}
-            ]
+            ],
+            'field_foo': {
+                "uri": "http://update1original.net", "title": "Update 1 original's website"
+            }
         }
 
-        # Update a node with a link field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 100
         csv_record['field_foo'] = "http://update1replacement.net%%Update 1 replacement's website"
-        node_field_values = [{"uri": "http://update1original.net", "title": "Update 1 original's website"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1395,21 +1849,36 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a link field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
+    def test_link_field_update_replace_cardinality_1_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': {
+                "uri": "http://update2original.net", "title": "Update 2 original's website"
+            }
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         with self.assertLogs() as message:
             field = workbench_fields.LinkField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 101
             csv_record['field_foo'] = "http://update2replacement.net%%Update 2 replacement's website|http://update2-1replacement.net%%Update 2-1 replacement's website"
-            node_field_values = [{"uri": "http://update2original.net", "title": "Update 2 original's website"}]
-            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1427,20 +1896,35 @@ class TestLinkField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record 101 would exceed maximum number of allowed values \(1\)')
 
-        # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
-        self.config['update_mode'] = 'replace'
+    def test_link_field_update_replace_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': {
+                "uri": "http://updatenode102original.net", "title": "Update node 102 original's website"
+            }
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 102
         csv_record['field_foo'] = "http://updatenode102replace.net%%Update to node 102 replacement's website"
-        node_field_values = [{"uri": "http://updatenode102original.net", "title": "Update node 102 original's website"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1457,20 +1941,35 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a link field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
-        self.config['update_mode'] = 'replace'
+    def test_link_field_update_replace_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': {
+                "uri": "http://updatenode103original.net", "title": "Update node 103 original's website"
+            }
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 103
         csv_record['field_foo'] = "http://updatenode103replace1.net%%103 replacement 1|http://updatenode103replacement2.net%%103 replacement 2"
-        node_field_values = [{"uri": "http://updatenode103original.net", "title": "Update node 103 original's website"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1488,25 +1987,35 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a link field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
-        self.config['update_mode'] = 'replace'
+    def test_link_field_update_append_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"uri": "http://node104o.net", "title": "Node 104 o"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
-        config = {
-            'subdelimiter': '|',
-            'id_field': 'id',
-            'update_mode': 'append'
-        }
+
+        self.config['update_mode'] = 'append'
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 104
         csv_record['field_foo'] = "http://node104a.net%%Node 104 a"
-        node_field_values = [{"uri": "http://node104o.net", "title": "Node 104 o"}]
-        node = field.update(config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1524,25 +2033,35 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a link field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
-        self.config['update_mode'] = 'replace'
+    def test_link_field_update_append_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"uri": "http://node105original.net", "title": "Node 105 original"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
             }
         }
-        config = {
-            'subdelimiter': '|',
-            'id_field': 'id',
-            'update_mode': 'append'
-        }
+
+        self.config['update_mode'] = 'append'
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 105
         csv_record['field_foo'] = "http://node105-1.net%%Node 105-1|http://node105-2.net%%Node 105-2"
-        node_field_values = [{"uri": "http://node105original.net", "title": "Node 105 original"}]
-        node = field.update(config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1561,20 +2080,36 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a link field of cardinality limited, no subdelimiters. update_mode is 'replace'.
-        self.config['update_mode'] = 'replace'
+    def test_link_field_update_replace_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"uri": "http://106o-1.net", "title": "Node 106 1 original"},
+                {"uri": "http://106o-2.net", "title": "Node 106 2 original"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 106
         csv_record['field_foo'] = "http://node06r.net%%Node 106 replacement"
-        node_field_values = [{"uri": "http://106o-1.net", "title": "Node 106 1 original"}, {"uri": "http://106o-2.net", "title": "Node 106 2 original"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1591,20 +2126,36 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a link field of cardinality limited, no subdelimiters. update_mode is 'append'.
-        self.config['update_mode'] = 'append'
+    def test_link_field_update_append_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"uri": "http://107o-1.net", "title": "Node 107 1 original"},
+                {"uri": "http://107o-2.net", "title": "Node 107 2 original"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 107
         csv_record['field_foo'] = "http://node07a.net%%Node 107 appended"
-        node_field_values = [{"uri": "http://107o-1.net", "title": "Node 107 1 original"}, {"uri": "http://107o-2.net", "title": "Node 107 2 original"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1622,20 +2173,37 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a link field of cardinality limited, with subdelimiters. update_mode is 'append'.
-        self.config['update_mode'] = 'append'
+    def test_link_field_update_append_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"uri": "http://108o-1.net", "title": "Node 108 1 original"},
+                {"uri": "http://108o-2.net", "title": "Node 108 2 original"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 108
         csv_record['field_foo'] = "http://08a-1.net%%Node 108 1 appended|http://108a-2.net%%Node 108 2 appended"
-        node_field_values = [{"uri": "http://108o-1.net", "title": "Node 108 1 original"}, {"uri": "http://108o-2.net", "title": "Node 108 2 original"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node_field_values = []
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1653,11 +2221,14 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+        # Violate cardinality.
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
             }
         }
+
+        self.config['update_mode'] = 'append'
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
@@ -1683,20 +2254,37 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a link field of cardinality limited, with subdelimiters. update_mode is 'replace'.
-        self.config['update_mode'] = 'replace'
+    def test_link_field_update_replace_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"uri": "http://110o-1.net", "title": "Node 110 1 original"},
+                {"uri": "http://110o-2.net", "title": "Node 110 2 original"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 110
         csv_record['field_foo'] = "http://110r-1.net%%Node 110 1 replaced|http://110r-2.net%%Node 110 2 replaced"
-        node_field_values = [{"uri": "http://110o-1.net", "title": "Node 110 1 original"}, {"uri": "http://110o-2.net", "title": "Node 110 2 original"}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node_field_values = []
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -1714,6 +2302,7 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
+        # Violate cardinality.
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
@@ -1743,13 +2332,30 @@ class TestLinkField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with update_mode of 'delete'.
-        self.config['update_mode'] = 'delete'
+    def test_link_field_update_delete(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {"uri": "http://110o-1.net", "title": "Node 110 1 original"},
+                {"uri": "http://110o-2.net", "title": "Node 110 2 original"}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
             }
         }
+
+        self.config['update_mode'] = 'delete'
 
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
@@ -1776,11 +2382,9 @@ class TestEntityRefererenceField(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-
         self.config = {
             'subdelimiter': '|',
-            'id_field': 'id',
-            'update_mode': 'replace'
+            'id_field': 'id'
         }
 
     def test_create_with_entity_reference_field(self):
@@ -2156,7 +2760,7 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record node_entity_reference_006 would exceed maximum number of allowed values \(2\)')
 
-    def test_update_with_entity_reference_field(self):
+    def test_entity_reference_field_update_replace_cardinality_1_no_subdelims(self):
         existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2166,11 +2770,12 @@ class TestEntityRefererenceField(unittest.TestCase):
             ],
             'status': [
                 {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '1', 'target_type': 'taxonomy_term'}
             ]
         }
 
-        # Update a node with an entity_reference field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to. Update both taxonomy term and node references.
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
@@ -2178,12 +2783,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 100
         csv_record['field_foo'] = '5'
-        node_field_values = [{'target_id': '1', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2207,6 +2813,8 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 101
@@ -2229,8 +2837,22 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with an entity_reference field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to. Update both taxonomy term and node references.
+    def test_entity_reference_field_update_replace_cardinality_1_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '1', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
@@ -2238,13 +2860,14 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         with self.assertLogs() as message:
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 102
             csv_record['field_foo'] = '10|15'
-            node_field_values = [{'target_id': '1', 'target_type': 'taxonomy_term'}]
-            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2292,11 +2915,24 @@ class TestEntityRefererenceField(unittest.TestCase):
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), 'for record 103 would exceed maximum number of allowed values.+1')
+            self.assertRegex(str(message.output), r'for record 103 would exceed maximum number of allowed values \(1\)')
 
-        # Update a node with an entity_reference field of cardinality unlimited, no subdelimiters. update_mode is 'replace',
-        # for both taxonomy term and node references.
-        self.config['update_mode'] = 'replace'
+    def test_entity_reference_field_update_replace_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '40', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -2304,12 +2940,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 104
         csv_record['field_foo'] = '30'
-        node_field_values = [{'target_id': '40', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2327,20 +2964,14 @@ class TestEntityRefererenceField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Node reference.
-        self.config['update_mode'] = 'replace'
-        self.field_definitions = {
-            'field_foo': {
-                'cardinality': -1,
-                'target_type': 'node_type'
-            }
-        }
-
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
                 'target_type': 'node'
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
@@ -2364,9 +2995,22 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with an entity_reference field of cardinality unlimited, with subdelimiters. update_mode is 'replace',
-        # for both taxonomy term and node references.
-        self.config['update_mode'] = 'replace'
+    def test_entity_reference_field_update_replace_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '50', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -2374,12 +3018,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 106
         csv_record['field_foo'] = '51|52'
-        node_field_values = [{'target_id': '50', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2398,13 +3043,14 @@ class TestEntityRefererenceField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Node reference.
-        self.config['update_mode'] = 'replace'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
                 'target_type': 'node'
             }
         }
+
+        self.config['update_mode'] = 'replace'
 
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
@@ -2429,9 +3075,22 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with an entity_reference field of cardinality unlimited, no subdelimiters. update_mode is 'append',
-        # for both taxonomy term and node references.
-        self.config['update_mode'] = 'append'
+    def test_entity_reference_field_update_append_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '70', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -2439,12 +3098,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 108
         csv_record['field_foo'] = '71'
-        node_field_values = [{'target_id': '70', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2463,13 +3123,14 @@ class TestEntityRefererenceField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Node reference.
-        self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
                 'target_type': 'node'
             }
         }
+
+        self.config['update_mode'] = 'append'
 
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
@@ -2494,9 +3155,22 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with an entity_reference field of cardinality unlimited, with subdelimiters. update_mode is 'append',
-        # for both taxonomy term and node references.
-        self.config['update_mode'] = 'append'
+    def test_entity_reference_field_update_append_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '70', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -2504,12 +3178,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 110
         csv_record['field_foo'] = '72|73'
-        node_field_values = [{'target_id': '70', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2529,7 +3204,21 @@ class TestEntityRefererenceField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Node reference.
-        self.config['update_mode'] = 'append'
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '71', 'target_type': 'node_type'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -2537,12 +3226,14 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 111
         csv_record['field_foo'] = '74|75'
         node_field_values = [{'target_id': '71', 'target_type': 'node_type'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2561,9 +3252,23 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with an entity_reference field of cardinality limited, no subdelimiters. update_mode is 'replace',
-        # for both taxonomy term and node references.
-        self.config['update_mode'] = 'replace'
+    def test_entity_reference_field_update_replace_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '70', 'target_type': 'taxonomy_term'},
+                {'target_id': '71', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -2571,12 +3276,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 112
         csv_record['field_foo'] = '112'
-        node_field_values = [{'target_id': '70', 'target_type': 'taxonomy_term'}, {'target_id': '71', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2593,9 +3299,23 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with an entity_reference field of cardinality limited, no subdelimiters. update_mode is 'append',
-        # for both taxonomy term and node references.
-        self.config['update_mode'] = 'append'
+    def test_entity_reference_field_update_append_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '1131', 'target_type': 'taxonomy_term'},
+                {'target_id': '1132', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -2603,13 +3323,14 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         with self.assertLogs() as message:
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 113
             csv_record['field_foo'] = '1133'
-            node_field_values = [{'target_id': '1131', 'target_type': 'taxonomy_term'}, {'target_id': '1132', 'target_type': 'taxonomy_term'}]
-            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2629,7 +3350,6 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertRegex(str(message.output), r'for record 113 would exceed maximum number of allowed values \(2\)')
 
         # Do not violate cardinality.
-        self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
@@ -2637,12 +3357,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 114
         csv_record['field_foo'] = '1133'
-        node_field_values = [{'target_id': '1131', 'target_type': 'taxonomy_term'}, {'target_id': '1132', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2662,7 +3383,21 @@ class TestEntityRefererenceField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Node reference.
-        self.config['update_mode'] = 'append'
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '60', 'target_type': 'node_type'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -2670,13 +3405,14 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         with self.assertLogs() as message:
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 1141
             csv_record['field_foo'] = '101|102'
-            node_field_values = [{'target_id': '60', 'target_type': 'node_type'}]
-            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2695,9 +3431,23 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record 1141 would exceed maximum number of allowed values \(2\)')
 
-        # Update a node with an entity_reference field of cardinality limited, with subdelimiters. update_mode is 'replace',
-        # for both taxonomy term and node references.
-        self.config['update_mode'] = 'replace'
+    def test_entity_reference_field_update_replace_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '1131', 'target_type': 'taxonomy_term'},
+                {'target_id': '1132', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -2705,12 +3455,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 115
         csv_record['field_foo'] = '115|116'
-        node_field_values = [{'target_id': '70', 'target_type': 'taxonomy_term'}, {'target_id': '71', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2730,13 +3481,14 @@ class TestEntityRefererenceField(unittest.TestCase):
 
         # Violate cardinality
         with self.assertLogs() as message:
-            self.config['update_mode'] = 'replace'
             self.field_definitions = {
                 'field_foo': {
                     'cardinality': 2,
                     'target_type': 'taxonomy_term'
                 }
             }
+
+            self.config['update_mode'] = 'replace'
 
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
@@ -2763,8 +3515,22 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertRegex(str(message.output), r'for record 116 would exceed maximum number of allowed values \(2\)')
 
         # Node reference.
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '60', 'target_type': 'node_type'}
+            ]
+        }
+
         with self.assertLogs() as message:
-            self.config['update_mode'] = 'replace'
             self.field_definitions = {
                 'field_foo': {
                     'cardinality': 3,
@@ -2772,12 +3538,13 @@ class TestEntityRefererenceField(unittest.TestCase):
                 }
             }
 
+            self.config['update_mode'] = 'replace'
+
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 1161
             csv_record['field_foo'] = '101|102|103|104'
-            node_field_values = [{'target_id': '60', 'target_type': 'node_type'}]
-            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2797,9 +3564,23 @@ class TestEntityRefererenceField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record 1161 would exceed maximum number of allowed values \(3\)')
 
-        # Update a node with an entity_reference field of cardinality limited, with subdelimiters. update_mode is 'append',
-        # for both taxonomy term and node references.
-        self.config['update_mode'] = 'append'
+    def test_entity_reference_field_update_append_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '1161', 'target_type': 'taxonomy_term'},
+                {'target_id': '1162', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
@@ -2807,13 +3588,14 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         with self.assertLogs() as message:
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 116
-            csv_record['field_foo'] = '117|118'
-            node_field_values = [{'target_id': '1131', 'target_type': 'taxonomy_term'}, {'target_id': '1132', 'target_type': 'taxonomy_term'}]
-            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            csv_record['field_foo'] = '1163|1164'
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2825,21 +3607,22 @@ class TestEntityRefererenceField(unittest.TestCase):
                     {'value': 1}
                 ],
                 'field_foo': [
-                    {'target_id': '1131', 'target_type': 'taxonomy_term'},
-                    {'target_id': '1132', 'target_type': 'taxonomy_term'}
+                    {'target_id': '1161', 'target_type': 'taxonomy_term'},
+                    {'target_id': '1162', 'target_type': 'taxonomy_term'}
                 ]
             }
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record 116 would exceed maximum number of allowed values \(2\)')
 
         # Do not violate cardinality.
-        self.config['update_mode'] = 'append'
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 4,
                 'target_type': 'taxonomy_term'
             }
         }
+
+        self.config['update_mode'] = 'append'
 
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
@@ -2867,7 +3650,21 @@ class TestEntityRefererenceField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
         # Node reference.
-        self.config['update_mode'] = 'append'
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '60', 'target_type': 'node_type'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
@@ -2875,12 +3672,13 @@ class TestEntityRefererenceField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 1162
         csv_record['field_foo'] = '102|103'
-        node_field_values = [{'target_id': '60', 'target_type': 'node_type'}]
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2899,20 +3697,37 @@ class TestEntityRefererenceField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with update_mode of 'delete'.
+    def test_entity_reference_field_update_delete(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'target_id': '1001', 'target_type': 'taxonomy_term'},
+                {'target_id': '1002', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
             }
         }
 
+        self.config['update_mode'] = 'delete'
+
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 130
         csv_record['field_foo'] = ''
-        node_field_values = [{'target_id': '1300', 'target_type': 'taxonomy_term'}, {'target_id': '1301', 'target_type': 'taxonomy_term'}]
         self.config['update_mode'] = 'delete'
-        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -2932,11 +3747,9 @@ class TestTypedRelationField(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-
         self.config = {
             'subdelimiter': '|',
-            'id_field': 'id',
-            'update_mode': 'replace'
+            'id_field': 'id'
         }
 
         self.existing_node = {
@@ -3128,9 +3941,22 @@ class TestTypedRelationField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record typed_relation_006 would exceed maximum number of allowed values \(3\)')
 
-    def test_update_with_typed_relation_field(self):
-        # Update a node with a typed_relation field of cardinality 1, no subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
+    def test_typed_relation_field_update_replace_cardinality_1_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '777', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
@@ -3138,12 +3964,13 @@ class TestTypedRelationField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.TypedRelationField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 'typed_relation_007'
         csv_record['field_foo'] = 'relators:art:701'
-        node_field_values = [{'rel_type': 'relators:art', 'target_id': '777', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3160,8 +3987,22 @@ class TestTypedRelationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a typed_relation field of cardinality 1, with subdelimiters. Fields with cardinality of 1 are
-        # always replaced with incoming values, they are never appended to.
+    def test_typed_relation_field_update_replace_cardinality_1_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '778', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
@@ -3169,13 +4010,14 @@ class TestTypedRelationField(unittest.TestCase):
             }
         }
 
+        self.config['update_mode'] = 'replace'
+
         with self.assertLogs() as message:
             field = workbench_fields.TypedRelationField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 'typed_relation_008'
             csv_record['field_foo'] = 'relators:xxx:801|relators:cpy:802'
-            node_field_values = [{'rel_type': 'relators:art', 'target_id': '888', 'target_type': 'taxonomy_term'}]
-            node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3193,7 +4035,22 @@ class TestTypedRelationField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record typed_relation_008 would exceed maximum number of allowed values \(1\)')
 
-        # Update a node with a typed_relation field of cardinality unlimited, no subdelimiters. update_mode is 'replace'.
+    def test_typed_relation_field_update_replace_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '779', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
@@ -3206,8 +4063,7 @@ class TestTypedRelationField(unittest.TestCase):
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 'typed_relation_009'
         csv_record['field_foo'] = 'relators:aaa:901'
-        node_field_values = [{'rel_type': 'relators:art', 'target_id': '902', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3224,13 +4080,36 @@ class TestTypedRelationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a typed_relation field of cardinality unlimited, with subdelimiters. update_mode is 'replace'.
+    def test_typed_relation_field_update_replace_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '902', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
         field = workbench_fields.TypedRelationField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 'typed_relation_010'
         csv_record['field_foo'] = 'relators:aaa:902|relators:bbb:903|relators:ccc:904'
-        node_field_values = [{'rel_type': 'relators:art', 'target_id': '902', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3249,21 +4128,36 @@ class TestTypedRelationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a typed_relation field of cardinality unlimited, no subdelimiters. update_mode is 'append'.
+    def test_typed_relation_field_update_append_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '10', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
                 'target_type': 'taxonomy_term'
             }
         }
+
         self.config['update_mode'] = 'append'
 
         field = workbench_fields.TypedRelationField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 'typed_relation_011'
         csv_record['field_foo'] = 'relators:aaa:11'
-        node_field_values = [{'rel_type': 'relators:art', 'target_id': '10', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3281,13 +4175,36 @@ class TestTypedRelationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a typed_relation field of cardinality unlimited, with subdelimiters. update_mode is 'append'.
+    def test_typed_relation_field_update_append_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '10', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'target_type': 'taxonomy_term'
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
         field = workbench_fields.TypedRelationField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 'typed_relation_012'
         csv_record['field_foo'] = 'relators:bbb:12|relators:ccc:13|relators:ddd:14'
-        node_field_values = [{'rel_type': 'relators:art', 'target_id': '10', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3307,21 +4224,36 @@ class TestTypedRelationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a typed_relation field of cardinality limited, no subdelimiters. update_mode is 'replace'.
+    def test_typed_relation_field_update_replace_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '130', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
                 'target_type': 'taxonomy_term'
             }
         }
+
         self.config['update_mode'] = 'replace'
 
         field = workbench_fields.TypedRelationField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 'typed_relation_013'
         csv_record['field_foo'] = 'relators:bbb:13'
-        node_field_values = [{'rel_type': 'relators:art', 'target_id': '130', 'target_type': 'taxonomy_term'}]
-        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3338,13 +4270,30 @@ class TestTypedRelationField(unittest.TestCase):
         }
         self.assertDictEqual(node, expected_node)
 
-        # Update a node with a typed_relation field of cardinality limited, no subdelimiters. update_mode is 'append'.
+    def test_typed_relation_field_update_append_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:yyy', 'target_id': '140', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:zzz', 'target_id': '141', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
                 'target_type': 'taxonomy_term'
             }
         }
+
         self.config['update_mode'] = 'append'
 
         with self.assertLogs() as message:
@@ -3352,11 +4301,7 @@ class TestTypedRelationField(unittest.TestCase):
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 'typed_relation_014'
             csv_record['field_foo'] = 'relators:sss:14'
-            node_field_values = [
-                {'rel_type': 'relators:yyy', 'target_id': '140', 'target_type': 'taxonomy_term'},
-                {'rel_type': 'relators:zzz', 'target_id': '141', 'target_type': 'taxonomy_term'}
-            ]
-            node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3375,13 +4320,29 @@ class TestTypedRelationField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record typed_relation_014 would exceed maximum number of allowed values \(2\)')
 
-        # Update a node with a typed_relation field of cardinality limited, with subdelimiters. update_mode is 'replace'.
+    def test_typed_relation_field_update_replace_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:yyy', 'target_id': '555', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
                 'target_type': 'taxonomy_term'
             }
         }
+
         self.config['update_mode'] = 'replace'
 
         with self.assertLogs() as message:
@@ -3390,7 +4351,7 @@ class TestTypedRelationField(unittest.TestCase):
             csv_record['node_id'] = 'typed_relation_015'
             csv_record['field_foo'] = 'relators:bbb:150|relators:ccc:152|relators:ddd:153'
             node_field_values = [{'rel_type': 'relators:art', 'target_id': '555', 'target_type': 'taxonomy_term'}]
-            node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3409,13 +4370,29 @@ class TestTypedRelationField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record typed_relation_015 would exceed maximum number of allowed values \(2\)')
 
-        # Update a node with a typed_relation field of cardinality limited, with subdelimiters. update_mode is 'append'.
+    def test_typed_relation_field_update_append_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:jjj', 'target_id': '164', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
                 'target_type': 'taxonomy_term'
             }
         }
+
         self.config['update_mode'] = 'append'
 
         with self.assertLogs() as message:
@@ -3423,8 +4400,7 @@ class TestTypedRelationField(unittest.TestCase):
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 'typed_relation_016'
             csv_record['field_foo'] = 'relators:rrr:160|relators:sss:161|relators:ttt:162'
-            node_field_values = [{'rel_type': 'relators:jjj', 'target_id': '164', 'target_type': 'taxonomy_term'}]
-            node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+            node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
                     {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -3444,23 +4420,38 @@ class TestTypedRelationField(unittest.TestCase):
             self.assertDictEqual(node, expected_node)
             self.assertRegex(str(message.output), r'for record typed_relation_016 would exceed maximum number of allowed values \(3\)')
 
-        # Update a node with update_mode of 'delete'.
+    def test_typed_relation_field_update_delete(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'rel_type': 'relators:art', 'target_id': '301', 'target_type': 'taxonomy_term'},
+                {'rel_type': 'relators:art', 'target_id': '302', 'target_type': 'taxonomy_term'}
+            ]
+        }
+
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 4,
                 'target_type': 'taxonomy_term'
             }
         }
-        self.config['update_mode'] = 'append'
+
+        self.config['update_mode'] = 'delete'
 
         field = workbench_fields.TypedRelationField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 300
         csv_record['field_foo'] = ''
-        node_field_values = [{'rel_type': 'relators:art', 'target_id': '301', 'target_type': 'taxonomy_term'},
-                             {'rel_type': 'relators:art', 'target_id': '302', 'target_type': 'taxonomy_term'}]
         self.config['update_mode'] = 'delete'
-        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", node_field_values)
+        node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
