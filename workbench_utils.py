@@ -721,7 +721,7 @@ def check_input(config, args):
         'create_from_files']
     joiner = ', '
     if config['task'] not in tasks:
-        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media", or "create_from_files".'
+        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media", "delete_media", or "create_from_files".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -1086,7 +1086,7 @@ def check_input(config, args):
             validate_title_csv_data = get_csv_data(config)
             for count, row in enumerate(validate_title_csv_data, start=1):
                 if 'title' in row and len(row['title']) > 255:
-                    message = "The 'title' column in row " + str(count) + " of your CSV file exceeds Drupal's maximum length of 255 characters."
+                    message = "The 'title' column in row with ID " + row[config['id_field']] + " of your CSV file exceeds Drupal's maximum length of 255 characters."
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -1100,8 +1100,8 @@ def check_input(config, args):
                     if len(parent_nid) > 0:
                         parent_node_exists = ping_node(config, parent_nid)
                         if parent_node_exists is False:
-                            message = "The 'field_member_of' field in row " + \
-                                str(count) + " of your CSV file contains a node ID (" + parent_nid + ") that doesn't exist."
+                            message = "The 'field_member_of' field in row with ID " + \
+                                row[config['id_field']] + " of your CSV file contains a node ID (" + parent_nid + ") that doesn't exist."
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
@@ -1111,7 +1111,7 @@ def check_input(config, args):
             for count, row in enumerate(validate_langcode_csv_data, start=1):
                 langcode_valid = validate_language_code(row['langcode'])
                 if not langcode_valid:
-                    message = "Row " + str(count) + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
+                    message = "Row with ID " + row[config['id_field']] + " of your CSV file contains an invalid Drupal language code (" + row['langcode'] + ") in its 'langcode' column."
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -1143,7 +1143,7 @@ def check_input(config, args):
             file_check_row['file'] = file_check_row['file'].strip()
             # Check for empty 'file' values.
             if len(file_check_row['file']) == 0:
-                message = 'CSV row ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
+                message = 'CSV row with ID ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                 if config['exit_on_first_missing_file_during_check'] is True:
                     logging.error(message)
                     sys.exit('Error: ' + message)
@@ -1155,7 +1155,7 @@ def check_input(config, args):
             elif file_check_row['file'].startswith('http'):
                 http_response_code = ping_remote_file(config, file_check_row['file'])
                 if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
-                    message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID field value "' \
+                    message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID "' \
                         + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
                     if config['exit_on_first_missing_file_during_check'] is True:
                         logging.error(message)
@@ -1246,7 +1246,7 @@ def check_input(config, args):
                         if file_check_row[additional_file_field].startswith('http'):
                             http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
                             if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
-                                message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
+                                message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
                                     + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
@@ -1256,7 +1256,7 @@ def check_input(config, args):
                             file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
                         if not file_check_row[additional_file_field].startswith('http'):
                             if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                                message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
+                                message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
                                     + file_check_row[config['id_field']] + ' not found.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
@@ -3110,7 +3110,7 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
                     for field_value in delimited_field_values:
                         if len(field_value.strip()):
                             if not validate_latlong_value(field_value.strip()):
-                                message = 'Value in field "' + field_name + '" in row ' + str(count) + ' (' + field_value + ') is not a valid lat,long pair.'
+                                message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + ' (' + field_value + ') is not a valid lat,long pair.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -3133,8 +3133,7 @@ def validate_link_fields(config, field_definitions, csv_data):
                     for field_value in delimited_field_values:
                         if len(field_value.strip()):
                             if not validate_link_value(field_value.strip()):
-                                message = 'Value in field "' + field_name + '" in row ' + str(count) + \
-                                    ' (' + field_value + ') is not a valid link field value.'
+                                message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + ' (' + field_value + ') is not a valid link field value.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -3196,8 +3195,8 @@ def validate_node_created_date(csv_data):
             if field_name == 'created' and len(field_value) > 0:
                 # matches = re.match(r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$', field_value)
                 if not validate_node_created_date_string(field_value):
-                    message = 'CSV field "created" in record ' + \
-                        str(count) + ' contains a date "' + field_value + '" that is not formatted properly.'
+                    message = 'CSV field "created" in record with ID ' + \
+                        row[config['id_field']] + ' contains a date "' + field_value + '" that is not formatted properly.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -3207,8 +3206,8 @@ def validate_node_created_date(csv_data):
                     r'[+-]\d\d:\d\d$', '', field_value)
                 created_date = datetime.datetime.strptime(date_string_trimmed, '%Y-%m-%dT%H:%M:%S')
                 if created_date > now:
-                    message = 'CSV field "created" in record ' + \
-                        str(count) + ' contains a date "' + field_value + '" that is in the future.'
+                    message = 'CSV field "created" in record with ID ' + \
+                        row[config['id_field']] + ' contains a date "' + field_value + '" that is in the future.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -3238,7 +3237,7 @@ def validate_edtf_fields(config, field_definitions, csv_data):
                         if len(field_value.strip()):
                             valid = validate_edtf_date(field_value)
                             if valid is False:
-                                message = 'Value in field "' + field_name + '" in row ' + str(count) + ' ("' + field_value + '") is not a valid EDTF date/time.'
+                                message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + ' ("' + field_value + '") is not a valid EDTF date/time.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -3260,16 +3259,16 @@ def validate_url_aliases(config, csv_data):
         for field_name, field_value in row.items():
             if field_name == 'url_alias' and len(field_value) > 0:
                 if field_value.strip()[0] != '/':
-                    message = 'CSV field "url_alias" in record ' + \
-                        str(count) + ' contains an alias "' + field_value + '" that is missing its leading /.'
+                    message = 'CSV field "url_alias" in record with ID ' + \
+                        row[config['id_field']] + ' contains an alias "' + field_value + '" that is missing its leading /.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
                 alias_ping = ping_url_alias(config, field_value)
                 # @todo: Add 301 and 302 as acceptable status codes?
                 if alias_ping == 200:
-                    message = 'CSV field "url_alias" in record ' + \
-                        str(count) + ' contains an alias "' + field_value + '" that already exists.'
+                    message = 'CSV field "url_alias" in record with ID ' + \
+                        row[config['id_field']] + ' contains an alias "' + field_value + '" that already exists.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -3290,8 +3289,8 @@ def validate_node_uid(config, csv_data):
                 uid_url = config['host'] + '/user/' + str(field_value) + '?_format=json'
                 uid_response = issue_request(config, 'GET', uid_url)
                 if uid_response.status_code == 404:
-                    message = 'CSV field "uid" in record ' + \
-                        str(count) + ' contains a user ID "' + field_value + '" that does not exist in the target Drupal.'
+                    message = 'CSV field "uid" in record with ID ' + \
+                        row[config['id_field']] + ' contains a user ID "' + field_value + '" that does not exist in the target Drupal.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
@@ -3434,14 +3433,14 @@ def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path
             else:
                 field_count += 1
         if extra_headers is True:
-            message = "Row " + str(count) + ' (ID ' + row[config['id_field']] + ') of the vocabulary CSV file "' + \
+            message = "Row with ID " + row[config['id_field']] + ') of the vocabulary CSV file "' + \
                 vocab_csv_file_path + '" has fewer columns than there are headers (' + str(len(csv_column_headers)) + ")."
             logging.error(message)
             sys.exit('Error: ' + message)
         # Note: this message is also generated in get_csv_data() since CSV Writer thows an exception if the row has
         # form fields than headers.
         if len(csv_column_headers) < field_count:
-            message = "Row " + str(count) + " (ID " + row['term_name'] + ') of the vocabulary CSV file "' + vocab_csv_file_path + \
+            message = "Row with term name '" + row['term_name'] + ') of the vocabulary CSV file "' + vocab_csv_file_path + \
                 '" has more columns (' + str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")."
             logging.error(message)
             sys.exit('Error: ' + message)
@@ -3558,7 +3557,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                             continue
                         # First check the required patterns.
                         if not re.match("^[a-zA-Z]+:[a-zA-Z]+:.+$", field_value.strip()):
-                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                            message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + \
                                 ' (' + field_value + ') does not use the pattern required for typed relation fields.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
@@ -3568,7 +3567,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                         typed_relation_value_parts = field_value.split(':', 2)
                         relator_string = typed_relation_value_parts[0] + ':' + typed_relation_value_parts[1]
                         if relator_string not in field_definitions[field_name]['typed_relations']:
-                            message = 'Value in field "' + field_name + '" in row ' + str(count) + \
+                            message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + \
                                 ' contains a relator (' + relator_string + ') that is not configured for that field.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
@@ -3627,8 +3626,7 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                         logging.error(message)
                         sys.exit('Error: ' + message)
                 else:
-                    message = 'Term names in multi-vocabulary CSV field "' + \
-                        csv_field_name + '" require a vocabulary namespace; value '
+                    message = 'Term names in multi-vocabulary CSV field "' + csv_field_name + '" require a vocabulary namespace; value '
                     message_2 = '"' + field_value + '" in row ' \
                         + str(record_number) + ' does not have one.'
                     logging.error(message + message_2)
@@ -3646,8 +3644,7 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                 if term_vocab == vocab_id:
                     term_in_vocabs = True
             if term_in_vocabs is False:
-                message = 'CSV field "' + csv_field_name + '" in row ' + \
-                    str(record_number) + ' contains a term ID (' + field_value + ') that is '
+                message = 'CSV field "' + csv_field_name + '" in row ' + str(record_number) + ' contains a term ID (' + field_value + ') that is '
                 if len(this_fields_vocabularies) > 1:
                     message_2 = 'not in one of the referenced vocabularies (' + \
                         this_fields_vocabularies_string + ').'
@@ -3667,19 +3664,15 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                     if term_vocab == vocab_id:
                         term_in_vocabs = True
                 if term_in_vocabs is False:
-                    message = 'CSV field "' + csv_field_name + '" in row ' + \
-                        str(record_number) + ' contains a term URI (' + field_value + ') that is '
+                    message = 'CSV field "' + csv_field_name + '" in row ' + str(record_number) + ' contains a term URI (' + field_value + ') that is '
                     if len(this_fields_vocabularies) > 1:
-                        message_2 = 'not in one of the referenced vocabularies (' \
-                            + this_fields_vocabularies_string + ').'
+                        message_2 = 'not in one of the referenced vocabularies (' + this_fields_vocabularies_string + ').'
                     else:
-                        message_2 = 'not in the referenced vocabulary ("' \
-                            + this_fields_vocabularies[0] + '").'
+                        message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '").'
                     logging.error(message + message_2)
                     sys.exit('Error: ' + message + message_2)
             else:
-                message = 'Term URI "' + field_value + '" used in CSV column "' + \
-                    csv_field_name + '" row ' + str(record_number) + ' does not match any terms.'
+                message = 'Term URI "' + field_value + '" used in CSV column "' + csv_field_name + '" row ' + str(record_number) + ' does not match any terms.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
         # Finally, check values that are string term names.
@@ -3695,10 +3688,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                             if tid is False:
                                 new_term_names_in_csv = True
                                 validate_term_name_length(field_value, str(record_number), csv_field_name)
-                                message = 'CSV field "' + csv_field_name + '" in row ' + \
-                                    str(record_number) + ' contains a term ("' + field_value.strip() + '") that is '
-                                message_2 = 'not in the referenced vocabulary ("' + \
-                                    this_fields_vocabularies[0] + '"). That term will be created.'
+                                message = 'CSV field "' + csv_field_name + '" in row ' + str(record_number) + ' contains a term ("' + field_value.strip() + '") that is '
+                                message_2 = 'not in the referenced vocabulary ("' + this_fields_vocabularies[0] + '"). That term will be created.'
                                 if config['validate_terms_exist'] is True:
                                     logging.warning(message + message_2)
                         else:
@@ -3718,8 +3709,7 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                         # Check to see if the namespaced vocab is referenced by this field.
                         [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':', 1)
                         if namespace_vocab_id not in this_fields_vocabularies:
-                            message = 'CSV field "' + csv_field_name + '" in row ' + \
-                                str(record_number) + ' contains a namespaced term name '
+                            message = 'CSV field "' + csv_field_name + '" in row ' + str(record_number) + ' contains a namespaced term name '
                             message_2 = '(' + namespaced_term_name.strip() + '") that specifies a vocabulary not associated with that field.'
                             logging.error(message + message_2)
                             sys.exit('Error: ' + message + message_2)
@@ -3730,10 +3720,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                         if config['allow_adding_terms'] is True:
                             if tid is False and split_field_value not in new_terms_to_add:
                                 new_term_names_in_csv = True
-                                message = 'CSV field "' + csv_field_name + '" in row ' + \
-                                    str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                message_2 = 'not in the referenced vocabulary ("' + \
-                                    namespace_vocab_id + '"). That term will be created.'
+                                message = 'CSV field "' + csv_field_name + '" in row ' + str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
+                                message_2 = 'not in the referenced vocabulary ("' + namespace_vocab_id + '"). That term will be created.'
                                 if config['validate_terms_exist'] is True:
                                     logging.warning(message + message_2)
                                 new_terms_to_add.append(split_field_value)
@@ -3742,10 +3730,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                         # Die if namespaced term name is not specified vocab.
                         else:
                             if tid is False:
-                                message = 'CSV field "' + csv_field_name + '" in row ' + \
-                                    str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
-                                message_2 = 'not in the referenced vocabulary ("' + \
-                                    namespace_vocab_id + '").'
+                                message = 'CSV field "' + csv_field_name + '" in row ' + str(record_number) + ' contains a term ("' + namespaced_term_name.strip() + '") that is '
+                                message_2 = 'not in the referenced vocabulary ("' + namespace_vocab_id + '").'
                                 logging.warning(message + message_2)
                                 sys.exit('Error: ' + message + message_2)
 
@@ -3884,13 +3870,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             'Content-Type': 'application/json'
         }
         node_endpoint = '/node?_format=json'
-        node_response = issue_request(
-            config,
-            'POST',
-            node_endpoint,
-            node_headers,
-            node_json,
-            None)
+        node_response = issue_request(config, 'POST', node_endpoint, node_headers, node_json, None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
             print('+ Node for child "' + page_title + '" created at ' + node_uri + '.')
@@ -4348,7 +4328,6 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
         if os.path.isabs(file_path):
             input_csv = file_path
             '''
-            <- because python
             # For Google Sheets, the "extraction" is fired over in workbench.
             elif config['input_csv'].startswith('http'):
                 input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
