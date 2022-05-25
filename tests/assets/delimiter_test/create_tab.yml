@@ -7,3 +7,4 @@ media_type: image
 input_csv: metadata.tsv
 delimiter: "\t"
 allow_missing_files: true
+exit_on_first_missing_file_during_check: false
