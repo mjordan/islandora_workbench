@@ -122,7 +122,7 @@ class TestSimpleField(unittest.TestCase):
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['id'] = "simple_004"
-        csv_record['field_foo'] = "First value|Second value"
+        csv_record['field_foo'] = "First value|Second value|First value"
         node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
         expected_node = {
             'type': [
@@ -174,7 +174,8 @@ class TestSimpleField(unittest.TestCase):
             field = workbench_fields.SimpleField()
             csv_record = collections.OrderedDict()
             csv_record['id'] = "simple_006"
-            csv_record['field_foo'] = "First 006 value|Second 006 value|Third 006 value"
+            csv_record['field_foo'] = "First 006 value|First 006 value|Second 006 value|Third 006 value"
+            # csv_record['field_foo'] = "First 006 value|Second 006 value|Third 006 value"
             self.node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
             expected_node = {
                 'type': [
@@ -489,7 +490,7 @@ class TestSimpleField(unittest.TestCase):
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 4
-        csv_record['field_foo'] = "New value 1|New value 2"
+        csv_record['field_foo'] = "New value 1|New value 2|New value 2"
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -509,6 +510,14 @@ class TestSimpleField(unittest.TestCase):
         self.assertDictEqual(node, expected_node)
 
     def test_simple_field_update_append_cardinality_unlimited_no_subdelims(self):
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
         existing_node = {
             'type': [
                 {'target_id': 'islandora_object', 'target_type': 'node_type'}
@@ -523,14 +532,6 @@ class TestSimpleField(unittest.TestCase):
                 {'value': "Field foo original value"}
             ]
         }
-
-        self.field_definitions = {
-            'field_foo': {
-                'cardinality': -1,
-            }
-        }
-
-        self.config['update_mode'] = 'append'
 
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
@@ -566,9 +567,33 @@ class TestSimpleField(unittest.TestCase):
                 {'value': 1}
             ],
             'field_foo': [
-                {'value': "Field foo original value"}
+                {'value': "Field foo original value"},
+                {'value': "New value"}
             ]
         }
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 55
+        csv_record['field_foo'] = "New value"
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"},
+                {'value': "New value"}
+
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
 
     def test_simple_field_update_append_cardinality_unlimited_with_subdelims(self):
         existing_node = {
@@ -597,7 +622,7 @@ class TestSimpleField(unittest.TestCase):
         field = workbench_fields.SimpleField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 6
-        csv_record['field_foo'] = "New value 1|New value 2"
+        csv_record['field_foo'] = "New value 1|New value 2|New value 1"
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -773,8 +798,7 @@ class TestSimpleField(unittest.TestCase):
                 {'value': 1}
             ],
             'field_foo': [
-                {'value': "Field foo original value 1"},
-                {'value': "Field foo original value 2"}
+                {'value': "Field foo original value 1"}
             ]
         }
 
@@ -786,26 +810,11 @@ class TestSimpleField(unittest.TestCase):
 
         self.config['update_mode'] = 'append'
 
-        existing_node = {
-            'type': [
-                {'target_id': 'islandora_object', 'target_type': 'node_type'}
-            ],
-            'title': [
-                {'value': "Test node"}
-            ],
-            'status': [
-                {'value': 1}
-            ],
-            'field_foo': [
-                {'value': "Field foo original value"}
-            ]
-        }
-
         with self.assertLogs() as message:
             field = workbench_fields.SimpleField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 10
-            csv_record['field_foo'] = "First node 10 value|Second node 10 value|Third node 10 value"
+            csv_record['field_foo'] = "First node 10 value|First node 10 value|Second node 10 value|Third node 10 value"
             node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
@@ -818,7 +827,7 @@ class TestSimpleField(unittest.TestCase):
                     {'value': 1}
                 ],
                 'field_foo': [
-                    {'value': "Field foo original value"},
+                    {'value': "Field foo original value 1"},
                     {'value': "First node 10 value"},
                     {'value': "Second node 10 value"}
                 ]
@@ -869,6 +878,19 @@ class TestSimpleField(unittest.TestCase):
             'field_foo': []
         }
         self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_dudupe_values(self):
+        # First, split values from CSV.
+        input = ['first value', 'first value', 'second value', 'second value', 'third value']
+        field = workbench_fields.SimpleField()
+        output = field.dedupe_values(input)
+        self.assertEqual(output, ['first value', 'second value', 'third value'])
+
+        # Then fully formed dictionaries.
+        input = [{'value': 'First string'}, {'value': 'Second string'}, {'value': 'First string'}, {'value': 'Second string'}, {'value': 'Third string'}]
+        field = workbench_fields.SimpleField()
+        output = field.dedupe_values(input)
+        self.assertEqual(output, [{'value': 'First string'}, {'value': 'Second string'}, {'value': 'Third string'}])
 
 
 class TestGeolocationField(unittest.TestCase):
@@ -983,7 +1005,7 @@ class TestGeolocationField(unittest.TestCase):
         field = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
         csv_record['id'] = "geo_004"
-        csv_record['field_foo'] = "59.16667,-123.93333|69.16667,-123.93333"
+        csv_record['field_foo'] = "59.16667,-123.93333|69.16667,-123.93333|69.16667,-123.93333"
         node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
         expected_node = {
             'type': [
@@ -1033,7 +1055,7 @@ class TestGeolocationField(unittest.TestCase):
         # Create a node with a geolocation field of cardinality limited, with subdelimiters.
         self.field_definitions = {
             'field_foo': {
-                'cardinality': 2,
+                'cardinality': 3,
             }
         }
 
@@ -1041,7 +1063,7 @@ class TestGeolocationField(unittest.TestCase):
             field = workbench_fields.GeolocationField()
             csv_record = collections.OrderedDict()
             csv_record['id'] = "geo_006"
-            csv_record['field_foo'] = "51.16667,-123.93333|61.16667,-123.93333|63.16667,-123.93333"
+            csv_record['field_foo'] = "51.16667,-123.93333|61.16667,-123.93333|61.16667,-123.93333|63.16667,-123.93333|61.16667,-123.93334"
             node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
             expected_node = {
                 'type': [
@@ -1055,11 +1077,12 @@ class TestGeolocationField(unittest.TestCase):
                 ],
                 'field_foo': [
                     {'lat': '51.16667', 'lng': '-123.93333'},
-                    {'lat': '61.16667', 'lng': '-123.93333'}
+                    {'lat': '61.16667', 'lng': '-123.93333'},
+                    {'lat': '63.16667', 'lng': '-123.93333'}
                 ]
             }
             self.assertDictEqual(node, expected_node)
-            self.assertRegex(str(message.output), r'for record geo_006 would exceed maximum number of allowed values \(2\)')
+            self.assertRegex(str(message.output), r'for record geo_006 would exceed maximum number of allowed values \(3\)')
 
     def test_geolocation_field_update_replace_cardinality_1_no_subdelims(self):
         existing_node = {
@@ -1215,7 +1238,7 @@ class TestGeolocationField(unittest.TestCase):
         geolocation = workbench_fields.GeolocationField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 103
-        csv_record['field_foo'] = "55.26661,-113.93331|51.26667,-111.93333"
+        csv_record['field_foo'] = "55.26661,-113.93331|51.26667,-111.93333|55.26661,-113.93331"
         node_field_values = [{"lat": "49.16667", "lng": "-122.93333"}]
         node103 = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
         expected_node = {
@@ -1307,7 +1330,7 @@ class TestGeolocationField(unittest.TestCase):
         csv_record = collections.OrderedDict()
         self.config['update_mode'] = 'append'
         csv_record['node_id'] = 105
-        csv_record['field_foo'] = "56.2,-113.9|51.2,-100.9"
+        csv_record['field_foo'] = "56.2,-113.9|51.2,-100.9|51.2,-100.9"
         node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -1398,7 +1421,7 @@ class TestGeolocationField(unittest.TestCase):
             geolocation = workbench_fields.GeolocationField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 106
-            csv_record['field_foo'] = "53.26667,-133.93333|51.34,-111.1|51.51,-111.999"
+            csv_record['field_foo'] = "53.26667,-133.93333|51.34,-111.1|51.51,-111.999|53.26667,-133.93333"
             node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
@@ -1500,7 +1523,7 @@ class TestGeolocationField(unittest.TestCase):
             geolocation = workbench_fields.GeolocationField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 108
-            csv_record['field_foo'] = "55.80,-113.80|55.82,-113.82|55.83,-113.83"
+            csv_record['field_foo'] = "55.80,-113.80|55.82,-113.82|55.82,-113.82|55.83,-113.83"
             node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
@@ -1548,8 +1571,7 @@ class TestGeolocationField(unittest.TestCase):
             geolocation = workbench_fields.GeolocationField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 109
-            csv_record['field_foo'] = "55.90,-113.90|55.92,-113.92|55.93,-113.93"
-            # node_field_values = []
+            csv_record['field_foo'] = "55.90,-113.90|55.92,-113.92|55.92,-113.92|55.93,-113.93"
             node = geolocation.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node['field_foo'])
             expected_node = {
                 'type': [
@@ -1612,6 +1634,27 @@ class TestGeolocationField(unittest.TestCase):
             'field_foo': []
         }
         self.assertDictEqual(node, expected_node)
+
+    def test_geolocation_field_dudupe_values(self):
+        # Split values from CSV.
+        input = ['49.16667,-123.93333', '49.25,-124.8', '49.16667,-123.93333', '49.25,-124.8', '49.16667,-123.93333']
+        field = workbench_fields.GeolocationField()
+        output = field.dedupe_values(input)
+        self.assertEqual(output, ['49.16667,-123.93333', '49.25,-124.8'])
+
+        # Dictionaries.
+        input = [
+            {"lat": "51.9", "lng": "-22.9"},
+            {"lat": "58.8", "lng": "-125.3"},
+            {"lat": "12.5", "lng": "-122.9"},
+            {"lat": "58.8", "lng": "-125.3"},
+            {"lat": "58.8", "lng": "-125.3"}]
+        field = workbench_fields.GeolocationField()
+        output = field.dedupe_values(input)
+        self.assertEqual(output, [
+            {"lat": "51.9", "lng": "-22.9"},
+            {"lat": "58.8", "lng": "-125.3"},
+            {"lat": "12.5", "lng": "-122.9"}])
 
 
 class TestLinkField(unittest.TestCase):
@@ -1726,7 +1769,7 @@ class TestLinkField(unittest.TestCase):
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['id'] = "link_004"
-        csv_record['field_foo'] = "http://link4-1.net%%Link 004-1 website|http://link4-2.net%%Link 004-2 website"
+        csv_record['field_foo'] = "http://link4-1.net%%Link 004-1 website|http://link4-1.net%%Link 004-1 website|http://link4-2.net%%Link 004-2 website"
         node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
         expected_node = {
             'type': [
@@ -1968,7 +2011,7 @@ class TestLinkField(unittest.TestCase):
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 103
-        csv_record['field_foo'] = "http://updatenode103replace1.net%%103 replacement 1|http://updatenode103replacement2.net%%103 replacement 2"
+        csv_record['field_foo'] = "http://updatenode103replace1.net%%103 replacement 1|http://updatenode103replacement2.net%%103 replacement 2|http://updatenode103replacement2.net%%103 replacement 2"
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -2060,7 +2103,7 @@ class TestLinkField(unittest.TestCase):
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 105
-        csv_record['field_foo'] = "http://node105-1.net%%Node 105-1|http://node105-2.net%%Node 105-2"
+        csv_record['field_foo'] = "http://node105-1.net%%Node 105-1|http://node105-2.net%%Node 105-2|http://node105-2.net%%Node 105-2"
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -2201,7 +2244,7 @@ class TestLinkField(unittest.TestCase):
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 108
-        csv_record['field_foo'] = "http://08a-1.net%%Node 108 1 appended|http://108a-2.net%%Node 108 2 appended"
+        csv_record['field_foo'] = "http://08a-1.net%%Node 108 1 appended|http://108a-2.net%%Node 108 2 appended|http://108a-2.net%%Node 108 2 appended"
         node_field_values = []
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
@@ -2282,7 +2325,7 @@ class TestLinkField(unittest.TestCase):
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 110
-        csv_record['field_foo'] = "http://110r-1.net%%Node 110 1 replaced|http://110r-2.net%%Node 110 2 replaced"
+        csv_record['field_foo'] = "http://110r-1.net%%Node 110 1 replaced|http://110r-2.net%%Node 110 2 replaced|http://110r-2.net%%Node 110 2 replaced"
         node_field_values = []
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
@@ -2312,7 +2355,7 @@ class TestLinkField(unittest.TestCase):
         field = workbench_fields.LinkField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 111
-        csv_record['field_foo'] = "http://111r-1.net%%Node 111 1 replaced|http://111r-2.net%%Node 111 2 replaced"
+        csv_record['field_foo'] = "http://111r-1.net%%Node 111 1 replaced|http://111r-2.net%%Node 111 2 replaced|http://111r-2.net%%Node 111 2 replaced"
         node_field_values = [{"uri": "http://111o-1.net", "title": "Node 111 1 original"}, {"uri": "http://111o-2.net", "title": "Node 111 2 original"}]
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
         expected_node = {
@@ -2376,6 +2419,28 @@ class TestLinkField(unittest.TestCase):
             'field_foo': []
         }
         self.assertDictEqual(node, expected_node)
+
+    def test_link_field_dudupe_values(self):
+        # Split values from CSV.
+        input = ["http://example.net%%Example", "http://foo.net%%Foo", "http://example.net%%Example", "http://example.net%%Example"]
+        field = workbench_fields.LinkField()
+        output = field.dedupe_values(input)
+        expected = ["http://example.net%%Example", "http://foo.net%%Foo"]
+        self.assertEqual(output, expected)
+
+        # Dictionaries.
+        input = [
+            {"uri": "http://example.net", "title": "Example"},
+            {"uri": "http://foo.net", "title": "Foo"},
+            {"uri": "http://example.net", "title": "Example"}
+        ]
+        field = workbench_fields.LinkField()
+        output = field.dedupe_values(input)
+        expected = [
+            {"uri": "http://example.net", "title": "Example"},
+            {"uri": "http://foo.net", "title": "Foo"}
+        ]
+        self.assertEqual(output, expected)
 
 
 class TestEntityRefererenceField(unittest.TestCase):
@@ -2590,7 +2655,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['id'] = "term_entity_reference_004"
-        csv_record['field_foo'] = "1010|1011"
+        csv_record['field_foo'] = "1010|1011|1011"
         node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
         expected_node = {
             'type': [
@@ -2709,7 +2774,7 @@ class TestEntityRefererenceField(unittest.TestCase):
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
             csv_record['id'] = "term_entity_reference_006"
-            csv_record['field_foo'] = "101|102|103"
+            csv_record['field_foo'] = "101|102|103|102"
             node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
             expected_node = {
                 'type': [
@@ -3023,7 +3088,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 106
-        csv_record['field_foo'] = '51|52'
+        csv_record['field_foo'] = '51|52|51'
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -3183,7 +3248,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 110
-        csv_record['field_foo'] = '72|73'
+        csv_record['field_foo'] = '72|73|73'
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -3231,7 +3296,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 111
-        csv_record['field_foo'] = '74|75'
+        csv_record['field_foo'] = '74|75|71'
         node_field_values = [{'target_id': '71', 'target_type': 'node_type'}]
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
@@ -3460,7 +3525,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 115
-        csv_record['field_foo'] = '115|116'
+        csv_record['field_foo'] = '115|116|116'
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -3493,7 +3558,7 @@ class TestEntityRefererenceField(unittest.TestCase):
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 116
-            csv_record['field_foo'] = '115|116|117'
+            csv_record['field_foo'] = '115|116|117|116'
             node_field_values = [{'target_id': '70', 'target_type': 'taxonomy_term'}, {'target_id': '71', 'target_type': 'taxonomy_term'}]
             node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
             expected_node = {
@@ -3594,7 +3659,7 @@ class TestEntityRefererenceField(unittest.TestCase):
             field = workbench_fields.EntityReferenceField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 116
-            csv_record['field_foo'] = '1163|1164'
+            csv_record['field_foo'] = '1163|1164|1163'
             node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
@@ -3627,7 +3692,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 117
-        csv_record['field_foo'] = '117|118'
+        csv_record['field_foo'] = '117|118|118'
         node_field_values = [{'target_id': '1131', 'target_type': 'taxonomy_term'}, {'target_id': '1132', 'target_type': 'taxonomy_term'}]
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
         expected_node = {
@@ -3677,7 +3742,7 @@ class TestEntityRefererenceField(unittest.TestCase):
         field = workbench_fields.EntityReferenceField()
         csv_record = collections.OrderedDict()
         csv_record['node_id'] = 1162
-        csv_record['field_foo'] = '102|103'
+        csv_record['field_foo'] = '102|103|103'
         node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
         expected_node = {
             'type': [
@@ -3741,6 +3806,31 @@ class TestEntityRefererenceField(unittest.TestCase):
             'field_foo': []
         }
         self.assertDictEqual(node, expected_node)
+
+    def test_entity_reference_field_dudupe_values(self):
+        # Split values from CSV.
+        input = ['cats:Tuxedo', 'cats:Misbehaving', 'dogs:German Shepherd', 'cats:Tuxedo']
+        field = workbench_fields.LinkField()
+        output = field.dedupe_values(input)
+        expected = ['cats:Tuxedo', 'cats:Misbehaving', 'dogs:German Shepherd']
+        self.assertEqual(output, expected)
+
+        # Dictionaries.
+        input = [
+            {'target_id': '600', 'target_type': 'node_type'},
+            {'target_id': '1020', 'target_type': 'node_type'},
+            {'target_id': '1030', 'target_type': 'node_type'},
+            {'target_id': '1020', 'target_type': 'node_type'},
+            {'target_id': '1030', 'target_type': 'node_type'}
+        ]
+        field = workbench_fields.LinkField()
+        output = field.dedupe_values(input)
+        expected = [
+            {'target_id': '600', 'target_type': 'node_type'},
+            {'target_id': '1020', 'target_type': 'node_type'},
+            {'target_id': '1030', 'target_type': 'node_type'}
+        ]
+        self.assertEqual(output, expected)
 
 
 class TestTypedRelationField(unittest.TestCase):
@@ -4349,7 +4439,7 @@ class TestTypedRelationField(unittest.TestCase):
             field = workbench_fields.TypedRelationField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 'typed_relation_015'
-            csv_record['field_foo'] = 'relators:bbb:150|relators:ccc:152|relators:ddd:153'
+            csv_record['field_foo'] = 'relators:bbb:150|relators:ccc:152|relators:ccc:152|relators:ddd:153'
             node_field_values = [{'rel_type': 'relators:art', 'target_id': '555', 'target_type': 'taxonomy_term'}]
             node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
@@ -4399,7 +4489,7 @@ class TestTypedRelationField(unittest.TestCase):
             field = workbench_fields.TypedRelationField()
             csv_record = collections.OrderedDict()
             csv_record['node_id'] = 'typed_relation_016'
-            csv_record['field_foo'] = 'relators:rrr:160|relators:sss:161|relators:ttt:162'
+            csv_record['field_foo'] = 'relators:rrr:160|relators:sss:161|relators:sss:161|relators:ttt:162'
             node = field.update(self.config, self.field_definitions, self.existing_node, csv_record, "field_foo", existing_node["field_foo"])
             expected_node = {
                 'type': [
@@ -4465,6 +4555,29 @@ class TestTypedRelationField(unittest.TestCase):
             'field_foo': []
         }
         self.assertDictEqual(node, expected_node)
+
+    def test_entity_reference_field_dudupe_values(self):
+        # Split values from CSV.
+        input = ['relators:art:person:Bar, Foo', 'relators:art:person:Bang, Biz', 'relators:art:person:Bang, Biz']
+        field = workbench_fields.LinkField()
+        output = field.dedupe_values(input)
+        expected = ['relators:art:person:Bar, Foo', 'relators:art:person:Bang, Biz']
+        self.assertEqual(output, expected)
+
+        # Dictionaries.
+        input = [
+            {'rel_type': 'relators:bbb', 'target_id': '1501', 'target_type': 'taxonomy_term'},
+            {'rel_type': 'relators:ccc', 'target_id': '1521', 'target_type': 'taxonomy_term'},
+            {'rel_type': 'relators:bbb', 'target_id': '1501', 'target_type': 'taxonomy_term'},
+            {'rel_type': 'relators:ccc', 'target_id': '1521', 'target_type': 'taxonomy_term'}
+        ]
+        field = workbench_fields.LinkField()
+        output = field.dedupe_values(input)
+        expected = [
+            {'rel_type': 'relators:bbb', 'target_id': '1501', 'target_type': 'taxonomy_term'},
+            {'rel_type': 'relators:ccc', 'target_id': '1521', 'target_type': 'taxonomy_term'}
+        ]
+        self.assertEqual(output, expected)
 
 
 if __name__ == '__main__':

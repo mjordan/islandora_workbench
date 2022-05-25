@@ -1,5 +1,6 @@
 import json
 import copy
+from iteration_utilities import unique_everseen
 from workbench_utils import *
 
 
@@ -37,6 +38,7 @@ class SimpleField():
             if config['subdelimiter'] in row[custom_field]:
                 field_values = []
                 subvalues = row[custom_field].split(config['subdelimiter'])
+                subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
                     subvalue = truncate_csv_value(custom_field, id_field, field_definitions[custom_field], subvalue)
                     field_values.append({'value': subvalue})
@@ -49,12 +51,14 @@ class SimpleField():
             if config['subdelimiter'] in row[custom_field]:
                 field_values = []
                 subvalues = row[custom_field].split(config['subdelimiter'])
+                subvalues = self.dedupe_values(subvalues)
                 if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
                     log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
                 subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                 for subvalue in subvalues:
                     subvalue = truncate_csv_value(custom_field, id_field, field_definitions[custom_field], subvalue)
                     field_values.append({'value': subvalue})
+                field_values = self.dedupe_values(field_values)
                 entity[custom_field] = field_values
             else:
                 row[custom_field] = truncate_csv_value(custom_field, id_field, field_definitions[custom_field], row[custom_field])
@@ -99,12 +103,14 @@ class SimpleField():
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
                         entity[custom_field].append({'value': subvalue})
+                    entity[custom_field] = self.dedupe_values(entity[custom_field])
                     if len(entity[custom_field]) > int(field_definitions[custom_field]['cardinality']):
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
                         entity[custom_field] = entity[custom_field][:field_definitions[custom_field]['cardinality']]
                 else:
                     row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
                     entity[custom_field].append({'value': row[custom_field]})
+                    entity[custom_field] = self.dedupe_values(entity[custom_field])
                     if len(entity[custom_field]) > int(field_definitions[custom_field]['cardinality']):
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
                         entity[custom_field] = entity[custom_field][:field_definitions[custom_field]['cardinality']]
@@ -113,13 +119,15 @@ class SimpleField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = row[custom_field].split(config['subdelimiter'])
+                    subvalues = self.dedupe_values(subvalues)
                     if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
-                    subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
+                        subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
                         field_values.append({'value': subvalue})
-                        entity[custom_field] = field_values
+                    field_values = self.dedupe_values(field_values)
+                    entity[custom_field] = field_values
                 else:
                     row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
                     entity[custom_field] = [{'value': row[custom_field]}]
@@ -133,10 +141,12 @@ class SimpleField():
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
                         field_values.append({'value': subvalue})
-                        entity[custom_field] = entity_field_values + field_values
+                    entity[custom_field] = entity_field_values + field_values
+                    entity[custom_field] = self.dedupe_values(entity[custom_field])
                 else:
                     row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
                     entity[custom_field] = entity_field_values + [{'value': row[custom_field]}]
+                    entity[custom_field] = self.dedupe_values(entity[custom_field])
             if config['update_mode'] == 'replace':
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
@@ -144,12 +154,27 @@ class SimpleField():
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
                         field_values.append({'value': subvalue})
-                        entity[custom_field] = field_values
+                    entity[custom_field] = field_values
+                    entity[custom_field] = self.dedupe_values(entity[custom_field])
                 else:
                     row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
                     entity[custom_field] = [{'value': row[custom_field]}]
 
         return entity
+
+    def dedupe_values(self, values):
+        """Removes duplicate entries from 'values'.
+        """
+        """Parameters
+           ----------
+            values : list
+                List of dictionaries containing value(s) to dedupe.
+            Returns
+            -------
+            list
+                A list of unique field values.
+        """
+        return list(unique_everseen(values))
 
 
 class GeolocationField():
@@ -185,6 +210,7 @@ class GeolocationField():
             if config['subdelimiter'] in row[custom_field]:
                 field_values = []
                 subvalues = split_geolocation_string(config, row[custom_field])
+                subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
                     field_values.append(subvalue)
                 entity[custom_field] = field_values
@@ -195,6 +221,7 @@ class GeolocationField():
         else:
             if config['subdelimiter'] in row[custom_field]:
                 subvalues = split_geolocation_string(config, row[custom_field])
+                subvalues = self.dedupe_values(subvalues)
                 if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
                     subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                     log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
@@ -240,8 +267,10 @@ class GeolocationField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = split_geolocation_string(config, row[custom_field])
+                    subvalues = self.dedupe_values(subvalues)
                     for subvalue in subvalues:
                         field_values.append(subvalue)
+                    field_values = self.dedupe_values(field_values)
                     entity[custom_field] = field_values
                 else:
                     field_value = split_geolocation_string(config, row[custom_field])
@@ -251,11 +280,12 @@ class GeolocationField():
                 if custom_field in entity:
                     for field_value in field_values:
                         entity_field_values.append(field_value)
-                    entity[custom_field] = entity_field_values
+                    entity[custom_field] = self.dedupe_values(entity_field_values)
         # Cardinality has a limit.
         else:
             if config['update_mode'] == 'replace':
                 subvalues = split_geolocation_string(config, row[custom_field])
+                subvalues = self.dedupe_values(subvalues)
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     for subvalue in subvalues:
@@ -269,6 +299,7 @@ class GeolocationField():
 
             if config['update_mode'] == 'append':
                 subvalues = split_geolocation_string(config, row[custom_field])
+                subvalues = self.dedupe_values(subvalues)
                 if config['subdelimiter'] in row[custom_field]:
                     for subvalue in subvalues:
                         entity_field_values.append(subvalue)
@@ -283,6 +314,20 @@ class GeolocationField():
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
 
         return entity
+
+    def dedupe_values(self, values):
+        """Removes duplicate entries from 'values'.
+        """
+        """Parameters
+           ----------
+            values : list
+                List of dictionaries containing value(s) to dedupe.
+            Returns
+            -------
+            list
+                A list of unique field values.
+        """
+        return list(unique_everseen(values))
 
 
 class LinkField():
@@ -317,6 +362,7 @@ class LinkField():
         if field_definitions[custom_field]['cardinality'] == -1:
             if config['subdelimiter'] in row[custom_field]:
                 subvalues = split_link_string(config, row[custom_field])
+                subvalues = self.dedupe_values(subvalues)
                 entity[custom_field] = subvalues
             else:
                 field_value = split_link_string(config, row[custom_field])
@@ -325,6 +371,7 @@ class LinkField():
         else:
             if config['subdelimiter'] in row[custom_field]:
                 subvalues = split_link_string(config, row[custom_field])
+                subvalues = self.dedupe_values(subvalues)
                 if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
                     subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
                     log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
@@ -370,6 +417,7 @@ class LinkField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = split_link_string(config, row[custom_field])
+                    subvalues = self.dedupe_values(subvalues)
                     for subvalue in subvalues:
                         field_values.append(subvalue)
                     entity[custom_field] = field_values
@@ -385,6 +433,7 @@ class LinkField():
                     if custom_field in entity:
                         for field_subvalue in field_values:
                             entity_field_values.append(field_subvalue)
+                        entity_field_values = subvalues = self.dedupe_values(entity_field_values)
                         entity[custom_field] = entity_field_values
                 else:
                     field_value = split_link_string(config, row[custom_field])
@@ -398,6 +447,7 @@ class LinkField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = split_link_string(config, row[custom_field])
+                    subvalues = self.dedupe_values(subvalues)
                     if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
                     subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
@@ -416,6 +466,20 @@ class LinkField():
                     log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
 
         return entity
+
+    def dedupe_values(self, values):
+        """Removes duplicate entries from 'values'.
+        """
+        """Parameters
+           ----------
+            values : list
+                List of dictionaries containing value(s) to dedupe.
+            Returns
+            -------
+            list
+                A list of unique field values.
+        """
+        return list(unique_everseen(values))
 
 
 class EntityReferenceField():
@@ -476,6 +540,7 @@ class EntityReferenceField():
             if config['subdelimiter'] in row[custom_field]:
                 field_values = []
                 subvalues = row[custom_field].split(config['subdelimiter'])
+                subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                 entity[custom_field] = field_values
@@ -486,6 +551,7 @@ class EntityReferenceField():
             if config['subdelimiter'] in row[custom_field]:
                 field_values = []
                 subvalues = row[custom_field].split(config['subdelimiter'])
+                subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                 if len(field_values) > int(field_definitions[custom_field]['cardinality']):
@@ -561,6 +627,7 @@ class EntityReferenceField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = row[custom_field].split(config['subdelimiter'])
+                    subvalues = self.dedupe_values(subvalues)
                     for subvalue in subvalues:
                         field_values.append({'target_id': subvalue, 'target_type': target_type})
                     if len(field_values) > int(field_definitions[custom_field]['cardinality']):
@@ -575,6 +642,7 @@ class EntityReferenceField():
                     subvalues = row[custom_field].split(config['subdelimiter'])
                     for subvalue in subvalues:
                         entity_field_values.append({'target_id': subvalue, 'target_type': target_type})
+                    entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[custom_field]['cardinality']):
                         entity[custom_field] = entity_field_values[:field_definitions[custom_field]['cardinality']]
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
@@ -582,6 +650,7 @@ class EntityReferenceField():
                         entity[custom_field] = entity_field_values
                 else:
                     entity_field_values.append({'target_id': row[custom_field], 'target_type': target_type})
+                    entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[custom_field]['cardinality']):
                         entity[custom_field] = entity_field_values[:field_definitions[custom_field]['cardinality']]
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
@@ -594,6 +663,7 @@ class EntityReferenceField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = row[custom_field].split(config['subdelimiter'])
+                    subvalues = self.dedupe_values(subvalues)
                     for subvalue in subvalues:
                         field_values.append({'target_id': subvalue, 'target_type': target_type})
                         entity[custom_field] = field_values
@@ -605,12 +675,26 @@ class EntityReferenceField():
                     subvalues = row[custom_field].split(config['subdelimiter'])
                     for subvalue in subvalues:
                         entity_field_values.append({'target_id': subvalue, 'target_type': target_type})
-                    entity[custom_field] = entity_field_values
+                    entity[custom_field] = self.dedupe_values(entity_field_values)
                 else:
                     entity_field_values.append({'target_id': row[custom_field], 'target_type': target_type})
-                    entity[custom_field] = entity_field_values
+                    entity[custom_field] = self.dedupe_values(entity_field_values)
 
         return entity
+
+    def dedupe_values(self, values):
+        """Removes duplicate entries from 'values'.
+        """
+        """Parameters
+           ----------
+            values : list
+                List of dictionaries containing value(s) to dedupe.
+            Returns
+            -------
+            list
+                A list of unique field values.
+        """
+        return list(unique_everseen(values))
 
 
 class TypedRelationField():
@@ -652,6 +736,7 @@ class TypedRelationField():
             if field_definitions[custom_field]['cardinality'] == -1:
                 field_values = []
                 subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                subvalues = self.dedupe_values(subvalues)
                 if config['subdelimiter'] in row[custom_field]:
                     for subvalue in subvalues:
                         subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
@@ -665,6 +750,7 @@ class TypedRelationField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                    subvalues = self.dedupe_values(subvalues)
                     if len(subvalues) > field_definitions[custom_field]['cardinality']:
                         log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
                         subvalues = subvalues[:field_definitions[custom_field]['cardinality']]
@@ -679,6 +765,7 @@ class TypedRelationField():
             # Cardinality is 1.
             else:
                 subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                subvalues = self.dedupe_values(subvalues)
                 subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
                 entity[custom_field] = [subvalues[0]]
                 if len(subvalues) > 1:
@@ -724,6 +811,7 @@ class TypedRelationField():
         if field_definitions[custom_field]['cardinality'] > 0:
             if config['update_mode'] == 'replace':
                 subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                subvalues = self.dedupe_values(subvalues)
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     for subvalue in subvalues:
@@ -743,6 +831,7 @@ class TypedRelationField():
                     for subvalue in subvalues:
                         subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
                         entity_field_values.append(subvalue)
+                    entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[custom_field]['cardinality']):
                         entity[custom_field] = entity_field_values[:field_definitions[custom_field]['cardinality']]
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
@@ -752,6 +841,7 @@ class TypedRelationField():
                     csv_typed_relation_value = split_typed_relation_string(config, row[custom_field], target_type)
                     csv_typed_relation_value[0]['target_id'] = prepare_term_id(config, field_vocabs, csv_typed_relation_value[0]['target_id'])
                     entity_field_values.append(csv_typed_relation_value[0])
+                    entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[custom_field]['cardinality']):
                         entity[custom_field] = entity_field_values[:field_definitions[custom_field]['cardinality']]
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
@@ -762,6 +852,7 @@ class TypedRelationField():
         else:
             if config['update_mode'] == 'replace':
                 subvalues = split_typed_relation_string(config, row[custom_field], target_type)
+                subvalues = self.dedupe_values(subvalues)
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     for subvalue in subvalues:
@@ -778,10 +869,24 @@ class TypedRelationField():
                     for subvalue in subvalues:
                         subvalue['target_id'] = prepare_term_id(config, field_vocabs, subvalue['target_id'])
                         entity_field_values.append(subvalue)
-                    entity[custom_field] = entity_field_values
+                    entity[custom_field] = self.dedupe_values(entity_field_values)
                 else:
                     subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, subvalues[0]['target_id'])
                     entity_field_values.append(subvalues[0])
-                    entity[custom_field] = entity_field_values
+                    entity[custom_field] = self.dedupe_values(entity_field_values)
 
         return entity
+
+    def dedupe_values(self, values):
+        """Removes duplicate entries from 'values'.
+        """
+        """Parameters
+           ----------
+            values : list
+                List of dictionaries containing value(s) to dedupe.
+            Returns
+            -------
+            list
+                A list of unique field values.
+        """
+        return list(unique_everseen(values))
