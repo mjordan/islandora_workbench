@@ -4197,6 +4197,24 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id=None
         return file_path
 
 
+def get_all_node_media_ids(config, node_id):
+    """Unfinished stub function for https://github.com/mjordan/islandora_workbench/issues/422.
+
+       Gets a list of media IDs for a node.
+    """
+    media_id_list = llist()
+    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        body = json.loads(response.text)
+        for media in media_list:
+            media_id_list.append(media['mid'][0]['value'])
+        return media_id_list
+    else:
+        logging.warning("Attempt to get media for node ID %s returned a % status code", node_id, response.status_code)
+        return False
+
+
 def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     sections = urllib.parse.urlparse(url)
     try:
