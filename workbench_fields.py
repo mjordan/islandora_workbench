@@ -38,6 +38,7 @@ class SimpleField():
             if config['subdelimiter'] in row[custom_field]:
                 field_values = []
                 subvalues = row[custom_field].split(config['subdelimiter'])
+                subvalues = self.remove_invalid_values(config, field_definitions, custom_field, subvalues)
                 subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
                     subvalue = truncate_csv_value(custom_field, id_field, field_definitions[custom_field], subvalue)
@@ -51,6 +52,7 @@ class SimpleField():
             if config['subdelimiter'] in row[custom_field]:
                 field_values = []
                 subvalues = row[custom_field].split(config['subdelimiter'])
+                subvalues = self.remove_invalid_values(config, field_definitions, custom_field, subvalues)
                 subvalues = self.dedupe_values(subvalues)
                 if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
                     log_field_cardinality_violation(custom_field, id_field, field_definitions[custom_field]['cardinality'])
@@ -100,6 +102,7 @@ class SimpleField():
             if config['update_mode'] == 'append':
                 if config['subdelimiter'] in row[custom_field]:
                     subvalues = row[custom_field].split(config['subdelimiter'])
+                    subvalues = self.remove_invalid_values(config, field_definitions, custom_field, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
                         entity[custom_field].append({'value': subvalue})
@@ -108,6 +111,7 @@ class SimpleField():
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
                         entity[custom_field] = entity[custom_field][:field_definitions[custom_field]['cardinality']]
                 else:
+                    row[custom_field] = self.remove_invalid_values(config, field_definitions, custom_field, row[custom_field])
                     row[custom_field] = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], row[custom_field])
                     entity[custom_field].append({'value': row[custom_field]})
                     entity[custom_field] = self.dedupe_values(entity[custom_field])
@@ -119,6 +123,7 @@ class SimpleField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = row[custom_field].split(config['subdelimiter'])
+                    subvalues = self.remove_invalid_values(config, field_definitions, custom_field, subvalues)
                     subvalues = self.dedupe_values(subvalues)
                     if len(subvalues) > int(field_definitions[custom_field]['cardinality']):
                         log_field_cardinality_violation(custom_field, row['node_id'], field_definitions[custom_field]['cardinality'])
@@ -138,6 +143,7 @@ class SimpleField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = row[custom_field].split(config['subdelimiter'])
+                    subvalues = self.remove_invalid_values(config, field_definitions, custom_field, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
                         field_values.append({'value': subvalue})
@@ -151,6 +157,7 @@ class SimpleField():
                 if config['subdelimiter'] in row[custom_field]:
                     field_values = []
                     subvalues = row[custom_field].split(config['subdelimiter'])
+                    subvalues = self.remove_invalid_values(config, field_definitions, custom_field, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(custom_field, row['node_id'], field_definitions[custom_field], subvalue)
                         field_values.append({'value': subvalue})
@@ -168,13 +175,48 @@ class SimpleField():
         """Parameters
            ----------
             values : list
-                List of dictionaries containing value(s) to dedupe.
+                List containing value(s) to dedupe. Members could be strings
+                from CSV or dictionairies.
             Returns
             -------
             list
                 A list of unique field values.
         """
         return list(unique_everseen(values))
+
+    def remove_invalid_values(self, config, field_definitions, field_name, values):
+        """Removes invalid entries from 'values'.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            values : list
+                List containing strings split from CSV values.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        if 'field_type' not in field_definitions[field_name]:
+            return values
+
+        if field_definitions[field_name]['field_type'] == 'edtf':
+            valid_values = list()
+            for subvalue in values:
+                if validate_edtf_date(subvalue) is True:
+                    valid_values.append(subvalue)
+                else:
+                    message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid EDTF field value.'
+                    logging.warning(message)
+            return valid_values
+        else:
+            # For now, just return values if the field is not an EDTF field.
+            return values
 
 
 class GeolocationField():
@@ -321,13 +363,41 @@ class GeolocationField():
         """Parameters
            ----------
             values : list
-                List of dictionaries containing value(s) to dedupe.
+                List containing value(s) to dedupe. Members could be strings
+                from CSV or dictionairies.
             Returns
             -------
             list
                 A list of unique field values.
         """
         return list(unique_everseen(values))
+
+    def remove_invalid_values(self, config, field_definitions, field_name, values):
+        """Removes invalid entries from 'values'.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            values : list
+                List containing strings split from CSV values.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        valid_values = list()
+        for subvalue in values:
+            if validate_latlong_value(subvalue) is True:
+                valid_values.append(subvalue)
+            else:
+                message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Geolocation field value.'
+                logging.warning(message)
+        return valid_values
 
 
 class LinkField():
@@ -473,13 +543,41 @@ class LinkField():
         """Parameters
            ----------
             values : list
-                List of dictionaries containing value(s) to dedupe.
+                List containing value(s) to dedupe. Members could be strings
+                from CSV or dictionairies.
             Returns
             -------
             list
                 A list of unique field values.
         """
         return list(unique_everseen(values))
+
+    def remove_invalid_values(self, config, field_definitions, field_name, values):
+        """Removes invalid entries from 'values'.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            values : list
+                List containing strings split from CSV values.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        valid_values = list()
+        for subvalue in values:
+            if validate_link_value(subvalue) is True:
+                valid_values.append(subvalue)
+            else:
+                message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Link field value.'
+                logging.warning(message)
+        return valid_values
 
 
 class EntityReferenceField():
@@ -688,13 +786,44 @@ class EntityReferenceField():
         """Parameters
            ----------
             values : list
-                List of dictionaries containing value(s) to dedupe.
+                List containing value(s) to dedupe. Members could be strings
+                from CSV or dictionairies.
             Returns
             -------
             list
                 A list of unique field values.
         """
         return list(unique_everseen(values))
+
+    def remove_invalid_values(self, config, field_definitions, field_name, values):
+        """Removes invalid entries from 'values'.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            values : list
+                List containing strings split from CSV values.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        '''
+        valid_values = list()
+        for subvalue in values:
+            if validate_link_value(subvalue) is True:
+                valid_values.append(subvalue)
+            else:
+                message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Entity Reference field value.'
+                logging.warning(message)
+        return valid_values
+        '''
+        return values
 
 
 class TypedRelationField():
@@ -883,10 +1012,41 @@ class TypedRelationField():
         """Parameters
            ----------
             values : list
-                List of dictionaries containing value(s) to dedupe.
+                List containing value(s) to dedupe. Members could be strings
+                from CSV or dictionairies.
             Returns
             -------
             list
                 A list of unique field values.
         """
         return list(unique_everseen(values))
+
+    def remove_invalid_values(self, config, field_definitions, field_name, values):
+        """Removes invalid entries from 'values'.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            values : list
+                List containing strings split from CSV values.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        '''
+        valid_values = list()
+        for subvalue in values:
+            if validate_link_value(subvalue) is True:
+                valid_values.append(subvalue)
+            else:
+                message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Typed Relation field value.'
+                logging.warning(message)
+        return valid_values
+        '''
+        return values
