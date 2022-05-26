@@ -1,3 +1,9 @@
+"""Classes for Drupal field type operations.
+
+   Support for additional field types should be added as new classes here,
+   with accompanying tests in field_tests.py and field_tests_values.py.
+"""
+
 import json
 import copy
 from iteration_utilities import unique_everseen

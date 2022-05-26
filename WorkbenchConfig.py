@@ -1,4 +1,5 @@
-# Class to encapsulate Workbench config
+"""Class to encapsulate Workbench configuration definitions.
+"""
 
 import logging
 from ruamel.yaml import YAML

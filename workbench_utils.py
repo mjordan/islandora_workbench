@@ -1,3 +1,6 @@
+"""Utility functions for Islandora Workbench.
+"""
+
 import os
 import sys
 import json
