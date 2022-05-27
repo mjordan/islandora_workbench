@@ -23,6 +23,10 @@ from WorkbenchConfig import WorkbenchConfig
 def create():
     """Create new nodes via POST, and add media if there are any.
     """
+    message = '"Create" task started using config file ' + args.config
+    print(message)
+    logging.info(message)
+
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     prep_rollback_csv(config, path_to_rollback_csv_file)
     logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
@@ -31,7 +35,6 @@ def create():
         if args.config not in config['secondary_tasks']:
             prep_node_ids_tsv(config)
 
-    logging.info('"Create" task started using config file %s', args.config)
     temp = config
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     node_ids = dict()
@@ -326,6 +329,10 @@ def update():
        to include the existing value(s) in our PATCH. The field classes take
        care of preserving existing values in 'append' updates.
     """
+    message = '"Update" task started using config file ' + args.config
+    print(message)
+    logging.info(message)
+
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
@@ -460,6 +467,10 @@ def update():
 def delete():
     """Delete nodes.
     """
+    message = '"Delete" task started using config file ' + args.config
+    print(message)
+    logging.info(message)
+
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
@@ -515,6 +526,10 @@ def delete():
 def add_media():
     """Add media to existing nodes.
     """
+    message = '"Add media" task started using config file ' + args.config
+    print(message)
+    logging.info(message)
+
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
@@ -627,24 +642,73 @@ def add_media():
 
 
 def delete_media():
-    """Delete media.
+    """Delete media from media IDs in the input CSV.
     """
-    csv_data = csv.DictReader(csvfile)
-    csv_column_headers = csv_data.fieldnames
+    message = '"Delete media" task started using config file ' + args.config
+    print(message)
+    logging.info(message)
+
+    csv_data = get_csv_data(config)
 
     row_count = 0
     for row in csv_data:
         row = clean_csv_values(row)
         if not value_is_numeric(row['media_id']):
-            row['media_id'] = get_nid_from_media_url_alias(config, row['node_id'])
+            row['media_id'] = get_mid_from_media_url_alias(config, row['node_id'])
         media_delete_status_code = remove_media_and_file(config, row['media_id'])
         if media_delete_status_code == 204:
             if config['progress_bar'] is False:
-                print("Media " +
-                      config['host'] +
-                      '/media/' +
-                      str(row['media_id']) +
-                      " and associated file deleted.")
+                message = "Media " + config['host'] + '/media/' + str(row['media_id']) + " and associated file deleted."
+                print(message)
+                logging.info(message)
+            else:
+                message = "Media " + config['host'] + '/media/' + str(row['media_id']) + " and associated file not deleted."
+                print("ERROR: " + message + " See log for more information.")
+                logging.error(message + " HTTP response code %s.", media_delete_status_code)
+
+        if config['progress_bar'] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
+
+
+def delete_media_by_node():
+    """Delete all media from node IDs in the input CSV.
+    """
+    message = '"Deleting media by node" task started using config file ' + args.config
+    print(message)
+    logging.info(message)
+
+    csv_data = get_csv_data(config)
+
+    row_count = 0
+    for row in csv_data:
+        row = clean_csv_values(row)
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['row_id'])
+
+        node_ping_result = ping_node(config, row['node_id'], 'GET', True)
+        if node_ping_result is False:
+            if config['progress_bar'] is False:
+                message = "Node " + row['node_id'] + " not found or not accessible, skipping deleting media."
+                print(message)
+            logging.warning(message)
+            continue
+
+        media_ids_from_node = get_node_media_ids(config, row['node_id'], config['delete_media_by_node_media_use_tids'])
+        if media_ids_from_node is not False:
+            if len(media_ids_from_node) > 0:
+                for media_id in media_ids_from_node:
+                    media_delete_status_code = remove_media_and_file(config, media_id)
+                    if media_delete_status_code == 204:
+                        if config['progress_bar'] is False:
+                            message = "Node " + row['node_id'] + "'s media " + config['host'] + '/media/' + str(media_id) + " and associated files deleted."
+                            print(message)
+                            logging.info(message)
+                        else:
+                            message = "Node " + row['node_id'] + "'s media " + config['host'] + '/media/' + str(media_id) + " and associated files not deleted."
+                            print("ERROR: " + message + " See log for more information.")
+                            logging.error(message + " HTTP response code %s.", media_delete_status_code)
 
         if config['progress_bar'] is True:
             row_count += 1
@@ -657,9 +721,10 @@ def create_from_files():
        have a title (derived from filename), and a config-defined Islandora model,
        content type, and status. Media use is derived from config as well.
     """
-    logging.info(
-        '"Create from files" task started using config file %s',
-        args.config)
+    message = '"Create from files" task started using config file ' + args.config
+    print(message)
+    logging.info(message)
+
     file_dir_path = config['input_dir']
     files = os.listdir(file_dir_path)
 
@@ -859,6 +924,8 @@ try:
         add_media()
     if config['task'] == 'delete_media':
         delete_media()
+    if config['task'] == 'delete_media_by_node':
+        delete_media_by_node()
     if config['task'] == 'create_from_files':
         create_from_files()
 

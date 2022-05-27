@@ -487,7 +487,7 @@ def get_nid_from_url_alias(config, url_alias):
         return node['nid'][0]['value']
 
 
-def get_nid_from_media_url_alias(config, url_alias):
+def get_mid_from_media_url_alias(config, url_alias):
     """Gets a media ID from a media URL alias. This function also works
        with canonical URLs, e.g. http://localhost:8000/media/1234.
     """
@@ -721,10 +721,11 @@ def check_input(config, args):
         'delete',
         'add_media',
         'delete_media',
+        'delete_media_by_node',
         'create_from_files']
     joiner = ', '
     if config['task'] not in tasks:
-        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media", "delete_media", or "create_from_files".'
+        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media", "delete_media", "delete_media_by_node", or "create_from_files".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -798,6 +799,18 @@ def check_input(config, args):
                 message = 'Please check your config file for required values: ' + joiner.join(delete_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+    if config['task'] == 'delete_media_by_node':
+        delete_media_by_node_required_options = [
+            'task',
+            'host',
+            'username',
+            'password']
+        for delete_media_by_node_required_option in delete_media_by_node_required_options:
+            if delete_media_by_node_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(delete_media_by_node_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
     message = 'OK, configuration file has all required values (did not check for optional values).'
     print(message)
     logging.info(message)
@@ -1135,6 +1148,11 @@ def check_input(config, args):
     if config['task'] == 'delete_media':
         if 'media_id' not in csv_column_headers:
             message = 'For "delete_media" tasks, your CSV file must contain a "media_id" column.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+    if config['task'] == 'delete_media_by_node':
+        if 'node_id' not in csv_column_headers:
+            message = 'For "delete_media_by_node" tasks, your CSV file must contain a "node_id" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
 
@@ -4197,21 +4215,42 @@ def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id=None
         return file_path
 
 
-def get_all_node_media_ids(config, node_id):
-    """Unfinished stub function for https://github.com/mjordan/islandora_workbench/issues/422.
-
-       Gets a list of media IDs for a node.
+def get_node_media_ids(config, node_id, media_use_tids=[]):
+    """Gets a list of media IDs for a node.
     """
-    media_id_list = llist()
-    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
+
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        node_id : string
+            The ID of the node to delete media from.
+        media_use_tids : list
+            Term IDs from the Islandora Media Use vocabulary. If present, media
+            with one of these tids will be added to the returned list of media IDs.
+            If empty, all media will be included in the returned list of media IDs.
+        Returns
+        -------
+        list
+            List of media IDs.
+    """
+    media_id_list = list()
+    url = f"{config['host']}/node/{node_id}/media?_format=json"
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         body = json.loads(response.text)
-        for media in media_list:
-            media_id_list.append(media['mid'][0]['value'])
+        for media in body:
+            if len(media_use_tids) == 0:
+                media_id_list.append(media['mid'][0]['value'])
+            else:
+                for media_use_tid_json in media['field_media_use']:
+                    if media_use_tid_json['target_id'] in media_use_tids:
+                        media_id_list.append(media['mid'][0]['value'])
         return media_id_list
     else:
-        logging.warning("Attempt to get media for node ID %s returned a % status code", node_id, response.status_code)
+        message = f'Attempt to get media for node ID {node_id} returned a {response.status_code} status code.'
+        print("Error: " + message)
+        logging.warning(message)
         return False
 
 
