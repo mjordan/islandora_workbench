@@ -21,9 +21,11 @@ import urllib.parse
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from unidecode import unidecode
+from progress_bar import InitBar
 import edtf_validate.valid_edtf
 import shutil
 import http.client
+import workbench_fields
 
 
 # Set some global variables.
@@ -722,10 +724,11 @@ def check_input(config, args):
         'add_media',
         'delete_media',
         'delete_media_by_node',
+        'export_csv'
         'create_from_files']
     joiner = ', '
     if config['task'] not in tasks:
-        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media", "delete_media", "delete_media_by_node", or "create_from_files".'
+        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media", "delete_media", "delete_media_by_node", "export_csv", or "create_from_files".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -4548,6 +4551,86 @@ def get_csv_template(config, args):
     csv_file.close()
     print('CSV template saved at ' + csv_file_path + '.')
     sys.exit()
+
+
+def export_csv_with_field_values(config):
+    field_definitions = get_field_definitions(config, 'node')
+
+    field_labels = collections.OrderedDict()
+    field_names = list()
+    for field_name in field_definitions.keys():
+        field_names.append(field_name)
+    for field_name in ['created', 'uid', 'langcode','node_id', 'REMOVE THIS COLUMN (KEEP THIS ROW)']:
+        field_names.insert(0, field_name)
+
+    field_labels['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'LABEL (REMOVE THIS ROW)'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['label'] != '':
+            field_labels[field_name] = field_definitions[field_name]['label']
+        else:
+            field_labels[field_name] = ''
+
+    csv_file_path = os.path.join(config['input_dir'], config['input_csv'] + '.csv_file_with_field_values')
+    csv_file = open(csv_file_path, 'a+', encoding='utf-8')
+    writer = csv.DictWriter(csv_file, fieldnames=field_names, lineterminator="\n")
+    writer.writeheader()
+
+    writer.writerow(field_labels)
+
+    cardinality = collections.OrderedDict()
+    cardinality['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)'
+    cardinality['node_id'] = '1'
+    cardinality['uid'] = '1'
+    cardinality['langcode'] = '1'
+    cardinality['created'] = '1'
+    cardinality['title'] = '1'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['cardinality'] == -1:
+            cardinality[field_name] = 'unlimited'
+        else:
+            cardinality[field_name] = field_definitions[field_name]['cardinality']
+    writer.writerow(cardinality)
+
+    csv_data = get_csv_data(config)
+
+    row_count = 0
+    for row in csv_data:
+        row = clean_csv_values(row)
+        output_row = collections.OrderedDict()
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
+        if not ping_node(config, row['node_id']):
+            if config['progress_bar'] is False:
+                print("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
+            logging.warning("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
+            continue
+
+        # Get node.
+        url = f"{config['host']}/node/{row['node_id']}?_format=json"
+        message = f"+ Retrieving field data for node {row['node_id']} ..."
+        response = issue_request(config, 'GET', url)
+        if response.status_code == 200:
+            body = json.loads(response.text)
+            for fieldname_to_serialize in body:
+                pass
+                # output_row['fieldname_to_serialize'] =  body['title'][0]['value']
+                # serialized_field = workbench_fields.SimpleField()
+                # field_data = serialized_field.serialize(config, field_definitions, field_name, body['field_data'])
+                # output_row['fieldname_to_serialize'] =  field_data
+        else:
+            message = f'Attempt to get node {node_id} returned a {response.status_code} status code.'
+            print("  Error: " + message)
+            logging.warning(message)
+            return False
+
+        message = message + " adding to output CSV."
+        output_row['node_id'] = row['node_id']
+        writer.writerow(output_row)
+        print(message)
+        logging.info(message)
+
+    csv_file.close()
+    print('CSV template saved at ' + csv_file_path + '.')
 
 
 def prep_node_ids_tsv(config):

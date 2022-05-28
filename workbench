@@ -15,6 +15,7 @@ import collections
 import subprocess
 import requests_cache
 from progress_bar import InitBar
+from rich.progress import track
 from workbench_utils import *
 import workbench_fields
 from WorkbenchConfig import WorkbenchConfig
@@ -472,7 +473,6 @@ def delete():
     logging.info(message)
 
     csv_data = get_csv_data(config)
-    csv_column_headers = csv_data.fieldnames
 
     row_count = 0
     for row in csv_data:
@@ -531,7 +531,7 @@ def add_media():
     logging.info(message)
 
     csv_data = get_csv_data(config)
-    csv_column_headers = csv_data.fieldnames
+    # csv_column_headers = csv_data.fieldnames
 
     row_count = 0
     for row in csv_data:
@@ -836,6 +836,16 @@ def create_from_files():
     if config['progress_bar'] is True:
         pbar(100)
 
+def export_csv():
+    """Export a CSV file with values, in Islandora Workbench format, for each
+       node in the input CSV.
+    """
+    message = '"Export CSV" task started using config file ' + args.config
+    print(message)
+    logging.info(message)
+
+    export_csv_with_field_values(config)
+
 
 # Main program logic.
 
@@ -890,6 +900,8 @@ if config['progress_bar'] is True:
 
 if 'get_csv_template' in config.keys():
     if config['get_csv_template']:
+        # At the end of this function, Workbench exists,
+        # so the code below is not executed.
         get_csv_template(config, args)
 
 try:
@@ -928,6 +940,8 @@ try:
         delete_media_by_node()
     if config['task'] == 'create_from_files':
         create_from_files()
+    if config['task'] == 'export_csv':
+        export_csv()
 
     if config['secondary_tasks'] is not None:
         for secondary_config_file in config['secondary_tasks']:

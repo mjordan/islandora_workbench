@@ -1,4 +1,4 @@
-"""Classes for Drupal field type operations.
+"""Classes for Drupal field operations.
 
    Support for additional field types should be added as new classes here,
    with accompanying tests in field_tests.py and field_tests_values.py.
@@ -223,6 +223,39 @@ class SimpleField():
         else:
             # For now, just return values if the field is not an EDTF field.
             return values
+
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        if 'field_type' not in field_definitions[field_name]:
+            return values
+
+        subvalues = list()
+        for subvalue in values:
+            subvalues.append(subvalue[0]['value'])
+
+        if len(subvalues) > 1:
+            return config['subdelimiter'].join(serialized)
+        elif len(subvalues) == 0:
+            return None
+        else:
+            return subvalues[0]
+
 
 
 class GeolocationField():
