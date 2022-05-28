@@ -228,10 +228,13 @@ class TestDelete(unittest.TestCase):
         delete_output = delete_output.decode().strip()
         delete_lines = delete_output.splitlines()
 
-        self.assertEqual(len(delete_lines), 6)
+        self.assertEqual(len(delete_lines), 7)
 
     def tearDown(self):
-        os.remove(self.nid_file)
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+        if os.path.exists(self.nid_file + ".preprocessed"):
+            os.remove(self.nid_file + ".preprocessed")
 
 
 class TestUpdate(unittest.TestCase):

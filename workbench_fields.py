@@ -246,8 +246,8 @@ class SimpleField():
             return values
 
         subvalues = list()
-        for subvalue in values:
-            subvalues.append(subvalue[0]['value'])
+        for subvalue in field_data:
+            subvalues.append(subvalue['value'])
 
         if len(subvalues) > 1:
             return config['subdelimiter'].join(serialized)
@@ -255,7 +255,6 @@ class SimpleField():
             return None
         else:
             return subvalues[0]
-
 
 
 class GeolocationField():
@@ -438,6 +437,38 @@ class GeolocationField():
                 logging.warning(message)
         return valid_values
 
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        if 'field_type' not in field_definitions[field_name]:
+            return values
+
+        subvalues = list()
+        for subvalue in field_data:
+            subvalues.append(str(subvalue['lat']) + ',' + str(subvalue['lng']))
+
+        if len(subvalues) > 1:
+            return config['subdelimiter'].join(subvalues)
+        elif len(subvalues) == 0:
+            return None
+        else:
+            return subvalues[0]
+
 
 class LinkField():
     """Functions for handling fields with 'link' Drupal field data type.
@@ -617,6 +648,41 @@ class LinkField():
                 message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Link field value.'
                 logging.warning(message)
         return valid_values
+
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        if 'field_type' not in field_definitions[field_name]:
+            return values
+
+        subvalues = list()
+        for subvalue in field_data:
+            if 'title' in subvalue:
+                subvalues.append(subvalue['uri'] + '%%' + subvalue['title'])
+            else:
+                subvalues.append(subvalue['uri'])
+
+        if len(subvalues) > 1:
+            return config['subdelimiter'].join(subvalues)
+        elif len(subvalues) == 0:
+            return None
+        else:
+            return subvalues[0]
 
 
 class EntityReferenceField():

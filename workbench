@@ -836,6 +836,7 @@ def create_from_files():
     if config['progress_bar'] is True:
         pbar(100)
 
+
 def export_csv():
     """Export a CSV file with values, in Islandora Workbench format, for each
        node in the input CSV.
@@ -844,7 +845,113 @@ def export_csv():
     print(message)
     logging.info(message)
 
-    export_csv_with_field_values(config)
+    field_definitions = get_field_definitions(config, 'node')
+
+    field_labels = collections.OrderedDict()
+    field_names = list()
+    for field_name in field_definitions.keys():
+        field_names.append(field_name)
+    for field_name in ['created', 'uid', 'langcode', 'node_id', 'REMOVE THIS COLUMN (KEEP THIS ROW)']:
+        field_names.insert(0, field_name)
+
+    field_labels['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'LABEL (REMOVE THIS ROW)'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['label'] != '':
+            field_labels[field_name] = field_definitions[field_name]['label']
+        else:
+            field_labels[field_name] = ''
+
+    csv_file_path = os.path.join(config['input_dir'], config['input_csv'] + '.csv_file_with_field_values')
+    if os.path.exists(csv_file_path):
+        os.remove(csv_file_path)
+
+    csv_file = open(csv_file_path, 'a+', encoding='utf-8')
+    writer = csv.DictWriter(csv_file, fieldnames=field_names, lineterminator="\n")
+    writer.writeheader()
+
+    writer.writerow(field_labels)
+
+    cardinality = collections.OrderedDict()
+    cardinality['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)'
+    cardinality['node_id'] = '1'
+    cardinality['uid'] = '1'
+    cardinality['langcode'] = '1'
+    cardinality['created'] = '1'
+    cardinality['title'] = '1'
+    for field_name in field_definitions:
+        if field_definitions[field_name]['cardinality'] == -1:
+            cardinality[field_name] = 'unlimited'
+        else:
+            cardinality[field_name] = field_definitions[field_name]['cardinality']
+    writer.writerow(cardinality)
+
+    csv_data = get_csv_data(config)
+
+    row_count = 0
+    for row in csv_data:
+        row = clean_csv_values(row)
+        output_row = collections.OrderedDict()
+        if not value_is_numeric(row['node_id']):
+            row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
+        if not ping_node(config, row['node_id']):
+            if config['progress_bar'] is False:
+                print("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
+            logging.warning("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
+            continue
+
+        # Get node.
+        url = f"{config['host']}/node/{row['node_id']}?_format=json"
+        message = f"+ Retrieving field data for node {row['node_id']} ..."
+        response = issue_request(config, 'GET', url)
+        message = f"Retrieving node {row['node_id']} from Drupal..."
+        if response.status_code == 200:
+            body = json.loads(response.text)
+            for fieldname_to_serialize in field_names:
+                if fieldname_to_serialize in body and fieldname_to_serialize in field_definitions:
+                    # Entity reference fields (taxonomy term and node).
+                    if field_definitions[fieldname_to_serialize]['field_type'] == 'entity_reference':
+                        # pass
+                        not_done_yet = True
+                    # Typed relation fields (currently, only taxonomy term)
+                    elif field_definitions[fieldname_to_serialize]['field_type'] == 'typed_relation':
+                        # pass
+                        not_done_yet = True
+                    # Geolocation fields.
+                    elif field_definitions[fieldname_to_serialize]['field_type'] == 'geolocation':
+                        serialized_field = workbench_fields.GeolocationField()
+                        field_data = serialized_field.serialize(config, field_definitions, field_name, body[fieldname_to_serialize])
+                        output_row[fieldname_to_serialize] = field_data
+                    # Link fields.
+                    elif field_definitions[fieldname_to_serialize]['field_type'] == 'link':
+                        serialized_field = workbench_fields.LinkField()
+                        field_data = serialized_field.serialize(config, field_definitions, field_name, body[fieldname_to_serialize])
+                        output_row[fieldname_to_serialize] = field_data
+                    # Simple fields.
+                    else:
+                        serialized_field = workbench_fields.SimpleField()
+                        field_data = serialized_field.serialize(config, field_definitions, field_name, body[fieldname_to_serialize])
+                        output_row[fieldname_to_serialize] = field_data
+        else:
+            message = f'Attempt to get node {node_id} returned a {response.status_code} status code.'
+            print("  Error: " + message)
+            logging.warning(message)
+            return False
+
+        output_row['node_id'] = row['node_id']
+        writer.writerow(output_row)
+
+        if config['progress_bar'] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
+        else:
+            message = message + " adding to output CSV."
+            print(message)
+
+        logging.info(message)
+
+    csv_file.close()
+    print('CSV template saved at ' + csv_file_path + '.')
 
 
 # Main program logic.

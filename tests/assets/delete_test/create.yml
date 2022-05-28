@@ -2,5 +2,6 @@ task: create
 host: "http://localhost:8000"
 username: admin
 password: islandora
-input_dir: "tests/assets/create_test"
+input_dir: "tests/assets/delete_test"
 allow_missing_files: True
+nodes_only: true
