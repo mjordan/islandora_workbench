@@ -250,7 +250,7 @@ class SimpleField():
             subvalues.append(subvalue['value'])
 
         if len(subvalues) > 1:
-            return config['subdelimiter'].join(serialized)
+            return config['subdelimiter'].join(subvalues)
         elif len(subvalues) == 0:
             return None
         else:
@@ -930,6 +930,45 @@ class EntityReferenceField():
         '''
         return values
 
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        if 'field_type' not in field_definitions[field_name]:
+            return values
+
+        subvalues = list()
+        for subvalue in field_data:
+            if config['export_csv_term_mode'] == 'name':
+                # Output term names.
+                vocab_id = get_term_vocab(config, subvalue['target_id'])
+                term_name = get_term_name(config, subvalue['target_id'])
+                subvalues.append(vocab_id + ':' + term_name)
+            else:
+                # Output term IDs.
+                subvalues.append(str(subvalue['target_id']))
+
+        if len(subvalues) > 1:
+            return config['subdelimiter'].join(subvalues)
+        elif len(subvalues) == 0:
+            return None
+        else:
+            return subvalues[0]
+
 
 class TypedRelationField():
     """Functions for handling fields with 'typed_relation' Drupal field data type.
@@ -1155,3 +1194,41 @@ class TypedRelationField():
         return valid_values
         '''
         return values
+
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        if 'field_type' not in field_definitions[field_name]:
+            return values
+
+        subvalues = list()
+        for subvalue in field_data:
+            if config['export_csv_term_mode'] == 'name':
+                vocab_id = get_term_vocab(config, subvalue['target_id'])
+                term_name = get_term_name(config, subvalue['target_id'])
+                subvalues.append(str(subvalue['rel_type']) + ':' + vocab_id + ':' + term_name)
+            else:
+                # Term IDs.
+                subvalues.append(str(subvalue['rel_type']) + ':' + str(subvalue['target_id']))
+
+        if len(subvalues) > 1:
+            return config['subdelimiter'].join(subvalues)
+        elif len(subvalues) == 0:
+            return None
+        else:
+            return subvalues[0]

@@ -149,7 +149,8 @@ class WorkbenchConfig:
             'paged_content_sequence_separator': '-',
             'media_bundle_file_fields': self.get_media_fields(),
             'media_fields': self.get_media_fields(),
-            'delete_media_by_node_media_use_tids': []
+            'delete_media_by_node_media_use_tids': [],
+            'export_csv_term_mode': 'tid'
         }
 
     # Tests validity and existence of path.

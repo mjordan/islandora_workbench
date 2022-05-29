@@ -592,13 +592,11 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname] = {}
             raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
             field_config = json.loads(raw_field_config)
-            # print(field_config)
             field_definitions[fieldname]['entity_type'] = field_config['entity_type']
             field_definitions[fieldname]['required'] = field_config['required']
             field_definitions[fieldname]['label'] = field_config['label']
             raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
             field_storage = json.loads(raw_field_storage)
-            # print(field_storage)
             field_definitions[fieldname]['field_type'] = field_storage['type']
             field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
             if 'max_length' in field_storage['settings']:
@@ -723,7 +721,7 @@ def check_input(config, args):
         'add_media',
         'delete_media',
         'delete_media_by_node',
-        'export_csv'
+        'export_csv',
         'create_from_files']
     joiner = ', '
     if config['task'] not in tasks:
@@ -812,6 +810,20 @@ def check_input(config, args):
                 message = 'Please check your config file for required values: ' + joiner.join(delete_media_by_node_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+    if config['task'] == 'export_csv':
+        export_csv_required_options = [
+            'task',
+            'host',
+            'username',
+            'password']
+        for export_csv_required_option in export_csv_required_options:
+            if export_csv_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(export_csv_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+        if config['export_csv_term_mode'] == 'name':
+            message = 'The "export_csv_term_mode" configuration option is set to "name", which will slow down the export.'
+            print(message)
 
     message = 'OK, configuration file has all required values (did not check for optional values).'
     print(message)
@@ -1408,6 +1420,20 @@ def check_input(config, args):
                 message = "OK, registered post-action scripts found and executable."
                 logging.info(message)
                 print(message)
+
+    if config['task'] == 'export_csv':
+        if 'node_id' not in csv_column_headers:
+            message = 'For "export_csv" tasks, your CSV file must contain a "node_id" column.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        if 'url_alias' in csv_column_headers:
+            validate_url_aliases_csv_data = get_csv_data(config)
+            validate_url_aliases(config, validate_url_aliases_csv_data)
+            export_csv_term_mode_options = ['tid', 'name']
+            if config['export_csv_term_mode'] not in export_csv_term_mode_options:
+                message = 'Configuration option "export_csv_term_mode_options" must be either "tid" or "name".'
+                logging.error(message)
+                sys.exit('Error: ' + message)
 
     # If nothing has failed by now, exit with a positive, upbeat message.
     print("Configuration and input data appear to be valid.")
@@ -2599,6 +2625,19 @@ def get_term_vocab(config, term_id):
         return False
 
 
+def get_term_name(config, term_id):
+    """Get the term's and return it. If the term doesn't exist, return False.
+    """
+    url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        term_data = json.loads(response.text)
+        return term_data['name'][0]['value']
+    else:
+        logging.warning('Query for term ID "%s" returned a %s status code', term_id, response.status_code)
+        return False
+
+
 def get_term_id_from_uri(config, uri):
     """For a given URI, query the Term from URI View created by the Islandora
        Workbench Integration module. Because we don't know which field each
@@ -2937,11 +2976,9 @@ def prepare_term_id(config, vocab_ids, term):
     else:
         if len(vocab_ids) == 1:
             # A namespace is not needed since this vocabulary is the only one linked to
-            # its field, but since there is only one vocab_id, we prepend it here so that
-            # term names that contain a : are parsed properly.
+            # its field, so we remove it before sending it to create_term().
             namespaced = re.search(':', term)
             if namespaced:
-                term = vocab_ids[0] + ':' + term
                 [vocab_id, term_name] = term.split(':', maxsplit=1)
                 tid = create_term(config, vocab_id.strip(), term_name.strip())
                 return tid

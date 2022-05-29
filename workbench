@@ -24,7 +24,7 @@ from WorkbenchConfig import WorkbenchConfig
 def create():
     """Create new nodes via POST, and add media if there are any.
     """
-    message = '"Create" task started using config file ' + args.config
+    message = '"Create" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
@@ -330,7 +330,7 @@ def update():
        to include the existing value(s) in our PATCH. The field classes take
        care of preserving existing values in 'append' updates.
     """
-    message = '"Update" task started using config file ' + args.config
+    message = '"Update" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
@@ -468,7 +468,7 @@ def update():
 def delete():
     """Delete nodes.
     """
-    message = '"Delete" task started using config file ' + args.config
+    message = '"Delete" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
@@ -526,12 +526,11 @@ def delete():
 def add_media():
     """Add media to existing nodes.
     """
-    message = '"Add media" task started using config file ' + args.config
+    message = '"Add media" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
     csv_data = get_csv_data(config)
-    # csv_column_headers = csv_data.fieldnames
 
     row_count = 0
     for row in csv_data:
@@ -644,7 +643,7 @@ def add_media():
 def delete_media():
     """Delete media from media IDs in the input CSV.
     """
-    message = '"Delete media" task started using config file ' + args.config
+    message = '"Delete media" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
@@ -675,7 +674,7 @@ def delete_media():
 def delete_media_by_node():
     """Delete all media from node IDs in the input CSV.
     """
-    message = '"Deleting media by node" task started using config file ' + args.config
+    message = '"Deleting media by node" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
@@ -721,7 +720,7 @@ def create_from_files():
        have a title (derived from filename), and a config-defined Islandora model,
        content type, and status. Media use is derived from config as well.
     """
-    message = '"Create from files" task started using config file ' + args.config
+    message = '"Create from files" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
@@ -838,10 +837,12 @@ def create_from_files():
 
 
 def export_csv():
-    """Export a CSV file with values, in Islandora Workbench format, for each
-       node in the input CSV.
+    """Export a CSV file with values, in Islandora Workbench format,
+       for each node in the input CSV.
     """
-    message = '"Export CSV" task started using config file ' + args.config
+    message = '"Export CSV" task started using config file ' + args.config + '.'
+    if config['export_csv_term_mode'] == 'name':
+        message = message + ' The "export_csv_term_mode" configuration option is set to "name", which will slow down the export.'
     print(message)
     logging.info(message)
 
@@ -851,8 +852,11 @@ def export_csv():
     field_names = list()
     for field_name in field_definitions.keys():
         field_names.append(field_name)
-    for field_name in ['created', 'uid', 'langcode', 'node_id', 'REMOVE THIS COLUMN (KEEP THIS ROW)']:
+    for field_name in ['created', 'uid', 'langcode', 'title', 'node_id', 'REMOVE THIS COLUMN (KEEP THIS ROW)']:
         field_names.insert(0, field_name)
+
+    filtered_field_names = list()
+    [filtered_field_names.append(x) for x in field_names if x not in filtered_field_names]
 
     field_labels['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'LABEL (REMOVE THIS ROW)'
     for field_name in field_definitions:
@@ -866,7 +870,7 @@ def export_csv():
         os.remove(csv_file_path)
 
     csv_file = open(csv_file_path, 'a+', encoding='utf-8')
-    writer = csv.DictWriter(csv_file, fieldnames=field_names, lineterminator="\n")
+    writer = csv.DictWriter(csv_file, fieldnames=filtered_field_names, lineterminator="\n")
     writer.writeheader()
 
     writer.writerow(field_labels)
@@ -906,16 +910,18 @@ def export_csv():
         message = f"Retrieving node {row['node_id']} from Drupal..."
         if response.status_code == 200:
             body = json.loads(response.text)
-            for fieldname_to_serialize in field_names:
+            for fieldname_to_serialize in filtered_field_names:
                 if fieldname_to_serialize in body and fieldname_to_serialize in field_definitions:
                     # Entity reference fields (taxonomy term and node).
                     if field_definitions[fieldname_to_serialize]['field_type'] == 'entity_reference':
-                        # pass
-                        not_done_yet = True
+                        serialized_field = workbench_fields.EntityReferenceField()
+                        field_data = serialized_field.serialize(config, field_definitions, field_name, body[fieldname_to_serialize])
+                        output_row[fieldname_to_serialize] = field_data
                     # Typed relation fields (currently, only taxonomy term)
                     elif field_definitions[fieldname_to_serialize]['field_type'] == 'typed_relation':
-                        # pass
-                        not_done_yet = True
+                        serialized_field = workbench_fields.TypedRelationField()
+                        field_data = serialized_field.serialize(config, field_definitions, field_name, body[fieldname_to_serialize])
+                        output_row[fieldname_to_serialize] = field_data
                     # Geolocation fields.
                     elif field_definitions[fieldname_to_serialize]['field_type'] == 'geolocation':
                         serialized_field = workbench_fields.GeolocationField()
