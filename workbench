@@ -899,8 +899,8 @@ def export_csv():
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             if config['progress_bar'] is False:
-                print("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
-            logging.warning("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
+                print("Node " + row['node_id'] + " not found or not " + "accessible, skipping export.")
+            logging.warning("Node " + row['node_id'] + " not found or not " + "accessible, skipping export.")
             continue
 
         # Get node.
@@ -910,6 +910,13 @@ def export_csv():
         message = f"Retrieving node {row['node_id']} from Drupal..."
         if response.status_code == 200:
             body = json.loads(response.text)
+            if body['type'][0]['target_id'] != config['content_type']:
+                message = "Node " + row['node_id'] + ' has the "' + body['type'][0]['target_id'] + \
+                    '" content type, not the content type currently configured (' + config['content_type'] + "). Skipping export."
+                print("Error: " + message)
+                logging.error(message)
+                continue
+
             for fieldname_to_serialize in filtered_field_names:
                 if fieldname_to_serialize in body and fieldname_to_serialize in field_definitions:
                     # Entity reference fields (taxonomy term and node).
