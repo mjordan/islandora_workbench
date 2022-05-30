@@ -855,22 +855,33 @@ def export_csv():
     for field_name in ['created', 'uid', 'langcode', 'title', 'node_id', 'REMOVE THIS COLUMN (KEEP THIS ROW)']:
         field_names.insert(0, field_name)
 
-    filtered_field_names = list()
-    [filtered_field_names.append(x) for x in field_names if x not in filtered_field_names]
+    if len(config['export_csv_field_list']) > 0:
+        field_names = config['export_csv_field_list']
 
-    field_labels['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'LABEL (REMOVE THIS ROW)'
+    deduped_field_names = list('')
+    [deduped_field_names.append(x) for x in field_names if x not in deduped_field_names]
+    # We always include 'node_id and 'REMOVE THIS COLUMN (KEEP THIS ROW)'.
+    if 'node_id' not in deduped_field_names:
+        deduped_field_names.insert(0, 'node_id')
+        deduped_field_names.insert(0, 'REMOVE THIS COLUMN (KEEP THIS ROW)')
+
     for field_name in field_definitions:
-        if field_definitions[field_name]['label'] != '':
-            field_labels[field_name] = field_definitions[field_name]['label']
-        else:
-            field_labels[field_name] = ''
+        if field_name in deduped_field_names:
+            if field_definitions[field_name]['label'] != '':
+                field_labels[field_name] = field_definitions[field_name]['label']
+            else:
+                field_labels[field_name] = ''
+    field_labels['REMOVE THIS COLUMN (KEEP THIS ROW)'] = 'LABEL (REMOVE THIS ROW)'
 
-    csv_file_path = os.path.join(config['input_dir'], config['input_csv'] + '.csv_file_with_field_values')
+    if config['export_csv_file_path'] is not None:
+        csv_file_path = config['export_csv_file_path']
+    else:
+        csv_file_path = os.path.join(config['input_dir'], config['input_csv'] + '.csv_file_with_field_values')
     if os.path.exists(csv_file_path):
         os.remove(csv_file_path)
 
     csv_file = open(csv_file_path, 'a+', encoding='utf-8')
-    writer = csv.DictWriter(csv_file, fieldnames=filtered_field_names, lineterminator="\n")
+    writer = csv.DictWriter(csv_file, fieldnames=deduped_field_names, lineterminator="\n")
     writer.writeheader()
 
     writer.writerow(field_labels)
@@ -887,7 +898,12 @@ def export_csv():
             cardinality[field_name] = 'unlimited'
         else:
             cardinality[field_name] = field_definitions[field_name]['cardinality']
-    writer.writerow(cardinality)
+
+    cardinality_filtered = collections.OrderedDict()
+    for cardinality_key in cardinality.keys():
+        if cardinality_key in deduped_field_names:
+            cardinality_filtered[cardinality_key] = cardinality[cardinality_key]
+    writer.writerow(cardinality_filtered)
 
     csv_data = get_csv_data(config)
 
@@ -917,7 +933,7 @@ def export_csv():
                 logging.error(message)
                 continue
 
-            for fieldname_to_serialize in filtered_field_names:
+            for fieldname_to_serialize in deduped_field_names:
                 if fieldname_to_serialize in body and fieldname_to_serialize in field_definitions:
                     # Entity reference fields (taxonomy term and node).
                     if field_definitions[fieldname_to_serialize]['field_type'] == 'entity_reference':
@@ -964,7 +980,7 @@ def export_csv():
         logging.info(message)
 
     csv_file.close()
-    print('CSV template saved at ' + csv_file_path + '.')
+    print('CSV export saved at ' + csv_file_path + '.')
 
 
 # Main program logic.
