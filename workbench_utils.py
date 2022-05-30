@@ -2704,6 +2704,8 @@ def create_term(config, vocab_id, term_name):
     """Adds a term to the target vocabulary. Returns the new term's ID
        if successful (or if the term already exists) or False if not.
     """
+    # Debug
+    import workbench_fields
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
@@ -2749,29 +2751,16 @@ def create_term(config, vocab_id, term_name):
 
     term_endpoint = config['host'] + '/taxonomy/term?_format=json'
     headers = {'Content-Type': 'application/json'}
-    response = issue_request(
-        config,
-        'POST',
-        term_endpoint,
-        headers,
-        term,
-        None)
+    response = issue_request(config, 'POST', term_endpoint, headers, term, None)
     if response.status_code == 201:
         term_response_body = json.loads(response.text)
         tid = term_response_body['tid'][0]['value']
-        logging.info(
-            'Term %s ("%s") added to vocabulary "%s".',
-            tid,
-            term_name,
-            vocab_id)
+        logging.info('Term %s ("%s") added to vocabulary "%s".', tid, term_name, vocab_id)
         newly_created_term_name_for_matching = term_name.lower().strip()
         newly_created_terms.append({'tid': tid, 'vocab_id': vocab_id, 'name': term_name, 'name_for_matching': newly_created_term_name_for_matching})
         return tid
     else:
-        logging.warning(
-            "Term '%s' not created, HTTP response code was %s.",
-            term_name,
-            response.status_code)
+        logging.warning("Term '%s' not created, HTTP response code was %s.", term_name, response.status_code)
         return False
 
 
@@ -2844,6 +2833,9 @@ def get_term_field_data(config, vocab_id, term_name):
         return term_field_data
     else:
         # Vocabulary CSVs in use.
+        # Importing the workbench_fields module at the top of this module causes a
+        # circular import exception, so we do it here.
+        import workbench_fields
         vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
         vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
         vocab_csv_column_headers = vocab_csv_data.fieldnames
@@ -2887,8 +2879,53 @@ def get_term_field_data(config, vocab_id, term_name):
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 else:
-                    # @todo: build the JSON from the CSV row and create term.
-                    pass
+                    # Build the JSON from the CSV row and create term.
+                    # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+                    # @todo: During dev, let's not worry abou these fields in the CSV,
+                    # we'll get to them after we have the basic custom-field building
+                    # logic in place.
+                    term_field_data = {
+                        "status": [
+                            {
+                                "value": True
+                            }
+                        ],
+                        "description": [
+                            {
+                                "value": "",
+                                "format": None
+                            }
+                        ],
+                        "weight": [
+                            {
+                                "value": 0
+                            }
+                        ],
+                        "parent": [
+                            {
+                                "target_id": None
+                            }
+                        ],
+                        "default_langcode": [
+                            {
+                                "value": True
+                            }
+                        ],
+                        "path": [
+                            {
+                                "alias": None,
+                                "pid": None,
+                                "langcode": "en"
+                            }
+                        ]
+                    }
+
+                    # We have a problem: "import workbench_fields" will create a circular import.
+
+                    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                    return term_field_data
+
+
 
 
 def check_matching_vocabulary_csv_row(term_name, vocabulary_csv_data):
