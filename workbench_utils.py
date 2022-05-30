@@ -1426,12 +1426,16 @@ def check_input(config, args):
             message = 'For "export_csv" tasks, your CSV file must contain a "node_id" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
-        if 'url_alias' in csv_column_headers:
-            validate_url_aliases_csv_data = get_csv_data(config)
-            validate_url_aliases(config, validate_url_aliases_csv_data)
-            export_csv_term_mode_options = ['tid', 'name']
-            if config['export_csv_term_mode'] not in export_csv_term_mode_options:
-                message = 'Configuration option "export_csv_term_mode_options" must be either "tid" or "name".'
+
+        export_csv_term_mode_options = ['tid', 'name']
+        if config['export_csv_term_mode'] not in export_csv_term_mode_options:
+            message = 'Configuration option "export_csv_term_mode_options" must be either "tid" or "name".'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
+        if config['export_csv_file_path'] is not None:
+            if not os.access(config['export_csv_file_path'], os.W_OK):
+                message = 'Path in configuration option "export_csv_file_path" ("' + config['export_csv_file_path'] + '") is not writable.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
 
