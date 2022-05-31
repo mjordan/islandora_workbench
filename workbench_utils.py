@@ -2704,8 +2704,6 @@ def create_term(config, vocab_id, term_name):
     """Adds a term to the target vocabulary. Returns the new term's ID
        if successful (or if the term already exists) or False if not.
     """
-    # Debug
-    import workbench_fields
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
@@ -2793,49 +2791,51 @@ def get_term_field_data(config, vocab_id, term_name):
                 csv_vocabs.append(key)
                 csv_vocab_id_path_pairs[key] = path
 
+    term_field_data = {
+        "status": [
+            {
+                "value": True
+            }
+        ],
+        "description": [
+            {
+                "value": "",
+                "format": None
+            }
+        ],
+        "weight": [
+            {
+                "value": 0
+            }
+        ],
+        "parent": [
+            {
+                "target_id": None
+            }
+        ],
+        "default_langcode": [
+            {
+                "value": True
+            }
+        ],
+        "path": [
+            {
+                "alias": None,
+                "pid": None,
+                "langcode": "en"
+            }
+        ]
+    }
+
     # No vocabulary CSV in use for the current vocabulary.
     if 'vocab_csv' not in config or ('vocab_csv' in config and vocab_id not in csv_vocabs):
-        term_field_data = {
-            "status": [
-                {
-                    "value": True
-                }
-            ],
-            "description": [
-                {
-                    "value": "",
-                    "format": None
-                }
-            ],
-            "weight": [
-                {
-                    "value": 0
-                }
-            ],
-            "parent": [
-                {
-                    "target_id": None
-                }
-            ],
-            "default_langcode": [
-                {
-                    "value": True
-                }
-            ],
-            "path": [
-                {
-                    "alias": None,
-                    "pid": None,
-                    "langcode": "en"
-                }
-            ]
-        }
         return term_field_data
+    # Vocabulary CSVs in use.
     else:
-        # Vocabulary CSVs in use.
         # Importing the workbench_fields module at the top of this module causes a
         # circular import exception, so we do it here.
         import workbench_fields
+
         vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
         vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
         vocab_csv_column_headers = vocab_csv_data.fieldnames
@@ -2855,85 +2855,84 @@ def get_term_field_data(config, vocab_id, term_name):
             some_required_fields = False
             vocab_field_definition_fieldnames = vocab_field_definitions.keys()
             for vocab_field in vocab_field_definition_fieldnames:
-                if vocab_field_definitions[field]['required'] is True:
+                if vocab_field_definitions[vocab_field]['required'] is True:
                     some_required_vocab_fields = True
-                    if field not in vocab_csv_data.fieldnames:
-                        message = 'Required column "' + field + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
+                    if vocab_field not in vocab_csv_data.fieldnames:
+                        message = 'Required column "' + vocab_field + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
                         logging.error(message)
                         sys.exit('Error: ' + message)
 
         # Check the vocabulary CSV file to see if there is a corresponding row for the term. We also perform this
         # in validate_taxonomy_field_values() and validate_typed_relation_field_values().
-        for count, row in enumerate(vocab_csv_data, start=1):
-            required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
-            if some_required_fields is True:
-                if required_matching_rows == 0:
-                    # Error out because there are required fields
-                    message = 'Term "' + term_name + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
-                elif required_matching_rows > 1:
-                    # Error out because there should only be one matching row (since we only create new terms once).
-                    message = 'Term "' + term_name + '" has ' + str(required_matching_rows) + ' matching rows in vocabulary CSV file "' + \
-                        vocab_csv_file_path + '". There should only be one matching row.'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
-                else:
-                    # Build the JSON from the CSV row and create term.
-                    # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                    # @todo: During dev, let's not worry abou these fields in the CSV,
-                    # we'll get to them after we have the basic custom-field building
-                    # logic in place.
-                    term_field_data = {
-                        "status": [
-                            {
-                                "value": True
-                            }
-                        ],
-                        "description": [
-                            {
-                                "value": "",
-                                "format": None
-                            }
-                        ],
-                        "weight": [
-                            {
-                                "value": 0
-                            }
-                        ],
-                        "parent": [
-                            {
-                                "target_id": None
-                            }
-                        ],
-                        "default_langcode": [
-                            {
-                                "value": True
-                            }
-                        ],
-                        "path": [
-                            {
-                                "alias": None,
-                                "pid": None,
-                                "langcode": "en"
-                            }
-                        ]
-                    }
+        matching_rows = get_matching_vocabulary_csv_rows(term_name, vocab_csv_data)
+        # if some_required_fields is True:
+        if len(matching_rows) == 0:
+            # Error out because there are required fields
+            message = 'Term "' + term_name + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        if len(matching_rows) > 1:
+            # Error out because there should only be one matching row (since we only create new terms once).
+            message = 'Term "' + term_name + '" has ' + str(required_matching_rows) + ' matching rows in vocabulary CSV file "' + \
+                vocab_csv_file_path + '". There should only be one matching row.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
 
-                    # We have a problem: "import workbench_fields" will create a circular import.
+        # Build the JSON from the CSV row and create term.
+        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
-                    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                    return term_field_data
+        # Skip parent for now.
+        del matching_rows[0]['parent']
+        for field_name in vocab_csv_column_headers:
+            # Skip parent for now.
+            if field_name == 'parent':
+                continue
+
+            # @todo: --check needs to check for the term's 'name' field, which has a 'max_length' of 255.
+            print("Field name:", vocab_field_definitions[field_name])
+
+            '''
+            # Assemble Drupal field structures for entity reference fields from CSV data.
+            # Entity reference fields (taxonomy_term and node)
+            if vocab_field_definitions[field_name]['field_type'] == 'entity_reference':
+                entity_reference_field = workbench_fields.EntityReferenceField()
+                config['id_field'] = 'term_name'
+                term_field_data = entity_reference_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+
+            # Typed relation fields. Uncomment when #417 is done.
+            elif vocab_field_definitions[field_name]['field_type'] == 'typed_relation':
+                typed_relation_field = workbench_fields.TypedRelationField()
+                config['id_field'] = 'term_name'
+                term_field_data = typed_relation_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+
+            # Geolocation fields.
+            elif vocab_field_definitions[field_name]['field_type'] == 'geolocation':
+                geolocation_field = workbench_fields.GeolocationField()
+                config['id_field'] = 'term_name'
+                term_field_data = geolocation_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+
+            # Link fields.
+            elif vocab_field_definitions[field_name]['field_type'] == 'link':
+                link_field = workbench_fields.LinkField()
+                config['id_field'] = 'term_name'
+                term_field_data = link_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+
+            # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
+            else:
+                simple_field = workbench_fields.SimpleField()
+                config['id_field'] = 'term_name'
+                term_field_data = simple_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+            '''
+        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        return term_field_data
 
 
-
-
-def check_matching_vocabulary_csv_row(term_name, vocabulary_csv_data):
+def get_matching_vocabulary_csv_rows(term_name, vocabulary_csv_data):
     """If the vocabulary CSV data contains required fields, each new term in the node CSV
        needs to have a corresponding row in the vocabulary CSV, otherwise Workbench can't
        create the new term since required field data for that term is missing. This function
        checks whether a there is a matching row in the vocabulary CSV for a given term name.
-       It returns the number of matches in the vocab CSV (so the caller can check whether
+       It returns a list of matching rows in the vocab CSV (so the caller can check whether
        there's more than one, which we generally don't want).
 
        NOTE TO MJ: this should be called both during --check and during ingest.
@@ -2946,15 +2945,14 @@ def check_matching_vocabulary_csv_row(term_name, vocabulary_csv_data):
             The entire CSV data from the vocabulary CSV file (i.e., throwaway copy of the CSV data).
         Returns
         -------
-        int
-            Number of matches.
+        list
+            List of matching rows.
     """
-    matches = list()
+    matching_rows = list()
     for count, row in enumerate(vocabulary_csv_data, start=1):
         if term_name.strip() == row['term_name'].strip():
-            matches.append(True)
-
-    return len(matches)
+            matching_rows.append(row)
+    return matching_rows
 
 
 def get_term_uuid(config, term_id):
@@ -3462,7 +3460,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                                 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
                                 vocab_csv_data = get_csv_data(config, 'taxonomy_fields', complex_vocab_csv_file_path)
                                 for count, row in enumerate(vocab_csv_data, start=1):
-                                    required_matching_rows = check_matching_vocabulary_csv_row(term_name, vocab_csv_data)
+                                    # NOTE: get_matching_vocabulary_csv_rows() has changed since this code was written
+                                    required_matching_rows = get_matching_vocabulary_csv_rows(term_name, vocab_csv_data)
                                     if some_required_fields is True:
                                         if required_matching_rows == 0:
                                             # Error out because there are required fields
