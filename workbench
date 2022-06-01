@@ -187,7 +187,7 @@ def create():
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.create(config, field_definitions, node, row, custom_field)
 
-            # Typed relation fields. Uncomment when #417 is done.
+            # Typed relation fields.
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                 typed_relation_field = workbench_fields.TypedRelationField()
                 node = typed_relation_field.create(config, field_definitions, node, row, custom_field)
@@ -999,10 +999,10 @@ def create_terms():
     for row in csv_data:
         row = clean_csv_values(row)
         term_id = create_term(config, config['vocab_id'], row['term_name'], row)
-        # Failure is logged in create_term()
-        if value_is_numeric(term_id):
+        # Successful creation, and failure, is logged in create_term()
+        if term_id is not False:
             message = 'Term "' + row['term_name'] + '" created.'
-            logging.info(message)
+            print(message)
         else:
             print('Error: Term "' + row['term_name'] + '" not created. See log for more information.')
 

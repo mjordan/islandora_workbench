@@ -728,7 +728,7 @@ def check_input(config, args):
     joiner = ', '
     if config['task'] not in tasks:
         message = '"task" in your configuration file must be one of "create", "update", "delete", ' + \
-            "add_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", or "export_csv".'
+            '"add_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", or "export_csv".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -2845,15 +2845,14 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
         ]
     }
 
-    # No vocabulary CSV in use for the current vocabulary.
-    # if 'vocab_csv' not in config or ('vocab_csv' in config and vocab_id not in csv_vocabs):
-    # We're creating simple term, with only a term name.
+    # No vocabulary CSV in use for the current vocabulary. We're creating
+    # a simple term, with only a term name.
     if term_csv_row is None:
         return term_field_data
     # We're creating a complex term, with extra fields.
     else:
-        # Importing the workbench_fields module at the top of this module causes a
-        # circular import exception, so we do it here.
+        # Importing the workbench_fields module at the top of this module with the
+        # rest of the importscauses a circular import exception, so we do it here.
         import workbench_fields
 
         # vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
@@ -2861,8 +2860,8 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
 
         vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
 
-        # Skip for now.
         '''
+        # Skip for now.
         vocab_csv_column_headers = term_csv_row.fieldnames
         # Check to see if the vocabulary has any required fields; if any of them are absent, log error and return.
         vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
@@ -2911,53 +2910,45 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
         '''
 
         # Build the JSON from the CSV row and create term.
-        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-
-        # Skip parent for now, we'll get it later.
-        del term_csv_row['parent']
         vocab_csv_column_headers = term_csv_row.keys()
         for field_name in vocab_csv_column_headers:
-            # Skip parent for now.
+            # term_name is the "id" field in the vocabulary CSV and not a field on the term JSON, so skip it.
+            if field_name == 'term_name':
+                continue
+            # Skip parent for now, we'll get this working later.
             if field_name == 'parent':
                 continue
 
             # @todo: --check needs to check for the term's 'name' field, which has a 'max_length' of 255.
+            # Truncation prior to creation already happens in create_term().
 
-            '''
             # Assemble Drupal field structures for entity reference fields from CSV data.
             # Entity reference fields (taxonomy_term and node)
             if vocab_field_definitions[field_name]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
-                config['id_field'] = 'term_name'
                 term_field_data = entity_reference_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
 
-            # Typed relation fields. Uncomment when #417 is done.
+            # Typed relation fields.
             elif vocab_field_definitions[field_name]['field_type'] == 'typed_relation':
                 typed_relation_field = workbench_fields.TypedRelationField()
-                config['id_field'] = 'term_name'
                 term_field_data = typed_relation_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
 
             # Geolocation fields.
             elif vocab_field_definitions[field_name]['field_type'] == 'geolocation':
                 geolocation_field = workbench_fields.GeolocationField()
-                config['id_field'] = 'term_name'
                 term_field_data = geolocation_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
 
             # Link fields.
             elif vocab_field_definitions[field_name]['field_type'] == 'link':
                 link_field = workbench_fields.LinkField()
-                config['id_field'] = 'term_name'
                 term_field_data = link_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
 
-            '''
             # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
-            # else:
+            else:
+                simple_field = workbench_fields.SimpleField()
+                # config['id_field'] = 'term_name'
+                term_field_data = simple_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
 
-            simple_field = workbench_fields.SimpleField()
-            # config['id_field'] = 'term_name'
-            term_field_data = simple_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
-
-        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         return term_field_data
 
 
