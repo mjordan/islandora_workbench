@@ -36,7 +36,7 @@ def create():
         if args.config not in config['secondary_tasks']:
             prep_node_ids_tsv(config)
 
-    temp = config
+    # temp = config
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     node_ids = dict()
     field_definitions = get_field_definitions(config, 'node')
@@ -983,6 +983,30 @@ def export_csv():
     print('CSV export saved at ' + csv_file_path + '.')
 
 
+def create_terms():
+    """Create new terms via POST.
+    """
+    message = '"Create terms" task started using config file ' + args.config + '.'
+    print(message)
+    logging.info(message)
+
+    csv_path = os.path.join(config['input_dir'], config['input_csv'])
+    field_definitions = get_field_definitions(config, 'node')
+    csv_data = get_csv_data(config)
+    csv_column_headers = csv_data.fieldnames
+
+    row_count = 0
+    for row in csv_data:
+        row = clean_csv_values(row)
+        term_id = create_term(config, config['vocab_id'], row['term_name'], row)
+        # Failure is logged in create_term()
+        if value_is_numeric(term_id):
+            message = 'Term "' + row['term_name'] + '" created.'
+            logging.info(message)
+        else:
+            print('Error: Term "' + row['term_name'] + '" not created. See log for more information.')
+
+
 # Main program logic.
 
 parser = argparse.ArgumentParser()
@@ -1078,6 +1102,8 @@ try:
         create_from_files()
     if config['task'] == 'export_csv':
         export_csv()
+    if config['task'] == 'create_terms':
+        create_terms()
 
     if config['secondary_tasks'] is not None:
         for secondary_config_file in config['secondary_tasks']:

@@ -721,11 +721,14 @@ def check_input(config, args):
         'add_media',
         'delete_media',
         'delete_media_by_node',
-        'export_csv',
-        'create_from_files']
+        'create_from_files',
+        'create_terms',
+        'export_csv'
+    ]
     joiner = ', '
     if config['task'] not in tasks:
-        message = '"task" in your configuration file must be one of "create", "update", "delete", "add_media", "delete_media", "delete_media_by_node", "export_csv", or "create_from_files".'
+        message = '"task" in your configuration file must be one of "create", "update", "delete", ' + \
+            "add_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", or "export_csv".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -1458,7 +1461,6 @@ def check_input(config, args):
 def get_registered_media_extensions(field_definitions):
     # Unfinished. See https://github.com/mjordan/islandora_workbench/issues/126.
     for field_name, field_def in field_definitions.items():
-        print("Field name: " + field_name + ' / ' + str(field_def))
         """
         print(field_def)
         if field_def['entity_type'] == 'media':
@@ -2700,18 +2702,29 @@ def get_term_id_from_uri(config, uri):
     return False
 
 
-def create_term(config, vocab_id, term_name):
+def create_term(config, vocab_id, term_name, term_csv_row=None):
     """Adds a term to the target vocabulary. Returns the new term's ID
        if successful (or if the term already exists) or False if not.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        vocab_id: string
+            The vocabulary ID.
+        term_name: string
+            The term name from CSV.
+        term_csv_row: OrderedDict
+            ECSV row containing term field data.
+        Returns
+        -------
+        string|boolean
+            The term ID, or False term was not created.
     """
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
-        logging.info(
-            'Term "%s" (term ID %s) already exists in vocabulary "%s".',
-            term_name,
-            tid,
-            vocab_id)
+        logging.info('Term "%s" (term ID %s) already exists in vocabulary "%s".', term_name, tid, vocab_id)
         return tid
 
     if config['allow_adding_terms'] is False:
@@ -2725,7 +2738,7 @@ def create_term(config, vocab_id, term_name):
         logging.info(message + message_2)
         term_name = truncated_term_name
 
-    term_field_data = get_term_field_data(config, vocab_id, term_name)
+    term_field_data = get_term_field_data(config, vocab_id, term_name, term_csv_row)
     if term_field_data is False:
         # @todo: complete this warning message. Details should be logged in get_term_field_data().
         logging.warning('Unable to create term "' + term_name + '" because.....')
@@ -2762,7 +2775,7 @@ def create_term(config, vocab_id, term_name):
         return False
 
 
-def get_term_field_data(config, vocab_id, term_name):
+def get_term_field_data(config, vocab_id, term_name, term_csv_row):
     """Assemble the dict that will be added to the 'term' dict in create_term(). status, description,
        weight, parent, default_langcode, path fields are added here, even for simple term_name-only
        terms. Check the vocabulary CSV file to see if there is a corresponding row. If the vocabulary
@@ -2776,12 +2789,15 @@ def get_term_field_data(config, vocab_id, term_name):
             The vocabulary ID.
         term_name: string
             The term name from CSV.
+        term_csv_row: OrderedDict
+            ECSV row containing term field data.
         Returns
         -------
         dict|boolean
             The dict containing the term field data, or False if this is not possible.
             @note: reason why creating JSON is not possible should be logged in this function.
     """
+    '''
     # Get any registered vocabulary CSV files.
     if 'vocab_csv' in config and len(config['vocab_csv']) > 0:
         csv_vocabs = list()
@@ -2790,7 +2806,9 @@ def get_term_field_data(config, vocab_id, term_name):
             for key, path in vocab_file_entry.items():
                 csv_vocabs.append(key)
                 csv_vocab_id_path_pairs[key] = path
+    '''
 
+    # 'vid' and 'name' are added in create_term().
     term_field_data = {
         "status": [
             {
@@ -2828,17 +2846,24 @@ def get_term_field_data(config, vocab_id, term_name):
     }
 
     # No vocabulary CSV in use for the current vocabulary.
-    if 'vocab_csv' not in config or ('vocab_csv' in config and vocab_id not in csv_vocabs):
+    # if 'vocab_csv' not in config or ('vocab_csv' in config and vocab_id not in csv_vocabs):
+    # We're creating simple term, with only a term name.
+    if term_csv_row is None:
         return term_field_data
-    # Vocabulary CSVs in use.
+    # We're creating a complex term, with extra fields.
     else:
         # Importing the workbench_fields module at the top of this module causes a
         # circular import exception, so we do it here.
         import workbench_fields
 
-        vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
-        vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
-        vocab_csv_column_headers = vocab_csv_data.fieldnames
+        # vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
+        # vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
+
+        vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
+
+        # Skip for now.
+        '''
+        vocab_csv_column_headers = term_csv_row.fieldnames
         # Check to see if the vocabulary has any required fields; if any of them are absent, log error and return.
         vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
         for vocab_column_name in vocab_csv_column_headers:
@@ -2861,10 +2886,15 @@ def get_term_field_data(config, vocab_id, term_name):
                         message = 'Required column "' + vocab_field + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
                         logging.error(message)
                         sys.exit('Error: ' + message)
+        '''
 
+        '''
         # Check the vocabulary CSV file to see if there is a corresponding row for the term. We also perform this
         # in validate_taxonomy_field_values() and validate_typed_relation_field_values().
         matching_rows = get_matching_vocabulary_csv_rows(term_name, vocab_csv_data)
+        ##############
+        # @todo: If there are no required fields in the term definition, and there is no matching row in the vocab CSV, create the term anyway?
+        ##############
         # if some_required_fields is True:
         if len(matching_rows) == 0:
             # Error out because there are required fields
@@ -2878,18 +2908,20 @@ def get_term_field_data(config, vocab_id, term_name):
             logging.error(message)
             sys.exit('Error: ' + message)
 
+        '''
+
         # Build the JSON from the CSV row and create term.
         # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
-        # Skip parent for now.
-        del matching_rows[0]['parent']
+        # Skip parent for now, we'll get it later.
+        del term_csv_row['parent']
+        vocab_csv_column_headers = term_csv_row.keys()
         for field_name in vocab_csv_column_headers:
             # Skip parent for now.
             if field_name == 'parent':
                 continue
 
             # @todo: --check needs to check for the term's 'name' field, which has a 'max_length' of 255.
-            print("Field name:", vocab_field_definitions[field_name])
 
             '''
             # Assemble Drupal field structures for entity reference fields from CSV data.
@@ -2917,12 +2949,14 @@ def get_term_field_data(config, vocab_id, term_name):
                 config['id_field'] = 'term_name'
                 term_field_data = link_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
 
-            # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
-            else:
-                simple_field = workbench_fields.SimpleField()
-                config['id_field'] = 'term_name'
-                term_field_data = simple_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
             '''
+            # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
+            # else:
+
+            simple_field = workbench_fields.SimpleField()
+            # config['id_field'] = 'term_name'
+            term_field_data = simple_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
+
         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         return term_field_data
 

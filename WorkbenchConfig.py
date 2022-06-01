@@ -31,10 +31,13 @@ class WorkbenchConfig:
         for key, value in user_mods.items():
             config[key] = value
         # Modify some conditional values.
-        if 'task' in ['add_media', 'update', 'delete']:
+        if 'task' in ['add_media', 'update', 'delete', 'export_csv']:
             config['id_field'] = 'node_id'
         if 'task' == 'delete_media':
             config['id_field'] = 'media_id'
+        if 'task' == 'create_terms':
+            config['id_field'] = 'term_name'
+            config['allow_adding_terms']: true
         if 'paged_content_page_content_type' not in user_mods:
             config['paged_content_page_content_type'] = config['content_type']
         # Add preprocessor, if specified.
