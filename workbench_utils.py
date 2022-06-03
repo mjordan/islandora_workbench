@@ -2744,6 +2744,7 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
         logging.warning('Unable to create term "' + term_name + '" because.....')
         return False
 
+    # Common values for all terms, simple and complex.
     term = {
         "vid": [
            {
@@ -2809,6 +2810,7 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
     '''
 
     # 'vid' and 'name' are added in create_term().
+    # @todo: make sure these fields are populated on complex terms.
     term_field_data = {
         "status": [
             {
@@ -2827,7 +2829,7 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             }
         ],
         "parent": [
-            {
+            {   "target_type": "taxonomy_term",
                 "target_id": None
             }
         ],
@@ -2848,11 +2850,14 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
     # No vocabulary CSV in use for the current vocabulary. We're creating
     # a simple term, with only a term name.
     if term_csv_row is None:
+        # @todo: simple terms will need to use the generic 'term_field_data' fields above, so we
+        # will need to populate is in this 'if' block and give complex terms their own version of it,
+        # containing default values if not present in the incoming CSV.
         return term_field_data
     # We're creating a complex term, with extra fields.
     else:
         # Importing the workbench_fields module at the top of this module with the
-        # rest of the importscauses a circular import exception, so we do it here.
+        # rest of the imports causes a circular import exception, so we do it here.
         import workbench_fields
 
         # vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
@@ -2916,8 +2921,19 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             if field_name == 'term_name':
                 continue
             # Skip parent for now, we'll get this working later.
-            if field_name == 'parent':
+            # We can probably assume that either the parent term exists, or if it doesn't, it's in the same
+            # CSV file and if so, we need to create it the first time we encounter it.
+            # 'parent' is empty.
+            if len(term_csv_row['parent'].strip()) == 0:
                 continue
+            # It's not empty, we need to look up or create the parent term.
+            else:
+                # @todo: look up or create the parent term.
+                parent_tid = find_term_in_vocab(config, vocab_id, term_csv_row['parent'])
+                term_field_data['parent'][0]['target_id'] = str(parent_tid)
+                continue
+            # if field_name == 'parent':
+                # continue
 
             # @todo: --check needs to check for the term's 'name' field, which has a 'max_length' of 255.
             # Truncation prior to creation already happens in create_term().
@@ -2926,32 +2942,32 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             # Entity reference fields (taxonomy_term and node)
             if vocab_field_definitions[field_name]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
-                term_field_data = entity_reference_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+                term_field_data = entity_reference_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
 
             # Typed relation fields.
             elif vocab_field_definitions[field_name]['field_type'] == 'typed_relation':
                 typed_relation_field = workbench_fields.TypedRelationField()
-                term_field_data = typed_relation_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+                term_field_data = typed_relation_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
 
             # Geolocation fields.
             elif vocab_field_definitions[field_name]['field_type'] == 'geolocation':
                 geolocation_field = workbench_fields.GeolocationField()
-                term_field_data = geolocation_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+                term_field_data = geolocation_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
 
             # Link fields.
             elif vocab_field_definitions[field_name]['field_type'] == 'link':
                 link_field = workbench_fields.LinkField()
-                term_field_data = link_field.create(config, vocab_field_definitions, term_field_data, matching_rows[0], field_name)
+                term_field_data = link_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
 
             # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
             else:
                 simple_field = workbench_fields.SimpleField()
-                # config['id_field'] = 'term_name'
                 term_field_data = simple_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
 
         return term_field_data
 
 
+'''
 def get_matching_vocabulary_csv_rows(term_name, vocabulary_csv_data):
     """If the vocabulary CSV data contains required fields, each new term in the node CSV
        needs to have a corresponding row in the vocabulary CSV, otherwise Workbench can't
@@ -2978,6 +2994,7 @@ def get_matching_vocabulary_csv_rows(term_name, vocabulary_csv_data):
         if term_name.strip() == row['term_name'].strip():
             matching_rows.append(row)
     return matching_rows
+'''
 
 
 def get_term_uuid(config, term_id):
@@ -3050,7 +3067,7 @@ def prepare_term_id(config, vocab_ids, term):
                 tid = create_term(config, vocab_ids[0].strip(), term.strip())
                 return tid
         else:
-            # Term names used in mult-taxonomy fields. They need to be namespaced with
+            # Term names used in multi-taxonomy fields. They need to be namespaced with
             # the taxonomy ID.
             #
             # If the field has more than one vocabulary linked to it, we don't know which

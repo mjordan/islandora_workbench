@@ -990,19 +990,43 @@ def create_terms():
     print(message)
     logging.info(message)
 
+    config['allow_adding_terms'] = True
+    config['id_field'] = 'term_name'
+
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
-    csv_column_headers = csv_data.fieldnames
 
-    row_count = 0
+    # We first detect any terms designated as parents, and then create them first
+    # so they exist when their children are created below.
+    is_parent_check_csv_data = get_csv_data(config)
+    parent_csv_data = get_csv_data(config)
+
+    # First check for any terms that are designated as parents (i.e., they
+    # are in at least one 'parent' column).
+    is_parent = list()
+    for is_parent_check_row in is_parent_check_csv_data:
+        if len(str(is_parent_check_row['parent']).strip()) > 0:
+            is_parent.append(is_parent_check_row['parent'])
+
+    # Then, get the CSV rows for each of the terms in is_parent and create the terms.
+    if len(is_parent) > 0:
+        for parent_row in parent_csv_data:
+            if parent_row['term_name'] in is_parent:
+                parent_row = clean_csv_values(parent_row)
+                parent_term_id = create_term(config, config['vocab_id'], parent_row['term_name'], parent_row)
+
+    # Null out these copies of the CSV data, no need to keep them around.
+    parent_csv_data = None
+    is_parent_check_csv_data = None
+
+    # Then create any non-existent terms.
     for row in csv_data:
         row = clean_csv_values(row)
         term_id = create_term(config, config['vocab_id'], row['term_name'], row)
-        # Successful creation, and failure, is logged in create_term()
+        # Successful creation, and failure, is logged in create_term().
         if term_id is not False:
-            message = 'Term "' + row['term_name'] + '" created.'
-            print(message)
+            print('Term "' + row['term_name'] + '" created.')
         else:
             print('Error: Term "' + row['term_name'] + '" not created. See log for more information.')
 
