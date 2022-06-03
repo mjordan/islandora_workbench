@@ -34,6 +34,7 @@ EXECUTION_START_TIME = datetime.datetime.now()
 INTEGRATION_MODULE_MIN_VERSION = '1.0'
 # Workaround for https://github.com/mjordan/islandora_workbench/issues/360.
 http.client._MAXHEADERS = 10000
+# Global lists of terms to reduce queries to Drupal.
 checked_terms = list()
 newly_created_terms = list()
 
@@ -2715,7 +2716,8 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
         term_name: string
             The term name from CSV.
         term_csv_row: OrderedDict
-            ECSV row containing term field data.
+            ECSV row containing term field data. Only present if we are creating
+            complex or child terms, not present for simple terms.
         Returns
         -------
         string|boolean
@@ -2740,8 +2742,8 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
 
     term_field_data = get_term_field_data(config, vocab_id, term_name, term_csv_row)
     if term_field_data is False:
-        # @todo: complete this warning message. Details should be logged in get_term_field_data().
-        logging.warning('Unable to create term "' + term_name + '" because.....')
+        # @todo: Failure details should be logged in get_term_field_data().
+        logging.warning('Unable to create term "' + term_name + '" because Workbench could not get term field data.')
         return False
 
     # Common values for all terms, simple and complex.
@@ -2810,7 +2812,6 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
     '''
 
     # 'vid' and 'name' are added in create_term().
-    # @todo: make sure these fields are populated on complex terms.
     term_field_data = {
         "status": [
             {
@@ -2847,8 +2848,7 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
         ]
     }
 
-    # No vocabulary CSV in use for the current vocabulary. We're creating
-    # a simple term, with only a term name.
+    # We're creating a simple term, with only a term name.
     if term_csv_row is None:
         # @todo: simple terms will need to use the generic 'term_field_data' fields above, so we
         # will need to populate is in this 'if' block and give complex terms their own version of it,
@@ -2860,13 +2860,13 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
         # rest of the imports causes a circular import exception, so we do it here.
         import workbench_fields
 
-        # vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
-        # vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
-
         vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
 
         '''
         # Skip for now.
+        vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
+        vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
+
         vocab_csv_column_headers = term_csv_row.fieldnames
         # Check to see if the vocabulary has any required fields; if any of them are absent, log error and return.
         vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
@@ -2914,26 +2914,22 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
 
         '''
 
-        # Build the JSON from the CSV row and create term.
+        # Build the JSON from the CSV row and create the term.
         vocab_csv_column_headers = term_csv_row.keys()
         for field_name in vocab_csv_column_headers:
-            # term_name is the "id" field in the vocabulary CSV and not a field on the term JSON, so skip it.
+            # term_name is the "id" field in the vocabulary CSV and not a field in the term JSON, so skip it.
             if field_name == 'term_name':
                 continue
-            # Skip parent for now, we'll get this working later.
-            # We can probably assume that either the parent term exists, or if it doesn't, it's in the same
-            # CSV file and if so, we need to create it the first time we encounter it.
-            # 'parent' is empty.
-            if len(term_csv_row['parent'].strip()) == 0:
-                continue
-            # It's not empty, we need to look up or create the parent term.
-            else:
-                # @todo: look up or create the parent term.
+
+            # 'parent' field is not empty, so we need to look up the parent term. All terms that are
+            # parents will have already been created back in workbench.create_terms().
+            if len(term_csv_row['parent'].strip()) != 0:
                 parent_tid = find_term_in_vocab(config, vocab_id, term_csv_row['parent'])
                 term_field_data['parent'][0]['target_id'] = str(parent_tid)
+
+            # 'parent' is not a field in the term JSON, so skip it.
+            if field_name == 'parent':
                 continue
-            # if field_name == 'parent':
-                # continue
 
             # @todo: --check needs to check for the term's 'name' field, which has a 'max_length' of 255.
             # Truncation prior to creation already happens in create_term().

@@ -35,8 +35,11 @@ class WorkbenchConfig:
             config['id_field'] = 'node_id'
         if 'task' == 'delete_media':
             config['id_field'] = 'media_id'
+        # These two overrides aren't working. For now,
+        # they are set within workbench.create_terms().
         if 'task' == 'create_terms':
-            config['id_field'] = 'term_name'
+            config['id_field'] = 'term_name',
+            config['allow_adding_terms'] = True
         if 'paged_content_page_content_type' not in user_mods:
             config['paged_content_page_content_type'] = config['content_type']
         # Add preprocessor, if specified.

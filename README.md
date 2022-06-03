@@ -14,7 +14,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Can provide a CSV file template based on Drupal content type
 * Can use a Google Sheet or an Excel file instead of a local CSV file as input
 * Allows assignment of Drupal vocabulary terms using term IDs, term names, or term URIs
-* Allows creation of new taxonomy terms from CSV field data
+* Allows creation of new taxonomy terms from CSV field data, including complex and hierarchical terms
 * Allows the assignment of URL aliases
 * Allows adding alt text to images
 * Supports transmission fixity auditing for media files
