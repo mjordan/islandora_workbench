@@ -665,6 +665,33 @@ def get_entity_fields(config, entity_type, bundle_type):
     return fields
 
 
+def get_required_bundle_fields(config, entity_type, bundle_type):
+    """Gets a list of required fields for the given bundle type.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        entity_type : string
+            One of 'node', 'media', or 'taxonomy_term'.
+        bundle_type : string
+            The (node) content type, the vocabulary name, or the media type (image',
+            'document', 'audio', 'video', 'file', etc.).
+
+        Returns
+        -------
+        list
+            A list of Drupal field names that are configured as required for this bundle.
+    """
+    field_definitions = get_field_definitions(config, entity_type, bundle_type)
+    required_drupal_fields = list()
+    for drupal_fieldname in field_definitions:
+        if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['entity_type'] == entity_type:
+            if 'required' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['required'] is True:
+                required_drupal_fields.append(drupal_fieldname)
+    return required_drupal_fields
+
+
 def get_entity_field_config(config, fieldname, entity_type, bundle_type):
     """Get a specific fields's configuration.
 
@@ -828,6 +855,18 @@ def check_input(config, args):
         if config['export_csv_term_mode'] == 'name':
             message = 'The "export_csv_term_mode" configuration option is set to "name", which will slow down the export.'
             print(message)
+    if config['task'] == 'create_terms':
+        create_terms_required_options = [
+            'task',
+            'host',
+            'username',
+            'password',
+            'vocab_id']
+        for create_terms_required_option in create_terms_required_options:
+            if create_terms_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(create_terms_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
 
     message = 'OK, configuration file has all required values (did not check for optional values).'
     print(message)
@@ -961,22 +1000,13 @@ def check_input(config, args):
         required_drupal_fields = []
         for drupal_fieldname in field_definitions:
             # In the create task, we only check for required fields that apply to nodes.
-            if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[
-                    drupal_fieldname]['entity_type'] == 'node':
-                if 'required' in field_definitions[drupal_fieldname] and field_definitions[
-                        drupal_fieldname]['required'] is True:
+            if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['entity_type'] == 'node':
+                if 'required' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['required'] is True:
                     required_drupal_fields.append(drupal_fieldname)
         for required_drupal_field in required_drupal_fields:
             if required_drupal_field not in csv_column_headers:
-                logging.error(
-                    "Required Drupal field %s is not present in the CSV file.",
-                    required_drupal_field)
-                sys.exit(
-                    'Error: Field "' +
-                    required_drupal_field +
-                    '" required for content type "' +
-                    config['content_type'] +
-                    '" is not present in the CSV file.')
+                logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
+                sys.exit('Error: Field "' + required_drupal_field + '" required for content type "' + config['content_type'] + '" is not present in the CSV file.')
         message = 'OK, required Drupal fields are present in the CSV file.'
         print(message)
         logging.info(message)
@@ -1074,7 +1104,30 @@ def check_input(config, args):
                     logging.warning(checksum_validation_message)
                     print("Warning: " + checksum_validation_message + " See the log for more detail.")
 
-    if config['task'] == 'update' or config['task'] == 'create':
+    if config['task'] == 'create_terms':
+        # Check that all required fields are present in the CSV.
+        field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
+
+        # Check here that all required fields are present in the CSV.
+        required_fields = get_required_bundle_fields(config, 'taxonomy_term', config['vocab_id'])
+        required_fields_check_csv_data = get_csv_data(config)
+        missing_fields = ['term_name', 'parent']
+        for required_field in required_fields:
+            if required_field not in required_fields_check_csv_data.fieldnames:
+                missing_fields.append(required_field)
+        if len(missing_fields) > 0:
+            message = 'Required fields missing from input CSV file: ' + joiner.join(missing_fields) + '.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
+        # Validate length of 'term_name'.
+        validate_term_name_csv_data = get_csv_data(config)
+        for count, row in enumerate(validate_term_name_csv_data, start=1):
+            if 'term_name' in row and len(row['term_name']) > 255:
+                message = "The 'term_name' column in row for term '" + row['term_name'] + "' of your CSV file exceeds Drupal's maximum length of 255 characters."
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
         validate_geolocation_values_csv_data = get_csv_data(config)
         validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
 
@@ -1095,20 +1148,32 @@ def check_input(config, args):
         if warn_user_about_taxo_terms is True:
             print('Warning: Issues detected with validating taxonomy field values in the CSV file. See the log for more detail.')
 
-        if 'vocab_csv' in config and len(config['vocab_csv']) > 0:
-            for vocab_csv_file in config['vocab_csv']:
-                for complex_vocab_id, complex_vocab_csv_file_path in vocab_csv_file.items():
-                    complex_vocab_exists = ping_vocabulary(config, complex_vocab_id)
-                    if complex_vocab_exists is False:
-                        message = 'Vocabulary "' + complex_vocab_id + '" specified in the "vocab_csv" setting does not exist.'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
-                    check_csv_file_exists(config, 'taxonomy_fields', complex_vocab_csv_file_path)
-                    validate_vocabulary_fields_in_csv(config, complex_vocab_id, complex_vocab_csv_file_path)
+        validate_typed_relation_csv_data = get_csv_data(config)
+        warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_typed_relation_csv_data)
+        if warn_user_about_typed_relation_terms is True:
+            print('Warning: Issues detected with validating typed relation field values in the CSV file. See the log for more detail.')
 
-                # validate_taxonomy_field_values(), above, checks whether vocab has required fields and if so,
-                # that they are present in the vocab CSV. @todo: Check the vocabulary CSV
-                # file to see if there is a corresponding row for the term.
+    if config['task'] == 'update' or config['task'] == 'create':
+        field_definitions = get_field_definitions(config, 'node')
+        validate_geolocation_values_csv_data = get_csv_data(config)
+        validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
+
+        validate_link_values_csv_data = get_csv_data(config)
+        validate_link_fields(config, field_definitions, validate_link_values_csv_data)
+
+        validate_edtf_values_csv_data = get_csv_data(config)
+        validate_edtf_fields(config, field_definitions, validate_edtf_values_csv_data)
+
+        validate_csv_field_cardinality_csv_data = get_csv_data(config)
+        validate_csv_field_cardinality(config, field_definitions, validate_csv_field_cardinality_csv_data)
+
+        validate_csv_field_length_csv_data = get_csv_data(config)
+        validate_csv_field_length(config, field_definitions, validate_csv_field_length_csv_data)
+
+        validate_taxonomy_field_csv_data = get_csv_data(config)
+        warn_user_about_taxo_terms = validate_taxonomy_field_values(config, field_definitions, validate_taxonomy_field_csv_data)
+        if warn_user_about_taxo_terms is True:
+            print('Warning: Issues detected with validating taxonomy field values in the CSV file. See the log for more detail.')
 
         validate_typed_relation_csv_data = get_csv_data(config)
         warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_typed_relation_csv_data)
@@ -1506,8 +1571,7 @@ def check_input_for_create_from_files(config, args):
         'password']
     for create_required_option in create_required_options:
         if create_required_option not in config_keys:
-            message = 'Please check your config file for required values: ' \
-                + joiner.join(create_options) + '.'
+            message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
 
@@ -2830,7 +2894,8 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             }
         ],
         "parent": [
-            {   "target_type": "taxonomy_term",
+            {
+                "target_type": "taxonomy_term",
                 "target_id": None
             }
         ],
@@ -2861,58 +2926,6 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
         import workbench_fields
 
         vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
-
-        '''
-        # Skip for now.
-        vocab_csv_file_path = csv_vocab_id_path_pairs[vocab_id.strip()].strip()
-        vocab_csv_data = get_csv_data(config, 'taxonomy_fields', vocab_csv_file_path)
-
-        vocab_csv_column_headers = term_csv_row.fieldnames
-        # Check to see if the vocabulary has any required fields; if any of them are absent, log error and return.
-        vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocab_id.strip())
-        for vocab_column_name in vocab_csv_column_headers:
-            # Check that 'term_name' and 'parent' are in the CSV.
-            if 'term_name' not in vocab_csv_column_headers:
-                message = 'Required column "term_name" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
-                logging.error(message)
-                sys.exit('Error: ' + message)
-            if 'parent' not in vocab_csv_column_headers:
-                message = 'Required column "parent" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
-                logging.error(message)
-                sys.exit('Error: ' + message)
-            # Then check for required fields.
-            some_required_fields = False
-            vocab_field_definition_fieldnames = vocab_field_definitions.keys()
-            for vocab_field in vocab_field_definition_fieldnames:
-                if vocab_field_definitions[vocab_field]['required'] is True:
-                    some_required_vocab_fields = True
-                    if vocab_field not in vocab_csv_data.fieldnames:
-                        message = 'Required column "' + vocab_field + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
-        '''
-
-        '''
-        # Check the vocabulary CSV file to see if there is a corresponding row for the term. We also perform this
-        # in validate_taxonomy_field_values() and validate_typed_relation_field_values().
-        matching_rows = get_matching_vocabulary_csv_rows(term_name, vocab_csv_data)
-        ##############
-        # @todo: If there are no required fields in the term definition, and there is no matching row in the vocab CSV, create the term anyway?
-        ##############
-        # if some_required_fields is True:
-        if len(matching_rows) == 0:
-            # Error out because there are required fields
-            message = 'Term "' + term_name + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
-            logging.error(message)
-            sys.exit('Error: ' + message)
-        if len(matching_rows) > 1:
-            # Error out because there should only be one matching row (since we only create new terms once).
-            message = 'Term "' + term_name + '" has ' + str(required_matching_rows) + ' matching rows in vocabulary CSV file "' + \
-                vocab_csv_file_path + '". There should only be one matching row.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
-
-        '''
 
         # Build the JSON from the CSV row and create the term.
         vocab_csv_column_headers = term_csv_row.keys()
