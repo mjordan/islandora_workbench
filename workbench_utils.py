@@ -1110,13 +1110,15 @@ def check_input(config, args):
 
         # Check here that all required fields are present in the CSV.
         required_fields = get_required_bundle_fields(config, 'taxonomy_term', config['vocab_id'])
+        required_fields.insert(0, 'parent')
+        required_fields.insert(0, 'term_name')
         required_fields_check_csv_data = get_csv_data(config)
-        missing_fields = ['term_name', 'parent']
+        missing_fields = []
         for required_field in required_fields:
             if required_field not in required_fields_check_csv_data.fieldnames:
                 missing_fields.append(required_field)
         if len(missing_fields) > 0:
-            message = 'Required fields missing from input CSV file: ' + joiner.join(missing_fields) + '.'
+            message = 'Required columns missing from input CSV file: ' + joiner.join(missing_fields) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
 
@@ -2864,17 +2866,6 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             The dict containing the term field data, or False if this is not possible.
             @note: reason why creating JSON is not possible should be logged in this function.
     """
-    '''
-    # Get any registered vocabulary CSV files.
-    if 'vocab_csv' in config and len(config['vocab_csv']) > 0:
-        csv_vocabs = list()
-        csv_vocab_id_path_pairs = dict()
-        for vocab_file_entry in config['vocab_csv']:
-            for key, path in vocab_file_entry.items():
-                csv_vocabs.append(key)
-                csv_vocab_id_path_pairs[key] = path
-    '''
-
     # 'vid' and 'name' are added in create_term().
     term_field_data = {
         "status": [
@@ -2915,9 +2906,6 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
 
     # We're creating a simple term, with only a term name.
     if term_csv_row is None:
-        # @todo: simple terms will need to use the generic 'term_field_data' fields above, so we
-        # will need to populate is in this 'if' block and give complex terms their own version of it,
-        # containing default values if not present in the incoming CSV.
         return term_field_data
     # We're creating a complex term, with extra fields.
     else:
@@ -2939,6 +2927,8 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             if len(term_csv_row['parent'].strip()) != 0:
                 parent_tid = find_term_in_vocab(config, vocab_id, term_csv_row['parent'])
                 term_field_data['parent'][0]['target_id'] = str(parent_tid)
+
+            # @todo: set 'description' and 'weight' JSON values if there are corresponding columns in the CSV.
 
             # 'parent' is not a field in the term JSON, so skip it.
             if field_name == 'parent':
@@ -2974,36 +2964,6 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
                 term_field_data = simple_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
 
         return term_field_data
-
-
-'''
-def get_matching_vocabulary_csv_rows(term_name, vocabulary_csv_data):
-    """If the vocabulary CSV data contains required fields, each new term in the node CSV
-       needs to have a corresponding row in the vocabulary CSV, otherwise Workbench can't
-       create the new term since required field data for that term is missing. This function
-       checks whether a there is a matching row in the vocabulary CSV for a given term name.
-       It returns a list of matching rows in the vocab CSV (so the caller can check whether
-       there's more than one, which we generally don't want).
-
-       NOTE TO MJ: this should be called both during --check and during ingest.
-    """
-    """Parameters
-        ----------
-        term_name: string
-            The term name from CSV.
-        vocabulary_csv_data : DictReader
-            The entire CSV data from the vocabulary CSV file (i.e., throwaway copy of the CSV data).
-        Returns
-        -------
-        list
-            List of matching rows.
-    """
-    matching_rows = list()
-    for count, row in enumerate(vocabulary_csv_data, start=1):
-        if term_name.strip() == row['term_name'].strip():
-            matching_rows.append(row)
-    return matching_rows
-'''
 
 
 def get_term_uuid(config, term_id):
@@ -3471,62 +3431,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 try:
                     num_vocabs = len(vocabularies)
                 except BaseException:
-                    message = 'Workbench cannot get vocabularies linked to field "' + \
-                        column_name + '". Please confirm that field has at least one vocabulary.'
+                    message = 'Workbench cannot get vocabularies linked to field "' + column_name + '". Please confirm that field has at least one vocabulary.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
-
-                for vocabulary in vocabularies:
-                    if column_name not in fields_with_vocabularies:
-                        fields_with_vocabularies.append(column_name)
-                    # Check whether the vocabulary has any required fields, and if so, that the
-                    # vocab has an entry in config['vocab_csv'].
-                    vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary.strip())
-                    required_fields_in_vocab = list()
-                    for vocab_field in vocab_field_definitions:
-                        if vocab_field != 'term_name' and vocab_field_definitions[vocab_field]['required'] is True:
-                            required_fields_in_vocab.append(vocab_field)
-
-                    if 'vocab_csv' not in config:
-                        if len(required_fields_in_vocab) > 0:
-                            required_fields_string = ', '.join(required_fields_in_vocab)
-                            message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
-                                ') so you must include the "vocab_csv" setting in your configuration, and include a column ' + \
-                                "for those fields in the vocabulary's CSV."
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
-                    else:
-                        if len(config['vocab_csv']) > 0:
-                            if len(required_fields_in_vocab) > 0:
-                                csv_vocabs_paths = get_vocabs_csv_paths(config)
-                                csv_vocabs = csv_vocabs_paths.keys()
-                                if vocabulary not in csv_vocabs:
-                                    required_fields_string = ', '.join(required_fields_in_vocab)
-                                    message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
-                                        ') but is not included in the "vocab_csv" configuration setting.'
-                                    logging.error(message)
-                                    sys.exit('Error: ' + message)
-
-                                ''' <- WIP on #111.
-                                vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-                                vocab_csv_data = get_csv_data(config, 'taxonomy_fields', complex_vocab_csv_file_path)
-                                for count, row in enumerate(vocab_csv_data, start=1):
-                                    # NOTE: get_matching_vocabulary_csv_rows() has changed since this code was written
-                                    required_matching_rows = get_matching_vocabulary_csv_rows(term_name, vocab_csv_data)
-                                    if some_required_fields is True:
-                                        if required_matching_rows == 0:
-                                            # Error out because there are required fields
-                                            message = 'Term "' + term_name + '" not found in vocabulary CSV file "' + vocab_csv_file_path + '".'
-                                            logging.error(message)
-                                            sys.exit('Error: ' + message)
-                                        elif required_matching_rows > 1:
-                                            # Error out because there should only be one matching row (since we only create new terms once).
-                                            message = 'Term "' + term_name + '" has ' + str(required_matching_rows) + ' matching rows in vocabulary CSV file "' + \
-                                                vocab_csv_file_path + '". There should only be one matching row.'
-                                            logging.error(message)
-                                            sys.exit('Error: ' + message)
-                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                '''
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
@@ -3653,43 +3560,10 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                 try:
                     num_vocabs = len(vocabularies)
                 except BaseException:
-                    message = 'Workbench cannot get vocabularies linked to field "' + \
-                        column_name + '". Please confirm that field has at least one vocabulary.'
+                    message = 'Workbench cannot get vocabularies linked to field "' + column_name + '". Please confirm that field has at least one vocabulary.'
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 all_tids_for_field = []
-                for vocabulary in vocabularies:
-                    if column_name not in fields_with_vocabularies:
-                        fields_with_vocabularies.append(column_name)
-                    # Check whether the vocabulary has any required fields, and if so, that the
-                    # vocab has an entry in config['vocab_csv'].
-                    vocab_field_definitions = get_field_definitions(config, 'taxonomy_term', vocabulary.strip())
-                    required_fields_in_vocab = list()
-                    for vocab_field in vocab_field_definitions:
-                        if vocab_field != 'term_name' and vocab_field_definitions[vocab_field]['required'] is True:
-                            required_fields_in_vocab.append(vocab_field)
-
-                    if 'vocab_csv' not in config:
-                        if len(required_fields_in_vocab) > 0:
-                            required_fields_string = ', '.join(required_fields_in_vocab)
-                            message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
-                                ') but the "vocab_csv" configuration setting is not present.'
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
-                    else:
-                        if len(config['vocab_csv']) > 0:
-                            if len(required_fields_in_vocab) > 0:
-                                csv_vocabs_paths = get_vocabs_csv_paths(config)
-                                csv_vocabs = csv_vocabs_paths.keys()
-                                for vocab_file_entry in config['vocab_csv']:
-                                    for key, item in vocab_file_entry.items():
-                                        csv_vocabs.append(key)
-                                if vocabulary not in csv_vocabs:
-                                    required_fields_string = ', '.join(required_fields_in_vocab)
-                                    message = 'Vocabulary "' + vocabulary + '" has requied fields (' + required_fields_string + \
-                                        ') but is not included in the "vocab_csv" configuration setting.'
-                                    logging.error(message)
-                                    sys.exit('Error: ' + message)
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
@@ -4542,29 +4416,6 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             message = 'Vocabulary CSV file ' + input_csv + ' not found.'
             logging.error(message)
             sys.exit('Error: ' + message)
-
-
-def get_vocabs_csv_paths(config):
-    """Converts the 'vocab_csv' config setting value into a dict for easy access.
-    """
-    """Parameters
-        ----------
-        config : dict
-            The configuration object defined by set_config_defaults().
-        Returns
-        -------
-        dict
-            A dictionary of vocab ID/file path pairs, or False if the
-            config setting is absent or empty.
-    """
-    if 'vocab_csv' in config and len(config['vocab_csv']) > 0:
-        csv_vocab_id_path_pairs = dict()
-        for vocab_file_entry in config['vocab_csv']:
-            for key, path in vocab_file_entry.items():
-                csv_vocab_id_path_pairs[key] = path
-        return csv_vocab_id_path_pairs
-    else:
-        return False
 
 
 def get_csv_template(config, args):
