@@ -1110,7 +1110,6 @@ def check_input(config, args):
 
         # Check here that all required fields are present in the CSV.
         required_fields = get_required_bundle_fields(config, 'taxonomy_term', config['vocab_id'])
-        required_fields.insert(0, 'parent')
         required_fields.insert(0, 'term_name')
         required_fields_check_csv_data = get_csv_data(config)
         missing_fields = []
@@ -2922,20 +2921,25 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             if field_name == 'term_name':
                 continue
 
-            # 'parent' field is not empty, so we need to look up the parent term. All terms that are
-            # parents will have already been created back in workbench.create_terms().
-            if len(term_csv_row['parent'].strip()) != 0:
+            # 'parent' field is present and not empty, so we need to look up the parent term. All terms
+            # that are parents will have already been created back in workbench.create_terms() as long as
+            # they preceded the children. If they come after the children in the CSV, we create the child
+            # term anyway but log that the parent could not be found.
+            if 'parent' in term_csv_row and len(term_csv_row['parent'].strip()) != 0:
                 parent_tid = find_term_in_vocab(config, vocab_id, term_csv_row['parent'])
-                term_field_data['parent'][0]['target_id'] = str(parent_tid)
+                if value_is_numeric(parent_tid):
+                    term_field_data['parent'][0]['target_id'] = str(parent_tid)
+                else:
+                    # Create the term, but log that its parent could not be found.
+                    message = 'Term "' + term_csv_row['term_name'] + '" added to vocabulary "' + vocab_id + '", but without its parent "' + \
+                        term_csv_row['parent'] + '", which isn\'t present in that vocabulary (possibly hasn\'t been create yet?).'
+                    logging.warning(message)
 
             # @todo: set 'description' and 'weight' JSON values if there are corresponding columns in the CSV.
 
             # 'parent' is not a field in the term JSON, so skip it.
             if field_name == 'parent':
                 continue
-
-            # @todo: --check needs to check for the term's 'name' field, which has a 'max_length' of 255.
-            # Truncation prior to creation already happens in create_term().
 
             # Assemble Drupal field structures for entity reference fields from CSV data.
             # Entity reference fields (taxonomy_term and node)

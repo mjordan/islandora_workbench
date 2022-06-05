@@ -1003,10 +1003,10 @@ def create_terms():
     parent_csv_data = get_csv_data(config)
 
     # First check for any terms that are designated as parents (i.e., they
-    # are in at least one 'parent' column).
+    # are in the 'parent' column in at least one row).
     is_parent = list()
     for is_parent_check_row in is_parent_check_csv_data:
-        if len(str(is_parent_check_row['parent']).strip()) > 0:
+        if 'parent' in is_parent_check_row and len(str(is_parent_check_row['parent']).strip()) > 0:
             is_parent.append(is_parent_check_row['parent'])
 
     # Then, get the CSV rows for each of the terms in is_parent and create the terms
