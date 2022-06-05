@@ -202,6 +202,11 @@ def create():
                 link_field = workbench_fields.LinkField()
                 node = link_field.create(config, field_definitions, node, row, custom_field)
 
+            # Authority Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'authority_link':
+                link_field = workbench_fields.AuthorityLinkField()
+                node = link_field.create(config, field_definitions, node, row, custom_field)
+
             # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
             else:
                 simple_field = workbench_fields.SimpleField()
@@ -429,6 +434,11 @@ def update():
             # Link fields.
             elif field_definitions[custom_field]['field_type'] == 'link':
                 link_field = workbench_fields.LinkField()
+                node = link_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
+
+            # Authority Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'authority_link':
+                link_field = workbench_fields.AuthorityLinkField()
                 node = link_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # For non-entity reference and non-typed relation fields (text, etc.).
@@ -953,6 +963,11 @@ def export_csv():
                     # Link fields.
                     elif field_definitions[fieldname_to_serialize]['field_type'] == 'link':
                         serialized_field = workbench_fields.LinkField()
+                        field_data = serialized_field.serialize(config, field_definitions, field_name, body[fieldname_to_serialize])
+                        output_row[fieldname_to_serialize] = field_data
+                    # Authority Link fields.
+                    elif field_definitions[fieldname_to_serialize]['field_type'] == 'authority_link':
+                        serialized_field = workbench_fields.AuthorityLinkField()
                         field_data = serialized_field.serialize(config, field_definitions, field_name, body[fieldname_to_serialize])
                         output_row[fieldname_to_serialize] = field_data
                     # Simple fields.

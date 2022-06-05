@@ -561,15 +561,9 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname]['label'] = field_config['label']
             raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
             if len(raw_vocabularies) > 0:
-                vocabularies = [x.replace("taxonomy.vocabulary.", '')
-                                for x in raw_vocabularies]
+                vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
                 field_definitions[fieldname]['vocabularies'] = vocabularies
-            '''
-            if entity_type == 'media' and 'file_extensions' in field_config['settings']:
-                field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
-            if entity_type == 'media':
-                field_definitions[fieldname]['media_type'] = bundle_type
-            '''
+
             raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
             field_storage = json.loads(raw_field_storage)
             field_definitions[fieldname]['field_type'] = field_storage['type']
@@ -584,6 +578,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['target_type'] = None
             if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
                 field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
+            if 'authority_sources' in field_config['settings']:
+                field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
+            else:
+                field_definitions[fieldname]['authority_sources'] = None
 
         field_definitions['title'] = {'entity_type': 'node', 'required': True, 'label': 'Title', 'field_type': 'string', 'cardinality': 1, 'max_length': 255, 'target_type': None}
 
@@ -608,6 +606,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
             else:
                 field_definitions[fieldname]['target_type'] = None
+            if 'authority_sources' in field_config['settings']:
+                field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
+            else:
+                field_definitions[fieldname]['authority_sources'] = None
 
         field_definitions['term_name'] = {'entity_type': 'taxonomy_term', 'required': True, 'label': 'Name', 'field_type': 'string', 'cardinality': 1, 'max_length': 255, 'target_type': None}
 
@@ -1135,6 +1137,9 @@ def check_input(config, args):
         validate_link_values_csv_data = get_csv_data(config)
         validate_link_fields(config, field_definitions, validate_link_values_csv_data)
 
+        validate_authority_link_values_csv_data = get_csv_data(config)
+        validate_authority_link_fields(config, field_definitions, validate_authority_link_values_csv_data)
+
         validate_edtf_values_csv_data = get_csv_data(config)
         validate_edtf_fields(config, field_definitions, validate_edtf_values_csv_data)
 
@@ -1161,6 +1166,9 @@ def check_input(config, args):
 
         validate_link_values_csv_data = get_csv_data(config)
         validate_link_fields(config, field_definitions, validate_link_values_csv_data)
+
+        validate_authority_link_values_csv_data = get_csv_data(config)
+        validate_authority_link_fields(config, field_definitions, validate_authority_link_values_csv_data)
 
         validate_edtf_values_csv_data = get_csv_data(config)
         validate_edtf_fields(config, field_definitions, validate_edtf_values_csv_data)
@@ -1771,6 +1779,29 @@ def split_link_string(config, link_string):
         else:
             # If there is no %% and title, use the URL as the title.
             item_dict = {'uri': item.strip(), 'title': item.strip()}
+            return_list.append(item_dict)
+
+    return return_list
+
+
+def split_authority_link_string(config, authority_link_string):
+    """Fields of type 'authority_link' are represented in the CSV file using a structured string,
+       specifically source%%uri%%title, e.g. "viaf%%http://viaf.org/viaf/153525475%%Rush (Musical group)".
+       This function takes one of those strings (optionally with a multivalue subdelimiter)
+       and returns a list of dictionaries with 'source', 'uri' and 'title' keys required by the
+       'authority_link' field type.
+    """
+    return_list = []
+    temp_list = authority_link_string.split(config['subdelimiter'])
+    for item in temp_list:
+        if item.count('%%') == 2:
+            item_list = item.split('%%', 2)
+            item_dict = {'source': item_list[0].strip(), 'uri': item_list[1].strip(), 'title': item_list[2].strip()}
+            return_list.append(item_dict)
+        if item.count('%%') == 1:
+            # There is no title.
+            item_list = item.split('%%', 1)
+            item_dict = {'source': item_list[0].strip(), 'uri': item_list[1].strip(), 'title': ''}
             return_list.append(item_dict)
 
     return return_list
@@ -2935,13 +2966,32 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
                         term_csv_row['parent'] + '", which isn\'t present in that vocabulary (possibly hasn\'t been create yet?).'
                     logging.warning(message)
 
-            # @todo: set 'description' and 'weight' JSON values if there are corresponding columns in the CSV.
-
-            # 'parent' is not a field in the term JSON, so skip it.
+            # 'parent' is not a field added to the term JSON in the field handlers, so skip it.
             if field_name == 'parent':
                 continue
 
-            # Assemble Drupal field structures for entity reference fields from CSV data.
+            # Set 'description' and 'weight' JSON values if there are corresponding columns in the CSV.
+            if 'weight' in term_csv_row and len(term_csv_row['weight'].strip()) != 0:
+                if value_is_numeric(term_csv_row['weight']):
+                    term_field_data['weight'][0]['value'] = str(term_csv_row['weight'])
+                else:
+                    # Create the term, but log that its weight could not be populated.
+                    message = 'Term "' + term_csv_row['term_name'] + '" added to vocabulary "' + vocab_id + '", but without its weight "' + \
+                        term_csv_row['weight'] + '", which must be an integer.'
+                    logging.warning(message)
+
+            # 'weight' is not a field added to the term JSON in the field handlers, so skip it.
+            if field_name == 'weight':
+                continue
+
+            if 'description' in term_csv_row and len(term_csv_row['description'].strip()) != 0:
+                term_field_data['description'][0]['value'] = term_csv_row['description']
+
+            # 'description' is not a field added to the term JSON in the field handlers, so skip it.
+            if field_name == 'description':
+                continue
+
+            # Assemble additional Drupal field structures for entity reference fields from CSV data.
             # Entity reference fields (taxonomy_term and node)
             if vocab_field_definitions[field_name]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
@@ -2961,6 +3011,11 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             elif vocab_field_definitions[field_name]['field_type'] == 'link':
                 link_field = workbench_fields.LinkField()
                 term_field_data = link_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
+
+            # Authority Link fields.
+            elif vocab_field_definitions[field_name]['field_type'] == 'authority_link':
+                authority_link_field = workbench_fields.AuthorityLinkField()
+                term_field_data = authority_link_field.create(config, vocab_field_definitions, term_field_data, term_csv_row, field_name)
 
             # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
             else:
@@ -3257,6 +3312,32 @@ def validate_link_fields(config, field_definitions, csv_data):
         logging.info(message)
 
 
+def validate_authority_link_fields(config, field_definitions, csv_data):
+    """Validate values in fields that are of type 'authority_link'.
+    """
+    if config['task'] == 'create_terms':
+        config['id_field'] = 'term_name'
+
+    authority_link_fields_present = False
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]['field_type'] == 'authority_link':
+                if field_name in row:
+                    authority_link_fields_present = True
+                    delimited_field_values = row[field_name].split(config['subdelimiter'])
+                    for field_value in delimited_field_values:
+                        if len(field_value.strip()):
+                            if not validate_authority_link_value(field_value.strip(), field_definitions[field_name]['authority_sources']):
+                                message = 'Value in field "' + field_name + '" in row with ID "' + row[config['id_field']] + '" (' + field_value + ') is not a valid authority link field value.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+
+    if authority_link_fields_present is True:
+        message = "OK, authority link field values in the CSV file validate."
+        print(message)
+        logging.info(message)
+
+
 def validate_latlong_value(latlong):
     # Remove leading \ that may be present if input CSV is from a spreadsheet.
     latlong = latlong.lstrip('\\')
@@ -3281,6 +3362,30 @@ def validate_link_value(link_value):
     """
     parts = link_value.split('%%', 1)
     if re.match(r"^https?://", parts[0]):
+        return True
+    else:
+        return False
+
+
+def validate_authority_link_value(authority_link_value, authority_sources):
+    """Validates that the value in 'authority_link_value' has a 'source' and that the URI
+       component starts with either 'http://' or 'https://'.
+    """
+    """Parameters
+        ----------
+        authority_link_value : string
+            The authority link string, with a sourcea, URI, and optionally a title.
+        authority_sources : list
+            The list of authority sources (e.g. lcsh, cash, viaf, etc.) configured for the field.
+        Returns
+        -------
+        boolean
+            True if it does, False if not.
+    """
+    parts = authority_link_value.split('%%', 2)
+    if parts[0] not in authority_sources:
+        return False
+    if re.match(r"^https?://", parts[1]):
         return True
     else:
         return False

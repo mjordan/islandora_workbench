@@ -102,6 +102,31 @@ class TestSplitLinkString(unittest.TestCase):
         self.assertDictEqual(res[1], {'uri': 'http://baz.com', 'title': 'Baz website'})
 
 
+class TestSplitAuthorityLinkString(unittest.TestCase):
+
+    def test_split_link_string_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_authority_link_string(config, 'foo%%http://www.foo.bar%%Foobar website')
+        self.assertDictEqual(res[0], {'source': 'foo', 'uri': 'http://www.foo.bar', 'title': 'Foobar website'})
+
+    def test_split_geolocation_string_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_authority_link_string(config, 'bar%%http://foobar.net%%Foobardotnet website|xxx%%http://baz.com%%Baz website')
+        self.assertDictEqual(res[0], {'source': 'bar', 'uri': 'http://foobar.net', 'title': 'Foobardotnet website'})
+        self.assertDictEqual(res[1], {'source': 'xxx', 'uri': 'http://baz.com', 'title': 'Baz website'})
+
+    def test_split_link_string_no_title_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_authority_link_string(config, 'foo%%http://www.foo.bar')
+        self.assertDictEqual(res[0], {'source': 'foo', 'uri': 'http://www.foo.bar', 'title': ''})
+
+    def test_split_geolocation_string_no_title_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_authority_link_string(config, 'zzz%%http://foobar.net|rrr%%http://baz.com%%Baz website')
+        self.assertDictEqual(res[0], {'source': 'zzz', 'uri': 'http://foobar.net', 'title': ''})
+        self.assertDictEqual(res[1], {'source': 'rrr', 'uri': 'http://baz.com', 'title': 'Baz website'})
+
+
 class TestSplitTypedRelationString(unittest.TestCase):
 
     def test_split_typed_relation_string_single(self):
@@ -188,6 +213,24 @@ class TestValidateLinkValue(unittest.TestCase):
         for value in values:
             res = workbench_utils.validate_link_value(value)
             self.assertFalse(res)
+
+
+class TestValidateAuthorityLinkValue(unittest.TestCase):
+
+    pass
+    '''
+    def test_validate_good_link_values(self):
+        values = ['http://foo.com', 'https://foo1.com%%Foo Hardware']
+        for value in values:
+            res = workbench_utils.validate_link_value(value)
+            self.assertTrue(res)
+
+    def test_validate_bad_link_values(self):
+        values = ['foo.com', 'http:/foo.com', 'file://server/folder/data.xml', 'mailto:someone@example.com']
+        for value in values:
+            res = workbench_utils.validate_link_value(value)
+            self.assertFalse(res)
+    '''
 
 
 class TestValidateNodeCreatedDateValue(unittest.TestCase):

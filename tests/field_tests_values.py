@@ -66,5 +66,23 @@ class TestLinkField(unittest.TestCase):
             self.assertRegex(str(message.output), r'is not a valid Link field value')
 '''
 
+class TestAuthorityLinkField(unittest.TestCase):
+
+    def test_authority_link_field_validate(self):
+        config = dict()
+        field_definitions = {
+            'field_foo': {
+                'field_type': 'authority_link',
+                'authority_sources': ['foo', 'bar']
+            }
+        }
+
+        with self.assertLogs() as message:
+            input = ['foo%%https://foo.com%%Foo authority record', 'xxx%%https://xxx.com']
+            field = workbench_fields.AuthorityLinkField()
+            output = field.remove_invalid_values(config, field_definitions, 'field_foo', input)
+            self.assertEqual(output, ['foo%%https://foo.com%%Foo authority record'])
+            self.assertRegex(str(message.output), r'xxx.*not a valid Authority Link field value')
+
 if __name__ == '__main__':
     unittest.main()
