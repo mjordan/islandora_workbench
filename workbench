@@ -1031,8 +1031,15 @@ def create_terms():
     if len(is_parent) > 0:
         for parent_row in parent_csv_data:
             if parent_row['term_name'] in is_parent:
-                parent_row = clean_csv_values(parent_row)
-                parent_term_id = create_term(config, config['vocab_id'], parent_row['term_name'], parent_row)
+                term_exists = find_term_in_vocab(config, config['vocab_id'], parent_row['term_name'])
+                if term_exists is False:
+                    parent_row = clean_csv_values(parent_row)
+                    parent_term_id = create_term(config, config['vocab_id'], parent_row['term_name'], parent_row)
+                else:
+                    message = 'Term "' + parent_row['term_name'] + '" already exists in the "' + config['vocab_id'] + '" vocabulary, skipping.'
+                    print(message)
+                    logging.info(message)
+                    continue
 
     # Now that we have created all terms that are parents, null out these copies
     # of the CSV data, no need to keep them around.
@@ -1042,12 +1049,19 @@ def create_terms():
     # Finally, create any non-existent child terms.
     for row in csv_data:
         row = clean_csv_values(row)
-        term_id = create_term(config, config['vocab_id'], row['term_name'], row)
-        # Successful creation, and failure, is logged in create_term().
-        if term_id is not False:
-            print('Term "' + row['term_name'] + '" created.')
+        term_exists = find_term_in_vocab(config, config['vocab_id'], row['term_name'])
+        if term_exists is False:
+            term_id = create_term(config, config['vocab_id'], row['term_name'], row)
+            # Successful creation, and failure, is logged in create_term().
+            if term_id is not False:
+                print('Term "' + row['term_name'] + '" created.')
+            else:
+                print('Error: Term "' + row['term_name'] + '" not created. See log for more information.')
         else:
-            print('Error: Term "' + row['term_name'] + '" not created. See log for more information.')
+            message = 'Term "' + row['term_name'] + '" already exists in the "' + config['vocab_id'] + '" vocabulary, skipping.'
+            print(message)
+            logging.info(message)
+            continue
 
 
 # Main program logic.
