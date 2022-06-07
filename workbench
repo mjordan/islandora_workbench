@@ -941,7 +941,8 @@ def export_csv():
             if body['type'][0]['target_id'] != config['content_type']:
                 message = "Node " + row['node_id'] + ' has the "' + body['type'][0]['target_id'] + \
                     '" content type, not the content type currently configured (' + config['content_type'] + "). Skipping export."
-                print("Error: " + message)
+                if config['progress_bar'] is False:
+                    print("Error: " + message)
                 logging.error(message)
                 continue
 
@@ -997,7 +998,11 @@ def export_csv():
         logging.info(message)
 
     csv_file.close()
-    print('CSV export saved at ' + csv_file_path + '.')
+
+    if config['progress_bar'] is True:
+        pbar(100)
+    else:
+        print('CSV export saved at ' + csv_file_path + '.')
 
 
 def create_terms():
@@ -1006,6 +1011,11 @@ def create_terms():
     message = '"Create terms" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
+
+    if config['progress_bar'] is True:
+        csv_data_to_count = list(get_csv_data(config))
+        num_csv_records = len(csv_data_to_count)
+        pbar = InitBar()
 
     # These should be set in WorkbenchConfig.get_config() but aren't
     # taking effect there. @todo: address later.
@@ -1026,24 +1036,32 @@ def create_terms():
         if 'parent' in is_parent_check_row and len(str(is_parent_check_row['parent']).strip()) > 0:
             is_parent.append(is_parent_check_row['parent'])
 
+    term_row_count = 0
     # Then, get the CSV rows for each of the terms in is_parent and create the terms
     # so their IDs are available to the child terms.
     if len(is_parent) > 0:
         for parent_row in parent_csv_data:
+            term_row_count += 1
             if parent_row['term_name'] in is_parent:
                 term_exists = find_term_in_vocab(config, config['vocab_id'], parent_row['term_name'])
                 if term_exists is False:
                     parent_row = clean_csv_values(parent_row)
                     parent_term_id = create_term(config, config['vocab_id'], parent_row['term_name'], parent_row)
-                    if parent_term_id is not False:
-                        print('Term "' + parent_row['term_name'] + '" created.')
-                    else:
-                        print('Error: Term "' + parent_row['term_name'] + '" not created. See log for more information.')
+                    if config['progress_bar'] is not True:
+                        if parent_term_id is not False:
+                            print('Term "' + parent_row['term_name'] + '" created.')
+                        else:
+                            print('Error: Term "' + parent_row['term_name'] + '" not created. See log for more information.')
                 else:
                     message = 'Term "' + parent_row['term_name'] + '" already exists in the "' + config['vocab_id'] + '" vocabulary, skipping.'
-                    print(message)
+                    if config['progress_bar'] is not True:
+                        print(message)
                     logging.info(message)
                     continue
+
+            if config['progress_bar'] is True:
+                term_row_position = get_percentage(term_row_count, num_csv_records)
+                pbar(term_row_position)
 
     # Now that we have created all terms that are parents, null out these copies
     # of the CSV data, no need to keep them around.
@@ -1056,19 +1074,29 @@ def create_terms():
         # If it's a parent term, it will have been created above.
         if row['term_name'] in is_parent:
             continue
+        term_row_count += 1
         term_exists = find_term_in_vocab(config, config['vocab_id'], row['term_name'])
         if term_exists is False:
             term_id = create_term(config, config['vocab_id'], row['term_name'], row)
             # Successful creation, and failure, is logged in create_term().
-            if term_id is not False:
-                print('Term "' + row['term_name'] + '" created.')
-            else:
-                print('Error: Term "' + row['term_name'] + '" not created. See log for more information.')
+            if config['progress_bar'] is not True:
+                if term_id is not False:
+                    print('Term "' + row['term_name'] + '" created.')
+                else:
+                    print('Error: Term "' + row['term_name'] + '" not created. See log for more information.')
         else:
             message = 'Term "' + row['term_name'] + '" already exists in the "' + config['vocab_id'] + '" vocabulary, skipping.'
-            print(message)
+            if config['progress_bar'] is not True:
+                print(message)
             logging.info(message)
             continue
+
+        if config['progress_bar'] is True:
+            term_row_position = get_percentage(term_row_count, num_csv_records)
+            pbar(term_row_position)
+
+    if config['progress_bar'] is True:
+        pbar(100)
 
 
 # Main program logic.
