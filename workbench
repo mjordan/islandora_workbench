@@ -36,7 +36,6 @@ def create():
         if args.config not in config['secondary_tasks']:
             prep_node_ids_tsv(config)
 
-    # temp = config
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     node_ids = dict()
     field_definitions = get_field_definitions(config, 'node')
@@ -124,8 +123,8 @@ def create():
         custom_fields = list(set(csv_column_headers) - set(required_fields))
         additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
-            # Skip updating field if value is empty.
-            if len(row[custom_field]) == 0:
+            # Skip processing field if empty.
+            if len(row[custom_field].strip()) == 0:
                 continue
 
             if len(additional_files_entries) > 0:
@@ -335,7 +334,7 @@ def update():
        to include the existing value(s) in our PATCH. The field classes take
        care of preserving existing values in 'append' updates.
     """
-    message = '"Update" task started using config file ' + args.config + '.'
+    message = '"Update" (' + config['update_mode'] + ') task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
@@ -385,15 +384,18 @@ def update():
             node_has_all_fields = True
             # If node doesn't have the field, log that fact and skip updating the field.
             if custom_field not in json.loads(node_ping_result):
-                message = f'Node {row["node_id"]} does no have a "{custom_field}" field, skipping update.'
+                message = f'Node {row["node_id"]} does not have a "{custom_field}" field, skipping update.'
                 print(f'ERROR: ' + message)
                 logging.warning(message)
                 node_has_all_fields = False
                 break
 
-            # Skip updating field if value is empty.
-            if len(row[custom_field]) == 0:
-                continue
+            # Skip updating field if CSV field is empty (other than for 'delete' update mode).
+            # For 'delete' update mode it doesn't matter if there's anything in the CSV field,
+            # but users expect to be able to supply empty values for this operation.
+            if len(row[custom_field].strip()) == 0:
+                if config['update_mode'] != 'delete':
+                    continue
 
             # 'url_alias' is a reserved CSV field.
             if custom_field == 'url_alias':
