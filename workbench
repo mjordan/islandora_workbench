@@ -1035,6 +1035,10 @@ def create_terms():
                 if term_exists is False:
                     parent_row = clean_csv_values(parent_row)
                     parent_term_id = create_term(config, config['vocab_id'], parent_row['term_name'], parent_row)
+                    if parent_term_id is not False:
+                        print('Term "' + parent_row['term_name'] + '" created.')
+                    else:
+                        print('Error: Term "' + parent_row['term_name'] + '" not created. See log for more information.')
                 else:
                     message = 'Term "' + parent_row['term_name'] + '" already exists in the "' + config['vocab_id'] + '" vocabulary, skipping.'
                     print(message)
@@ -1049,6 +1053,9 @@ def create_terms():
     # Finally, create any non-existent child terms.
     for row in csv_data:
         row = clean_csv_values(row)
+        # If it's a parent term, it will have been created above.
+        if row['term_name'] in is_parent:
+            continue
         term_exists = find_term_in_vocab(config, config['vocab_id'], row['term_name'])
         if term_exists is False:
             term_id = create_term(config, config['vocab_id'], row['term_name'], row)

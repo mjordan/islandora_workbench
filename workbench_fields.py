@@ -1239,9 +1239,6 @@ class AuthorityLinkField():
        All functions return a "entity" dictionary that is passed to Requests' "json"
        parameter.
 
-       Currently this field type only supports Typed Relation Taxonomies (not other
-       Typed Relation entity types).
-
        Note: this class assumes that the entity has the field identified in 'field_name'.
        Callers should pre-emptively confirm that. For an example, see code near the top
        of workbench.update().
