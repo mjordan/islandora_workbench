@@ -217,20 +217,22 @@ class TestValidateLinkValue(unittest.TestCase):
 
 class TestValidateAuthorityLinkValue(unittest.TestCase):
 
-    pass
-    '''
-    def test_validate_good_link_values(self):
-        values = ['http://foo.com', 'https://foo1.com%%Foo Hardware']
+    def test_validate_good_authority_link_values(self):
+        values = ['viaf%%http://viaf.org/viaf/10646807%%VIAF Record', 'cash%%http://cash.org%%foo']
         for value in values:
-            res = workbench_utils.validate_link_value(value)
+            res = workbench_utils.validate_authority_link_value(value, ['cash', 'viaf'])
             self.assertTrue(res)
 
-    def test_validate_bad_link_values(self):
-        values = ['foo.com', 'http:/foo.com', 'file://server/folder/data.xml', 'mailto:someone@example.com']
+    def test_validate_bad_authority_link_values(self):
+        values = ['viaf%%htt://viaf.org/viaf/10646807%%VIAF Record']
         for value in values:
-            res = workbench_utils.validate_link_value(value)
+            res = workbench_utils.validate_authority_link_value(value, ['cash', 'viaf'])
             self.assertFalse(res)
-    '''
+
+        values = ['xcash%%http://cash.org%%foo']
+        for value in values:
+            res = workbench_utils.validate_authority_link_value(value, ['cash', 'viaf'])
+            self.assertFalse(res)
 
 
 class TestValidateNodeCreatedDateValue(unittest.TestCase):
