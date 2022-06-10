@@ -64,9 +64,9 @@ Contributions to Islandora Workbench are welcome, but please open an issue befor
 
 ### Testing
 
-Metadata, files, and Drupal configurations can, in the real world, be extremly complex and varied. Testing Islandora Workbench in the wild is best way to help make it better for everyone. If you encouter a difficulty, an unexpected behavior, or Workbench crashes on you, reach out on the #islandoraworkbench Slack channel or open an issue in this Github repo.
+Metadata, files, and Drupal configurations are, in the real world, extremly complex and varied. Testing Islandora Workbench in the wild is best way to help make it better for everyone. If you encouter a difficulty, an unexpected behavior, or Workbench crashes on you, reach out on the #islandoraworkbench Slack channel or open an issue in this Github repo.
 
-Using Workbench and reporting problems is the best way you can contibute!
+Using Workbench and reporting problems is the best way you can help make it better!
 
 ## Documentation and code
 
