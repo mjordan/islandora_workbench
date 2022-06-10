@@ -62,8 +62,16 @@ To use this reminder, place the script above at `islandora_workbench/.git/hooks/
 
 Contributions to Islandora Workbench are welcome, but please open an issue before opening a pull request. If you don't open one, I'll ask you to do so.
 
-If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
-If you want to contribute code (bug fixes, optimizations, new features, etc.), consult the [developer's guide](https://mjordan.github.io/islandora_workbench_docs/development_guide/).
+### Testing
+
+Metadata, files, and Drupal configurations can, in the real world, be extremly complex and varied. Testing Islandora Workbench in the wild is best way to help make it better for everyone. If you encouter a difficulty, an unexpected behavior, or Workbench crashes on you, reach out on the #islandoraworkbench Slack channel or open an issue in this Github repo.
+
+Using Workbench and reporting problems is the best way you can contibute!
+
+## Documentation and code
+
+* If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
+* If you want to contribute code (bug fixes, optimizations, new features, etc.), consult the [developer's guide](https://mjordan.github.io/islandora_workbench_docs/development_guide/).
 
 ## License
 
