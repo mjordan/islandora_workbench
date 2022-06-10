@@ -28,39 +28,9 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 
 Complete documentation is [available](https://mjordan.github.io/islandora_workbench_docs/).
 
-## Post-merge hook script
-
-Islandora Workbench requires the [Islandora Workbench Integration](https://github.com/mjordan/islandora_workbench_integration) Drupal module, and it is important to keep Workbench and the Integration module in sync. When you pull in updates to this git repo, the following script will check the repo's log and if it finds the word "module" in the commit message of the last three commits, it will print the message "NOTE: Make sure you are running the latest version of the Islandora Workbench Integration module."
-
-This script will also tell you if you need to run Python's `setup.py` script to install newly added libraries.
-
-```shell
-#!/bin/sh
-#
-# Git hook script that notifies you to update the Islandora Worbench Integration
-# module if the last 3 commit messsages contain the word 'module.' Also notifies
-# you if you need to run setup.py to install newly added libraries.
-#
-# To enable this hook, place create a file in your .git/hooks directory named 'post-merge'.
-
-if git log -n3 --format=format:"%s" | grep -qi module; then
-    echo "NOTE: Make sure you are running the latest version of the Islandora Workbench Integration module."
-fi
-
-if git log -n3 --format=format:"%s" | grep -qi setup; then
-    echo "NOTE: You need to run 'python3 setup.py install' to install some newly added Python libraries."
-fi
-```
-
-To use this reminder, place the script above at `islandora_workbench/.git/hooks/post-merge` and make it executable (i.e., `chmod +x post-merge`).
-
-## Current maintainer
-
-[Mark Jordan](https://github.com/mjordan)
-
 ## Contributing to Workbench
 
-Contributions to Islandora Workbench are welcome, but please open an issue before opening a pull request. If you don't open one, I'll ask you to do so.
+Contributions to Islandora Workbench are welcome, but please open an issue before opening a pull request.
 
 ### Testing
 
@@ -68,10 +38,14 @@ Metadata, files, and Drupal configurations are, in the real world, extremly comp
 
 Using Workbench and reporting problems is the best way you can help make it better!
 
-## Documentation and code
+### Documentation and code
 
 * If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
 * If you want to contribute code (bug fixes, optimizations, new features, etc.), consult the [developer's guide](https://mjordan.github.io/islandora_workbench_docs/development_guide/).
+
+## Current maintainer
+
+[Mark Jordan](https://github.com/mjordan)
 
 ## License
 
