@@ -58,26 +58,12 @@ To use this reminder, place the script above at `islandora_workbench/.git/hooks/
 
 [Mark Jordan](https://github.com/mjordan)
 
-## Contributing
+## Contributing to Workbench
 
-Bug reports, improvements, feature requests, and PRs welcome. Before you open a pull request, please open an issue.
+Contributions to Islandora Workbench are welcome, but please open an issue before opening a pull request. If you don't open one, I'll ask you to do so.
 
-If you open a PR, please check your code with pycodestyle:
-
-`pycodestyle --show-source --show-pep8 --ignore=E402,W504 --max-line-length=200 .`
-
-Also provide tests where applicable. Tests in Workbench fall into two categories:
-
-* Unit tests (that do not require Islandora) which are all in `tests/unit_tests.py` and can be run with `python3 tests/unit_tests.py`
-   * Unit tests on Workbench's Drupal fields handlers (these also does not require Islandora) are in `tests/field_tests.py` and can be run with `python3 tests/field_tests.py`
-* Integration tests that require a live Islandora instance running at `http://localhost:8000`, which are in `tests/islandora_tests.py`, `tests/islandora_tests_check.py`,  `tests/islandora_tests_hooks.py`, and `tests/islandora_tests_paged_content.py` can be run with `python3 tests/islandora_tests.py`, etc.
-   * The [Islandora Playbook](https://github.com/Islandora-Devops/islandora-playbook) is recommended way to deploy the Islandora used in these tests. Note that if an Islandora integration test fails, nodes and taxonomy terms created by the test before it fails may not be removed from Islandora.
-   * Some integration and field tests output text that beings with "Error:." This is normal, it's the text that Workbench outputs when it finds something wrong (which is probably what the test is testing). Successful test (whether they test for success or failure) runs will exit with "OK". If you can figure out how to suppress this output, please visit [this issue](https://github.com/mjordan/islandora_workbench/issues/160).
-* If you want to run the tests within a specific class in one of these files, include the class name like this: `python3 tests/unit_tests.py TestCompareStings`
-
-## Contributing to documentation
-
-Contributions to Islandora Workbench's documentation are welcome. If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
+If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
+If you want to contribute code (bug fixes, optimizations, new features, etc.), consult the [developer's guide](https://mjordan.github.io/islandora_workbench_docs/development_guide/).
 
 ## License
 
