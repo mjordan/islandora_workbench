@@ -156,7 +156,8 @@ class WorkbenchConfig:
             'delete_media_by_node_media_use_tids': [],
             'export_csv_term_mode': 'tid',
             'export_csv_file_path': None,
-            'export_csv_field_list': []
+            'export_csv_field_list': [],
+            'data_from_view_file_path': None
         }
 
     # Tests validity and existence of path.

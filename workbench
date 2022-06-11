@@ -1099,6 +1099,88 @@ def create_terms():
         pbar(100)
 
 
+def get_data_from_view():
+    """Retrieve data from a Drupal View via its REST export display.
+
+       Note: We won't be able to use the progress_bar option in this task until
+       https://www.drupal.org/project/drupal/issues/2982729 is resolved, since
+       we have no way of knowing how many items are in the View output til then.
+    """
+    message = '"Get data from View" task started using config file ' + args.config + '.'
+    print(message)
+    logging.info(message)
+
+    if config['data_from_view_file_path'] is not None:
+        csv_file_path = config['data_from_view_file_path']
+    else:
+        csv_file_path = os.path.join(config['input_dir'], os.path.basename(args.config).split('.')[0] + '.csv_file_with_data_from_view')
+    if os.path.exists(csv_file_path):
+        os.remove(csv_file_path)
+
+    field_definitions = get_field_definitions(config, 'node')
+
+    '''
+    field_names = list()
+    for field_name in field_definitions.keys():
+        field_names.append(field_name)
+    for field_name in ['created', 'uid', 'langcode', 'title']:
+        field_names.insert(0, field_name)
+    '''
+
+    if len(config['export_csv_field_list']) > 0:
+        field_names = config['export_csv_field_list']
+        # Always include node_id.
+        field_name.insert(0, 'node_id')
+    else:
+        field_names = []
+        for field_name in ['created', 'uid', 'langcode', 'title']:
+            field_names.insert(0, field_name)
+        # Always include node_id.
+        field_names.insert(0, 'node_id')
+
+    deduped_field_names = list('')
+    [deduped_field_names.append(x) for x in field_names if x not in deduped_field_names]
+
+    csv_file = open(csv_file_path, 'a+', encoding='utf-8')
+    writer = csv.DictWriter(csv_file, fieldnames=deduped_field_names, lineterminator="\n")
+    writer.writeheader()
+
+    view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page='
+    # Seed the first page of node IDs.
+    page = 0
+    url = view_url + str(0)
+    # @todo: Add response check.
+    response = requests.get(url)
+    nodes = json.loads(response.text)
+    # csv_value = serialize_field_json(config, field_definitions, field_name, field_data)
+    for node in nodes:
+        if node['type'][0]['target_id'] == config['content_type']:
+            row = {'node_id': node['nid'][0]['value']}
+            writer.writerow(row)
+        else:
+            info.warning("Node with ID %s not written to output CVS because its content type (%s) is not the same as the 'content_type' configuration option.",
+                node['nid']['value'], node['type'][0]['target_id'])
+            continue
+
+    # Loop through the remaining pages, until we encounter an empty page.
+    while len(nodes) > 0:
+        page += 1
+        url = view_url + str(page)
+        # @todo: Add response check.
+        response = requests.get(url)
+        nodes = json.loads(response.text)
+        for node in nodes:
+            if node['type'][0]['target_id'] == config['content_type']:
+                row = {'node_id': node['nid'][0]['value']}
+                writer.writerow(row)
+            else:
+                info.warning("Node with ID %s not written to output CVS because its content type (%s) is not the same as the 'content_type' configuration option.",
+                    node['nid']['value'], node['type'][0]['target_id'])
+                continue
+
+    csv_file.close()
+
+
 # Main program logic.
 
 parser = argparse.ArgumentParser()
@@ -1196,6 +1278,8 @@ try:
         export_csv()
     if config['task'] == 'create_terms':
         create_terms()
+    if config['task'] == 'get_data_from_view':
+        get_data_from_view()
 
     if config['secondary_tasks'] is not None:
         for secondary_config_file in config['secondary_tasks']:

@@ -753,12 +753,13 @@ def check_input(config, args):
         'delete_media_by_node',
         'create_from_files',
         'create_terms',
-        'export_csv'
+        'export_csv',
+        'get_data_from_view'
     ]
     joiner = ', '
     if config['task'] not in tasks:
         message = '"task" in your configuration file must be one of "create", "update", "delete", ' + \
-            '"add_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", or "export_csv".'
+            '"add_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", or "get_data_from_view".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -4638,6 +4639,55 @@ def get_csv_template(config, args):
     csv_file.close()
     print('CSV template saved at ' + csv_file_path + '.')
     sys.exit()
+
+
+def serialize_field_json(config, field_definitions, field_name, field_data):
+    """Serialized field JSON into a string consistent with Workbench's CSV-field input format.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        field_definitions : dict
+            The field definitions object defined by get_field_definitions().
+        field_name : string
+            The Drupal fieldname/CSV column header.
+        field_data : string
+            Raw JSON from the field named 'field_name'.
+        Returns
+        -------
+        string
+            A string structured same as the Workbench CSV field data for the field type.
+    """
+    # Importing the workbench_fields module at the top of this module with the
+    # rest of the imports causes a circular import exception, so we do it here.
+    import workbench_fields
+    # Entity reference fields (taxonomy term and node).
+    if field_definitions[fieldname_to_serialize]['field_type'] == 'entity_reference':
+        serialized_field = workbench_fields.EntityReferenceField()
+        csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
+    # Typed relation fields (currently, only taxonomy term)
+    elif field_definitions[fieldname_to_serialize]['field_type'] == 'typed_relation':
+        serialized_field = workbench_fields.TypedRelationField()
+        csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
+    # Geolocation fields.
+    elif field_definitions[fieldname_to_serialize]['field_type'] == 'geolocation':
+        serialized_field = workbench_fields.GeolocationField()
+        csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
+    # Link fields.
+    elif field_definitions[fieldname_to_serialize]['field_type'] == 'link':
+        serialized_field = workbench_fields.LinkField()
+        csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
+    # Authority Link fields.
+    elif field_definitions[fieldname_to_serialize]['field_type'] == 'authority_link':
+        serialized_field = workbench_fields.AuthorityLinkField()
+        csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
+    # Simple fields.
+    else:
+        serialized_field = workbench_fields.SimpleField()
+        csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
+
+    return csv_field_data
 
 
 def prep_node_ids_tsv(config):

@@ -239,8 +239,8 @@ class SimpleField():
                 Raw JSON from the field named 'field_name'.
             Returns
             -------
-            list
-                A list of valid field values.
+            string
+                A string structured same as the Workbench CSV field data for this field type.
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
@@ -452,8 +452,8 @@ class GeolocationField():
                 Raw JSON from the field named 'field_name'.
             Returns
             -------
-            list
-                A list of valid field values.
+            string
+                A string structured same as the Workbench CSV field data for this field type.
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
@@ -664,8 +664,8 @@ class LinkField():
                 Raw JSON from the field named 'field_name'.
             Returns
             -------
-            list
-                A list of valid field values.
+            string
+                A string structured same as the Workbench CSV field data for this field type.
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
@@ -945,8 +945,8 @@ class EntityReferenceField():
                 Raw JSON from the field named 'field_name'.
             Returns
             -------
-            list
-                A list of valid field values.
+            string
+                A string structured same as the Workbench CSV field data for this field type.
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
@@ -1210,8 +1210,8 @@ class TypedRelationField():
                 Raw JSON from the field named 'field_name'.
             Returns
             -------
-            list
-                A list of valid field values.
+            string
+                A string structured same as the Workbench CSV field data for this field type.
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
@@ -1428,8 +1428,8 @@ class AuthorityLinkField():
                 Raw JSON from the field named 'field_name'.
             Returns
             -------
-            list
-                A list of valid field values.
+            string
+                A string structured same as the Workbench CSV field data for this field type.
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
