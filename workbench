@@ -1150,7 +1150,9 @@ def get_data_from_view():
     page = 0
     url = view_url + str(0)
     # @todo: Add response check.
+    # response = issue_request(config, 'GET', url)
     response = requests.get(url)
+    logging.info("Logging response time " + str(response.elapsed.total_seconds()))
     nodes = json.loads(response.text)
     # csv_value = serialize_field_json(config, field_definitions, field_name, field_data)
     for node in nodes:
@@ -1168,6 +1170,8 @@ def get_data_from_view():
         url = view_url + str(page)
         # @todo: Add response check.
         response = requests.get(url)
+        logging.info("Logging response time " + str(response.elapsed.total_seconds()))
+        # response = issue_request(config, 'GET', url)
         nodes = json.loads(response.text)
         for node in nodes:
             if node['type'][0]['target_id'] == config['content_type']:

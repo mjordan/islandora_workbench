@@ -34,6 +34,7 @@ EXECUTION_START_TIME = datetime.datetime.now()
 INTEGRATION_MODULE_MIN_VERSION = '1.0'
 # Workaround for https://github.com/mjordan/islandora_workbench/issues/360.
 http.client._MAXHEADERS = 10000
+http_response_times = []
 # Global lists of terms to reduce queries to Drupal.
 checked_terms = list()
 newly_created_terms = list()
@@ -202,6 +203,21 @@ def issue_request(
 
     if config['log_response_body'] is True:
         logging.info(response.text)
+
+    response_time = response.elapsed.total_seconds()
+    average_response_time = calculate_response_time_trend(response_time)
+    if config['throttle_requests'] is True:
+        if average_response_time is not None and response_time > (average_response_time * int(config['throttle_requests_threshold'])):
+            message = "HTTP requests paused for " + str(config['throttle_requests_pause']) + " seconds because throttle threshold of " + \
+                str(config['throttle_requests_threshold']) + " exceeded."
+            time.sleep(config['throttle_requests_pause'])
+            logging.info(message)
+            config['log_response_time'] = True
+
+    if config['log_response_time'] is True:
+        url_for_logging = urllib.parse.urlparse(url).path + '?' + urllib.parse.urlparse(url).query
+        response_time_trend_entry = {'method': method, 'url': url_for_logging, 'response_time': response_time, 'average_response_time': average_response_time}
+        logging.info(response_time_trend_entry)
 
     return response
 
@@ -4737,6 +4753,25 @@ def read_node_ids_tsv(config):
 
 def get_percentage(part, whole):
     return 100 * float(part) / float(whole)
+
+
+def calculate_response_time_trend(response_time):
+    """Gets the average response time on HTTP requests.
+    """
+    """Parameters
+        ----------
+        response_time : Response time of current request, in seconds.
+            The string to test.
+        Returns
+        -------
+        int|None
+            The average response time of the most recent 20 requests.
+    """
+    http_response_times.append(response_time)
+    sample = http_response_times[20:]
+    if len(sample) > 0:
+        average = sum(sample) / len(sample)
+        return average
 
 
 def is_ascii(input):
