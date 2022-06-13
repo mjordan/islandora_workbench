@@ -27,6 +27,13 @@ class WorkbenchConfig:
     def get_config(self):
         config = self.get_default_config()
         user_mods = self.get_user_config()
+        # If the password is not set in the config file, or in the environment
+        # variable, assign an empty password that will cause Workbench to error out later.
+        if 'password' not in user_mods:
+            if 'ISLANDORA_WORKBENCH_PASSWORD' in os.environ:
+                config['password'] = os.environ['ISLANDORA_WORKBENCH_PASSWORD']
+            else:
+                config['password'] = ''
         # Blend defaults with user mods
         for key, value in user_mods.items():
             config[key] = value
@@ -118,9 +125,7 @@ class WorkbenchConfig:
             'allow_adding_terms': False,
             'nodes_only': False,
             'log_response_time': False,
-            'throttle_requests': False,
-            'throttle_requests_threshold': 2,
-            'throttle_requests_pause': 2,
+            'adaptive_pause_threshold': 2,
             'log_request_url': False,
             'log_json': False,
             'log_response_body': False,

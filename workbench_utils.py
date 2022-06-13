@@ -109,9 +109,15 @@ def issue_request(
     """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
        do not use this function.
     """
+    if 'password' not in config:
+        message = 'Password for Drupal user not found. Please add the "password" option to your configuration ' + \
+            'file or provide the Drupal user\'s password in your ISLANDORA_WORKBENCH_PASSWORD environment variable.'
+        logging.error(message)
+        sys.exit("Error: " + message)
+
     if config['check'] is False:
-        if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE']:
-            time.sleep(config['pause'])
+        if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE'] and value_is_numeric(config['pause']):
+            time.sleep(int(config['pause']))
 
     headers.update({'User-Agent': config['user_agent']})
 
@@ -208,13 +214,13 @@ def issue_request(
     average_response_time = calculate_response_time_trend(response_time)
 
     log_response_time_value = copy.copy(config['log_response_time'])
-    if config['throttle_requests'] is True:
-        if average_response_time is not None and response_time > (average_response_time * int(config['throttle_requests_threshold'])):
-            message = "HTTP requests paused for " + str(config['throttle_requests_pause']) + " seconds because request below " + \
-                "exceeded throttle threshold of " + str(config['throttle_requests_threshold']) + "."
-            time.sleep(config['throttle_requests_pause'])
+    if 'adaptive_pause' in config and value_is_numeric(config['adaptive_pause']):
+        if average_response_time is not None and response_time > (average_response_time * int(config['adaptive_pause_threshold'])):
+            message = "HTTP requests paused for " + str(config['adaptive_pause']) + " seconds because request below " + \
+                "exceeded adaptive threshold of " + str(config['adaptive_pause_threshold']) + "."
+            time.sleep(int(config['adaptive_pause']))
             logging.info(message)
-            # Enable response time logging if we surpass the throttle threashold.
+            # Enable response time logging if we surpass the adaptive pause threashold.
             config['log_response_time'] = True
 
     if config['log_response_time'] is True:
@@ -896,7 +902,7 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'get_data_from_view':
-        create_terms_required_options = [
+        get_data_from_view_required_options = [
             'task',
             'host',
             'username',
@@ -922,6 +928,10 @@ def check_input(config, args):
             message = f"Cannot access View at {view_url}."
             logging.error(message)
             sys.exit("Error: " + message)
+        else:
+            message = f'View REST export at "{view_url}" is accessible.'
+            logging.info(message)
+            print("OK, " + message)
 
         # Check to make sure the output path for the CSV file is writable.
         if config['data_from_view_file_path'] is not None:
@@ -933,6 +943,10 @@ def check_input(config, args):
             message = f'Path to CSV file "{csv_file_path}" is not writable.'
             logging.error(message)
             sys.exit("Error: " + message)
+        else:
+            message = f'CSV output file location at {csv_file_path} is writable.'
+            logging.info(message)
+            print("OK, " + message)
 
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
