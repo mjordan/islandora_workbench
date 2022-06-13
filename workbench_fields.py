@@ -247,7 +247,11 @@ class SimpleField():
 
         subvalues = list()
         for subvalue in field_data:
-            subvalues.append(subvalue['value'])
+            if 'value' in subvalue:
+                subvalues.append(subvalue['value'])
+            else:
+                logging.warning("Field data " + str(field_data) + ' in field "' + field_name + '" cannot be serialized by the SimpleField handler.')
+                return ''
 
         if len(subvalues) > 1:
             return config['subdelimiter'].join(subvalues)

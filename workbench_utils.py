@@ -206,18 +206,23 @@ def issue_request(
 
     response_time = response.elapsed.total_seconds()
     average_response_time = calculate_response_time_trend(response_time)
+
+    log_response_time_value = copy.copy(config['log_response_time'])
     if config['throttle_requests'] is True:
         if average_response_time is not None and response_time > (average_response_time * int(config['throttle_requests_threshold'])):
-            message = "HTTP requests paused for " + str(config['throttle_requests_pause']) + " seconds because throttle threshold of " + \
-                str(config['throttle_requests_threshold']) + " exceeded."
+            message = "HTTP requests paused for " + str(config['throttle_requests_pause']) + " seconds because request below " + \
+                "exceeded throttle threshold of " + str(config['throttle_requests_threshold']) + "."
             time.sleep(config['throttle_requests_pause'])
             logging.info(message)
+            # Enable response time logging if we surpass the throttle threashold.
             config['log_response_time'] = True
 
     if config['log_response_time'] is True:
         url_for_logging = urllib.parse.urlparse(url).path + '?' + urllib.parse.urlparse(url).query
-        response_time_trend_entry = {'method': method, 'url': url_for_logging, 'response_time': response_time, 'average_response_time': average_response_time}
+        response_time_trend_entry = {'method': method, 'response': response.status_code, 'url': url_for_logging, 'response_time': response_time, 'average_response_time': average_response_time}
         logging.info(response_time_trend_entry)
+        # Set this config option back to what it was before we updated in above.
+        config['log_response_time'] = log_response_time_value
 
     return response
 
@@ -447,6 +452,10 @@ def ping_islandora(config, print_message=True):
 def ping_content_type(config):
     url = f"{config['host']}/entity/entity_form_display/node/.{config['content_type']}.default?_format=json"
     return issue_request(config, 'GET', url).status_code
+
+
+def ping_view_path(config, view_url):
+    return issue_request(config, 'HEAD', view_url).status_code
 
 
 def ping_media_bundle(config, bundle_name):
@@ -886,10 +895,52 @@ def check_input(config, args):
                 message = 'Please check your config file for required values: ' + joiner.join(create_terms_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+    if config['task'] == 'get_data_from_view':
+        create_terms_required_options = [
+            'task',
+            'host',
+            'username',
+            'password',
+            'view_path']
+        for get_data_from_view_required_option in get_data_from_view_required_options:
+            if get_data_from_view_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(get_data_from_view_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
 
     message = 'OK, configuration file has all required values (did not check for optional values).'
     print(message)
     logging.info(message)
+
+    # Perform checks on get_data_from_view tasks. Since this task doesn't use input_dir, input_csv, etc.,
+    # we exit immediately after doing these checks.
+    if config['task'] == 'get_data_from_view':
+        # First, ping the View.
+        view_url = config['host'] + '/' + config['view_path'].lstrip('/')
+        view_path_status_code = ping_view_path(config, view_url)
+        if view_path_status_code != 200:
+            message = f"Cannot access View at {view_url}."
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+        # Check to make sure the output path for the CSV file is writable.
+        if config['data_from_view_file_path'] is not None:
+            csv_file_path = config['data_from_view_file_path']
+        else:
+            csv_file_path = os.path.join(config['input_dir'], os.path.basename(args.config).split('.')[0] + '.csv_file_with_data_from_view')
+        csv_file_path_file = open(csv_file_path, "a")
+        if csv_file_path_file.writable() is False:
+            message = f'Path to CSV file "{csv_file_path}" is not writable.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+        if os.path.exists(csv_file_path):
+            os.remove(csv_file_path)
+
+        # If nothing has failed by now, exit with a positive, upbeat message.
+        print("Configuration and input data appear to be valid.")
+        logging.info('Configuration checked for "%s" task using config file "%s", no problems found.', config['task'], args.config)
+        sys.exit()
 
     validate_input_dir(config)
 
@@ -4658,7 +4709,7 @@ def get_csv_template(config, args):
 
 
 def serialize_field_json(config, field_definitions, field_name, field_data):
-    """Serialized field JSON into a string consistent with Workbench's CSV-field input format.
+    """Serializes JSON from a Drupal field into a string consistent with Workbench's CSV-field input format.
     """
     """Parameters
         ----------
@@ -4678,24 +4729,25 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
     import workbench_fields
+
     # Entity reference fields (taxonomy term and node).
-    if field_definitions[fieldname_to_serialize]['field_type'] == 'entity_reference':
+    if field_definitions[field_name]['field_type'] == 'entity_reference':
         serialized_field = workbench_fields.EntityReferenceField()
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
     # Typed relation fields (currently, only taxonomy term)
-    elif field_definitions[fieldname_to_serialize]['field_type'] == 'typed_relation':
+    elif field_definitions[field_name]['field_type'] == 'typed_relation':
         serialized_field = workbench_fields.TypedRelationField()
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
     # Geolocation fields.
-    elif field_definitions[fieldname_to_serialize]['field_type'] == 'geolocation':
+    elif field_definitions[field_name]['field_type'] == 'geolocation':
         serialized_field = workbench_fields.GeolocationField()
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
     # Link fields.
-    elif field_definitions[fieldname_to_serialize]['field_type'] == 'link':
+    elif field_definitions[field_name]['field_type'] == 'link':
         serialized_field = workbench_fields.LinkField()
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
     # Authority Link fields.
-    elif field_definitions[fieldname_to_serialize]['field_type'] == 'authority_link':
+    elif field_definitions[field_name]['field_type'] == 'authority_link':
         serialized_field = workbench_fields.AuthorityLinkField()
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
     # Simple fields.
@@ -4756,7 +4808,7 @@ def get_percentage(part, whole):
 
 
 def calculate_response_time_trend(response_time):
-    """Gets the average response time on HTTP requests.
+    """Gets the average response time from the most recent 20 HTTP requests.
     """
     """Parameters
         ----------
@@ -4768,7 +4820,10 @@ def calculate_response_time_trend(response_time):
             The average response time of the most recent 20 requests.
     """
     http_response_times.append(response_time)
-    sample = http_response_times[20:]
+    if len(http_response_times) > 20:
+        sample = http_response_times[20:]
+    else:
+        sample = http_response_times
     if len(sample) > 0:
         average = sum(sample) / len(sample)
         return average
