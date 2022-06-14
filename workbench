@@ -948,8 +948,8 @@ def export_csv():
 
             for fieldname_to_serialize in deduped_field_names:
                 if fieldname_to_serialize in body and fieldname_to_serialize in field_definitions:
-                    csv_data = serialize_field_json(config, field_definitions, field_name, body[fieldname_to_serialize])
-                    output_row[field_name] = csv_data
+                    csv_data = serialize_field_json(config, field_definitions, fieldname_to_serialize, body[fieldname_to_serialize])
+                    output_row[fieldname_to_serialize] = csv_data
         else:
             message = f'Attempt to get node {node_id} returned a {response.status_code} status code.'
             print("  Error: " + message)
