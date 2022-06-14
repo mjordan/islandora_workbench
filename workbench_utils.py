@@ -211,12 +211,14 @@ def issue_request(
         logging.info(response.text)
 
     response_time = response.elapsed.total_seconds()
-    average_response_time = calculate_response_time_trend(response_time)
+    average_response_time = calculate_response_time_trend(config, response_time)
 
     log_response_time_value = copy.copy(config['log_response_time'])
     if 'adaptive_pause' in config and value_is_numeric(config['adaptive_pause']):
-        if average_response_time is not None and response_time > (average_response_time * int(config['adaptive_pause_threshold'])):
-            message = "HTTP requests paused for " + str(config['adaptive_pause']) + " seconds because request below " + \
+        # Pause defined in config['adaptive_pause'] is included in the response time,
+        # so we subtract it to get the "unpaused" response time.
+        if average_response_time is not None and (response_time - int(config['adaptive_pause'])) > (average_response_time * int(config['adaptive_pause_threshold'])):
+            message = "HTTP requests paused for " + str(config['adaptive_pause']) + " seconds because request in next log entry " + \
                 "exceeded adaptive threshold of " + str(config['adaptive_pause_threshold']) + "."
             time.sleep(int(config['adaptive_pause']))
             logging.info(message)
@@ -225,6 +227,8 @@ def issue_request(
 
     if config['log_response_time'] is True:
         url_for_logging = urllib.parse.urlparse(url).path + '?' + urllib.parse.urlparse(url).query
+        if 'adaptive_pause' in config and value_is_numeric(config['adaptive_pause']):
+            response_time - int(config['adaptive_pause'])
         response_time_trend_entry = {'method': method, 'response': response.status_code, 'url': url_for_logging, 'response_time': response_time, 'average_response_time': average_response_time}
         logging.info(response_time_trend_entry)
         # Set this config option back to what it was before we updated in above.
@@ -4821,7 +4825,7 @@ def get_percentage(part, whole):
     return 100 * float(part) / float(whole)
 
 
-def calculate_response_time_trend(response_time):
+def calculate_response_time_trend(config, response_time):
     """Gets the average response time from the most recent 20 HTTP requests.
     """
     """Parameters
@@ -4835,9 +4839,11 @@ def calculate_response_time_trend(response_time):
     """
     http_response_times.append(response_time)
     if len(http_response_times) > 20:
-        sample = http_response_times[20:]
+        sample = http_response_times[-20:]
     else:
         sample = http_response_times
+    if config['log_response_time_sample'] is True:
+        logging.info("Response time trend sample: %s", sample)
     if len(sample) > 0:
         average = sum(sample) / len(sample)
         return average

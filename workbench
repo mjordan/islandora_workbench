@@ -1057,9 +1057,9 @@ def get_data_from_view():
         url = view_url + str(page)
         response = issue_request(config, 'GET', url)
         if response.status_code != 200:
-            message = f"Request to View at {url} returned a non-200 status ({response.status_code})."
+            message = f"Request to View at {url} returned a non-200 status ({response.status_code}); page {page} of results not written to the output CSV file."
             logging.error(message)
-            sys.exit("Error: " + message)
+            continue
         nodes = json.loads(response.text)
         for node in nodes:
             if node['type'][0]['target_id'] == config['content_type']:

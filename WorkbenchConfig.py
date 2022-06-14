@@ -126,6 +126,7 @@ class WorkbenchConfig:
             'nodes_only': False,
             'log_response_time': False,
             'adaptive_pause_threshold': 2,
+            'log_response_time_sample': False,
             'log_request_url': False,
             'log_json': False,
             'log_response_body': False,
