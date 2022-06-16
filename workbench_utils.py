@@ -1343,7 +1343,7 @@ def check_input(config, args):
             # Check for empty 'file' values.
             if len(file_check_row['file']) == 0:
                 message = 'CSV row with ID ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
-                if config['exit_on_first_missing_file_during_check'] is True:
+                if config['exit_on_first_missing_file_during_check'] is True and config['allow_missing_files'] is False:
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 else:
@@ -1356,7 +1356,7 @@ def check_input(config, args):
                 if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
                     message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID "' \
                         + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
-                    if config['exit_on_first_missing_file_during_check'] is True:
+                    if config['exit_on_first_missing_file_during_check'] is True and config['allow_missing_files'] is False:
                         logging.error(message)
                         sys.exit('Error: ' + message)
                     else:
@@ -1657,7 +1657,7 @@ def check_input_for_create_from_files(config, args):
     for option in unwanted_in_create_from_files:
         if option in config_keys:
             config_keys.remove(option)
-
+    joiner = ', '
     # Check for presence of required config keys.
     create_required_options = [
         'task',
@@ -1666,7 +1666,7 @@ def check_input_for_create_from_files(config, args):
         'password']
     for create_required_option in create_required_options:
         if create_required_option not in config_keys:
-            message = 'Please check your config file for required values: ' + joiner.join(create_options) + '.'
+            message = 'Please check your config file for required values: ' + joiner.join(create_required_options) + '.'
             logging.error(message)
             sys.exit('Error: ' + message)
 
@@ -2244,7 +2244,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_bundle_response_code = ping_media_bundle(config, media_type)
         if media_bundle_response_code == 404:
-            message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+            message = 'File "' + filename + '" identified in CSV row ' + file_fieldname + \
                 ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
             logging.error(message)
             return False
@@ -2365,7 +2365,7 @@ def create_islandora_media(config, filename, file_fieldname, node_uri, node_csv_
     media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
     media_bundle_response_code = ping_media_bundle(config, media_type)
     if media_bundle_response_code == 404:
-        message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+        message = 'File "' + filename + '" identified in CSV row ' + file_fieldname + \
             ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
         logging.error(message)
         return False
