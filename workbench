@@ -283,39 +283,41 @@ def create():
                     if config['progress_bar'] is False:
                         print("- ERROR: Media for " + row['file'] + " not created. See log for more information.")
                     logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
-                if 'additional_files' in config:
-                    additional_files_config = get_additional_files_config(config)
-                    if len(additional_files_config) > 0:
-                        for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
-                            # If there is no additional media file, move on to the next "additional_files" column.
-                            if config['nodes_only'] is False and additional_file_field in row and len(row[additional_file_field].strip()) == 0:
-                                if config['progress_bar'] is False:
-                                    print('- No media for ' + node_uri + ' created since its "' + additional_file_field + '" field in the CSV is empty.')
-                                logging.warning("No media for %s created since its '%s' field in the CSV is empty.", node_uri, additional_file_field)
-                                continue
-                                file_exists = check_file_exists(config, filename)
-                                if file_exists is False:
-                                    if config['progress_bar'] is False:
-                                        print('- No media for ' + node_uri + ' created since its "' + additional_file_field + '" field in the CSV is empty.')
-                                    logging.warning("No media for %s created since its '%s' field in the CSV is empty.", node_uri, additional_file_field)
-                                    continue
-                            if drupal_8 is True:
-                                media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row_for_media, additional_file_media_use_tid)
-                            else:
-                                media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
-                            if media_response_status_code in allowed_media_response_codes:
-                                if config['progress_bar'] is False:
-                                    print("+ Media for " + row[additional_file_field] + " created.")
-                                logging.info("Media for %s created.", row[additional_file_field])
-                            else:
-                                if config['progress_bar'] is False:
-                                    print("- Media for " + row[additional_file_field] + " not created. See log for more information.")
-                                logging.error("Media for %s not created (HTTP respone code %s).", row[additional_file_field], media_response_status_code)
 
-            if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and config['paged_content_from_directories'] is False:
+            if config['nodes_only'] is False and 'additional_files' in config:
+                additional_files_config = get_additional_files_config(config)
+                if len(additional_files_config) > 0:
+                    for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
+                        # If there is no additional media file, move on to the next "additional_files" column.
+                        if additional_file_field in row and len(row[additional_file_field].strip()) == 0:
+                            if config['progress_bar'] is False:
+                                print("- Skipping empty additional_media CSV field '{field}' for {uri}.".format(field=additional_file_field, uri=node_uri))
+                            logging.warning("- Skipping empty additional_media CSV field '%s' for %s.", node_uri, additional_file_field)
+                            continue
+                        filename = row[additional_file_field].strip()
+                        file_exists = check_file_exists(config, filename)
+                        if file_exists is False:
+                            if config['progress_bar'] is False:
+                                print("- WARNING: File '{file}' from additional_media CSV field '{field}' for {uri} does not exist.".format(file=filename, field=additional_file_field, uri=node_uri))
+                            logging.warning("File '%s' from additional_media CSV field '%s' for %s does not exist.", filename, node_uri, additional_file_field)
+                            continue
+                        if drupal_8 is True:
+                            media_response_status_code = create_islandora_media(config, row[additional_file_field], additional_file_field, node_uri, row_for_media, additional_file_media_use_tid)
+                        else:
+                            media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
+                        if media_response_status_code in allowed_media_response_codes:
+                            if config['progress_bar'] is False:
+                                print("+ Media for " + row[additional_file_field] + " created.")
+                            logging.info("Media for %s created.", row[additional_file_field])
+                        else:
+                            if config['progress_bar'] is False:
+                                print("- Media for " + row[additional_file_field] + " not created. See log for more information.")
+                            logging.error("Media for %s not created (HTTP respone code %s).", row[additional_file_field], media_response_status_code)
+
+            if config['nodes_only'] is False and 'file' in row and len(row['file']) == 0 and 'additional_files' not in config and config['paged_content_from_directories'] is False:
                 if config['progress_bar'] is False:
-                    print('+ No file specified in CSV for row ' + str(id_field))
-                logging.info("No file specified for row %s, so no media created.", str(id_field))
+                    print('+ No files specified in CSV for row ' + str(id_field))
+                logging.info("No files specified for row %s, so no media created.", str(id_field))
 
             if config['paged_content_from_directories'] is True:
                 # Console output and logging are done in the create_children_from_directory() function.
@@ -951,7 +953,7 @@ def export_csv():
                     csv_data = serialize_field_json(config, field_definitions, fieldname_to_serialize, body[fieldname_to_serialize])
                     output_row[fieldname_to_serialize] = csv_data
         else:
-            message = f'Attempt to get node {node_id} returned a {response.status_code} status code.'
+            message = f"Attempt to get node {row['node_id']} returned a {response.status_code} status code."
             print("  Error: " + message)
             logging.warning(message)
             return False
@@ -1048,7 +1050,7 @@ def get_data_from_view():
         else:
             message = "Node with ID " + node['nid']['value'] + " not written to output CVS because its content type (" + \
                 node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
-            info.warning(message)
+            logging.info.warning(message)
             continue
 
     # Loop through the remaining pages, until we encounter an empty page.
@@ -1074,7 +1076,7 @@ def get_data_from_view():
             else:
                 message = "Node with ID " + node['nid']['value'] + " not written to output CVS because its content type (" + \
                     node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
-                info.warning(message)
+                logging.info.warning(message)
                 continue
 
     csv_file.close()
