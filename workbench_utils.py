@@ -1522,7 +1522,7 @@ def check_input(config, args):
                 if config['paged_content_sequence_separator'] not in page_file_name:
                     message = 'Page file ' + os.path.join(
                         dir_path,
-                        page_file_name) + ' does not contain a sequence separator (' + config['paged_content_sequence_seprator'] + ').'
+                        page_file_name) + ' does not contain a sequence separator (' + config['paged_content_sequence_separator'] + ').'
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
