@@ -1344,7 +1344,7 @@ def check_input(config, args):
             if len(file_check_row['file']) == 0:
                 message = 'CSV row with ID ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                 if config['exit_on_first_missing_file_during_check'] is True and config['allow_missing_files'] is False:
-                    logging.error(message)
+                    logging.warning(message)
                     sys.exit('Error: ' + message)
                 else:
                     if file_check_row[config['id_field']] not in rows_with_missing_files:
@@ -1926,9 +1926,14 @@ def validate_media_use_tid_in_additional_files_setting(config, media_use_tid_val
                     logging.error(message)
                     sys.exit('Error: ' + message)
             if 'field_external_uri' in response_body:
-                if response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
+                if len(response_body['field_external_uri']) > 0 and response_body['field_external_uri'][0]['uri'] != 'http://pcdm.org/use#OriginalFile':
                     message = 'Warning: Term ID "' + str(media_use_tid) + '" registered in the "additional_files" config option ' + \
-                        'for field "' + additional_field_name + '" will assign an Islandora Media Use term that might ' + \
+                        'for CSV field "' + additional_field_name + '" will assign an Islandora Media Use term that might ' + \
+                        "conflict with derivative media. You should temporarily disable the Context or Action that generates those derivatives."
+                else:
+                    # There is no field_external_uri so we can't identify the term. Provide a generic message.
+                    message = 'Warning: Terms registered in the "additional_files" config option ' + \
+                        'for CSV field "' + additional_field_name + '" may assign an Islandora Media Use term that will ' + \
                         "conflict with derivative media. You should temporarily disable the Context or Action that generates those derivatives."
                     print(message)
                     logging.warning(message)
