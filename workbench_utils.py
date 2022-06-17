@@ -1513,16 +1513,12 @@ def check_input(config, args):
                 sys.exit('Error: ' + message)
             page_files = os.listdir(dir_path)
             if len(page_files) == 0:
-                print(
-                    'Warning: Page directory ' +
-                    dir_path +
-                    ' is empty; is that intentional?')
-                logging.warning('Page directory ' + dir_path + ' is empty.')
+                message = 'Page directory ' + dir_path + ' is empty.'
+                print("Warning: " + message)
+                logging.warning(message)
             for page_file_name in page_files:
                 if config['paged_content_sequence_separator'] not in page_file_name:
-                    message = 'Page file ' + os.path.join(
-                        dir_path,
-                        page_file_name) + ' does not contain a sequence separator (' + config['paged_content_sequence_separator'] + ').'
+                    message = 'Page file ' + os.path.join(dir_path, page_file_name) + ' does not contain a sequence separator (' + config['paged_content_sequence_separator'] + ').'
                     logging.error(message)
                     sys.exit('Error: ' + message)
 
