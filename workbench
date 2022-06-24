@@ -990,7 +990,8 @@ def get_data_from_view():
     print(message)
     logging.info(message)
 
-    view_url = config['host'] + '/' + config['view_path'].lstrip('/')
+    view_parameters =  '&'.join(config['view_parameters']) if 'view_parameters' in config else ''
+    view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page=0&' + view_parameters
     view_path_status_code = ping_view_path(config, view_url)
     if view_path_status_code != 200:
         message = f"Cannot access View at {view_url}."
@@ -1030,7 +1031,7 @@ def get_data_from_view():
     view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page='
     # Seed the first page of node IDs.
     page = 0
-    url = view_url + str(0)
+    url = view_url + str(0) + '&' + view_parameters
     response = issue_request(config, 'GET', url)
     if response.status_code != 200:
         message = f"Request to View at {url} returned a non-200 status ({response.status_code})."
@@ -1056,7 +1057,7 @@ def get_data_from_view():
     # Loop through the remaining pages, until we encounter an empty page.
     while len(nodes) > 0:
         page += 1
-        url = view_url + str(page)
+        url = view_url + str(page) + '&' + view_parameters
         response = issue_request(config, 'GET', url)
         if response.status_code != 200:
             message = f"Request to View at {url} returned a non-200 status ({response.status_code}); page {page} of results not written to the output CSV file."
