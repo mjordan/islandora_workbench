@@ -949,6 +949,7 @@ def check_input(config, args):
             sys.exit("Error: " + message)
         else:
             message = f'CSV output file location at {csv_file_path} is writable.'
+            csv_file_path_file.close()
             logging.info(message)
             print("OK, " + message)
 
