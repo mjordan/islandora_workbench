@@ -1034,7 +1034,6 @@ def get_data_from_view():
     # Seed the first page of node IDs.
     page = 0
     url = view_url + str(0) + '&' + view_parameters
-    print("Debug: ", url)
     response = issue_request(config, 'GET', url)
     if response.status_code != 200:
         message = f"Request to View at {url} returned a non-200 status ({response.status_code})."
@@ -1064,7 +1063,6 @@ def get_data_from_view():
     while len(nodes) > 0:
         page += 1
         url = view_url + str(page) + '&' + view_parameters
-        print("Debug: ", url)
         response = issue_request(config, 'GET', url)
         if response.status_code != 200:
             message = f"Request to View at {url} returned a non-200 status ({response.status_code}); page {page} of results not written to the output CSV file."
