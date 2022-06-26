@@ -995,8 +995,8 @@ def get_data_from_view():
     view_path_status_code = ping_view_path(config, view_url)
     if view_path_status_code != 200:
         message = f"Cannot access View at {view_url}."
-        logging.error(message)
-        sys.exit("Error: " + message)
+        logging.error(message + " HTTP status code is " + str(view_path_status_code) + ".")
+        sys.exit("Error: " + message + " See log for more information.")
 
     if config['data_from_view_file_path'] is not None:
         csv_file_path = config['data_from_view_file_path']

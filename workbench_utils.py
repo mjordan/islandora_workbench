@@ -930,8 +930,8 @@ def check_input(config, args):
         view_path_status_code = ping_view_path(config, view_url)
         if view_path_status_code != 200:
             message = f"Cannot access View at {view_url}."
-            logging.error(message)
-            sys.exit("Error: " + message)
+            logging.error(message + " HTTP status code is " + str(view_path_status_code) + ".")
+            sys.exit("Error: " + message + " See log for more information.")
         else:
             message = f'View REST export at "{view_url}" is accessible.'
             logging.info(message)
