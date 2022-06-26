@@ -990,7 +990,7 @@ def get_data_from_view():
     print(message)
     logging.info(message)
 
-    view_parameters =  '&'.join(config['view_parameters']) if 'view_parameters' in config else ''
+    view_parameters = '&'.join(config['view_parameters']) if 'view_parameters' in config else ''
     view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page=0&' + view_parameters
     view_path_status_code = ping_view_path(config, view_url)
     if view_path_status_code != 200:
@@ -1028,10 +1028,13 @@ def get_data_from_view():
     writer = csv.DictWriter(csv_file, fieldnames=deduped_field_names, lineterminator="\n")
     writer.writeheader()
 
+    seen_nids = list()
+
     view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page='
     # Seed the first page of node IDs.
     page = 0
     url = view_url + str(0) + '&' + view_parameters
+    print("Debug: ", url)
     response = issue_request(config, 'GET', url)
     if response.status_code != 200:
         message = f"Request to View at {url} returned a non-200 status ({response.status_code})."
@@ -1039,17 +1042,20 @@ def get_data_from_view():
         sys.exit("Error: " + message)
     nodes = json.loads(response.text)
     for node in nodes:
-        if node['type'][0]['target_id'] == config['content_type']:
-            row = {'node_id': node['nid'][0]['value']}
-            row['title'] = node['title'][0]['value']
-            print('Exporting data for node ' + str(node['nid'][0]['value']) + ' "' + node['title'][0]['value'] + '".')
-            for field_name in deduped_field_names:
-                if field_name.startswith('field_'):
-                    csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
-                    row[field_name] = csv_data
-            writer.writerow(row)
+        if node['nid'][0]['value'] not in seen_nids:
+            if node['type'][0]['target_id'] == config['content_type']:
+                seen_nids.append(node['nid'][0]['value'])
+                row = dict()
+                row['node_id'] = node['nid'][0]['value']
+                row['title'] = node['title'][0]['value']
+                print('Exporting data for node ' + str(row['node_id']) + ' "' + row['title'] + '".')
+                for field_name in deduped_field_names:
+                    if field_name.startswith('field_'):
+                        csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
+                        row[field_name] = csv_data
+                writer.writerow(row)
         else:
-            message = "Node with ID " + node['nid']['value'] + " not written to output CVS because its content type (" + \
+            message = "Node with ID " + str(node['nid'][0]['value']) + " not written to output CVS because its content type (" + \
                 node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
             logging.info.warning(message)
             continue
@@ -1058,6 +1064,7 @@ def get_data_from_view():
     while len(nodes) > 0:
         page += 1
         url = view_url + str(page) + '&' + view_parameters
+        print("Debug: ", url)
         response = issue_request(config, 'GET', url)
         if response.status_code != 200:
             message = f"Request to View at {url} returned a non-200 status ({response.status_code}); page {page} of results not written to the output CSV file."
@@ -1065,20 +1072,23 @@ def get_data_from_view():
             continue
         nodes = json.loads(response.text)
         for node in nodes:
-            if node['type'][0]['target_id'] == config['content_type']:
-                row = {'node_id': node['nid'][0]['value']}
-                row['title'] = node['title'][0]['value']
-                print('Exporting data for node ' + str(node['nid'][0]['value']) + ' "' + node['title'][0]['value'] + '".')
-                for field_name in deduped_field_names:
-                    if field_name.startswith('field_'):
-                        csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
-                        row[field_name] = csv_data
-                writer.writerow(row)
-            else:
-                message = "Node with ID " + node['nid']['value'] + " not written to output CVS because its content type (" + \
-                    node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
-                logging.info.warning(message)
-                continue
+            if node['nid'][0]['value'] not in seen_nids:
+                if node['type'][0]['target_id'] == config['content_type']:
+                    seen_nids.append(node['nid'][0]['value'])
+                    row = dict()
+                    row['node_id'] = node['nid'][0]['value']
+                    row['title'] = node['title'][0]['value']
+                    print('Exporting data for node ' + str(row['node_id']) + ' "' + row['title'] + '".')
+                    for field_name in deduped_field_names:
+                        if field_name.startswith('field_'):
+                            csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
+                            row[field_name] = csv_data
+                    writer.writerow(row)
+                else:
+                    message = "Node with ID " + str(node['nid'][0]['value']) + " not written to output CVS because its content type (" + \
+                        node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
+                    logging.info.warning(message)
+                    continue
 
     csv_file.close()
     message = "CSV file is available at " + csv_file_path + '.'
