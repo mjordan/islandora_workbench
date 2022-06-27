@@ -618,7 +618,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             else:
                 field_definitions[fieldname]['authority_sources'] = None
 
-        field_definitions['title'] = {'entity_type': 'node', 'required': True, 'label': 'Title', 'field_type': 'string', 'cardinality': 1, 'max_length': 255, 'target_type': None}
+        field_definitions['title'] = {'entity_type': 'node', 'required': True, 'label': 'Title', 'field_type': 'string', 'cardinality': 1, 'max_length': config['max_node_title_length'], 'target_type': None}
 
     if entity_type == 'taxonomy_term':
         fields = get_entity_fields(config, 'taxonomy_term', bundle_type)
@@ -930,8 +930,8 @@ def check_input(config, args):
         view_path_status_code = ping_view_path(config, view_url)
         if view_path_status_code != 200:
             message = f"Cannot access View at {view_url}."
-            logging.error(message + " HTTP status code is " + str(view_path_status_code) + ".")
-            sys.exit("Error: " + message + " See log for more information.")
+            logging.error(message)
+            sys.exit("Error: " + message)
         else:
             message = f'View REST export at "{view_url}" is accessible.'
             logging.info(message)
@@ -949,7 +949,6 @@ def check_input(config, args):
             sys.exit("Error: " + message)
         else:
             message = f'CSV output file location at {csv_file_path} is writable.'
-            csv_file_path_file.close()
             logging.info(message)
             print("OK, " + message)
 
@@ -1275,15 +1274,6 @@ def check_input(config, args):
         warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_typed_relation_csv_data)
         if warn_user_about_typed_relation_terms is True:
             print('Warning: Issues detected with validating typed relation field values in the CSV file. See the log for more detail.')
-
-        # Validate length of 'title'.
-        if config['validate_title_length']:
-            validate_title_csv_data = get_csv_data(config)
-            for count, row in enumerate(validate_title_csv_data, start=1):
-                if 'title' in row and len(row['title']) > 255:
-                    message = "The 'title' column in row with ID " + row[config['id_field']] + " of your CSV file exceeds Drupal's maximum length of 255 characters."
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
 
         # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
@@ -1647,7 +1637,6 @@ def check_input_for_create_from_files(config, args):
         'delimiter',
         'subdelimiter',
         'allow_missing_files',
-        'validate_title_length',
         'paged_content_from_directories',
         'delete_media_with_nodes',
         'allow_adding_terms']
@@ -1681,9 +1670,9 @@ def check_input_for_create_from_files(config, args):
     files = os.listdir(config['input_dir'])
     for file_name in files:
         filename_without_extension = os.path.splitext(file_name)[0]
-        if len(filename_without_extension) > 255:
+        if len(filename_without_extension) > int(config['max_node_title_length']):
             message = 'The filename "' + filename_without_extension + \
-                '" exceeds Drupal\'s maximum length of 255 characters and cannot be used for a node title.'
+                '" exceeds Drupal\'s maximum length of ' + config['max_node_title_length'] + ' characters and cannot be used for a node title.'
             logging.error(message)
             sys.exit('Error: ' + message)
 
@@ -3329,16 +3318,14 @@ def validate_csv_field_length(config, field_definitions, csv_data):
         if csv_header in field_definitions.keys():
             if 'max_length' in field_definitions[csv_header]:
                 max_length = field_definitions[csv_header]['max_length']
-                # We don't care about max_length of None (i.e., it's
-                # not applicable or unlimited).
+                # We don't care about max_length of None (i.e., it's not applicable or unlimited).
                 if max_length is not None:
                     field_max_lengths[csv_header] = max_length
 
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_max_lengths.keys():
             if field_name in row:
-                delimited_field_values = row[field_name].split(
-                    config['subdelimiter'])
+                delimited_field_values = row[field_name].split(config['subdelimiter'])
                 for field_value in delimited_field_values:
                     field_value_length = len(field_value)
                     if field_name in field_max_lengths and len(field_value) > int(field_max_lengths[field_name]):

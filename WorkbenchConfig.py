@@ -119,7 +119,7 @@ class WorkbenchConfig:
             'allow_missing_files': False,
             'exit_on_first_missing_file_during_check': True,
             'update_mode': 'replace',
-            'validate_title_length': True,
+            'max_node_title_length': 255,
             'paged_content_from_directories': False,
             'delete_media_with_nodes': True,
             'allow_adding_terms': False,
