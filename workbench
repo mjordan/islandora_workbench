@@ -1049,7 +1049,7 @@ def get_data_from_view():
                 row['title'] = node['title'][0]['value']
                 print('Exporting data for node ' + str(row['node_id']) + ' "' + row['title'] + '".')
                 for field_name in deduped_field_names:
-                    if field_name.startswith('field_'):
+                    if field_name.startswith('field_') and field_name in node:
                         csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
                         row[field_name] = csv_data
                 writer.writerow(row)
@@ -1078,7 +1078,7 @@ def get_data_from_view():
                     row['title'] = node['title'][0]['value']
                     print('Exporting data for node ' + str(row['node_id']) + ' "' + row['title'] + '".')
                     for field_name in deduped_field_names:
-                        if field_name.startswith('field_'):
+                        if field_name.startswith('field_') and field_name in node:
                             csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
                             row[field_name] = csv_data
                     writer.writerow(row)
