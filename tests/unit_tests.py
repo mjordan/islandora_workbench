@@ -131,17 +131,35 @@ class TestSplitTypedRelationString(unittest.TestCase):
 
     def test_split_typed_relation_string_single(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_typed_relation_string(
-            config, 'relators:pht:5', 'foo')
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pht:5', 'foo')
         self.assertDictEqual(res[0],
                              {'target_id': int(5),
                               'rel_type': 'relators:pht',
                               'target_type': 'foo'})
 
+    def test_split_typed_relation_uri_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_typed_relation_string(config, 'relators:art:https://foo.bar/baz', 'foo')
+        self.assertDictEqual(res[0],
+                             {'target_id': 'https://foo.bar/baz',
+                              'rel_type': 'relators:art',
+                              'target_type': 'foo'})
+
+    def test_split_typed_relation_uri_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pht:https://example.com/example1|relators:con:https://example5.com/example6', 'bar')
+        self.assertDictEqual(res[0],
+                             {'target_id': 'https://example.com/example1',
+                              'rel_type': 'relators:pht',
+                              'target_type': 'bar'})
+        self.assertDictEqual(res[1],
+                             {'target_id': 'https://example5.com/example6',
+                              'rel_type': 'relators:con',
+                              'target_type': 'bar'})
+
     def test_split_typed_relation_string_single_with_delimter_in_value(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_typed_relation_string(
-            config, 'relators:pbl:London: Bar Press', 'foopub')
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pbl:London: Bar Press', 'foopub')
         self.assertDictEqual(res[0],
                              {'target_id': 'London: Bar Press',
                               'rel_type': 'relators:pbl',
@@ -149,8 +167,7 @@ class TestSplitTypedRelationString(unittest.TestCase):
 
     def test_split_typed_relation_string_multiple(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_typed_relation_string(
-            config, 'relators:pht:5|relators:con:10', 'bar')
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pht:5|relators:con:10', 'bar')
         self.assertDictEqual(res[0],
                              {'target_id': int(5),
                               'rel_type': 'relators:pht',
@@ -162,8 +179,7 @@ class TestSplitTypedRelationString(unittest.TestCase):
 
     def test_split_typed_relation_string_multiple_at_sign(self):
         config = {'subdelimiter': '@'}
-        res = workbench_utils.split_typed_relation_string(
-            config, 'relators:pht:5@relators:con:10', 'baz')
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pht:5@relators:con:10', 'baz')
         self.assertDictEqual(res[0],
                              {'target_id': int(5),
                               'rel_type': 'relators:pht',

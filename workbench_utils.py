@@ -1790,13 +1790,15 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
        e.g., 'relators:pht:5'. 'id' is either a term ID or a node ID. This
        function takes one of those strings (optionally with a multivalue
        subdelimiter) and returns a list of dictionaries in the form they
-       take in existing node values.
+       take in existing node values. ID values can also be term names (strings)
+       and term URIs (also strings, but in the form 'http....').
 
        Also, these values can (but don't need to) have an optional namespace
        in the term ID segment, which is the vocabulary ID string. These
        typed relation strings look like 'relators:pht:person:Jordan, Mark'.
        However, since we split the typed relation strings only on the first
-       two :, we don't need to worry about what's in the third segment.
+       two :, the entire third segment is considered, for the purposes of
+       splitting the value, to be the term.
     """
     return_list = []
     temp_list = typed_relation_string.split(config['subdelimiter'])
