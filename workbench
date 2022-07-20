@@ -354,7 +354,7 @@ def update():
             if config['progress_bar'] is False:
                 print("Node " + row['node_id'] + " not found or not accessible, skipping update.")
             logging.warning("Node " + row['node_id'] + " not found or not accessible, skipping update.")
-            break
+            continue
 
         row = clean_csv_values(row)
         # Add the target_id field.
@@ -457,8 +457,8 @@ def update():
 
             if node_response.status_code == 200:
                 if config['progress_bar'] is False:
-                    print("Node for " + config['host'] + '/node/' + row['node_id'] + " updated.")
-                logging.info("Node for %s updated.", config['host'] + '/node/' + row['node_id'])
+                    print("Node " + config['host'] + '/node/' + row['node_id'] + " updated.")
+                logging.info("Node %s updated.", config['host'] + '/node/' + row['node_id'])
 
             # Execute node-specific post-create scripts, if any are configured.
             if 'node_post_update' in config and len(config['node_post_update']) > 0:
