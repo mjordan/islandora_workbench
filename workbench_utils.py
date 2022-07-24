@@ -2532,11 +2532,17 @@ def remove_media_and_file(config, media_id):
     """Delete a media and the file associated with it.
     """
     # First get the media JSON.
-    get_media_url = '/media/' + str(media_id) + '?_format=json'
+    get_media_url = '/media/' + str(media_id) + '/edit?_format=json'
     get_media_response = issue_request(config, 'GET', get_media_url)
     get_media_response_body = json.loads(get_media_response.text)
+    
+    # See https://www.drupal.org/project/drupal/issues/3017935 for background.
+    if 'message' in get_media_response_body and get_media_response_body['message'].startswith("No route found for"):
+        message = f'Please visit {config["host"]}/admin/config/media/media-settings and uncheck the "Standalone media URL" option.'
+        logging.error(message)
+        sys.exit("Error: " + message)
 
-    # These are the Drupal field names on the various types of media.
+    # These are the Drupal field names on the standard types of media.
     file_fields = [
         'field_media_file',
         'field_media_image',
@@ -2554,24 +2560,17 @@ def remove_media_and_file(config, media_id):
     if file_response.status_code == 204:
         logging.info("File %s (from media %s) deleted.", file_id, media_id)
     else:
-        logging.error(
-            "File %s (from media %s) not deleted (HTTP response code %s).",
-            file_id,
-            media_id,
-            file_response.status_code)
+        logging.error("File %s (from media %s) not deleted (HTTP response code %s).", file_id, media_id, file_response.status_code)
 
     # Then the media.
     if file_response.status_code == 204:
-        media_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+        media_endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
         media_response = issue_request(config, 'DELETE', media_endpoint)
         if media_response.status_code == 204:
             logging.info("Media %s deleted.", media_id)
             return media_response.status_code
         else:
-            logging.error(
-                "Media %s not deleted (HTTP response code %s).",
-                media_id,
-                media_response.status_code)
+            logging.error("Media %s not deleted (HTTP response code %s).", media_id, media_response.status_code)
             return False
 
     return False
