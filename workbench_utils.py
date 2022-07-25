@@ -2534,7 +2534,7 @@ def remove_media_and_file(config, media_id):
     get_media_response = issue_request(config, 'GET', get_media_url)
     get_media_response_body = json.loads(get_media_response.text)
 
-    # See https://www.drupal.org/project/drupal/issues/3017935 for background.
+    # See https://github.com/mjordan/islandora_workbench/issues/446 for background.
     if 'message' in get_media_response_body and get_media_response_body['message'].startswith("No route found for"):
         message = f'Please visit {config["host"]}/admin/config/media/media-settings and uncheck the "Standalone media URL" option.'
         logging.error(message)
