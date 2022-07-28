@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="Islandora Workbench",
-    version="master",
+    version="0.1.dev0",
     author="Mark Jordan",
     author_email="mjordan@sfu",
     description="A command-line tool that allows creation, updating, and deletion of Islandora content.",

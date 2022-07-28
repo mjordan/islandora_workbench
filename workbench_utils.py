@@ -109,7 +109,7 @@ def issue_request(
     """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
        do not use this function.
     """
-    if 'password' not in config:
+    if not config['password']:
         message = 'Password for Drupal user not found. Please add the "password" option to your configuration ' + \
             'file or provide the Drupal user\'s password in your ISLANDORA_WORKBENCH_PASSWORD environment variable.'
         logging.error(message)
