@@ -363,23 +363,20 @@ def get_integration_module_version(config):
 def ping_node(config, nid, method='HEAD', return_json=False):
     """Ping the node to see if it exists.
 
+       Note that HEAD requests do not return a response body.
+
         Parameters
         ----------
         method: string
             Either 'HEAD' or 'GET'.
         return_json: boolean
-            HEAD requests cannot return a body, so if 'method' is HEAD,
-            we do not add '?_format=json' to our request.
+
         Returns
         ------
             True if method is HEAD and node was found, the response JSON response
             body if method was GET. False if request returns a non-allowed status code.
     """
-    if method == 'GET':
-        url = config['host'] + '/node/' + str(nid) + '?_format=json'
-    else:
-        return_json = False
-        url = config['host'] + '/node/' + str(nid)
+    url = config['host'] + '/node/' + str(nid) + '?_format=json'
     response = issue_request(config, method.upper(), url)
     allowed_status_codes = [200, 301, 302]
     if response.status_code in allowed_status_codes:
