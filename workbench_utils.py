@@ -368,25 +368,28 @@ def ping_node(config, nid, method='HEAD', return_json=False):
         method: string
             Either 'HEAD' or 'GET'.
         return_json: boolean
+            HEAD requests cannot return a body, so if 'method' is HEAD,
+            we do not add '?_format=json' to our request.
         Returns
         ------
-            True if method is HEAD and node was found, the response JSON
-            response body if method was GET. False if node not found.
+            True if method is HEAD and node was found, the response JSON response
+            body if method was GET. False if request returns a non-allowed status code.
     """
-    url = config['host'] + '/node/' + str(nid) + '?_format=json'
+    if method == 'GET':
+        url = config['host'] + '/node/' + str(nid) + '?_format=json'
+    else:
+        return_json = False
+        url = config['host'] + '/node/' + str(nid)
     response = issue_request(config, method.upper(), url)
-    # @todo: Add 301 and 302 to the allowed status codes?
-    if response.status_code == 200:
+    allowed_status_codes = [200, 301, 302]
+    if response.status_code in allowed_status_codes:
         if return_json is True:
             return response.text
         else:
             return True
     else:
         logging.warning(
-            "Node ping (%s) on %s returned a %s status code",
-            method.upper(),
-            url,
-            response.status_code)
+            "Node ping (%s) on %s returned a %s status code", method.upper(), url, response.status_code)
         return False
 
 
@@ -1286,7 +1289,8 @@ def check_input(config, args):
                         parent_node_exists = ping_node(config, parent_nid)
                         if parent_node_exists is False:
                             message = "The 'field_member_of' field in row with ID " + \
-                                row[config['id_field']] + " of your CSV file contains a node ID (" + parent_nid + ") that doesn't exist."
+                                row[config['id_field']] + " of your CSV file contains a node ID (" + parent_nid + ") that " + \
+                                    "doesn't exist or is not accessible. See the workbench log for more information."
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
@@ -2719,7 +2723,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
                     sys.exit('Error: ' + message)
 
     csv_writer_file_handle.close()
-    preprocessed_csv_reader_file_handle = open(input_csv_path + '.prepocessed', 'r')
+    preprocessed_csv_reader_file_handle = open(input_csv_path + '.prepocessed', 'r', encoding='utf-8')
     preprocessed_csv_reader = csv.DictReader(preprocessed_csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
     return preprocessed_csv_reader
 

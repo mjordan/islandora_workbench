@@ -250,7 +250,7 @@ def create():
             node_nid = node_uri.rsplit('/', 1)[-1]
             node_ids[id_field] = node_nid
 
-            if config['secondary_tasks'] is not None:
+            if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0 and len(secondary_task_data) > 0:
                 if args.config not in config['secondary_tasks']:
                     write_to_node_ids_tsv(config, id_field, node_id)
 
@@ -1291,7 +1291,7 @@ try:
     if config['task'] == 'create_terms':
         create_terms()
 
-    if config['secondary_tasks'] is not None:
+    if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0 and len(secondary_task_data) > 0:
         for secondary_config_file in config['secondary_tasks']:
             message = 'Executing secondary task using configuration file "' + secondary_config_file + '"'
             print('')
