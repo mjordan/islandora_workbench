@@ -102,6 +102,7 @@ class TestCreateFromFiles(unittest.TestCase):
             os.remove(self.rollback_file_path)
 
 
+'''
 class TestCreateFromFilesDrupal8(unittest.TestCase):
 
     def setUp(self):
@@ -137,6 +138,7 @@ class TestCreateFromFilesDrupal8(unittest.TestCase):
         self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'files', 'rollback.csv')
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
+'''
 
 
 class TestCreateWithNewTypedRelation(unittest.TestCase):

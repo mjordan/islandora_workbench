@@ -109,7 +109,7 @@ def issue_request(
     """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
        do not use this function.
     """
-    if 'password' not in config:
+    if not config['password']:
         message = 'Password for Drupal user not found. Please add the "password" option to your configuration ' + \
             'file or provide the Drupal user\'s password in your ISLANDORA_WORKBENCH_PASSWORD environment variable.'
         logging.error(message)
@@ -2453,13 +2453,13 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
             media_json['uid'] = [{'target_id': field_value}]
 
     if len(media_json) > 1:
-        endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+        endpoint = config['host'] + '/media/' + media_id + '/edit?_format=json'
         headers = {'Content-Type': 'application/json'}
         response = issue_request(config, 'PATCH', endpoint, headers, media_json)
         if response.status_code == 200:
-            logging.info("Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id)
+            logging.info("Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id + '/edit')
         else:
-            logging.warning("Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id)
+            logging.warning("Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id + '/edit')
 
 
 def patch_media_use_terms(config, media_id, media_type, media_use_tids):
@@ -2476,13 +2476,13 @@ def patch_media_use_terms(config, media_id, media_type, media_use_tids):
         media_use_tids_json.append({'target_id': media_use_tid, 'target_type': 'taxonomy_term'})
 
     media_json['field_media_use'] = media_use_tids_json
-    endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
     headers = {'Content-Type': 'application/json'}
     response = issue_request(config, 'PATCH', endpoint, headers, media_json)
     if response.status_code == 200:
-        logging.info("Media %s Islandora Media Use terms updated.", config['host'] + '/media/' + str(media_id))
+        logging.info("Media %s Islandora Media Use terms updated.", config['host'] + '/media/' + str(media_id) + '/edit')
     else:
-        logging.warning("Media %s Islandora Media Use terms not updated.", config['host'] + '/media/' + str(media_id))
+        logging.warning("Media %s Islandora Media Use terms not updated.", config['host'] + '/media/' + str(media_id) + '/edit')
 
 
 def clean_image_alt_text(input_string):
@@ -2496,7 +2496,7 @@ def patch_image_alt_text(config, media_id, node_csv_row):
     """Patch the alt text value for an image media. Use the parent node's title
        unless the CSV record contains an image_alt_text field with something in it.
     """
-    get_endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+    get_endpoint = config['host'] + '/media/' + media_id + '/edit?_format=json'
     get_headers = {'Content-Type': 'application/json'}
     get_response = issue_request(config, 'GET', get_endpoint, get_headers)
     get_response_body = json.loads(get_response.text)
@@ -2517,7 +2517,7 @@ def patch_image_alt_text(config, media_id, node_csv_row):
         ],
     }
 
-    patch_endpoint = config['host'] + '/media/' + media_id + '?_format=json'
+    patch_endpoint = config['host'] + '/media/' + media_id + '/edit?_format=json'
     patch_headers = {'Content-Type': 'application/json'}
     patch_response = issue_request(
         config,
@@ -2527,20 +2527,24 @@ def patch_image_alt_text(config, media_id, node_csv_row):
         media_json)
 
     if patch_response.status_code != 200:
-        logging.warning(
-            "Alt text for image media %s not updated.",
-            config['host'] + '/media/' + media_id)
+        logging.warning("Alt text for image media %s not updated.", config['host'] + '/media/' + media_id + + '/edit')
 
 
 def remove_media_and_file(config, media_id):
     """Delete a media and the file associated with it.
     """
     # First get the media JSON.
-    get_media_url = '/media/' + str(media_id) + '?_format=json'
+    get_media_url = '/media/' + str(media_id) + '/edit?_format=json'
     get_media_response = issue_request(config, 'GET', get_media_url)
     get_media_response_body = json.loads(get_media_response.text)
 
-    # These are the Drupal field names on the various types of media.
+    # See https://github.com/mjordan/islandora_workbench/issues/446 for background.
+    if 'message' in get_media_response_body and get_media_response_body['message'].startswith("No route found for"):
+        message = f'Please visit {config["host"]}/admin/config/media/media-settings and uncheck the "Standalone media URL" option.'
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    # These are the Drupal field names on the standard types of media.
     file_fields = [
         'field_media_file',
         'field_media_image',
@@ -2558,24 +2562,17 @@ def remove_media_and_file(config, media_id):
     if file_response.status_code == 204:
         logging.info("File %s (from media %s) deleted.", file_id, media_id)
     else:
-        logging.error(
-            "File %s (from media %s) not deleted (HTTP response code %s).",
-            file_id,
-            media_id,
-            file_response.status_code)
+        logging.error("File %s (from media %s) not deleted (HTTP response code %s).", file_id, media_id, file_response.status_code)
 
     # Then the media.
     if file_response.status_code == 204:
-        media_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+        media_endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
         media_response = issue_request(config, 'DELETE', media_endpoint)
         if media_response.status_code == 204:
             logging.info("Media %s deleted.", media_id)
             return media_response.status_code
         else:
-            logging.error(
-                "Media %s not deleted (HTTP response code %s).",
-                media_id,
-                media_response.status_code)
+            logging.error("Media %s not deleted (HTTP response code %s).", media_id, media_response.status_code)
             return False
 
     return False

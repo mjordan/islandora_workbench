@@ -5,6 +5,7 @@ import logging
 from ruamel.yaml import YAML
 import os
 import sys
+from getpass import getpass
 from workbench_utils import *
 from rich.console import Console
 from rich.table import Table
@@ -28,12 +29,12 @@ class WorkbenchConfig:
         config = self.get_default_config()
         user_mods = self.get_user_config()
         # If the password is not set in the config file, or in the environment
-        # variable, assign an empty password that will cause Workbench to error out later.
+        # variable, prompt the user for the password.
         if 'password' not in user_mods:
             if 'ISLANDORA_WORKBENCH_PASSWORD' in os.environ:
                 config['password'] = os.environ['ISLANDORA_WORKBENCH_PASSWORD']
             else:
-                config['password'] = ''
+                config['password'] = getpass(f"Password for Drupal user {user_mods['username']}:")
         # Blend defaults with user mods
         for key, value in user_mods.items():
             config[key] = value
