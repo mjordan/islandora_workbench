@@ -1601,7 +1601,11 @@ def check_input(config, args):
         for secondary_config_file in config['secondary_tasks']:
             print("")
             print('Running --check using secondary configuration file "' + secondary_config_file + '"')
-            cmd = ["./workbench", "--config", secondary_config_file, "--check"]
+            if os.name == 'nt':
+                # Assumes python.exe is in the user's PATH.
+                cmd = ["python", "./workbench", "--config", secondary_config_file, "--check"]
+            else:
+                cmd = ["./workbench", "--config", secondary_config_file, "--check"]
             output = subprocess.run(cmd)
 
         sys.exit(0)
