@@ -2735,13 +2735,24 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
     if 'check' in config.keys() and config['check'] is True:
         if config['validate_terms_exist'] is False:
             return False
+ 
+        # Attempt to detect term names that are namespaced and that that contain a colon. If there is
+        # a ':', maybe it's part of the term name and it's not namespaced. To find out, split term_name_to_find
+        # and compare the first segment with the vocab_id.
+        if re.search(':', term_name_to_find):
+            [tentative_vocab_id, tentative_term_name] = term_name_to_find.split(':', maxsplit=1)
+            if tentative_vocab_id == vocab_id:
+                term_name_to_find = tentative_term_name
+                
+        print("Debug vocab_id: ", vocab_id)
+        print("Debug term_name_to_find: ", term_name_to_find)
 
         # Namespaced terms (inc. typed relation terms): if there is a vocabulary namespace, we need to split it out
         # from the term name. This only applies in --check since namespaced terms are parsed in prepare_term_id().
         # Assumptions: the term namespace always directly precedes the term name, and the term name doesn't
         # contain a colon. See https://github.com/mjordan/islandora_workbench/issues/361 for related logic.
         namespaced = re.search(':', term_name_to_find)
-        if namespaced:
+        if namespaced:            
             namespaced_term_parts = term_name_to_find.split(':')
             # Assumption is that the term name is the last part, and the namespace is the second-last.
             term_name_to_find = namespaced_term_parts[-1]
@@ -3618,6 +3629,8 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
                 # will be False and will throw a TypeError.
                 try:
                     num_vocabs = len(vocabularies)
+                    if num_vocabs > 0:
+                        fields_with_vocabularies.append(column_name)
                 except BaseException:
                     message = 'Workbench cannot get vocabularies linked to field "' + column_name + '". Please confirm that field has at least one vocabulary.'
                     logging.error(message)
@@ -3747,6 +3760,8 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                 # will be False and will throw a TypeError.
                 try:
                     num_vocabs = len(vocabularies)
+                    if num_vocabs > 0:
+                        fields_with_vocabularies.append(column_name)
                 except BaseException:
                     message = 'Workbench cannot get vocabularies linked to field "' + column_name + '". Please confirm that field has at least one vocabulary.'
                     logging.error(message)
