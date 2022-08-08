@@ -111,7 +111,7 @@ def create():
         secondary_task_data = read_node_ids_tsv(config)
         if args.config in secondary_task_data:
             if len(secondary_task_data) > 0:
-                if 'field_member_of' in row and 'parent_id' in row:
+                if 'field_member_of' in row and 'parent_id' in row and row['field_member_of'] in secondary_task_data.keys():
                     row['field_member_of'] = secondary_task_data[row['parent_id']]
 
         # Add custom (non-required) CSV fields.
@@ -1291,7 +1291,7 @@ try:
     if config['task'] == 'create_terms':
         create_terms()
 
-    if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0 and len(secondary_task_data) > 0:
+    if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
         for secondary_config_file in config['secondary_tasks']:
             message = 'Executing secondary task using configuration file "' + secondary_config_file + '"'
             print('')

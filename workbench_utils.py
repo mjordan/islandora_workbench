@@ -460,7 +460,7 @@ def ping_islandora(config, print_message=True):
 
 
 def ping_content_type(config):
-    url = f"{config['host']}/entity/entity_form_display/node/.{config['content_type']}.default?_format=json"
+    url = f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
     return issue_request(config, 'GET', url).status_code
 
 
