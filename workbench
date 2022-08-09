@@ -1298,7 +1298,7 @@ try:
             print(message)
             logging.info(message)
             if os.name == 'nt':
-                # Assumes python.exe is in the user's PATH.            
+                # Assumes python.exe is in the user's PATH.
                 cmd = ["python", "./workbench", "--config", secondary_config_file]
             else:
                 cmd = ["./workbench", "--config", secondary_config_file]

@@ -1285,9 +1285,9 @@ def check_input(config, args):
                     if len(parent_nid) > 0:
                         parent_node_exists = ping_node(config, parent_nid)
                         if parent_node_exists is False:
-                            message = "The 'field_member_of' field in row with ID " + \
-                                row[config['id_field']] + " of your CSV file contains a node ID (" + parent_nid + ") that " + \
-                                    "doesn't exist or is not accessible. See the workbench log for more information."
+                            message = "The 'field_member_of' field in row with ID " + row[config['id_field']] + \
+                                " of your CSV file contains a node ID (" + parent_nid + ") that " + \
+                                "doesn't exist or is not accessible. See the workbench log for more information."
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
@@ -2727,7 +2727,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
 
 
 def find_term_in_vocab(config, vocab_id, term_name_to_find):
-    """Query the Term from term name View using the vocab_id to see if term_name_to_find is 
+    """Query the Term from term name View using the vocab_id to see if term_name_to_find is
        is found in that vocabulary. If so, returns the term ID; if not returns False. If
        more than one term found, returns the term ID of the first one. Also populates global
        lists of terms (checked_terms and newly_created_terms) to reduce queries to Drupal.
@@ -2750,30 +2750,32 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
     """
     if 'check' in config.keys() and config['check'] is True:
         if config['validate_terms_exist'] is False:
-            if vocab_id == 'sfu_department':
-                logging.warning("Debug 0")
-
-
             return False
- 
-        # Attempt to detect term names that are namespaced and that that contain a colon. If there is
+
+        # Attempt to detect term names (including typed relation taxonomy terms) that are namespaced. Some term names may
+        # contain a colon (which is used in the incoming CSV to seprate the vocab ID from the term name). If there is
         # a ':', maybe it's part of the term name and it's not namespaced. To find out, split term_name_to_find
         # and compare the first segment with the vocab_id.
-        if re.search(':', term_name_to_find):
+        if ':' in term_name_to_find:
+            original_term_name_to_find = copy.copy(term_name_to_find)
             [tentative_vocab_id, tentative_term_name] = term_name_to_find.split(':', maxsplit=1)
-            if tentative_vocab_id == vocab_id:
+            if tentative_vocab_id.strip() == vocab_id.strip():
                 term_name_to_find = tentative_term_name
+            else:
+                term_name_to_find = original_term_name_to_find
 
+        '''
         # Namespaced terms (inc. typed relation terms): if a vocabulary namespace is present, we need to split it out
         # from the term name. This only applies in --check since namespaced terms are parsed in prepare_term_id().
         # Assumptions: the term namespace always directly precedes the term name, and the term name may
         # contain a colon. See https://github.com/mjordan/islandora_workbench/issues/361 for related logic.
         namespaced = re.search(':', term_name_to_find)
-        if namespaced:            
+        if namespaced:
             namespaced_term_parts = term_name_to_find.split(':')
             # Assumption is that the term name is the last part, and the namespace is the second-last.
             term_name_to_find = namespaced_term_parts[-1]
             vocab_id = namespaced_term_parts[-2]
+        '''
 
         term_name_for_check_matching = term_name_to_find.lower().strip()
         for checked_term in checked_terms:
@@ -2781,8 +2783,6 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
                 if value_is_numeric(checked_term['tid']):
                     return checked_term['tid']
                 else:
-                    if vocab_id == 'sfu_department':
-                        logging.warning("Debug 1")
                     return False
 
     for newly_created_term in newly_created_terms:
@@ -2799,10 +2799,6 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
                 checked_term_to_add = {'tid': None, 'vocab_id': vocab_id, 'name': term_name_to_find, 'name_for_matching': term_name_for_check_matching}
                 if checked_term_to_add not in checked_terms:
                     checked_terms.append(checked_term_to_add)
-
-            if vocab_id == 'sfu_department':
-                logging.warning("Debug 2")
-
             return False
         elif len(term_data) > 1:
             print("Warning: See log for important message about duplicate terms within the same vocabulary.")
@@ -3180,10 +3176,10 @@ def create_url_alias(config, node_id, url_alias):
 
 
 def prepare_term_id(config, vocab_ids, field_name, term):
-    """Checks its 'term' argument to see if it's numeric (i.e., a term ID) and
-       if it is, returns it as is. If it's not (i.e., a term name) it looks for the
-       term name in the referenced vocabulary and returns its term ID (existing or
-       newly created).
+    """Checks to see if 'term' is numeric (i.e., a term ID) and if it is, returns it as
+       is. If it's not (i.e., it's a string term name) it looks for the term name in the
+       referenced vocabulary and returns its term ID if the term exists, and if it doesn't
+       exist, creates the term and returns the new term ID.
     """
     """Parameters
     ----------
@@ -3214,7 +3210,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
     else:
         if len(vocab_ids) == 1:
             # A namespace is not needed but it might be present. If there is,
-            # since this vocabulary is the only one linked to its field, 
+            # since this vocabulary is the only one linked to its field,
             # we remove it before sending it to create_term().
             namespaced = re.search(':', term)
             if namespaced:
@@ -3236,8 +3232,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
             # to namespace term names if they are used in multi-taxonomy fields.
             #
             # Split the namespace/vocab ID from the term name on ':'.
-            namespaced = re.search(':', term)
-            if namespaced:
+            if ':' in term:
                 [tentative_vocab_id, term_name] = term.split(':', maxsplit=1)
                 for vocab_id in vocab_ids:
                     if tentative_vocab_id == vocab_id:
@@ -3877,36 +3872,29 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
     # Allow for multiple values in one field.
     terms_to_check = csv_field_value.split(config['subdelimiter'])
     for field_value in terms_to_check:
-        # If this is a multi-taxonomy field, all term names must be namespaced
-        # using the vocab_id:term_name pattern, regardless of whether
-        # config['allow_adding_terms'] is True.
-        if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is not True and not field_value.startswith('http'):
-            # URIs are unique so don't need namespacing.
+        # If this is a multi-taxonomy field, all term names (not IDs or URIs) must be namespaced using the vocab_id:term_name pattern,
+        # regardless of whether config['allow_adding_terms'] is True. Also, we need to accommodate terms that are namespaced
+        # and also contain a ':'.
+        if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is False and not field_value.startswith('http'):
             split_field_values = field_value.split(config['subdelimiter'])
             for split_field_value in split_field_values:
-                namespaced = re.search(':', field_value)
-                if namespaced:
-                    # If the : is present, validate that the namespace is one of
-                    # the vocabulary IDs referenced by this field.
-                    field_value_parts = field_value.split(':')
-                    if field_value_parts[0] not in this_fields_vocabularies:
-                        message = 'Vocabulary ID "' + field_value_parts[0] + \
-                            '" used in CSV column "' + csv_field_name + '", row ' + str(record_number) + \
-                            ' does not match any of the vocabularies referenced by the' + \
-                            ' corresponding Drupal field (' + this_fields_vocabularies_string + ').'
+                if ':' in field_value:
+                    # If the : is present, validate that the namespace is one of the vocabulary IDs referenced by this field.
+                    [tentative_namespace, tentative_term_name] = field_value.split(':', 1)
+                    if tentative_namespace not in this_fields_vocabularies:
+                        message = 'Vocabulary ID "' + tentative_namespace + '" used in CSV column "' + csv_field_name + '", row ' + str(record_number) + \
+                            ' does not match any of the vocabularies referenced by the' + ' corresponding Drupal field (' + this_fields_vocabularies_string + ').'
                         logging.error(message)
                         sys.exit('Error: ' + message)
                 else:
-                    message = 'Term names in multi-vocabulary CSV field "' + csv_field_name + '" require a vocabulary namespace; value '
-                    message_2 = '"' + field_value + '" in row ' \
-                        + str(record_number) + ' does not have one.'
+                    message = 'Term names in CSV field "' + csv_field_name + '" require a vocabulary namespace; CSV value '
+                    message_2 = '"' + field_value + '" in row ' + str(record_number) + ' does not have one.'
                     logging.error(message + message_2)
                     sys.exit('Error: ' + message + message_2)
 
                 validate_term_name_length(split_field_value, str(record_number), csv_field_name)
 
-        # Check to see if field_value is a member of the field's vocabularies. First,
-        # check whether field_value is a term ID.
+        # Check to see if field_value is a member of the field's vocabularies. First, check whether field_value is a term ID.
         if value_is_numeric(field_value):
             field_value = field_value.strip()
             term_in_vocabs = False
@@ -3971,9 +3959,8 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                             logging.error(message + message_2)
                             sys.exit('Error: ' + message + message_2)
 
-                # If this is a multi-taxonomy field, all term names must be namespaced using
-                # the vocab_id:term_name pattern, regardless of whether
-                # config['allow_adding_terms'] is True.
+                # If this is a multi-taxonomy field, all term names must be namespaced using the vocab_id:term_name pattern,
+                # regardless of whether config['allow_adding_terms'] is True.
                 if len(this_fields_vocabularies) > 1:
                     split_field_values = field_value.split(config['subdelimiter'])
                     for split_field_value in split_field_values:
@@ -3981,7 +3968,7 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                         [namespace_vocab_id, namespaced_term_name] = split_field_value.split(':', 1)
                         if namespace_vocab_id not in this_fields_vocabularies:
                             message = 'CSV field "' + csv_field_name + '" in row ' + str(record_number) + ' contains a namespaced term name '
-                            message_2 = '(' + namespaced_term_name.strip() + '") that specifies a vocabulary not associated with that field.'
+                            message_2 = '("' + namespaced_term_name.strip() + '") that specifies a vocabulary not associated with that field (' + namespace_vocab_id + ').'
                             logging.error(message + message_2)
                             sys.exit('Error: ' + message + message_2)
 
