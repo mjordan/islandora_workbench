@@ -2727,13 +2727,33 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
 
 
 def find_term_in_vocab(config, vocab_id, term_name_to_find):
-    """For a given term name, query using the vocab_id to see if term_name_to_find
+    """Query the Term from term name View using the vocab_id to see if term_name_to_find is 
        is found in that vocabulary. If so, returns the term ID; if not returns False. If
        more than one term found, returns the term ID of the first one. Also populates global
        lists of terms (checked_terms and newly_created_terms) to reduce queries to Drupal.
     """
+    """Parameters
+    ----------
+    config : dict
+        The configuration object defined by set_config_defaults().
+    vocab_id: string
+        The vocabulary ID to use in the query to find the term.
+    field_name: string
+        The field's machine name.
+    term_name_to_find: string
+        The term name from CSV.
+    Returns
+    -------
+    int|boolean
+        The term ID, existing or newly created. Returns False if term name
+        is not found (or config['validate_terms_exist'] is False).
+    """
     if 'check' in config.keys() and config['check'] is True:
         if config['validate_terms_exist'] is False:
+            if vocab_id == 'sfu_department':
+                logging.warning("Debug 0")
+
+
             return False
  
         # Attempt to detect term names that are namespaced and that that contain a colon. If there is
@@ -2743,13 +2763,10 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
             [tentative_vocab_id, tentative_term_name] = term_name_to_find.split(':', maxsplit=1)
             if tentative_vocab_id == vocab_id:
                 term_name_to_find = tentative_term_name
-                
-        print("Debug vocab_id: ", vocab_id)
-        print("Debug term_name_to_find: ", term_name_to_find)
 
-        # Namespaced terms (inc. typed relation terms): if there is a vocabulary namespace, we need to split it out
+        # Namespaced terms (inc. typed relation terms): if a vocabulary namespace is present, we need to split it out
         # from the term name. This only applies in --check since namespaced terms are parsed in prepare_term_id().
-        # Assumptions: the term namespace always directly precedes the term name, and the term name doesn't
+        # Assumptions: the term namespace always directly precedes the term name, and the term name may
         # contain a colon. See https://github.com/mjordan/islandora_workbench/issues/361 for related logic.
         namespaced = re.search(':', term_name_to_find)
         if namespaced:            
@@ -2764,6 +2781,8 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
                 if value_is_numeric(checked_term['tid']):
                     return checked_term['tid']
                 else:
+                    if vocab_id == 'sfu_department':
+                        logging.warning("Debug 1")
                     return False
 
     for newly_created_term in newly_created_terms:
@@ -2780,6 +2799,10 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
                 checked_term_to_add = {'tid': None, 'vocab_id': vocab_id, 'name': term_name_to_find, 'name_for_matching': term_name_for_check_matching}
                 if checked_term_to_add not in checked_terms:
                     checked_terms.append(checked_term_to_add)
+
+            if vocab_id == 'sfu_department':
+                logging.warning("Debug 2")
+
             return False
         elif len(term_data) > 1:
             print("Warning: See log for important message about duplicate terms within the same vocabulary.")
@@ -3156,13 +3179,27 @@ def create_url_alias(config, node_id, url_alias):
             response.status_code)
 
 
-def prepare_term_id(config, vocab_ids, term):
-    """REST POST and PATCH operations require taxonomy term IDs, not term names. This
-       funtion checks its 'term' argument to see if it's numeric (i.e., a term ID) and
+def prepare_term_id(config, vocab_ids, field_name, term):
+    """Checks its 'term' argument to see if it's numeric (i.e., a term ID) and
        if it is, returns it as is. If it's not (i.e., a term name) it looks for the
        term name in the referenced vocabulary and returns its term ID (existing or
        newly created).
     """
+    """Parameters
+    ----------
+    config : dict
+        The configuration object defined by set_config_defaults().
+    vocab_ids: list
+        The vocabulary IDs associated with the field handling code calling this function.
+    field_name: string
+        The field's machine name.
+    term: string
+        The term name from CSV.
+    Returns
+    -------
+    int
+        The term ID, existing or newly created.
+"""
     term = str(term)
     term = term.strip()
     if value_is_numeric(term):
@@ -3176,16 +3213,18 @@ def prepare_term_id(config, vocab_ids, term):
             return tid_from_uri
     else:
         if len(vocab_ids) == 1:
-            # A namespace is not needed since this vocabulary is the only one linked to
-            # its field, so we remove it before sending it to create_term().
+            # A namespace is not needed but it might be present. If there is,
+            # since this vocabulary is the only one linked to its field, 
+            # we remove it before sending it to create_term().
             namespaced = re.search(':', term)
             if namespaced:
                 [vocab_id, term_name] = term.split(':', maxsplit=1)
-                tid = create_term(config, vocab_id.strip(), term_name.strip())
-                return tid
-            else:
-                tid = create_term(config, vocab_ids[0].strip(), term.strip())
-                return tid
+                if vocab_id == vocab_ids[0]:
+                    tid = create_term(config, vocab_id.strip(), term_name.strip())
+                    return tid
+                else:
+                    tid = create_term(config, vocab_ids[0].strip(), term.strip())
+                    return tid
         else:
             # Term names used in multi-taxonomy fields. They need to be namespaced with
             # the taxonomy ID.
@@ -3194,16 +3233,20 @@ def prepare_term_id(config, vocab_ids, term):
             # vocabulary the user wants a new term to be added to, and if the term name is
             # already used in any of the taxonomies linked to this field, we also don't know
             # which vocabulary to look for it in to get its term ID. Therefore, we always need
-            # to namespace term names if they are used in multi-taxonomy fields. If people want
-            # to use term names that contain a colon, they need to add them to Drupal first
-            # and use the term ID. Workaround PRs welcome.
+            # to namespace term names if they are used in multi-taxonomy fields.
             #
             # Split the namespace/vocab ID from the term name on ':'.
             namespaced = re.search(':', term)
             if namespaced:
-                [vocab_id, term_name] = term.split(':', maxsplit=1)
-                tid = create_term(config, vocab_id.strip(), term_name.strip())
-                return tid
+                [tentative_vocab_id, term_name] = term.split(':', maxsplit=1)
+                for vocab_id in vocab_ids:
+                    if tentative_vocab_id == vocab_id:
+                        tid = create_term(config, vocab_id.strip(), term_name.strip())
+                        return tid
+
+        # Explicitly return None if hasn't retured from one of the conditions above, e.g. if
+        # the term name contains a colon and it wasn't namespaced with a valid vocabulary ID.
+        return None
 
 
 def get_field_vocabularies(config, field_definitions, field_name):
@@ -3908,7 +3951,7 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
             new_terms_to_add = []
             for vocabulary in this_fields_vocabularies:
                 tid = find_term_in_vocab(config, vocabulary, field_value)
-                if value_is_numeric(tid) is not True:
+                if value_is_numeric(tid) is False:
                     # Single taxonomy fields.
                     if len(this_fields_vocabularies) == 1:
                         if config['allow_adding_terms'] is True:
