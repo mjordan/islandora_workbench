@@ -168,7 +168,8 @@ class WorkbenchConfig:
             'export_csv_term_mode': 'tid',
             'export_csv_file_path': None,
             'export_csv_field_list': [],
-            'data_from_view_file_path': None
+            'data_from_view_file_path': None,
+            'standalone_media_url': False
         }
 
     # Tests validity and existence of path.
