@@ -3239,6 +3239,9 @@ def prepare_term_id(config, vocab_ids, field_name, term):
                 else:
                     tid = create_term(config, vocab_ids[0].strip(), term.strip())
                     return tid
+            else:
+                tid = create_term(config, vocab_ids[0].strip(), term.strip())
+                return tid
         else:
             # Term names used in multi-taxonomy fields. They need to be namespaced with
             # the taxonomy ID.
@@ -3256,6 +3259,9 @@ def prepare_term_id(config, vocab_ids, field_name, term):
                     if tentative_vocab_id == vocab_id:
                         tid = create_term(config, vocab_id.strip(), term_name.strip())
                         return tid
+            else:
+                tid = create_term(config, vocab_ids.strip(), term.strip())
+                return tid
 
         # Explicitly return None if hasn't retured from one of the conditions above, e.g. if
         # the term name contains a colon and it wasn't namespaced with a valid vocabulary ID.
@@ -4843,7 +4849,8 @@ def prep_node_ids_tsv(config):
 
     # Write to the data file the names of config files identified in config['secondary_tasks']
     # since we need a way to ensure that only tasks whose names are registered there should
-    # populate their objects' 'field_member_of'.
+    # populate their objects' 'field_member_of'. We write the parent ID->nid map to this file
+    # as well, in write_to_node_ids_tsv().
     for secondary_config_file in config['secondary_tasks']:
         tsv_file.write(secondary_config_file + "\t" + '' + "\n")
     tsv_file.close()
