@@ -2178,7 +2178,12 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
                                         config['fixity_algorithm'], file_path, node_csv_row[config['id_field']], hash_from_local, node_csv_row['checksum'])
             if is_remote and config['delete_tmp_upload'] is True:
                 containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
-                shutil.rmtree(containing_folder)
+                try:
+                    # E.g., on Windows, "[WinError 32] The process cannot access the file because it is being used by another process"
+                    shutil.rmtree(containing_folder)
+                except PermissionError as e:
+                    logging.error(e)
+                    
             return file_id
         else:
             logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s".', file_endpoint_path, file_response.status_code)
