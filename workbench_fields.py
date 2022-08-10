@@ -38,6 +38,9 @@ class SimpleField():
             dictionary
                 A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
+        if row[field_name] is None:
+            return entity
+
         id_field = row[config['id_field']]
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -101,6 +104,9 @@ class SimpleField():
         """
         if config['update_mode'] == 'delete':
             entity[field_name] = []
+            return entity
+
+        if row[field_name] is None:
             return entity
 
         # Cardinality has a limit.
@@ -210,6 +216,9 @@ class SimpleField():
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
+            
+        if row[field_name] is None:
+            return entity            
 
         if field_definitions[field_name]['field_type'] == 'edtf':
             valid_values = list()
@@ -244,6 +253,9 @@ class SimpleField():
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
+            
+        if row[field_name] is None:
+            return entity            
 
         subvalues = list()
         for subvalue in field_data:
@@ -288,6 +300,9 @@ class GeolocationField():
             dictionary
                 A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
+        if row[field_name] is None:
+            return entity
+
         id_field = row[config['id_field']]
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -344,6 +359,9 @@ class GeolocationField():
         if config['update_mode'] == 'delete':
             entity[field_name] = []
             return entity
+
+        if row[field_name] is None:
+            return entity            
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -501,6 +519,9 @@ class LinkField():
             dictionary
                 A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
+        if row[field_name] is None:
+            return entity
+
         id_field = row[config['id_field']]
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -554,6 +575,9 @@ class LinkField():
         if config['update_mode'] == 'delete':
             entity[field_name] = []
             return entity
+            
+        if row[field_name] is None:
+            return entity            
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -716,6 +740,9 @@ class EntityReferenceField():
             dictionary
                 A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
+        if row[field_name] is None:
+            return entity
+
         id_field = row[config['id_field']]
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
@@ -805,6 +832,9 @@ class EntityReferenceField():
         if config['update_mode'] == 'delete':
             entity[field_name] = []
             return entity
+            
+        if row[field_name] is None:
+            return entity            
 
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
@@ -1004,6 +1034,9 @@ class TypedRelationField():
             dictionary
                 A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
+        if row[field_name] is None:
+            return entity
+
         id_field = row[config['id_field']]
         # Currently only supports Typed Relation taxonomy entities.
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
@@ -1078,6 +1111,9 @@ class TypedRelationField():
         if config['update_mode'] == 'delete':
             entity[field_name] = []
             return entity
+
+        if row[field_name] is None:
+            return entity            
 
         # Currently only supports Typed Relation taxonomy entities.
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
@@ -1265,6 +1301,9 @@ class AuthorityLinkField():
             dictionary
                 A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
+        if row[field_name] is None:
+            return entity
+
         id_field = row[config['id_field']]
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -1318,6 +1357,9 @@ class AuthorityLinkField():
         if config['update_mode'] == 'delete':
             entity[field_name] = []
             return entity
+
+        if row[field_name] is None:
+            return entity            
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
