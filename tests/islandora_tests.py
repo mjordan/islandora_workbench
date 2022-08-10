@@ -416,6 +416,7 @@ class TestSecondaryTask(unittest.TestCase):
 
         self.temp_dir = tempfile.gettempdir()
         self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt')
+        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt.prepocessed')
 
     def test_secondary_task(self):
         nids = list()
@@ -478,6 +479,9 @@ class TestSecondaryTask(unittest.TestCase):
         rollback_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'rollback.csv')
         if os.path.exists(rollback_file_path):
             os.remove(rollback_file_path)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
 
 
 class TestAdditionalFilesCreate(unittest.TestCase):

@@ -111,7 +111,7 @@ def create():
         secondary_task_data = read_node_ids_tsv(config)
         if args.config in secondary_task_data:
             if len(secondary_task_data) > 0:
-                if 'field_member_of' in row and 'parent_id' in row and row['field_member_of'] in secondary_task_data.keys():
+                if 'field_member_of' in row and 'parent_id' in row and row['parent_id'] in secondary_task_data.keys():
                     row['field_member_of'] = secondary_task_data[row['parent_id']]
 
         # Add custom (non-required) CSV fields.
@@ -250,7 +250,7 @@ def create():
             node_nid = node_uri.rsplit('/', 1)[-1]
             node_ids[id_field] = node_nid
 
-            if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0 and len(secondary_task_data) > 0:
+            if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
                 if args.config not in config['secondary_tasks']:
                     write_to_node_ids_tsv(config, id_field, node_id)
 

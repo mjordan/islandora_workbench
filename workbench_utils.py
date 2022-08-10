@@ -4825,7 +4825,8 @@ def prep_node_ids_tsv(config):
 
     # Write to the data file the names of config files identified in config['secondary_tasks']
     # since we need a way to ensure that only tasks whose names are registered there should
-    # populate their objects' 'field_member_of'.
+    # populate their objects' 'field_member_of'. We write the parent ID->nid map to this file
+    # as well, in write_to_node_ids_tsv().
     for secondary_config_file in config['secondary_tasks']:
         tsv_file.write(secondary_config_file + "\t" + '' + "\n")
     tsv_file.close()
