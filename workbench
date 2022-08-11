@@ -113,6 +113,12 @@ def create():
             if len(secondary_task_data) > 0:
                 if 'field_member_of' in row and 'parent_id' in row and row['parent_id'] in secondary_task_data.keys():
                     row['field_member_of'] = secondary_task_data[row['parent_id']]
+                else:
+                    # If there is no parent ID/nid pair in the secondary_task_data mapping,
+                    # either because it wasn't in the primary CSV or it failed to be created
+                    # in the primary task, skip creating the current secondary node and move on.
+                    logging.warning('Node for row with ID %s in secondary task CSV not created because its parent was not present or not created in the primary task.', id_field)
+                    break
 
         # Add custom (non-required) CSV fields.
         entity_fields = get_entity_fields(config, 'node', config['content_type'])
