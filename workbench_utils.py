@@ -2183,7 +2183,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
                     shutil.rmtree(containing_folder)
                 except PermissionError as e:
                     logging.error(e)
-                    
+
             return file_id
         else:
             logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s".', file_endpoint_path, file_response.status_code)

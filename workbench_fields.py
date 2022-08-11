@@ -216,9 +216,9 @@ class SimpleField():
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
-            
+
         if row[field_name] is None:
-            return entity            
+            return entity
 
         if field_definitions[field_name]['field_type'] == 'edtf':
             valid_values = list()
@@ -253,9 +253,9 @@ class SimpleField():
         """
         if 'field_type' not in field_definitions[field_name]:
             return values
-            
+
         if row[field_name] is None:
-            return entity            
+            return entity
 
         subvalues = list()
         for subvalue in field_data:
@@ -361,7 +361,7 @@ class GeolocationField():
             return entity
 
         if row[field_name] is None:
-            return entity            
+            return entity
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -575,9 +575,9 @@ class LinkField():
         if config['update_mode'] == 'delete':
             entity[field_name] = []
             return entity
-            
+
         if row[field_name] is None:
-            return entity            
+            return entity
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -832,9 +832,9 @@ class EntityReferenceField():
         if config['update_mode'] == 'delete':
             entity[field_name] = []
             return entity
-            
+
         if row[field_name] is None:
-            return entity            
+            return entity
 
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
@@ -1113,7 +1113,7 @@ class TypedRelationField():
             return entity
 
         if row[field_name] is None:
-            return entity            
+            return entity
 
         # Currently only supports Typed Relation taxonomy entities.
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
@@ -1359,7 +1359,7 @@ class AuthorityLinkField():
             return entity
 
         if row[field_name] is None:
-            return entity            
+            return entity
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
