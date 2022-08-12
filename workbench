@@ -118,7 +118,7 @@ def create():
                     # either because it wasn't in the primary CSV or it failed to be created
                     # in the primary task, skip creating the current secondary node and move on.
                     logging.warning('Node for row with ID %s in secondary task CSV not created because its parent was not present or not created in the primary task.', id_field)
-                    break
+                    continue
 
         # Add custom (non-required) CSV fields.
         entity_fields = get_entity_fields(config, 'node', config['content_type'])
