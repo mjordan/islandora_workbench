@@ -2459,13 +2459,16 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
             media_json['uid'] = [{'target_id': field_value}]
 
     if len(media_json) > 1:
-        endpoint = config['host'] + '/media/' + media_id + '/edit?_format=json'
+        if config['standalone_media_url'] is True:
+            endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+        else:
+            endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
         headers = {'Content-Type': 'application/json'}
         response = issue_request(config, 'PATCH', endpoint, headers, media_json)
         if response.status_code == 200:
-            logging.info("Media %s fields updated to match parent node's.", config['host'] + '/media/' + media_id + '/edit')
+            logging.info("Media %s fields updated to match parent node's.", endpoint)
         else:
-            logging.warning("Media %s fields not updated to match parent node's.", config['host'] + '/media/' + media_id + '/edit')
+            logging.warning("Media %s fields not updated to match parent node's.", endpoint)
 
 
 def patch_media_use_terms(config, media_id, media_type, media_use_tids):
@@ -2482,13 +2485,16 @@ def patch_media_use_terms(config, media_id, media_type, media_use_tids):
         media_use_tids_json.append({'target_id': media_use_tid, 'target_type': 'taxonomy_term'})
 
     media_json['field_media_use'] = media_use_tids_json
-    endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
+    if config['standalone_media_url'] is True:
+        endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    else:
+        endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
     headers = {'Content-Type': 'application/json'}
     response = issue_request(config, 'PATCH', endpoint, headers, media_json)
     if response.status_code == 200:
-        logging.info("Media %s Islandora Media Use terms updated.", config['host'] + '/media/' + str(media_id) + '/edit')
+        logging.info("Media %s Islandora Media Use terms updated.", endpoint)
     else:
-        logging.warning("Media %s Islandora Media Use terms not updated.", config['host'] + '/media/' + str(media_id) + '/edit')
+        logging.warning("Media %s Islandora Media Use terms not updated.", endpoint)
 
 
 def clean_image_alt_text(input_string):
@@ -2502,7 +2508,10 @@ def patch_image_alt_text(config, media_id, node_csv_row):
     """Patch the alt text value for an image media. Use the parent node's title
        unless the CSV record contains an image_alt_text field with something in it.
     """
-    get_endpoint = config['host'] + '/media/' + media_id + '/edit?_format=json'
+    if config['standalone_media_url'] is True:
+        get_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    else:
+        get_endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
     get_headers = {'Content-Type': 'application/json'}
     get_response = issue_request(config, 'GET', get_endpoint, get_headers)
     get_response_body = json.loads(get_response.text)
@@ -2523,7 +2532,10 @@ def patch_image_alt_text(config, media_id, node_csv_row):
         ],
     }
 
-    patch_endpoint = config['host'] + '/media/' + media_id + '/edit?_format=json'
+    if config['standalone_media_url'] is True:
+        patch_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    else:
+        patch_endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
     patch_headers = {'Content-Type': 'application/json'}
     patch_response = issue_request(
         config,
@@ -2533,14 +2545,17 @@ def patch_image_alt_text(config, media_id, node_csv_row):
         media_json)
 
     if patch_response.status_code != 200:
-        logging.warning("Alt text for image media %s not updated.", config['host'] + '/media/' + media_id + + '/edit')
+        logging.warning("Alt text for image media %s not updated.", patch_endpoint)
 
 
 def remove_media_and_file(config, media_id):
     """Delete a media and the file associated with it.
     """
     # First get the media JSON.
-    get_media_url = '/media/' + str(media_id) + '/edit?_format=json'
+    if config['standalone_media_url'] is True:
+        get_media_url = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    else:
+        get_media_url = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
     get_media_response = issue_request(config, 'GET', get_media_url)
     get_media_response_body = json.loads(get_media_response.text)
 
@@ -2572,7 +2587,10 @@ def remove_media_and_file(config, media_id):
 
     # Then the media.
     if file_response.status_code == 204:
-        media_endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
+        if config['standalone_media_url'] is True:
+            media_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+        else:
+            media_endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
         media_response = issue_request(config, 'DELETE', media_endpoint)
         if media_response.status_code == 204:
             logging.info("Media %s deleted.", media_id)
