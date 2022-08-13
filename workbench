@@ -1269,13 +1269,14 @@ except KeyboardInterrupt:
     except SystemExit:
         os._exit(0)
 
-# Execute bootstrap scripts, if any are configured.
-if 'bootstrap' in config and len(config['bootstrap']) > 0:
-    for command in config['bootstrap']:
-        print("Executing bootstrap script " + command)
-        output, return_code = execute_bootstrap_script(command, args.config)
-
 try:
+    # Execute bootstrap scripts, if any are configured.
+    if 'bootstrap' in config and len(config['bootstrap']) > 0:
+        for command in config['bootstrap']:
+            print("Executing bootstrap script " + command)
+            output, return_code = execute_bootstrap_script(command, args.config)
+            logging.info(f"Bootstrap script {command} exited with {return_code}.")
+
     if config['task'] == 'create':
         create()
     if config['task'] == 'update':
@@ -1313,6 +1314,13 @@ try:
         map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
         if os.path.exists(map_file_path):
             os.remove(map_file_path)
+
+    # Execute shutdown scripts, if any are configured.
+    if 'shutdown' in config and len(config['shutdown']) > 0:
+        for command in config['shutdown']:
+            print("Executing shutdown script " + command)
+            output, return_code = execute_shutdown_script(command, args.config)
+            logging.info(f"Shutdown script {command} exited with {return_code}.")
 
     logging.info(f"Islandora Workbench successfully completed.")
 

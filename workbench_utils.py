@@ -2068,6 +2068,15 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
     return result, cmd.returncode
 
 
+def execute_shutdown_script(path_to_script, path_to_config_file):
+    """Executes a shutdown script and returns its output and exit status code.
+    """
+    cmd = subprocess.Popen([path_to_script, path_to_config_file], stdout=subprocess.PIPE)
+    result, stderrdata = cmd.communicate()
+
+    return result, cmd.returncode
+
+
 def execute_entity_post_task_script(path_to_script, path_to_config_file, http_response_code, entity_json=''):
     """Executes a entity-level post-task script and returns its output and exit status code.
     """
