@@ -1534,6 +1534,24 @@ def check_input(config, args):
             logging.info(message)
             print(message)
 
+    # Check for shutdown scripts, if any are configured.
+    shutdown_scripts_present = False
+    if 'shutdown' in config and len(config['shutdown']) > 0:
+        shutdown_scripts_present = True
+        for shutdown_script in config['shutdown']:
+            if not os.path.exists(shutdown_script):
+                message = "shutdown script " + shutdown_script + " not found."
+                logging.error(message)
+                sys.exit('Error: ' + message)
+            if os.access(shutdown_script, os.X_OK) is False:
+                message = "Shutdown script " + shutdown_script + " is not executable."
+                logging.error(message)
+                sys.exit('Error: ' + message)
+        if shutdown_scripts_present is True:
+            message = "OK, registered shutdown scripts found and executable."
+            logging.info(message)
+            print(message)
+
     # Check for preprocessor scripts, if any are configured.
     preprocessor_scripts_present = False
     if 'preprocessors' in config and len(config['preprocessors']) > 0:
