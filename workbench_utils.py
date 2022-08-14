@@ -228,7 +228,7 @@ def issue_request(
     if config['log_response_time'] is True:
         url_for_logging = urllib.parse.urlparse(url).path + '?' + urllib.parse.urlparse(url).query
         if 'adaptive_pause' in config and value_is_numeric(config['adaptive_pause']):
-            response_time - int(config['adaptive_pause'])
+            response_time = response_time - int(config['adaptive_pause'])
         response_time_trend_entry = {'method': method, 'response': response.status_code, 'url': url_for_logging, 'response_time': response_time, 'average_response_time': average_response_time}
         logging.info(response_time_trend_entry)
         # Set this config option back to what it was before we updated in above.
