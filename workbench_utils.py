@@ -226,7 +226,11 @@ def issue_request(
             config['log_response_time'] = True
 
     if config['log_response_time'] is True:
-        url_for_logging = urllib.parse.urlparse(url).path + '?' + urllib.parse.urlparse(url).query
+        parsed_query_string = urllib.parse.urlparse(url).query
+        if len(parsed_query_string):
+            url_for_logging = urllib.parse.urlparse(url).path + '?' + parsed_query_string
+        else:
+            url_for_logging = urllib.parse.urlparse(url).path
         if 'adaptive_pause' in config and value_is_numeric(config['adaptive_pause']):
             response_time = response_time - int(config['adaptive_pause'])
         response_time_trend_entry = {'method': method, 'response': response.status_code, 'url': url_for_logging, 'response_time': response_time, 'average_response_time': average_response_time}
