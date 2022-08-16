@@ -2605,19 +2605,24 @@ def remove_media_and_file(config, media_id):
         'field_media_video_file']
     for file_field_name in file_fields:
         if file_field_name in get_media_response_body:
-            file_id = get_media_response_body[file_field_name][0]['target_id']
+            try:
+                file_id = get_media_response_body[file_field_name][0]['target_id']
+            except Exception as e:
+                logging.error("Unable to get file ID for media %s (reason: %s); proceeding to delete media without file.", media_id, e)
+                file_id = None
             break
 
     # Delete the file first.
-    file_endpoint = config['host'] + '/entity/file/' + str(file_id) + '?_format=json'
-    file_response = issue_request(config, 'DELETE', file_endpoint)
-    if file_response.status_code == 204:
-        logging.info("File %s (from media %s) deleted.", file_id, media_id)
-    else:
-        logging.error("File %s (from media %s) not deleted (HTTP response code %s).", file_id, media_id, file_response.status_code)
+    if file_id is not None:
+        file_endpoint = config['host'] + '/entity/file/' + str(file_id) + '?_format=json'
+        file_response = issue_request(config, 'DELETE', file_endpoint)
+        if file_response.status_code == 204:
+            logging.info("File %s (from media %s) deleted.", file_id, media_id)
+        else:
+            logging.error("File %s (from media %s) not deleted (HTTP response code %s).", file_id, media_id, file_response.status_code)
 
     # Then the media.
-    if file_response.status_code == 204:
+    if file_response.status_code == 204 or file_id is None:
         if config['standalone_media_url'] is True:
             media_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
         else:
