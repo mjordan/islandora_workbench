@@ -595,6 +595,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname] = {}
             raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
             field_config = json.loads(raw_field_config)
+
             field_definitions[fieldname]['entity_type'] = field_config['entity_type']
             field_definitions[fieldname]['required'] = field_config['required']
             field_definitions[fieldname]['label'] = field_config['label']
@@ -602,6 +603,15 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             if len(raw_vocabularies) > 0:
                 vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
                 field_definitions[fieldname]['vocabularies'] = vocabularies
+            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
+            if 'handler' in field_config['settings']:
+                field_definitions[fieldname]['handler'] = field_config['settings']['handler']
+            else:
+                field_definitions[fieldname]['handler'] = None
+            if 'handler_settings' in field_config['settings']:
+                field_definitions[fieldname]['handler_settings'] = field_config['settings']['handler_settings']
+            else:
+                field_definitions[fieldname]['handler_settings'] = None
 
             raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
             field_storage = json.loads(raw_field_storage)
@@ -622,7 +632,19 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             else:
                 field_definitions[fieldname]['authority_sources'] = None
 
-        field_definitions['title'] = {'entity_type': 'node', 'required': True, 'label': 'Title', 'field_type': 'string', 'cardinality': 1, 'max_length': config['max_node_title_length'], 'target_type': None}
+        # title's configuration is not returned by Drupal so we construct it here. Note: if you add a new key to
+        # 'field_definitions', also add it to title's entry here. Also add it for 'title' in the other entity types, below.
+        field_definitions['title'] = {
+            'entity_type': 'node',
+            'required': True,
+            'label': 'Title',
+            'field_type': 'string',
+            'cardinality': 1,
+            'max_length': config['max_node_title_length'],
+            'target_type': None,
+            'handler': None,
+            'handler_settings': None
+        }
 
     if entity_type == 'taxonomy_term':
         fields = get_entity_fields(config, 'taxonomy_term', bundle_type)
@@ -633,6 +655,16 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname]['entity_type'] = field_config['entity_type']
             field_definitions[fieldname]['required'] = field_config['required']
             field_definitions[fieldname]['label'] = field_config['label']
+            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
+            if 'handler' in field_config['settings']:
+                field_definitions[fieldname]['handler'] = field_config['settings']['handler']
+            else:
+                field_definitions[fieldname]['handler'] = None
+            if 'handler_settings' in field_config['settings']:
+                field_definitions[fieldname]['handler_settings'] = field_config['settings']['handler_settings']
+            else:
+                field_definitions[fieldname]['handler_settings'] = None
+
             raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
             field_storage = json.loads(raw_field_storage)
             field_definitions[fieldname]['field_type'] = field_storage['type']
@@ -650,7 +682,17 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             else:
                 field_definitions[fieldname]['authority_sources'] = None
 
-        field_definitions['term_name'] = {'entity_type': 'taxonomy_term', 'required': True, 'label': 'Name', 'field_type': 'string', 'cardinality': 1, 'max_length': 255, 'target_type': None}
+        field_definitions['term_name'] = {
+            'entity_type': 'taxonomy_term',
+            'required': True,
+            'label': 'Name',
+            'field_type': 'string',
+            'cardinality': 1,
+            'max_length': 255,
+            'target_type': None,
+            'handler': None,
+            'handler_settings': None
+        }
 
     if entity_type == 'media':
         # @note: this section is incomplete.
@@ -1043,6 +1085,21 @@ def check_input(config, args):
             message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
             logging.error(message)
             sys.exit('Error: ' + message)
+
+        # Check for the View that is necessary for entity reference fields configured
+        # as "Views: Filter by an entity reference View" (issue 452).
+        for drupal_fieldname in drupal_fieldnames:
+            if field_definitions[drupal_fieldname]['handler'] == 'views':
+                entity_reference_view_exists = get_entity_reference_view_endpoint(config, field_definitions[drupal_fieldname]['handler_settings'])
+                if entity_reference_view_exists is False:
+                    # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
+                    console_message = f'Workbench cannot access the View "{}" required to validate values for field "{drupal_fieldname}". See log for more detail.'
+                    log_message = 'Workbench cannot access the REST endpoint defined by the REST Export display "' + \
+                        field_definitions[drupal_fieldname]['handler_settings']['view']['display_name'] + \
+                        '" in View "' + field_definitions[drupal_fieldname]['handler_settings']['view']['view_name'] + \
+                        '" required to validate values for field "' + drupal_fieldname + '". Please confirm it exists.'
+                    logging.error(log_message)
+                    sys.exit('Error: ' + console_message)
 
         if config['list_missing_drupal_fields'] is True:
             missing_drupal_fields = []
@@ -4879,6 +4936,31 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     return csv_field_data
 
 
+def get_entity_reference_view_endpoint(config, hander_settings):
+    # field_definitions[drupal_fieldname]
+    """Verifies that the REST endpoint fo the View identified in '' is accessible. The path to this
+       endpoint is defined in the configuration file.
+
+       Necessary for entity reference fields configured as "Views: Filter by an entity reference View".
+       Unlike Views endpoints for taxonomy entity reference fields configured using the "default"
+       entity reference method, the Islandora Workbench Integration module does not provide a generic
+       Views REST endpoint that can be used to validate values in this type of field.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        handler_settings : dict
+            The handler_settings values from the field's configuration.
+            # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
+        Returns
+        -------
+        bool
+            True if the REST endpoint is accessible, False if not.
+    """
+    pass
+
+
 def prep_node_ids_tsv(config):
     path_to_tsv_file = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
     if os.path.exists(path_to_tsv_file):
@@ -4934,6 +5016,8 @@ def calculate_response_time_trend(config, response_time):
     """
     """Parameters
         ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
         response_time : Response time of current request, in seconds.
             The string to test.
         Returns
