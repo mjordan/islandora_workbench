@@ -389,8 +389,7 @@ def ping_node(config, nid, method='HEAD', return_json=False):
         else:
             return True
     else:
-        logging.warning(
-            "Node ping (%s) on %s returned a %s status code", method.upper(), url, response.status_code)
+        logging.warning("Node ping (%s) on %s returned a %s status code", method.upper(), url, response.status_code)
         return False
 
 
@@ -410,10 +409,7 @@ def ping_vocabulary(config, vocab_id):
     if response.status_code == 200:
         return True
     else:
-        logging.warning(
-            "Node ping (HEAD) on %s returned a %s status code",
-            url,
-            response.status_code)
+        logging.warning("Node ping (HEAD) on %s returned a %s status code", url, response.status_code)
         return False
 
 
@@ -468,8 +464,55 @@ def ping_content_type(config):
     return issue_request(config, 'GET', url).status_code
 
 
-def ping_view_path(config, view_url):
+def ping_view_entpoint(config, view_url):
+    """Verifies that the View REST endpoint is accessible.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        view_url
+            The View's REST export path.
+        Returns
+        -------
+        int
+            The HTTP response code.
+    """
     return issue_request(config, 'HEAD', view_url).status_code
+
+
+def ping_entity_reference_view_endpoint(config, hander_settings):
+    # field_definitions[drupal_fieldname]
+    """Verifies that the REST endpoint of the View identified in '' is accessible. The path to this
+       endpoint is defined in the configuration file.
+
+       Necessary for entity reference fields configured as "Views: Filter by an entity reference View".
+       Unlike Views endpoints for taxonomy entity reference fields configured using the "default"
+       entity reference method, the Islandora Workbench Integration module does not provide a generic
+       Views REST endpoint that can be used to validate values in this type of field.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        handler_settings : dict
+            The handler_settings values from the field's configuration.
+            # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
+        Returns
+        -------
+        bool
+            True if the REST endpoint is accessible, False if not.
+    """
+    url = config['host'] + '/entity/taxonomy_vocabulary/' + vocab_id.strip() + '?_format=json'
+    # curl -v -uadmin:islandora "http://localhost:8000/issue_452_test?name=xxx&_format=json" returns 200 with body of []
+
+    if ping is True:
+        response = issue_request(config, 'GET', url)
+        if response.status_code == 200:
+            return True
+        else:
+            logging.warning("View REST export ping (HEAD) on %s returned a %s status code", url, response.status_code)
+            return False
 
 
 def ping_media_bundle(config, bundle_name):
@@ -973,7 +1016,7 @@ def check_input(config, args):
     if config['task'] == 'get_data_from_view':
         # First, ping the View.
         view_url = config['host'] + '/' + config['view_path'].lstrip('/')
-        view_path_status_code = ping_view_path(config, view_url)
+        view_path_status_code = ping_view_endpoint(config, view_url)
         if view_path_status_code != 200:
             message = f"Cannot access View at {view_url}."
             logging.error(message)
@@ -4934,31 +4977,6 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
 
     return csv_field_data
-
-
-def get_entity_reference_view_endpoint(config, hander_settings):
-    # field_definitions[drupal_fieldname]
-    """Verifies that the REST endpoint fo the View identified in '' is accessible. The path to this
-       endpoint is defined in the configuration file.
-
-       Necessary for entity reference fields configured as "Views: Filter by an entity reference View".
-       Unlike Views endpoints for taxonomy entity reference fields configured using the "default"
-       entity reference method, the Islandora Workbench Integration module does not provide a generic
-       Views REST endpoint that can be used to validate values in this type of field.
-    """
-    """Parameters
-        ----------
-        config : dict
-            The configuration object defined by set_config_defaults().
-        handler_settings : dict
-            The handler_settings values from the field's configuration.
-            # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
-        Returns
-        -------
-        bool
-            True if the REST endpoint is accessible, False if not.
-    """
-    pass
 
 
 def prep_node_ids_tsv(config):

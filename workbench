@@ -998,7 +998,7 @@ def get_data_from_view():
 
     view_parameters = '&'.join(config['view_parameters']) if 'view_parameters' in config else ''
     view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page=0&' + view_parameters
-    view_path_status_code = ping_view_path(config, view_url)
+    view_path_status_code = ping_view_endpoint(config, view_url)
     if view_path_status_code != 200:
         message = f"Cannot access View at {view_url}."
         logging.error(message + " HTTP status code is " + str(view_path_status_code) + ".")
