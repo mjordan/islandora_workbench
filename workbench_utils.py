@@ -481,10 +481,9 @@ def ping_view_entpoint(config, view_url):
     return issue_request(config, 'HEAD', view_url).status_code
 
 
-def ping_entity_reference_view_endpoint(config, hander_settings):
-    # field_definitions[drupal_fieldname]
-    """Verifies that the REST endpoint of the View identified in '' is accessible. The path to this
-       endpoint is defined in the configuration file.
+def ping_entity_reference_view_endpoint(config, fieldname, hander_settings):
+    """Verifies that the REST endpoint of the View is accessible. The path to this endpoint
+       is defined in the configuration file's 'entity_reference_view_endpoints' option.
 
        Necessary for entity reference fields configured as "Views: Filter by an entity reference View".
        Unlike Views endpoints for taxonomy entity reference fields configured using the "default"
@@ -495,6 +494,8 @@ def ping_entity_reference_view_endpoint(config, hander_settings):
         ----------
         config : dict
             The configuration object defined by set_config_defaults().
+        fieldname: string
+            The name of the Drupal field.
         handler_settings : dict
             The handler_settings values from the field's configuration.
             # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
@@ -503,16 +504,22 @@ def ping_entity_reference_view_endpoint(config, hander_settings):
         bool
             True if the REST endpoint is accessible, False if not.
     """
-    url = config['host'] + '/entity/taxonomy_vocabulary/' + vocab_id.strip() + '?_format=json'
-    # curl -v -uadmin:islandora "http://localhost:8000/issue_452_test?name=xxx&_format=json" returns 200 with body of []
+    endpoint_mappings = get_entity_reference_view_endpoints(config)
+    if len(endpoint_mappings) == 0:
+        logging.warning("The 'entity_reference_view_endpoints' option in your configuration file does not contain any field-Views endpoint mappings.")
+        return False
+    if fieldname not in endpoint_mappings:
+        logging.warning('The field "' + fieldname + '" is not in your "entity_reference_view_endpoints" configuration option.')
+        return False
 
-    if ping is True:
-        response = issue_request(config, 'GET', url)
-        if response.status_code == 200:
-            return True
-        else:
-            logging.warning("View REST export ping (HEAD) on %s returned a %s status code", url, response.status_code)
-            return False
+    # "http://localhost:8000/issue_452_test?name=xxx&_format=json"
+    url = config['host'] + endpoint_mappings[fieldname] + '?name=xxx&_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        return True
+    else:
+        logging.warning("View REST export ping (HEAD) on %s returned a %s status code", url, response.status_code)
+        return False
 
 
 def ping_media_bundle(config, bundle_name):
@@ -1129,21 +1136,6 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
 
-        # Check for the View that is necessary for entity reference fields configured
-        # as "Views: Filter by an entity reference View" (issue 452).
-        for drupal_fieldname in drupal_fieldnames:
-            if field_definitions[drupal_fieldname]['handler'] == 'views':
-                entity_reference_view_exists = get_entity_reference_view_endpoint(config, field_definitions[drupal_fieldname]['handler_settings'])
-                if entity_reference_view_exists is False:
-                    # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
-                    console_message = f'Workbench cannot access the View "{}" required to validate values for field "{drupal_fieldname}". See log for more detail.'
-                    log_message = 'Workbench cannot access the REST endpoint defined by the REST Export display "' + \
-                        field_definitions[drupal_fieldname]['handler_settings']['view']['display_name'] + \
-                        '" in View "' + field_definitions[drupal_fieldname]['handler_settings']['view']['view_name'] + \
-                        '" required to validate values for field "' + drupal_fieldname + '". Please confirm it exists.'
-                    logging.error(log_message)
-                    sys.exit('Error: ' + console_message)
-
         if config['list_missing_drupal_fields'] is True:
             missing_drupal_fields = []
             for csv_column_header in csv_column_headers:
@@ -1168,6 +1160,21 @@ def check_input(config, args):
             langcode_was_present = True
 
         for csv_column_header in csv_column_headers:
+            # Check for the View that is necessary for entity reference fields configured
+            # as "Views: Filter by an entity reference View" (issue 452).
+            if field_definitions[csv_column_header]['handler'] == 'views':
+                entity_reference_view_exists = ping_entity_reference_view_endpoint(config, csv_column_header, field_definitions[csv_column_header]['handler_settings'])
+                if entity_reference_view_exists is False:
+                    # handler_settings: {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
+                    console_message = 'Workbench cannot access the View "' + field_definitions[csv_column_header]['handler_settings']['view']['view_name'] + \
+                        '" required to validate values for field "' + csv_column_header + '". See log for more detail.'
+                    log_message = 'Workbench cannot access the path defined by the REST Export display "' + \
+                        field_definitions[csv_column_header]['handler_settings']['view']['display_name'] + \
+                        '" in the View "' + field_definitions[csv_column_header]['handler_settings']['view']['view_name'] + \
+                        '" required to validate values for field "' + csv_column_header + '". Please check your Drupal Views configuration.'
+                    logging.error(log_message)
+                    sys.exit('Error: ' + console_message)
+
             if len(get_additional_files_config(config)) > 0:
                 if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
                     if csv_column_header in config['ignore_csv_columns']:
@@ -5023,6 +5030,29 @@ def read_node_ids_tsv(config):
             map[parts[0]] = parts[1]
 
     return map
+
+
+def get_entity_reference_view_endpoints(config):
+    """Gets entity reference View endpoints from config.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        Returns
+        -------
+        dict
+            Dictionary with Drupal field names as keys and View REST endpoints as values.
+    """
+    endpoint_mappings = dict()
+    if 'entity_reference_view_endpoints' not in config:
+        return endpoint_mappings
+
+    for endpoint_mapping in config['entity_reference_view_endpoints']:
+        for field_name, endpoint in endpoint_mapping.items():
+            endpoint_mappings[field_name] = endpoint
+
+    return endpoint_mappings
 
 
 def get_percentage(part, whole):
