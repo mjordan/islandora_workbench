@@ -217,9 +217,6 @@ class SimpleField():
         if 'field_type' not in field_definitions[field_name]:
             return values
 
-        if row[field_name] is None:
-            return entity
-
         if field_definitions[field_name]['field_type'] == 'edtf':
             valid_values = list()
             for subvalue in values:
