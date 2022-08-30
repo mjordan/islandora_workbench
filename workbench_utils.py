@@ -1162,18 +1162,19 @@ def check_input(config, args):
         for csv_column_header in csv_column_headers:
             # Check for the View that is necessary for entity reference fields configured
             # as "Views: Filter by an entity reference View" (issue 452).
-            if field_definitions[csv_column_header]['handler'] == 'views':
-                entity_reference_view_exists = ping_entity_reference_view_endpoint(config, csv_column_header, field_definitions[csv_column_header]['handler_settings'])
-                if entity_reference_view_exists is False:
-                    # handler_settings: {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
-                    console_message = 'Workbench cannot access the View "' + field_definitions[csv_column_header]['handler_settings']['view']['view_name'] + \
-                        '" required to validate values for field "' + csv_column_header + '". See log for more detail.'
-                    log_message = 'Workbench cannot access the path defined by the REST Export display "' + \
-                        field_definitions[csv_column_header]['handler_settings']['view']['display_name'] + \
-                        '" in the View "' + field_definitions[csv_column_header]['handler_settings']['view']['view_name'] + \
-                        '" required to validate values for field "' + csv_column_header + '". Please check your Drupal Views configuration.'
-                    logging.error(log_message)
-                    sys.exit('Error: ' + console_message)
+            if config['require_entity_reference_views'] is True:
+                if field_definitions[csv_column_header]['handler'] == 'views':
+                    entity_reference_view_exists = ping_entity_reference_view_endpoint(config, csv_column_header, field_definitions[csv_column_header]['handler_settings'])
+                    if entity_reference_view_exists is False:
+                        # handler_settings: {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
+                        console_message = 'Workbench cannot access the View "' + field_definitions[csv_column_header]['handler_settings']['view']['view_name'] + \
+                            '" required to validate values for field "' + csv_column_header + '". See log for more detail.'
+                        log_message = 'Workbench cannot access the path defined by the REST Export display "' + \
+                            field_definitions[csv_column_header]['handler_settings']['view']['display_name'] + \
+                            '" in the View "' + field_definitions[csv_column_header]['handler_settings']['view']['view_name'] + \
+                            '" required to validate values for field "' + csv_column_header + '". Please check your Drupal Views configuration.'
+                        logging.error(log_message)
+                        sys.exit('Error: ' + console_message)
 
             if len(get_additional_files_config(config)) > 0:
                 if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
