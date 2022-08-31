@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
-'''Example entity post-task script that logs sys.args.
-
-   These scripts must be executable.
+'''Example/template entity post-action script.
+   Docs at https://mjordan.github.io/islandora_workbench_docs/hooks/.
 '''
 
 import sys
