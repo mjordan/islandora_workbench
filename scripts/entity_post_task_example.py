@@ -20,4 +20,8 @@ http_response_code = sys.argv[2]
 http_response_body = sys.argv[3]
 entity = json.loads(response_body)
 
-logging.info(sys.argv)
+if http_response_code == '201':
+    # Execute code if entity was successfully created.
+else:
+    # Execute code if entity was not successfully created.
+

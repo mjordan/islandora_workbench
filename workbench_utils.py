@@ -4337,7 +4337,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
                 if post_task_return_code == 0:
                     logging.info("Post node create script " + command + " executed successfully.")
                 else:
-                    logging.error("Post node create script " + command + " failed.")
+                    logging.error("Post node create script " + command + " failed with exit code " + str(post_task_return_code) +  ".")
 
 
 def get_rollback_csv_filepath(config):
