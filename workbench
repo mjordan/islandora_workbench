@@ -1220,7 +1220,10 @@ if config['check'] is False and 'bootstrap' in config and len(config['bootstrap'
     for command in config['bootstrap']:
         print("Executing bootstrap script " + command)
         output, return_code = execute_bootstrap_script(command, args.config)
-        logging.info(f"Bootstrap script {command} exited with {return_code}.")
+        if return_code == 0:
+            logging.info(f"Bootstrap script {command} executed successfully.")
+        else:
+            logging.error(f"Bootstrap script {command} failed with exit code {str(return_code)}.")
 
 if config['task'] != 'create_from_files' and config['input_csv'].startswith('http') is True:
     get_csv_from_google_sheet(config)
@@ -1320,7 +1323,10 @@ try:
         for command in config['shutdown']:
             print("Executing shutdown script " + command)
             output, return_code = execute_shutdown_script(command, args.config)
-            logging.info(f"Shutdown script {command} exited with {return_code}.")
+            if return_code == 0:
+                logging.info(f"Shutdown script {command} executed successfully.")
+            else:
+                logging.error(f"Shutdown script {command} failed with exit code {str(return_code)}.")
 
     logging.info(f"Islandora Workbench successfully completed.")
 
