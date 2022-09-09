@@ -464,7 +464,7 @@ def ping_content_type(config):
     return issue_request(config, 'GET', url).status_code
 
 
-def ping_view_entpoint(config, view_url):
+def ping_view_endpoint(config, view_url):
     """Verifies that the View REST endpoint is accessible.
     """
     """Parameters
