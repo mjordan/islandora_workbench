@@ -660,6 +660,11 @@ def add_media():
             pbar(row_position)
 
 
+def update_media():
+    """Placeholder function. See https://github.com/mjordan/islandora_workbench/issues/76 for more info.
+    """
+
+
 def delete_media():
     """Delete media from media IDs in the input CSV.
     """
@@ -1192,6 +1197,11 @@ def create_terms():
 
     if config['progress_bar'] is True:
         pbar(100)
+
+
+def update_terms():
+    """Placeholder function. See https://github.com/mjordan/islandora_workbench/issues/469 for more info.
+    """
 
 
 # Main program logic.
