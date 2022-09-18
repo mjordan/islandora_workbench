@@ -24,6 +24,7 @@ from unidecode import unidecode
 from progress_bar import InitBar
 import edtf_validate.valid_edtf
 import shutil
+import itertools
 import http.client
 
 
@@ -2838,7 +2839,13 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         csv_writer.writeheader()
         row_num = 0
         unique_identifiers = []
-        for row in csv_reader:
+        # We subtract 1 from config['csv_start_row'] so user's expectation of the actual
+        # start row match up with Python's 0-based counting.
+        if config['csv_start_row'] > 0:
+            csv_start_row = config['csv_start_row'] - 1
+        else:
+            csv_start_row = config['csv_start_row']
+        for row in itertools.islice(csv_reader, csv_start_row, config['csv_stop_row']):
             row_num += 1
 
             # Remove columns specified in config['ignore_csv_columns'].
@@ -2874,7 +2881,13 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames, delimiter=config['delimiter'])
         csv_writer.writeheader()
         row_num = 0
-        for row in csv_reader:
+        # We subtract 1 from config['csv_start_row'] so user's expectation of the actual
+        # start row match up with Python's 0-based counting.
+        if config['csv_start_row'] > 0:
+            csv_start_row = config['csv_start_row'] - 1
+        else:
+            csv_start_row = config['csv_start_row']
+        for row in itertools.islice(csv_reader, csv_start_row, config['csv_stop_row']):
             row_num += 1
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config['ignore_csv_columns']) > 0:
@@ -5038,6 +5051,20 @@ def read_node_ids_tsv(config):
             map[parts[0]] = parts[1]
 
     return map
+
+
+def csv_subset_warning(config):
+    """Create a message indicating that the csv_start_row and csv_stop_row config
+       options are present and that a subset of the input CSV will be used.
+    """
+    if config['csv_start_row'] != 0 or config['csv_stop_row'] is not None:
+        message = f"Using a subset of the input CSV (will start at row {config['csv_start_row']}, stop at row {config['csv_stop_row']})."
+        if config['csv_start_row'] != 0 and config['csv_stop_row'] is None:
+            message = f"Using a subset of the input CSV (will start at row {config['csv_start_row']})."
+        if config['csv_start_row'] == 0 and config['csv_stop_row'] is not None:
+            message = f"Using a subset of the input CSV (will stop at row {config['csv_stop_row']})."
+        print(message)
+        logging.info(message)
 
 
 def get_entity_reference_view_endpoints(config):

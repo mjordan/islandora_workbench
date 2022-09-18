@@ -170,7 +170,9 @@ class WorkbenchConfig:
             'export_csv_field_list': [],
             'data_from_view_file_path': None,
             'standalone_media_url': False,
-            'require_entity_reference_views': True
+            'require_entity_reference_views': True,
+            'csv_start_row': 0,
+            'csv_stop_row': None
         }
 
     # Tests validity and existence of path.

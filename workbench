@@ -1250,6 +1250,8 @@ if config['nodes_only'] is False:
 
 drupal_8 = set_drupal_8(config)
 
+csv_subset_warning(config)
+
 # Apparently, there's no built-in way of getting the number of items in a
 # DictReader, so we read the CSV file, convert it to a list, and get its length.
 if config['progress_bar'] is True:
