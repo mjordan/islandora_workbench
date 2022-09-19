@@ -118,6 +118,8 @@ class WorkbenchConfig:
             'log_file_path': 'workbench.log',
             'log_file_mode': 'a',
             'allow_missing_files': False,
+            # See issue 268.
+            'strict_check': True,
             'exit_on_first_missing_file_during_check': True,
             'update_mode': 'replace',
             'max_node_title_length': 255,
