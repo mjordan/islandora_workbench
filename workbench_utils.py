@@ -1479,7 +1479,7 @@ def check_input(config, args):
             # Check for empty 'file' values.
             if len(file_check_row['file']) == 0:
                 message = 'CSV row with ID ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
-                if config['exit_on_first_missing_file_during_check'] is True and config['allow_missing_files'] is False:
+                if config['strict_check'] is True and config['allow_missing_files'] is False:
                     logging.warning(message)
                     sys.exit('Error: ' + message)
                 else:
@@ -1492,7 +1492,7 @@ def check_input(config, args):
                 if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
                     message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID "' \
                         + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
-                    if config['exit_on_first_missing_file_during_check'] is True and config['allow_missing_files'] is False:
+                    if config['strict_check'] is True and config['allow_missing_files'] is False:
                         logging.error(message)
                         sys.exit('Error: ' + message)
                     else:
@@ -1508,7 +1508,7 @@ def check_input(config, args):
                 if not os.path.exists(file_path) or not os.path.isfile(file_path):
                     message = 'File "' + file_path + '" identified in CSV "file" column for record with ID field value "' \
                         + file_check_row[config['id_field']] + '" not found.'
-                    if config['exit_on_first_missing_file_during_check'] is True:
+                    if config['strict_check'] is True:
                         logging.error(message)
                         sys.exit('Error: ' + message)
                     else:
@@ -1516,11 +1516,10 @@ def check_input(config, args):
                             rows_with_missing_files.append(file_check_row[config['id_field']])
                             logging.error(message)
 
+        # @todo for issue 268: All accumulator variables like 'rows_with_missing_files' should be checked at end of
+        # check_input() (to work with strict_check: false) in addition to at place of check (to work wit strict_check: true).
         if len(rows_with_missing_files) > 0:
-            if config['allow_missing_files'] is False:
-                logging.error('Missing or empty CSV "file" column values detected. See log entries above.')
-                sys.exit('Error: Missing or empty CSV "file" column values detected. See the log for more information.')
-            else:
+            if config['allow_missing_files'] is True:
                 message = 'OK, missing or empty CSV "file" column values detected, but the "allow_missing_files" configuration option is enabled.'
                 print(message + " See the log for more information.")
                 logging.info(message + " See log entries above for more information.")
@@ -1753,6 +1752,13 @@ def check_input(config, args):
                 message = 'Path in configuration option "export_csv_file_path" ("' + config['export_csv_file_path'] + '") is not writable.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+
+    # @todo issue 268: All checks for accumulator variables like 'rows_with_missing_files' should go here.
+    if len(rows_with_missing_files) > 0 and config['strict_check'] is False:
+        if config['allow_missing_files'] is False:
+            logging.error('Missing or empty CSV "file" column values detected. See log entries above.')
+            # @todo issue 268: Only exit if one or more of the checks have failed (i.e. do not exit on each check).
+            sys.exit('Error: Missing or empty CSV "file" column values detected. See the log for more information.')
 
     # If nothing has failed by now, exit with a positive, upbeat message.
     print("Configuration and input data appear to be valid.")
