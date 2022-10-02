@@ -1067,7 +1067,7 @@ def get_data_from_view():
         else:
             message = "Node with ID " + str(node['nid'][0]['value']) + " not written to output CVS because its content type (" + \
                 node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
-            logging.info.warning(message)
+            logging.warning(message)
             continue
 
     # Loop through the remaining pages, until we encounter an empty page.
@@ -1096,7 +1096,7 @@ def get_data_from_view():
                 else:
                     message = "Node with ID " + str(node['nid'][0]['value']) + " not written to output CVS because its content type (" + \
                         node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
-                    logging.info.warning(message)
+                    logging.warning(message)
                     continue
 
     csv_file.close()
