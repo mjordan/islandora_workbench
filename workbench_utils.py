@@ -867,6 +867,8 @@ def check_input(config, args):
     ping_islandora(config, print_message=False)
     check_integration_module_version(config)
 
+    rows_with_missing_files = list()
+
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
     # but it doesn't show up in any field configs.
@@ -1473,7 +1475,6 @@ def check_input(config, args):
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
         file_check_csv_data = get_csv_data(config)
-        rows_with_missing_files = list()
         for count, file_check_row in enumerate(file_check_csv_data, start=1):
             file_check_row['file'] = file_check_row['file'].strip()
             # Check for empty 'file' values.
