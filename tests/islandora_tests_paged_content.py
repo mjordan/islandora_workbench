@@ -108,6 +108,8 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
         for k, v in config_data.items():
             config[k] = v
         self.islandora_host = config['host']
+        self.islandora_username = config['username']
+        self.islandora_password = config['password']
 
         self.create_cmd = ["./workbench", "--config", create_config_file_path]
 
@@ -141,16 +143,21 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
         # Islandora this test is running against, this test will fail. Also note
         # that this test creates media and does not delete them.
         parent_node_id_to_test = nids[0]
-        child_node_id_to_test = nids[2]
-        node_url = self.islandora_host + '/node/' + child_node_id_to_test + '?_format=json'
-        response = requests.get(node_url)
-        node_json = json.loads(response.text)
-        field_member_of = node_json['field_member_of'][0]['target_id']
+        # Get the REST feed for the parent node's members.
+        members_url = self.islandora_host + '/node/' + parent_node_id_to_test + '/members?_format=json'
+        # Need to provide credentials for this REST export.
+        members_response = requests.get(members_url, auth=(self.islandora_username, self.islandora_password))
+        members = json.loads(members_response.text)
 
-        self.assertEqual(int(parent_node_id_to_test), field_member_of)
+        expected_member_weights = [1, 2, 3]
+        retrieved_member_weights = list()
+        for member in members:
+            retrieved_member_weights.append(int(member['field_weight'][0]['value']))
+            # Test that each page indeed a member of the first node created during this test.
+            self.assertEqual(int(parent_node_id_to_test), int(member['field_member_of'][0]['target_id']))
 
-        # Test that the 'field_weight' value of the second page is 2.
-        self.assertEqual(2, node_json['field_weight'][0]['value'])
+        # Test that the weights assigned to the three pages are what we expect.
+        self.assertEqual(expected_member_weights, retrieved_member_weights)
 
     def tearDown(self):
         delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'delete.yml')
