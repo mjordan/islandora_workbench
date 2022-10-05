@@ -1163,7 +1163,7 @@ def check_input(config, args):
         for csv_column_header in csv_column_headers:
             # Check for the View that is necessary for entity reference fields configured
             # as "Views: Filter by an entity reference View" (issue 452).
-            if field_definitions[csv_column_header]['handler'] == 'views':
+            if csv_column_header in field_definitions and field_definitions[csv_column_header]['handler'] == 'views':
                 if config['require_entity_reference_views'] is True:
                     entity_reference_view_exists = ping_entity_reference_view_endpoint(config, csv_column_header, field_definitions[csv_column_header]['handler_settings'])
                     if entity_reference_view_exists is False:
