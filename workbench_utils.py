@@ -1474,6 +1474,9 @@ def check_input(config, args):
 
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
+        # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
+        if config['task'] == 'add_media'
+            config['id_field'] = 'node_id'
         file_check_csv_data = get_csv_data(config)
         for count, file_check_row in enumerate(file_check_csv_data, start=1):
             file_check_row['file'] = file_check_row['file'].strip()
