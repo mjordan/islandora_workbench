@@ -3553,6 +3553,10 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
        fields that have more values than allowed, and warn user if
        these fields exist in their CSV data.
     """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
+
     field_cardinalities = dict()
     csv_headers = csv_data.fieldnames
     for csv_header in csv_headers:
@@ -3593,6 +3597,10 @@ def validate_csv_field_length(config, field_definitions, csv_data):
        fields that exceed their max_length, and warn user if
        these fields exist in their CSV data.
     """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
+
     field_max_lengths = dict()
     csv_headers = csv_data.fieldnames
     for csv_header in csv_headers:
@@ -3625,6 +3633,10 @@ def validate_csv_field_length(config, field_definitions, csv_data):
 def validate_geolocation_fields(config, field_definitions, csv_data):
     """Validate lat,long values in fields that are of type 'geolocation'.
     """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
+
     geolocation_fields_present = False
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
@@ -3648,6 +3660,10 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
 def validate_link_fields(config, field_definitions, csv_data):
     """Validate values in fields that are of type 'link'.
     """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
+
     link_fields_present = False
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
@@ -3765,6 +3781,10 @@ def validate_node_created_date(csv_data):
     """Checks that date_string is in the format used by Drupal's 'created' node property,
        e.g., 2020-11-15T23:49:22+00:00. Also check to see if the date is in the future.
     """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
+
     for count, row in enumerate(csv_data, start=1):
         for field_name, field_value in row.items():
             if field_name == 'created' and len(field_value) > 0:
@@ -3801,6 +3821,9 @@ def validate_node_created_date_string(created_date_string):
 def validate_edtf_fields(config, field_definitions, csv_data):
     """Validate values in fields that are of type 'edtf'.
     """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
     edtf_fields_present = False
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
@@ -4014,6 +4037,10 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
        If the last segment is a string, it must be term name, a namespaced term name,
        or an http URI.
     """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
+
     # Define a list to store CSV field names that contain vocabularies.
     fields_with_vocabularies = list()
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
