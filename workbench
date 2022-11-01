@@ -1225,6 +1225,15 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%d-%b-%y %H:%M:%S')
 
+if 'check' in config.keys():
+    if config['check'] is False:
+        csv_data_to_count = get_csv_data(config)
+        num_csv_records = len(list(csv_data_to_count))
+        if num_csv_records == 0:
+            zero_data_rows_message = f"Input CSV \"{config['input_csv']}\" contains 0 data rows, exiting."
+            logging.warning(zero_data_rows_message)
+            sys.exit("WARNING: " + zero_data_rows_message)
+
 # Execute bootstrap scripts, if any are configured.
 if config['check'] is False and 'bootstrap' in config and len(config['bootstrap']) > 0:
     for command in config['bootstrap']:
