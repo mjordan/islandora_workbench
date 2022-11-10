@@ -80,11 +80,11 @@ class TestExecutePostActionEntityScript(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        self.preprocessed_rollback_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'rollback.csv.prepocessed')
+        self.preprocessed_rollback_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'rollback.csv.preprocessed')
         if os.path.exists(self.preprocessed_rollback_file_path):
             os.remove(self.preprocessed_rollback_file_path)
 
-        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'metadata.csv.prepocessed')
+        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'metadata.csv.preprocessed')
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
 

@@ -50,7 +50,7 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
         return config['media_type']
 
     if filepath.strip().startswith('http'):
-        preprocessed_file_path = get_prepocessed_file_path(config, file_fieldname, csv_row)
+        preprocessed_file_path = get_preprocessed_file_path(config, file_fieldname, csv_row)
         filename = preprocessed_file_path.split('/')[-1]
         extension = filename.split('.')[-1]
         extension_with_dot = '.' + extension
@@ -2406,7 +2406,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     if filename.startswith('http'):
         if file_result is False:
             return False
-        filename = get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id)
+        filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id)
     if isinstance(file_result, int):
         if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
             media_use_tid_value = node_csv_row['media_use_tid']
@@ -2796,8 +2796,8 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
        applies some prepocessing to each CSV record (specifically, it adds any CSV field
        templates that are registered in the config file, and it filters out any CSV
        records or lines in the CSV file that begine with a #), and finally, writes out
-       a version of the CSV data to a file that appends .prepocessed to the input
-       CSV file name. It is this .prepocessed file that is used in create, update, etc.
+       a version of the CSV data to a file that appends .preprocessed to the input
+       CSV file name. It is this .preprocessed file that is used in create, update, etc.
        tasks.
     """
     """Parameters
@@ -2841,7 +2841,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         sys.exit(message)
 
     # 'restval' is what is used to populate superfluous fields/labels.
-    csv_writer_file_handle = open(input_csv_path + '.prepocessed', 'w+', newline='', encoding='utf-8')
+    csv_writer_file_handle = open(input_csv_path + '.preprocessed', 'w+', newline='', encoding='utf-8')
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
 
     csv_reader_fieldnames = csv_reader.fieldnames
@@ -2943,7 +2943,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
                     sys.exit('Error: ' + message)
 
     csv_writer_file_handle.close()
-    preprocessed_csv_reader_file_handle = open(input_csv_path + '.prepocessed', 'r', encoding='utf-8')
+    preprocessed_csv_reader_file_handle = open(input_csv_path + '.preprocessed', 'r', encoding='utf-8')
     preprocessed_csv_reader = csv.DictReader(preprocessed_csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
     return preprocessed_csv_reader
 
@@ -4617,7 +4617,7 @@ def check_file_exists(config, filename):
             return True
 
 
-def get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id=None):
+def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=None):
     """For remote/downloaded files, generates the path to the local temporary
        copy and returns that path. For local files, just returns the value of
        node_csv_row['file'].
@@ -4765,7 +4765,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
         print('Error: ' + message)
         return False
 
-    downloaded_file_path = get_prepocessed_file_path(config, file_fieldname, node_csv_row, node_id)
+    downloaded_file_path = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id)
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)

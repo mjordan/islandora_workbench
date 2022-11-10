@@ -60,7 +60,7 @@ class TestCreate(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'metadata.csv.prepocessed')
+        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'metadata.csv.preprocessed')
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
 
@@ -192,7 +192,7 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'create_with_new_typed_relation.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'create_with_new_typed_relation.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -392,7 +392,7 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -416,7 +416,7 @@ class TestSecondaryTask(unittest.TestCase):
 
         self.temp_dir = tempfile.gettempdir()
         self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt')
-        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt.prepocessed')
+        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt.preprocessed')
 
     def test_secondary_task(self):
         nids = list()
@@ -465,10 +465,10 @@ class TestSecondaryTask(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
-        secondary_preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'secondary.csv.prepocessed')
+        secondary_preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'secondary.csv.preprocessed')
         if os.path.exists(secondary_preprocessed_csv_path):
             os.remove(secondary_preprocessed_csv_path)
 
@@ -555,7 +555,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -563,7 +563,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         if os.path.exists(rollback_csv_path):
             os.remove(rollback_csv_path)
 
-        preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.prepocessed')
+        preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.preprocessed')
         if os.path.exists(preprocessed_rollback_csv_path):
             os.remove(preprocessed_rollback_csv_path)
 

@@ -85,7 +85,7 @@ class TestCreatePagedContent(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_test', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -167,7 +167,7 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -242,7 +242,7 @@ class TestCreatePagedContentFromDirectoriesDrupal8(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
