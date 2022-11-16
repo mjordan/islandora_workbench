@@ -1328,11 +1328,7 @@ try:
             print('')
             print(message)
             logging.info(message)
-            if os.name == 'nt':
-                # Assumes python.exe is in the user's PATH.
-                cmd = ["python", "./workbench", "--config", secondary_config_file]
-            else:
-                cmd = ["./workbench", "--config", secondary_config_file]
+            cmd = [config['path_to_python'], config['path_to_workbench_script'], "--config", secondary_config_file]
             output = subprocess.run(cmd)
 
         map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
