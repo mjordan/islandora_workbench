@@ -1068,7 +1068,8 @@ def check_input(config, args):
     csv_column_headers = csv_data.fieldnames
 
     # Check whether each row contains the same number of columns as there are headers.
-    for count, row in enumerate(csv_data, start=1):
+    row_count = 0
+    for row_count, row in enumerate(csv_data, start=1):
         extra_headers = False
         field_count = 0
         for field in row:
@@ -1078,20 +1079,25 @@ def check_input(config, args):
             else:
                 field_count += 1
         if extra_headers is True:
-            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of the CSV file has fewer columns " +  \
+            message = "Row " + str(row_count) + " (ID " + row[config['id_field']] + ") of the CSV file has fewer columns " +  \
                 "than there are headers (" + str(len(csv_column_headers)) + ")."
             logging.error(message)
             sys.exit('Error: ' + message)
         # Note: this message is also generated in get_csv_data() since CSV Writer thows an exception if the row has
         # form fields than headers.
         if len(csv_column_headers) < field_count:
-            message = "Row " + str(count) + " (ID " + row[config['id_field']] + ") of the CSV file has more columns (" +  \
+            message = "Row " + str(row_count) + " (ID " + row[config['id_field']] + ") of the CSV file has more columns (" +  \
                 str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")."
             logging.error(message)
             sys.exit('Error: ' + message)
-    message = "OK, all " + str(count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ")."
-    print(message)
-    logging.info(message)
+    if row_count == 0:
+            message = "Input CSV file " + config['input_csv'] + " has 0 rows."
+            logging.error(message)
+            sys.exit('Error: ' + message)
+    else:
+        message = "OK, all " + str(row_count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ")."
+        print(message)
+        logging.info(message)
 
     # Task-specific CSV checks.
     langcode_was_present = False
