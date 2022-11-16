@@ -2747,6 +2747,12 @@ def remove_media_and_file(config, media_id):
         logging.error(message)
         sys.exit("Error: " + message)
 
+    # See https://github.com/mjordan/islandora_workbench/issues/446 for background.
+    if get_media_response.status_code == 403:
+        message = f'If the "Standalone media URL" option at {config["host"]}/admin/config/media/media-settings is unchecked, clear your Drupal cache and run Workbench again.'
+        logging.error(message)
+        sys.exit("Error: " + message)
+
     # These are the Drupal field names on the standard types of media.
     file_fields = [
         'field_media_file',
