@@ -56,10 +56,6 @@ class WorkbenchConfig:
                 for key, value in preprocessor.items():
                     config['preprocessors'][key] = value
 
-        # See issue 470 (deprecating 'exit_on_first_missing_file_during_check' in favor of 'strict_check').
-        if 'exit_on_first_missing_file_during_check' in user_mods:
-            config['strict_check'] = config['exit_on_first_missing_file_during_check']
-
         return config
 
     # Get user input as dictionary.
@@ -124,8 +120,6 @@ class WorkbenchConfig:
             'allow_missing_files': False,
             # See issue 268.
             'strict_check': True,
-            # See issue #470.
-            'exit_on_first_missing_file_during_check': True,
             'update_mode': 'replace',
             'max_node_title_length': 255,
             'paged_content_from_directories': False,
