@@ -1,0 +1,10 @@
+task: create
+host: "http://localhost:8000"
+username: admin
+password: islandora
+input_dir: "tests/assets/delimiter_test"
+media_type: image
+input_csv: metadata.tsv
+delimiter: "\t"
+allow_missing_files: true
+exit_on_first_missing_file_during_check: false

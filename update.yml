@@ -3,4 +3,3 @@ host: "http://localhost:8000"
 username: admin
 password: islandora
 input_csv: update.csv
-validate_title_length: false
