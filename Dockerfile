@@ -1,5 +1,5 @@
 # filename: Dockerfile
-FROM python:3
+FROM python:3.10.6
 
 # Run this
 # $ docker build -t workbench-docker .
@@ -8,4 +8,6 @@ FROM python:3
 # Works with and without this line
 RUN python -m pip install setuptools
 
-RUN pip install filemagic libmagic
+# RUN pip install filemagic
+RUN pip install urllib3>=1.21.1
+RUN pip install libmagic
