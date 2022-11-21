@@ -6,3 +6,4 @@ username: admin
 password: islandora
 input_dir: tests/assets/taxonomies_test
 media_type: image
+exit_on_first_missing_file_during_check: false

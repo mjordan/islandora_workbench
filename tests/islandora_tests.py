@@ -15,6 +15,7 @@ import requests
 import json
 import urllib.parse
 import unittest
+import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
@@ -59,7 +60,7 @@ class TestCreate(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'metadata.csv.prepocessed')
+        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'metadata.csv.preprocessed')
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
 
@@ -101,6 +102,7 @@ class TestCreateFromFiles(unittest.TestCase):
             os.remove(self.rollback_file_path)
 
 
+'''
 class TestCreateFromFilesDrupal8(unittest.TestCase):
 
     def setUp(self):
@@ -136,6 +138,7 @@ class TestCreateFromFilesDrupal8(unittest.TestCase):
         self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'files', 'rollback.csv')
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
+'''
 
 
 class TestCreateWithNewTypedRelation(unittest.TestCase):
@@ -189,7 +192,7 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'create_with_new_typed_relation.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'create_with_new_typed_relation.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -227,10 +230,78 @@ class TestDelete(unittest.TestCase):
         delete_output = delete_output.decode().strip()
         delete_lines = delete_output.splitlines()
 
-        self.assertEqual(len(delete_lines), 6)
+        self.assertEqual(len(delete_lines), 7)
 
     def tearDown(self):
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+        if os.path.exists(self.nid_file + ".preprocessed"):
+            os.remove(self.nid_file + ".preprocessed")
+
+
+class TestUpdate(unittest.TestCase):
+
+    def setUp(self):
+        self.maxDiff = None
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'create.yml')
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+
+        self.temp_dir = tempfile.gettempdir()
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchupdatetestnids.txt')
+        self.update_metadata_file = os.path.join(self.current_dir, 'assets', 'update_test', 'workbenchupdatetest.csv')
+
+        yaml = YAML()
+        with open(create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config['host']
+
+        self.nids = list()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+        create_lines = create_output.splitlines()
+
+        with open(self.nid_file, "a") as nids_fh:
+            nids_fh.write("node_id\n")
+            for line in create_lines:
+                if 'created at' in line:
+                    nid = line.rsplit('/', 1)[-1]
+                    nid = nid.strip('.')
+                    nids_fh.write(nid + "\n")
+                    self.nids.append(nid)
+
+        # Add some values to the update CSV file to test against.
+        with open(self.update_metadata_file, "a") as update_fh:
+            update_fh.write("node_id,field_identifier,field_coordinates\n")
+            update_fh.write(f'{self.nids[0]},identifier-0001,"99.1,-123.2"')
+
+    def test_update(self):
+        # Run update task.
+        time.sleep(5)
+        update_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'update.yml')
+        self.update_cmd = ["./workbench", "--config", update_config_file_path]
+        subprocess.check_output(self.update_cmd)
+
+        # Confirm that fields have been updated.
+        url = self.islandora_host + '/node/' + str(self.nids[0]) + '?_format=json'
+        response = requests.get(url)
+        node = json.loads(response.text)
+        identifier = str(node['field_identifier'][0]['value'])
+        self.assertEqual(identifier, 'identifier-0001')
+        coodinates = str(node['field_coordinates'][0]['lat'])
+        self.assertEqual(coodinates, '99.1')
+
+    def tearDown(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'delete.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        subprocess.check_output(delete_cmd)
+
         os.remove(self.nid_file)
+        os.remove(self.update_metadata_file)
 
 
 class TestTermFromUri(unittest.TestCase):
@@ -321,7 +392,7 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -345,6 +416,7 @@ class TestSecondaryTask(unittest.TestCase):
 
         self.temp_dir = tempfile.gettempdir()
         self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt')
+        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt.preprocessed')
 
     def test_secondary_task(self):
         nids = list()
@@ -393,10 +465,10 @@ class TestSecondaryTask(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
-        secondary_preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'secondary.csv.prepocessed')
+        secondary_preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'secondary.csv.preprocessed')
         if os.path.exists(secondary_preprocessed_csv_path):
             os.remove(secondary_preprocessed_csv_path)
 
@@ -407,6 +479,9 @@ class TestSecondaryTask(unittest.TestCase):
         rollback_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'rollback.csv')
         if os.path.exists(rollback_file_path):
             os.remove(rollback_file_path)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
 
 
 class TestAdditionalFilesCreate(unittest.TestCase):
@@ -480,7 +555,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -488,7 +563,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         if os.path.exists(rollback_csv_path):
             os.remove(rollback_csv_path)
 
-        preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.prepocessed')
+        preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.preprocessed')
         if os.path.exists(preprocessed_rollback_csv_path):
             os.remove(preprocessed_rollback_csv_path)
 

@@ -102,21 +102,64 @@ class TestSplitLinkString(unittest.TestCase):
         self.assertDictEqual(res[1], {'uri': 'http://baz.com', 'title': 'Baz website'})
 
 
+class TestSplitAuthorityLinkString(unittest.TestCase):
+
+    def test_split_link_string_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_authority_link_string(config, 'foo%%http://www.foo.bar%%Foobar website')
+        self.assertDictEqual(res[0], {'source': 'foo', 'uri': 'http://www.foo.bar', 'title': 'Foobar website'})
+
+    def test_split_geolocation_string_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_authority_link_string(config, 'bar%%http://foobar.net%%Foobardotnet website|xxx%%http://baz.com%%Baz website')
+        self.assertDictEqual(res[0], {'source': 'bar', 'uri': 'http://foobar.net', 'title': 'Foobardotnet website'})
+        self.assertDictEqual(res[1], {'source': 'xxx', 'uri': 'http://baz.com', 'title': 'Baz website'})
+
+    def test_split_link_string_no_title_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_authority_link_string(config, 'foo%%http://www.foo.bar')
+        self.assertDictEqual(res[0], {'source': 'foo', 'uri': 'http://www.foo.bar', 'title': ''})
+
+    def test_split_geolocation_string_no_title_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_authority_link_string(config, 'zzz%%http://foobar.net|rrr%%http://baz.com%%Baz website')
+        self.assertDictEqual(res[0], {'source': 'zzz', 'uri': 'http://foobar.net', 'title': ''})
+        self.assertDictEqual(res[1], {'source': 'rrr', 'uri': 'http://baz.com', 'title': 'Baz website'})
+
+
 class TestSplitTypedRelationString(unittest.TestCase):
 
     def test_split_typed_relation_string_single(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_typed_relation_string(
-            config, 'relators:pht:5', 'foo')
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pht:5', 'foo')
         self.assertDictEqual(res[0],
                              {'target_id': int(5),
                               'rel_type': 'relators:pht',
                               'target_type': 'foo'})
 
+    def test_split_typed_relation_uri_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_typed_relation_string(config, 'relators:art:https://foo.bar/baz', 'foo')
+        self.assertDictEqual(res[0],
+                             {'target_id': 'https://foo.bar/baz',
+                              'rel_type': 'relators:art',
+                              'target_type': 'foo'})
+
+    def test_split_typed_relation_uri_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pht:https://example.com/example1|relators:con:https://example5.com/example6', 'bar')
+        self.assertDictEqual(res[0],
+                             {'target_id': 'https://example.com/example1',
+                              'rel_type': 'relators:pht',
+                              'target_type': 'bar'})
+        self.assertDictEqual(res[1],
+                             {'target_id': 'https://example5.com/example6',
+                              'rel_type': 'relators:con',
+                              'target_type': 'bar'})
+
     def test_split_typed_relation_string_single_with_delimter_in_value(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_typed_relation_string(
-            config, 'relators:pbl:London: Bar Press', 'foopub')
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pbl:London: Bar Press', 'foopub')
         self.assertDictEqual(res[0],
                              {'target_id': 'London: Bar Press',
                               'rel_type': 'relators:pbl',
@@ -124,8 +167,7 @@ class TestSplitTypedRelationString(unittest.TestCase):
 
     def test_split_typed_relation_string_multiple(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_typed_relation_string(
-            config, 'relators:pht:5|relators:con:10', 'bar')
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pht:5|relators:con:10', 'bar')
         self.assertDictEqual(res[0],
                              {'target_id': int(5),
                               'rel_type': 'relators:pht',
@@ -137,8 +179,7 @@ class TestSplitTypedRelationString(unittest.TestCase):
 
     def test_split_typed_relation_string_multiple_at_sign(self):
         config = {'subdelimiter': '@'}
-        res = workbench_utils.split_typed_relation_string(
-            config, 'relators:pht:5@relators:con:10', 'baz')
+        res = workbench_utils.split_typed_relation_string(config, 'relators:pht:5@relators:con:10', 'baz')
         self.assertDictEqual(res[0],
                              {'target_id': int(5),
                               'rel_type': 'relators:pht',
@@ -187,6 +228,26 @@ class TestValidateLinkValue(unittest.TestCase):
         values = ['foo.com', 'http:/foo.com', 'file://server/folder/data.xml', 'mailto:someone@example.com']
         for value in values:
             res = workbench_utils.validate_link_value(value)
+            self.assertFalse(res)
+
+
+class TestValidateAuthorityLinkValue(unittest.TestCase):
+
+    def test_validate_good_authority_link_values(self):
+        values = ['viaf%%http://viaf.org/viaf/10646807%%VIAF Record', 'cash%%http://cash.org%%foo']
+        for value in values:
+            res = workbench_utils.validate_authority_link_value(value, ['cash', 'viaf'])
+            self.assertTrue(res)
+
+    def test_validate_bad_authority_link_values(self):
+        values = ['viaf%%htt://viaf.org/viaf/10646807%%VIAF Record']
+        for value in values:
+            res = workbench_utils.validate_authority_link_value(value, ['cash', 'viaf'])
+            self.assertFalse(res)
+
+        values = ['xcash%%http://cash.org%%foo']
+        for value in values:
+            res = workbench_utils.validate_authority_link_value(value, ['cash', 'viaf'])
             self.assertFalse(res)
 
 

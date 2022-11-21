@@ -102,7 +102,7 @@ class TestTypedRelationBadRelatorCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_typed_relation_fail.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_typed_relation_fail.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -126,7 +126,7 @@ class TestTypedRelationBadUriCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_uri_fail.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_uri_fail.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -149,7 +149,7 @@ class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "new_typed_relation.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "new_typed_relation.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -173,7 +173,7 @@ class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "no_namespace.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "no_namespace.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -197,7 +197,7 @@ class TestMissingVocabCsvCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', "metadata.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', "metadata.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -221,7 +221,7 @@ class TestExtraFieldInVocabCsvCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', "metadata.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', "metadata.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -240,7 +240,7 @@ class TestDelimiterCheck(unittest.TestCase):
         self.assertRegex(self.output, 'input data appear to be valid', '')
 
     def tearDown(self):
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "delimiter_test", "metadata.tsv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "delimiter_test", "metadata.tsv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -260,7 +260,7 @@ class TestGeolocationCheck(unittest.TestCase):
             pass
 
     def tearDown(self):
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "geolocation_test", "input_data", "bad_geocoorindates_fail.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "geolocation_test", "input_data", "bad_geocoorindates_fail.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -284,7 +284,7 @@ class TestHeaderColumnMismatchCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "header_column_mismatch_test", "metadata.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "header_column_mismatch_test", "metadata.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -303,7 +303,7 @@ class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
         self.assertRegex(self.output, 'all 3 rows in the CSV file have the same number of columns as there are headers .6.', '')
 
     def tearDown(self):
-        templated_csv_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'metadata.csv.prepocessed')
+        templated_csv_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'metadata.csv.preprocessed')
         os.remove(templated_csv_path)
 
 
@@ -318,7 +318,7 @@ class TestCommentedCsvs(unittest.TestCase):
         output = output.decode().strip()
         lines = output.splitlines()
         self.assertRegex(output, 'all 3 rows in the CSV file', '')
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "metadata.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "metadata.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -331,7 +331,7 @@ class TestCommentedCsvs(unittest.TestCase):
         csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv")
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -344,7 +344,7 @@ class TestCommentedCsvs(unittest.TestCase):
         csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv")
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv.prepocessed")
+        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -434,15 +434,15 @@ class TestTaxonomies(unittest.TestCase):
         if os.path.exists(rollback_file_path):
             os.remove(rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_id_not_in_taxonomy.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_id_not_in_taxonomy.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_name_not_in_taxonomy.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_name_not_in_taxonomy.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 

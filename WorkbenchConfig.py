@@ -1,9 +1,11 @@
-# Class to encapsulate Workbench config
+"""Class to encapsulate Workbench configuration definitions.
+"""
 
 import logging
 from ruamel.yaml import YAML
 import os
 import sys
+from getpass import getpass
 from workbench_utils import *
 from rich.console import Console
 from rich.table import Table
@@ -22,18 +24,29 @@ class WorkbenchConfig:
             format='%(asctime)s - %(levelname)s - %(message)s',
             datefmt='%d-%b-%y %H:%M:%S')
 
-    # Get fully constructed config dictionary
+    # Get fully constructed config dictionary.
     def get_config(self):
         config = self.get_default_config()
         user_mods = self.get_user_config()
+        # If the password is not set in the config file, or in the environment
+        # variable, prompt the user for the password.
+        if 'password' not in user_mods:
+            if 'ISLANDORA_WORKBENCH_PASSWORD' in os.environ:
+                config['password'] = os.environ['ISLANDORA_WORKBENCH_PASSWORD']
+            else:
+                config['password'] = getpass(f"Password for Drupal user {user_mods['username']}:")
         # Blend defaults with user mods
         for key, value in user_mods.items():
             config[key] = value
-        # Modify some conditional values
-        if 'task' in ['add_media', 'update', 'delete']:
+        # Modify some conditional values.
+        if 'task' in ['add_media', 'update', 'delete', 'export_csv']:
             config['id_field'] = 'node_id'
         if 'task' == 'delete_media':
             config['id_field'] = 'media_id'
+        # @todo: These two overrides aren't working. For now, they are set within workbench.create_terms().
+        if 'task' == 'create_terms':
+            config['id_field'] = 'term_name'
+            config['allow_adding_terms'] = True
         if 'paged_content_page_content_type' not in user_mods:
             config['paged_content_page_content_type'] = config['content_type']
         # Add preprocessor, if specified.
@@ -45,7 +58,7 @@ class WorkbenchConfig:
 
         return config
 
-    # Get user input as dictionary
+    # Get user input as dictionary.
     def get_user_config(self):
         yaml = YAML()
         with open(self.args.config, 'r') as stream:
@@ -66,7 +79,7 @@ class WorkbenchConfig:
             loaded['config_file_path'] = os.path.join(os.getcwd(), self.args.config)
         return loaded
 
-    # Returns standard media fields
+    # Returns standard media fields.
     def get_media_fields(self):
         return dict({
             'file': 'field_media_file',
@@ -95,6 +108,8 @@ class WorkbenchConfig:
             'input_dir': 'input_data',
             'input_csv': 'metadata.csv',
             'media_use_tid': 'http://pcdm.org/use#OriginalFile',
+            # 'drupal_filesystem' is used only in Drupal 8.x - 9.1; after that,
+            # the filesystem is automatically detected from the media's configuration.
             'drupal_filesystem': 'fedora://',
             'id_field': 'id',
             'content_type': 'islandora_object',
@@ -103,13 +118,17 @@ class WorkbenchConfig:
             'log_file_path': 'workbench.log',
             'log_file_mode': 'a',
             'allow_missing_files': False,
-            'exit_on_first_missing_file_during_check': True,
+            # See issue 268.
+            'strict_check': True,
             'update_mode': 'replace',
-            'validate_title_length': True,
+            'max_node_title_length': 255,
             'paged_content_from_directories': False,
             'delete_media_with_nodes': True,
             'allow_adding_terms': False,
             'nodes_only': False,
+            'log_response_time': False,
+            'adaptive_pause_threshold': 2,
+            'log_response_time_sample': False,
             'log_request_url': False,
             'log_json': False,
             'log_response_body': False,
@@ -146,6 +165,17 @@ class WorkbenchConfig:
             'paged_content_sequence_separator': '-',
             'media_bundle_file_fields': self.get_media_fields(),
             'media_fields': self.get_media_fields(),
+            'delete_media_by_node_media_use_tids': [],
+            'export_csv_term_mode': 'tid',
+            'export_csv_file_path': None,
+            'export_csv_field_list': [],
+            'data_from_view_file_path': None,
+            'standalone_media_url': False,
+            'require_entity_reference_views': True,
+            'csv_start_row': 0,
+            'csv_stop_row': None,
+            'path_to_python': 'python',
+            'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench')
         }
 
     # Tests validity and existence of path.
@@ -167,9 +197,9 @@ class WorkbenchConfig:
     def validate(self):
         error_messages = []
         type_check = issue_request(self.config, 'GET',
-                                   f"{self.config['host']}/admin/structure/types/manage/{self.config['content_type']}")
+                                   f"{self.config['host']}/entity/entity_form_display/node/.{self.config['content_type']}.default?_format=json")
         if type_check.status_code == 404:
-            message = f"Content type {self.config['content_type']} not defined on {self.config['host']}."
+            message = f"Content type {self.config['content_type']} does not exist on {self.config['host']}."
             error_messages.append(message)
         mutators = ['use_node_title_for_media', 'use_nid_in_media_title', 'field_for_media_title']
         selected = [mutator for mutator in mutators if self.config[mutator]]
