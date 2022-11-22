@@ -2374,7 +2374,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
 
             return file_id
         else:
-            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s".', file_endpoint_path, file_response.status_code)
+            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.', file_endpoint_path, file_response.status_code, file_response.content)
             return False
     except requests.exceptions.RequestException as e:
         logging.error(e)
@@ -2495,6 +2495,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         }
         try:
             media_response = issue_request(config, 'POST', media_endpoint_path, media_headers, media_json)
+            if media_response.status_code != 201:
+                logging.error('Media not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.', media_endpoint_path, media_response.status_code, media_response.content)
+                logging.error('JSON request body used in previous POST to "%s" was %s.', media_endpoint_path, media_json)
 
             if len(media_use_tids) > 1:
                 media_response_body = json.loads(media_response.text)
