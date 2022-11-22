@@ -23,6 +23,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Well documented
 * Provides both sensible default configuration values and rich configuration options for power users
 * A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), will add a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
+* Run from within a Docker container.
 
 ## Documentation
 
