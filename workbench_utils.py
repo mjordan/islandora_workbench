@@ -1091,9 +1091,9 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
     if row_count == 0:
-            message = "Input CSV file " + config['input_csv'] + " has 0 rows."
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        message = "Input CSV file " + config['input_csv'] + " has 0 rows."
+        logging.error(message)
+        sys.exit('Error: ' + message)
     else:
         message = "OK, all " + str(row_count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ")."
         print(message)
@@ -2480,7 +2480,8 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             }]
         }
 
-        # @todo: We'll need a more generalized way of determining which media fields are required.
+        # Populate some media type-specific fields on the media. @todo: We need a generalized way of
+        # determining which media fields are required, e.g. checking the media type configuration.
         if media_field == 'field_media_image':
             if 'image_alt_text' in node_csv_row and len(node_csv_row['image_alt_text']) > 0:
                 alt_text = clean_image_alt_text(node_csv_row['image_alt_text'])
@@ -2488,6 +2489,18 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             else:
                 alt_text = clean_image_alt_text(media_name)
                 media_json[media_field][0]['alt'] = alt_text
+
+        # extracted_text media must have their field_edited_text field populated for full text indexing.
+        if media_type == 'extracted_text':
+            if os.path.exists(filename):
+                try:
+                    with open(filename, 'rb') as extracted_text_file:
+                        extracted_text_data = extracted_text_file.read()
+                        media_json['field_edited_text'][0]['value'] = extracted_text_data
+                except Exception as e:
+                    logging.error("'field_edited_text' field not populated in media for file %s: %s", filename, e)
+            else:
+                logging.error("Extracted text file %s not found.", filename)
 
         media_endpoint_path = '/entity/media'
         media_headers = {
