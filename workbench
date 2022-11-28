@@ -523,16 +523,8 @@ def delete():
         node_response = issue_request(config, 'DELETE', node_endpoint)
         if node_response.status_code == 204:
             if config['progress_bar'] is False:
-                print("Node " +
-                      config['host'] +
-                      '/node/' +
-                      str(row['node_id']) +
-                      " deleted.")
-            logging.info(
-                "Node %s deleted.",
-                config['host'] +
-                '/node/' +
-                str(row['node_id']))
+                print("Node " + config['host'] + '/node/' + str(row['node_id']) + " deleted.")
+            logging.info("Node %s deleted.", config['host'] + '/node/' + str(row['node_id']))
         if config['delete_media_with_nodes'] is True and config['progress_bar'] is False:
             if len(media_messages):
                 for media_message in media_messages:
@@ -764,8 +756,8 @@ def create_from_files():
             continue
 
         filename_without_extension = os.path.splitext(file_name)[0]
-        if len(filename_without_extension) > 255:
-            message = 'Truncating the filename "' + filename_without_extension + '" since it exceeds Drupal\'s maximum node title length of 255 characters.'
+        if len(filename_without_extension) > config['max_node_title_length']:
+            message = 'Truncating the filename "' + filename_without_extension + '" since it exceeds maximum node title length of ' + str(config['max_node_title_length']) + ' characters.'
             logging.error(message)
             filename_without_extension = filename_without_extension[:255]
 
@@ -1211,6 +1203,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--config', required=True, help='Configuration file to use.')
 parser.add_argument('--check', help='Check input data and exit without creating/updating/etc.', action='store_true')
 parser.add_argument('--get_csv_template', help='Generate a CSV template using the specified configuration file.', action='store_true')
+parser.add_argument('--quick_delete_node', help='Delete the node (and all attached media) identified by the URL).')
+parser.add_argument('--quick_delete_media', help='Delete the media (and attached file) identified by the URL).')
 args = parser.parse_args()
 workbench_config = WorkbenchConfig(args)
 
@@ -1282,9 +1276,16 @@ if config['progress_bar'] is True:
 
 if 'get_csv_template' in config.keys():
     if config['get_csv_template']:
-        # At the end of this function, Workbench exists,
-        # so the code below is not executed.
+        # At the end of this function, Workbench exists, so code after this is not executed.
         get_csv_template(config, args)
+
+if args.quick_delete_node is not None:
+    # At the end of this function, Workbench exists, so code after this is not executed.
+    quick_delete_node(config, args)
+
+if args.quick_delete_media is not None:
+    # At the end of this function, Workbench exists, so code after this is not executed.
+    quick_delete_media(config, args)
 
 try:
     if 'check' in config.keys():
