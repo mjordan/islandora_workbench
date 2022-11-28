@@ -5299,6 +5299,12 @@ def quick_delete_media(config, args):
         logging.error(message)
         sys.exit("Error: " + message)
 
+    entity = json.loads(ping_response.text)
+    if 'mid' not in entity:
+        message = f"{args.quick_delete_media} does not apear to be a media."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
     media_id = get_mid_from_media_url_alias(config, args.quick_delete_media)
     media_delete_status_code = remove_media_and_file(config, media_id)
     if media_delete_status_code == 204:
