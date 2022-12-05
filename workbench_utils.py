@@ -41,6 +41,18 @@ checked_terms = list()
 newly_created_terms = list()
 
 
+def get_oembed_url_media_type(config, filepath):
+    # Since oEmbed remote media (e.g. remove video) don't have extensions,
+    # which we use to detect the media type of local files, we use remote URL
+    # patterns to detect if the value of the 'file' columns is an oEmbed media.
+    for oembed_provider in config['oembed_providers']:
+        for provider_url, mtype in oembed_provider.items():
+            if filepath.startswith(provider_url):
+                return mtype
+
+    return None
+
+
 def set_media_type(config, filepath, file_fieldname, csv_row):
     """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from
@@ -48,6 +60,10 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     """
     if 'media_type' in config:
         return config['media_type']
+
+    oembed_media_type = get_oembed_url_media_type(config, filepath)
+    if oembed_media_type is not None:
+        return oembed_media_type
 
     if filepath.strip().startswith('http'):
         preprocessed_file_path = get_preprocessed_file_path(config, file_fieldname, csv_row)
@@ -69,6 +85,7 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
             for type, extensions in override.items():
                 if normalized_extension in extensions:
                     media_type = type
+
     # If extension isn't in one of the lists, default to 'file' bundle.
     return media_type
 
@@ -2408,11 +2425,19 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     if config['nodes_only'] is True:
         return
 
-    file_result = create_file(config, filename, file_fieldname, node_csv_row, node_id)
+    media_type_for_oembed_check = set_media_type(config, filename, file_fieldname, node_csv_row)
+
+    if media_type_for_oembed_check in config['oembed_media_types']:
+        # Must be an integer.
+        file_result = -1
+    else:
+        file_result = create_file(config, filename, file_fieldname, node_csv_row, node_id)
+
     if filename.startswith('http'):
         if file_result is False:
             return False
         filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id)
+
     if isinstance(file_result, int):
         if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
             media_use_tid_value = node_csv_row['media_use_tid']
@@ -2455,30 +2480,55 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             media_name = f"{node_id}-Original File"
         if config['field_for_media_title']:
             media_name = node_csv_row[config['field_for_media_title']].replace(':', '_')
-        media_json = {
-            "bundle": [{
-                "target_id": media_type,
-                "target_type": "media_type",
-            }],
-            "status": [{
-                "value": True
-            }],
-            "name": [{
-                "value": media_name
-            }],
-            media_field: [{
-                "target_id": file_result,
-                "target_type": 'file'
-            }],
-            "field_media_of": [{
-                "target_id": int(node_id),
-                "target_type": 'node'
-            }],
-            "field_media_use": [{
-                "target_id": media_use_tids[0],
-                "target_type": 'taxonomy_term'
-            }]
-        }
+
+        # Create a media from an oEmbed URL.
+        if media_type in config['oembed_media_types']:
+            media_json = {
+                "bundle": [{
+                    "target_id": media_type,
+                    "target_type": "media_type",
+                }],
+                "status": [{
+                    "value": True
+                }],
+                media_field: [{
+                    "value": filename
+                }],
+                "field_media_of": [{
+                    "target_id": int(node_id),
+                    "target_type": 'node'
+                }],
+                "field_media_use": [{
+                    "target_id": media_use_tids[0],
+                    "target_type": 'taxonomy_term'
+                }]
+            }
+        # Create a media from a local or remote file.
+        else:
+            media_json = {
+                "bundle": [{
+                    "target_id": media_type,
+                    "target_type": "media_type",
+                }],
+                "status": [{
+                    "value": True
+                }],
+                "name": [{
+                    "value": media_name
+                }],
+                media_field: [{
+                    "target_id": file_result,
+                    "target_type": 'file'
+                }],
+                "field_media_of": [{
+                    "target_id": int(node_id),
+                    "target_type": 'node'
+                }],
+                "field_media_use": [{
+                    "target_id": media_use_tids[0],
+                    "target_type": 'taxonomy_term'
+                }]
+            }
 
         # Populate some media type-specific fields on the media. @todo: We need a generalized way of
         # determining which media fields are required, e.g. checking the media type configuration.
@@ -4646,9 +4696,9 @@ def check_file_exists(config, filename):
 
 
 def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=None):
-    """For remote/downloaded files, generates the path to the local temporary
-       copy and returns that path. For local files, just returns the value of
-       node_csv_row['file'].
+    """For remote/downloaded files (other than from providers defined in config['oembed_providers]),
+       generates the path to the local temporary copy and returns that path. For local files or oEmbed URLs,
+       just returns the value of node_csv_row['file'].
     """
     """Parameters
         ----------
@@ -4666,6 +4716,13 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
     file_path_from_csv = node_csv_row[file_fieldname].strip()
     if config['task'] == 'add_media':
         config['id_field'] = 'node_id'
+
+    # Test whether file_path_from_csv is from one of the oEmbed providers
+    # and if so, return it here.
+    for oembed_provider in config['oembed_providers']:
+        for provider_url, mtype in oembed_provider.items():
+            if file_path_from_csv.startswith(provider_url):
+                return file_path_from_csv
 
     # It's a remote file.
     if file_path_from_csv.startswith('http'):

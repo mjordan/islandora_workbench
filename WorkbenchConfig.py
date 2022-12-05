@@ -88,7 +88,8 @@ class WorkbenchConfig:
             'audio': 'field_media_audio_file',
             'video': 'field_media_video_file',
             'extracted_text': 'field_media_file',
-            'fits_technical_metadata': 'field_media_file'
+            'fits_technical_metadata': 'field_media_file',
+            'remote_video': 'field_media_oembed_video'
         })
 
     # Returns standard media extensions for given media type.
@@ -175,7 +176,9 @@ class WorkbenchConfig:
             'csv_start_row': 0,
             'csv_stop_row': None,
             'path_to_python': 'python',
-            'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench')
+            'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench'),
+            'oembed_providers': [{'https://youtu.be': 'remote_video', 'https://vimeo.com': 'remote_video'}],
+            'oembed_media_types': ['remote_video']
         }
 
     # Tests validity and existence of path.

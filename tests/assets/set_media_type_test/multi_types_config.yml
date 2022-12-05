@@ -6,6 +6,10 @@ media_types:
  - video: ['mp4']
  - extracted_text: ['txt']
 
+oembed_providers:
+ - https://youtu.be: remote_video
+ - https://vimeo.com: remote_video
+
 media_types_override:
  - document: ['wp']
  - video: ['ogg']
