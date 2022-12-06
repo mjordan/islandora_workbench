@@ -1025,7 +1025,9 @@ def check_input(config, args):
     # we exit immediately after doing these checks.
     if config['task'] == 'get_data_from_view':
         # First, ping the View.
-        view_url = config['host'] + '/' + config['view_path'].lstrip('/')
+        view_parameters = '&'.join(config['view_parameters']) if 'view_parameters' in config else ''
+        view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page=0&' + view_parameters
+
         view_path_status_code = ping_view_endpoint(config, view_url)
         if view_path_status_code != 200:
             message = f"Cannot access View at {view_url}."
@@ -1045,11 +1047,14 @@ def check_input(config, args):
         if csv_file_path_file.writable() is False:
             message = f'Path to CSV file "{csv_file_path}" is not writable.'
             logging.error(message)
+            csv_file_path_file.close()
             sys.exit("Error: " + message)
         else:
             message = f'CSV output file location at {csv_file_path} is writable.'
             logging.info(message)
             print("OK, " + message)
+            csv_file_path_file.close()
+
 
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
