@@ -103,6 +103,12 @@ class WorkbenchConfig:
             {'extracted_text': ['txt']}
         ]
 
+    # Returns the allowed oEmbed provider URLs for a given media type.
+    def get_oembed_media_types(self):
+        return [
+            {'remote_video': ['https://www.youtube.com/']}
+        ]
+
     # Returns default configs, to be updated by user-supplied config.
     def get_default_config(self):
         return {
@@ -177,7 +183,8 @@ class WorkbenchConfig:
             'csv_stop_row': None,
             'path_to_python': 'python',
             'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench'),
-            'oembed_providers': [{'https://youtu.be': 'remote_video', 'https://vimeo.com': 'remote_video'}],
+            'oembed_providers': self.get_oembed_media_types,
+            # @todo: elminiate this setting, get if from the keys returned by self.get_oembed_media_types
             'oembed_media_types': ['remote_video']
         }
 

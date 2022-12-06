@@ -2466,7 +2466,18 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             return False
 
         media_field = config['media_bundle_file_fields'][media_type]
-        media_name = os.path.basename(filename)
+        if media_type_for_oembed_check in config['oembed_media_types']:
+            if 'title' in node_csv_row:
+                media_name = node_csv_row['title']
+            else:
+                media_name = get_node_title_from_nid(config, node_id)
+                if not media_name:
+                    message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using oEmbed URL instead.'
+                    logging.warning(message)
+                    media_name = filename
+        else:
+             media_name = os.path.basename(filename)
+
         if config['use_node_title_for_media']:
             if 'title' in node_csv_row:
                 media_name = node_csv_row['title']
@@ -2490,6 +2501,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 }],
                 "status": [{
                     "value": True
+                }],
+                "name": [{
+                    "value": media_name
                 }],
                 media_field: [{
                     "value": filename
