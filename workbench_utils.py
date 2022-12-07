@@ -2498,12 +2498,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         # extracted_text media must have their field_edited_text field populated for full text indexing.
         if media_type == 'extracted_text':
             if os.path.exists(filename):
-                try:
-                    with open(filename, 'rb') as extracted_text_file:
-                        extracted_text_data = extracted_text_file.read()
-                        media_json['field_edited_text'][0]['value'] = extracted_text_data
-                except Exception as e:
-                    logging.error("'field_edited_text' field not populated in media for file %s: %s", filename, e)
+                 media_json['field_edited_text'] = list()
+                 extracted_text_file = open(filename, 'r', -1, 'utf-8')
+                 media_json['field_edited_text'].append({'value': extracted_text_file.read()})
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
