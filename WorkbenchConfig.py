@@ -103,10 +103,11 @@ class WorkbenchConfig:
             {'extracted_text': ['txt']}
         ]
 
-    # Returns the allowed oEmbed provider URLs for a given media type.
+    # Returns the standard allowed oEmbed provider URLs for a given media type. These
+    # are used to identify URLs in the 'file' CSV column as being remote media.
     def get_oembed_media_types(self):
         return [
-            {'remote_video': ['https://www.youtube.com/']}
+            {'remote_video': ['https://www.youtube.com/', 'https://youtu.be']}
         ]
 
     # Returns default configs, to be updated by user-supplied config.
@@ -183,9 +184,7 @@ class WorkbenchConfig:
             'csv_stop_row': None,
             'path_to_python': 'python',
             'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench'),
-            'oembed_providers': self.get_oembed_media_types,
-            # @todo: elminiate this setting, get if from the keys returned by self.get_oembed_media_types
-            'oembed_media_types': ['remote_video']
+            'oembed_providers': self.get_oembed_media_types()
         }
 
     # Tests validity and existence of path.

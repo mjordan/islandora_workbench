@@ -41,18 +41,6 @@ checked_terms = list()
 newly_created_terms = list()
 
 
-def get_oembed_url_media_type(config, filepath):
-    # Since oEmbed remote media (e.g. remove video) don't have extensions,
-    # which we use to detect the media type of local files, we use remote URL
-    # patterns to detect if the value of the 'file' columns is an oEmbed media.
-    for oembed_provider in config['oembed_providers']:
-        for provider_url, mtype in oembed_provider.items():
-            if filepath.startswith(provider_url):
-                return mtype
-
-    return None
-
-
 def set_media_type(config, filepath, file_fieldname, csv_row):
     """Using configuration options, determine which media bundle type to use.
        Options are either a single media type or a set of mappings from
@@ -61,6 +49,7 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     if 'media_type' in config:
         return config['media_type']
 
+    # Determine if the incomtimg filepath matches a registered eEmbed media type.
     oembed_media_type = get_oembed_url_media_type(config, filepath)
     if oembed_media_type is not None:
         return oembed_media_type
@@ -88,6 +77,41 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
 
     # If extension isn't in one of the lists, default to 'file' bundle.
     return media_type
+
+
+def get_oembed_url_media_type(config, filepath):
+    """Since oEmbed remote media (e.g. remove video) don't have extensions, which we
+       use to detect the media type of local files, we use remote URL patterns to
+       detect if the value of the 'file' columns is an oEmbed media.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration object defined by set_config_defaults().
+       filepath: string
+           The value of the CSV 'file' column.
+       Returns
+       -------
+       mtype
+           A string naming the detected media type, e.g. 'remote_video', or None
+           if the filepath does not start with a configured provider URL.
+    """
+    for oembed_provider in config['oembed_providers']:
+        for mtype, provider_urls in oembed_provider.items():
+            for provider_url in provider_urls:
+                if filepath.startswith(provider_url):
+                    return mtype
+
+    return None
+
+
+def get_oembed_media_types(config):
+    # Get a list of the registered oEmbed media types from config.
+    media_types = list()
+    for omt in config['oembed_providers']:
+        keys = list(omt.keys())
+        media_types.append(keys[0])
+    return media_types
 
 
 def set_model_from_extension(file_name, config):
@@ -2425,10 +2449,11 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     if config['nodes_only'] is True:
         return
 
-    media_type_for_oembed_check = set_media_type(config, filename, file_fieldname, node_csv_row)
+    # media_type_for_oembed_check = set_media_type(config, filename, file_fieldname, node_csv_row)
+    media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
 
-    if media_type_for_oembed_check in config['oembed_media_types']:
-        # Must be an integer.
+    if media_type in get_oembed_media_types(config):
+        # file_result must be an integer.
         file_result = -1
     else:
         file_result = create_file(config, filename, file_fieldname, node_csv_row, node_id)
@@ -2457,7 +2482,6 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             if not value_is_numeric(media_use_term) and not media_use_term.strip().startswith('http'):
                 media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip()))
 
-        media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_bundle_response_code = ping_media_bundle(config, media_type)
         if media_bundle_response_code == 404:
             message = 'File "' + filename + '" identified in CSV row ' + file_fieldname + \
@@ -2466,7 +2490,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             return False
 
         media_field = config['media_bundle_file_fields'][media_type]
-        if media_type_for_oembed_check in config['oembed_media_types']:
+        if media_type in get_oembed_media_types(config):
             if 'title' in node_csv_row:
                 media_name = node_csv_row['title']
             else:
@@ -2476,7 +2500,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                     logging.warning(message)
                     media_name = filename
         else:
-             media_name = os.path.basename(filename)
+            media_name = os.path.basename(filename)
 
         if config['use_node_title_for_media']:
             if 'title' in node_csv_row:
@@ -2493,7 +2517,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             media_name = node_csv_row[config['field_for_media_title']].replace(':', '_')
 
         # Create a media from an oEmbed URL.
-        if media_type in config['oembed_media_types']:
+        if media_type in get_oembed_media_types(config):
             media_json = {
                 "bundle": [{
                     "target_id": media_type,
