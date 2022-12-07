@@ -378,6 +378,16 @@ class TestSetMediaType(unittest.TestCase):
         res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/xxx.foo', 'file', fake_csv_record)
         self.assertEqual(res, 'foomedia')
 
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = 'https://youtu.be/xxxx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, 'https://youtu.be/xxxx', 'file', fake_csv_record)
+        self.assertEqual(res, 'remote_video')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = 'https://vimeo.com/xxxx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, 'https://vimeo.com/xxxx', 'file', fake_csv_record)
+        self.assertEqual(res, 'remote_video')
+
     def test_single_type_set_media_type(self):
         fake_csv_record = collections.OrderedDict()
         fake_csv_record['file'] = '/tmp/foo.xxx'

@@ -88,7 +88,8 @@ class WorkbenchConfig:
             'audio': 'field_media_audio_file',
             'video': 'field_media_video_file',
             'extracted_text': 'field_media_file',
-            'fits_technical_metadata': 'field_media_file'
+            'fits_technical_metadata': 'field_media_file',
+            'remote_video': 'field_media_oembed_video'
         })
 
     # Returns standard media extensions for given media type.
@@ -100,6 +101,13 @@ class WorkbenchConfig:
             {'audio': ['mp3', 'wav', 'aac']},
             {'video': ['mp4']},
             {'extracted_text': ['txt']}
+        ]
+
+    # Returns the standard allowed oEmbed provider URLs for a given media type. These
+    # are used to identify URLs in the 'file' CSV column as being remote media.
+    def get_oembed_media_types(self):
+        return [
+            {'remote_video': ['https://www.youtube.com/', 'https://youtu.be']}
         ]
 
     # Returns default configs, to be updated by user-supplied config.
@@ -175,7 +183,8 @@ class WorkbenchConfig:
             'csv_start_row': 0,
             'csv_stop_row': None,
             'path_to_python': 'python',
-            'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench')
+            'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench'),
+            'oembed_providers': self.get_oembed_media_types()
         }
 
     # Tests validity and existence of path.
