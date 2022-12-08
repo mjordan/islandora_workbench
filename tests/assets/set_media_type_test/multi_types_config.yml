@@ -7,8 +7,7 @@ media_types:
  - extracted_text: ['txt']
 
 oembed_providers:
- - https://youtu.be: remote_video
- - https://vimeo.com: remote_video
+ - remote_video: ['https://youtu.be', 'https://vimeo.com']
 
 media_types_override:
  - document: ['wp']
