@@ -1096,7 +1096,6 @@ def check_input(config, args):
             print("OK, " + message)
             csv_file_path_file.close()
 
-
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
 
@@ -2586,9 +2585,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         # extracted_text media must have their field_edited_text field populated for full text indexing.
         if media_type == 'extracted_text':
             if os.path.exists(filename):
-                 media_json['field_edited_text'] = list()
-                 extracted_text_file = open(filename, 'r', -1, 'utf-8')
-                 media_json['field_edited_text'].append({'value': extracted_text_file.read()})
+                media_json['field_edited_text'] = list()
+                extracted_text_file = open(filename, 'r', -1, 'utf-8')
+                media_json['field_edited_text'].append({'value': extracted_text_file.read()})
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
