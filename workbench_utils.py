@@ -1087,9 +1087,19 @@ def check_input(config, args):
             logging.info(message)
             print("OK, " + message)
 
+        if config['export_file_directory'] is not None:
+            if not os.path.exists(config['export_file_directory']):
+                try:
+                    os.mkdir(config['export_file_directory'])
+                    os.rmdir(config['export_file_directory'])
+                except Exception as e:
+                    message = 'Path in configuration option "export_file_directory" ("' + config['export_file_directory'] + '") is not writable.'
+                    logging.error(message + ' ' + str(e))
+                    sys.exit('Error: ' + message + ' See log for more detail.')
+
         # Check to make sure the output path for the CSV file is writable.
-        if config['data_from_view_file_path'] is not None:
-            csv_file_path = config['data_from_view_file_path']
+        if config['export_csv_file_path'] is not None:
+            csv_file_path = config['export_csv_file_path']
         else:
             csv_file_path = os.path.join(config['input_dir'], os.path.basename(args.config).split('.')[0] + '.csv_file_with_data_from_view')
         csv_file_path_file = open(csv_file_path, "a")
@@ -1810,13 +1820,13 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
 
-        if config['export_csv_file_path'] is not None:
+        if config['export_file_directory'] is not None:
             if not os.path.exists(config['export_csv_file_path']):
                 try:
-                    os.mkdir(config['export_csv_file_path'])
-                    os.rmdir(config['export_csv_file_path'])
+                    os.mkdir(config['export_file_directory'])
+                    os.rmdir(config['export_file_directory'])
                 except Exception as e:
-                    message = 'Path in configuration option "export_csv_file_path" ("' + config['export_csv_file_path'] + '") is not writable.'
+                    message = 'Path in configuration option "export_file_directory" ("' + config['export_file_directory'] + '") is not writable.'
                     logging.error(message + ' ' + str(e))
                     sys.exit('Error: ' + message + ' See log for more detail.')
 
