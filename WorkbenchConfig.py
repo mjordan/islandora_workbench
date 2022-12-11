@@ -177,7 +177,8 @@ class WorkbenchConfig:
             'export_csv_term_mode': 'tid',
             'export_csv_file_path': None,
             'export_csv_field_list': [],
-            'data_from_view_file_path': None,
+            'export_file_directory': None,
+            'export_file_media_use_term_id': 'https://pcdm.org/use#OriginalFile',
             'standalone_media_url': False,
             'require_entity_reference_views': True,
             'csv_start_row': 0,
@@ -187,7 +188,7 @@ class WorkbenchConfig:
             'oembed_providers': self.get_oembed_media_types()
         }
 
-    # Tests validity and existence of path.
+    # Tests validity and existence of configuration file path.
     def path_check(self):
         # Check existence of configuration file.
         if not os.path.exists(self.args.config):

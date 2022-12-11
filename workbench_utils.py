@@ -4,6 +4,7 @@
 import os
 import sys
 import json
+from json.decoder import JSONDecodeError
 import csv
 import openpyxl
 import time
@@ -39,6 +40,13 @@ http_response_times = []
 # Global lists of terms to reduce queries to Drupal.
 checked_terms = list()
 newly_created_terms = list()
+# These are the Drupal field names on the standard types of media.
+file_fields = [
+    'field_media_file',
+    'field_media_image',
+    'field_media_document',
+    'field_media_audio_file',
+    'field_media_video_file']
 
 
 def set_media_type(config, filepath, file_fieldname, csv_row):
@@ -1096,7 +1104,6 @@ def check_input(config, args):
             print("OK, " + message)
             csv_file_path_file.close()
 
-
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
 
@@ -1804,10 +1811,14 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
 
         if config['export_csv_file_path'] is not None:
-            if not os.access(config['export_csv_file_path'], os.W_OK):
-                message = 'Path in configuration option "export_csv_file_path" ("' + config['export_csv_file_path'] + '") is not writable.'
-                logging.error(message)
-                sys.exit('Error: ' + message)
+            if not os.path.exists(config['export_csv_file_path']):
+                try:
+                    os.mkdir(config['export_csv_file_path'])
+                    os.rmdir(config['export_csv_file_path'])
+                except Exception as e:
+                    message = 'Path in configuration option "export_csv_file_path" ("' + config['export_csv_file_path'] + '") is not writable.'
+                    logging.error(message + ' ' + str(e))
+                    sys.exit('Error: ' + message + ' See log for more detail.')
 
     # @todo issue 268: All checks for accumulator variables like 'rows_with_missing_files' should go here.
     if len(rows_with_missing_files) > 0 and config['strict_check'] is False:
@@ -2586,9 +2597,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         # extracted_text media must have their field_edited_text field populated for full text indexing.
         if media_type == 'extracted_text':
             if os.path.exists(filename):
-                 media_json['field_edited_text'] = list()
-                 extracted_text_file = open(filename, 'r', -1, 'utf-8')
-                 media_json['field_edited_text'].append({'value': extracted_text_file.read()})
+                media_json['field_edited_text'] = list()
+                extracted_text_file = open(filename, 'r', -1, 'utf-8')
+                media_json['field_edited_text'].append({'value': extracted_text_file.read()})
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
@@ -2865,13 +2876,6 @@ def remove_media_and_file(config, media_id):
         logging.error(message)
         sys.exit("Error: " + message)
 
-    # These are the Drupal field names on the standard types of media.
-    file_fields = [
-        'field_media_file',
-        'field_media_image',
-        'field_media_document',
-        'field_media_audio_file',
-        'field_media_video_file']
     for file_field_name in file_fields:
         if file_field_name in get_media_response_body:
             try:
@@ -4897,6 +4901,65 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     f.close
 
     return downloaded_file_path
+
+
+def download_file_from_drupal(config, node_id):
+    '''WIP on https://github.com/mjordan/islandora_workbench/issues/492.
+    '''
+
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        node_id : string
+            The ID of the node to delete media from.
+        Returns
+        -------
+        file_name
+            The downloaded file's name, or False if unable to download the file.
+    """
+    if config['export_file_directory'] is None:
+        return False
+
+    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
+    response = issue_request(config, 'GET', media_list_url)
+    if response.status_code == 200:
+        try:
+            media_list = json.loads(response.text)
+        except json.decoder.JSONDecodeError as e:
+            logging.error(f'Media query for node {node_id} produced the following error: {e}')
+            return False
+        if len(media_list) == 0:
+            logging.warning(f'Node {node_id} has no media.')
+            return False
+
+        if str(config['export_file_media_use_term_id']).startswith('http'):
+            config['export_file_media_use_term_id'] = get_term_id_from_uri(config, config['export_file_media_use_term_id'])
+
+        for media in media_list:
+            for file_field_name in file_fields:
+                if file_field_name in media:
+                    if len(media[file_field_name]) and media['field_media_use'][0]['target_id'] == config['export_file_media_use_term_id']:
+                        url_filename = os.path.basename(media[file_field_name][0]['url'])
+                        downloaded_file_path = os.path.join(config['export_file_directory'], url_filename)
+                        if os.path.exists(downloaded_file_path):
+                            downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+                        f = open(downloaded_file_path, 'wb+')
+                        f.write(response.content)
+                        f.close
+                        filename_for_logging = os.path.basename(downloaded_file_path)
+                        logging.info(f'File "{filename_for_logging}" downloaded for node {node_id}.')
+                        if os.path.isabs(config['export_file_directory']):
+                            return downloaded_file_path
+                        else:
+                            return filename_for_logging
+                    else:
+                        logging.warning(f'Node {node_id} in new Summit has no files in "{file_field_name}".')
+                else:
+                    continue
+    else:
+        logging.error(f'Attempt to fetch media list {media_list_url} returned an {r.status_code} HTTP response.')
+        return False
 
 
 def get_file_hash_from_drupal(config, file_uuid, algorithm):

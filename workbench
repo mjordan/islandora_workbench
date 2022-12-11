@@ -794,12 +794,7 @@ def create_from_files():
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
             if config['progress_bar'] is False:
-                print(
-                    'Node for "' +
-                    filename_without_extension +
-                    '" created at ' +
-                    node_uri +
-                    '.')
+                print('Node for "' + filename_without_extension + '" created at ' + node_uri + '.')
             logging.info(
                 'Node for "%s" created at %s.',
                 filename_without_extension,
@@ -838,12 +833,7 @@ def create_from_files():
                     print("+ Media for " + filename_without_extension + " created.")
                 logging.info("Media for %s created.", file_path)
         else:
-            logging.error(
-                'Node for "%s" not created, HTTP response code was %s.',
-                os.path.join(
-                    config['input_dir'],
-                    file_name),
-                node_response.status_code)
+            logging.error('Node for "%s" not created, HTTP response code was %s.', os.path.join(config['input_dir'], file_name), node_response.status_code)
 
         if config['progress_bar'] is True:
             file_count += 1
@@ -898,6 +888,9 @@ def export_csv():
     if os.path.exists(csv_file_path):
         os.remove(csv_file_path)
 
+    if config['export_file_directory'] is not None and 'file' not in deduped_field_names:
+        deduped_field_names.append('file')
+
     csv_file = open(csv_file_path, 'a+', encoding='utf-8')
     writer = csv.DictWriter(csv_file, fieldnames=deduped_field_names, lineterminator="\n")
     writer.writeheader()
@@ -939,14 +932,12 @@ def export_csv():
 
         # Get node.
         url = f"{config['host']}/node/{row['node_id']}?_format=json"
-        message = f"+ Retrieving field data for node {row['node_id']} ..."
         response = issue_request(config, 'GET', url)
-        message = f"Retrieving node {row['node_id']} from Drupal..."
         if response.status_code == 200:
             body = json.loads(response.text)
             if body['type'][0]['target_id'] != config['content_type']:
-                message = "Node " + row['node_id'] + ' has the "' + body['type'][0]['target_id'] + \
-                    '" content type, not the content type currently configured (' + config['content_type'] + "). Skipping export."
+                message = f"Node {row['node_id']} not written to output CSV because its content type {body['type'][0]['target_id']}" + \
+                    f" does not match the \"content_type\" configuration setting."
                 if config['progress_bar'] is False:
                     print("Error: " + message)
                 logging.error(message)
@@ -956,6 +947,10 @@ def export_csv():
                 if fieldname_to_serialize in body and fieldname_to_serialize in field_definitions:
                     csv_data = serialize_field_json(config, field_definitions, fieldname_to_serialize, body[fieldname_to_serialize])
                     output_row[fieldname_to_serialize] = csv_data
+
+            if config['export_file_directory'] is not None:
+                downloaded_file_name = download_file_from_drupal(config, row['node_id'])
+                output_row['file'] = downloaded_file_name
         else:
             message = f"Attempt to get node {row['node_id']} returned a {response.status_code} status code."
             print("  Error: " + message)
@@ -965,12 +960,17 @@ def export_csv():
         output_row['node_id'] = row['node_id']
         writer.writerow(output_row)
 
+        if config['export_file_directory'] is not None:
+            and_files = f"and file "
+        else:
+            and_files = ''
+        message = f"Exporting data {and_files}for node {row['node_id']} \"{body['title'][0]['value']}\"."
+
         if config['progress_bar'] is True:
             row_count += 1
             row_position = get_percentage(row_count, num_csv_records)
             pbar(row_position)
         else:
-            message = message + " adding to output CSV."
             print(message)
 
         logging.info(message)
@@ -1002,12 +1002,22 @@ def get_data_from_view():
         logging.error(message + " HTTP status code is " + str(view_path_status_code) + ".")
         sys.exit("Error: " + message + " See log for more information.")
 
-    if config['data_from_view_file_path'] is not None:
-        csv_file_path = config['data_from_view_file_path']
+    if config['export_csv_file_path'] is not None:
+        csv_file_path = config['export_csv_file_path']
     else:
         csv_file_path = os.path.join(config['input_dir'], os.path.basename(args.config).split('.')[0] + '.csv_file_with_data_from_view')
     if os.path.exists(csv_file_path):
         os.remove(csv_file_path)
+
+    if config['export_file_directory'] is not None:
+        if not os.path.exists(config['export_csv_file_path']):
+            try:
+                os.mkdir(config['export_csv_file_path'])
+                os.rmdir(config['export_csv_file_path'])
+            except Exception as e:
+                message = 'Path in configuration option "export_csv_file_path" ("' + config['export_csv_file_path'] + '") is not writable.'
+                logging.error(message + ' ' + str(e))
+                sys.exit('Error: ' + message + ' See log for more detail.')
 
     field_definitions = get_field_definitions(config, 'node')
 
@@ -1027,6 +1037,9 @@ def get_data_from_view():
 
     deduped_field_names = list('')
     [deduped_field_names.append(x) for x in field_names if x not in deduped_field_names]
+
+    if config['export_file_directory'] is not None and 'file' not in deduped_field_names:
+        deduped_field_names.append('file')
 
     csv_file = open(csv_file_path, 'a+', encoding='utf-8')
     writer = csv.DictWriter(csv_file, fieldnames=deduped_field_names, lineterminator="\n")
@@ -1051,15 +1064,29 @@ def get_data_from_view():
                 row = dict()
                 row['node_id'] = node['nid'][0]['value']
                 row['title'] = node['title'][0]['value']
-                print('Exporting data for node ' + str(row['node_id']) + ' "' + row['title'] + '".')
+
+                if config['export_file_directory'] is not None:
+                    and_files = f"and file "
+                else:
+                    and_files = ''
+                message = f"Exporting data {and_files}for node {row['node_id']} \"{row['title']}\"."
+                print(message)
+                logging.info(message)
+
                 for field_name in deduped_field_names:
                     if field_name.startswith('field_') and field_name in node:
                         csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
                         row[field_name] = csv_data
+
+                if config['export_file_directory'] is not None:
+                    downloaded_file_name = download_file_from_drupal(config, row['node_id'])
+                    row['file'] = downloaded_file_name
+
                 writer.writerow(row)
         else:
-            message = "Node with ID " + str(node['nid'][0]['value']) + " not written to output CVS because its content type (" + \
-                node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
+            message = f"Node {node['nid'][0]['value']} not written to output CVS because its content type (" + \
+                f"{node['type'][0]['target_id']} does not match the \"content_type\" configuration setting."
+            print("Warning: " + message)
             logging.warning(message)
             continue
 
@@ -1080,15 +1107,29 @@ def get_data_from_view():
                     row = dict()
                     row['node_id'] = node['nid'][0]['value']
                     row['title'] = node['title'][0]['value']
-                    print('Exporting data for node ' + str(row['node_id']) + ' "' + row['title'] + '".')
+
+                    if config['export_file_directory'] is not None:
+                        and_files = f"and file "
+                    else:
+                        and_files = ''
+                    message = f"Exporting data {and_files}for node {row['node_id']} \"{row['title']}\"."
+                    print(message)
+                    logging.info(message)
+
                     for field_name in deduped_field_names:
                         if field_name.startswith('field_') and field_name in node:
                             csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
                             row[field_name] = csv_data
+
+                    if config['export_file_directory'] is not None:
+                        downloaded_file_name = download_file_from_drupal(config, row['node_id'])
+                        row['file'] = downloaded_file_name
+
                     writer.writerow(row)
                 else:
-                    message = "Node with ID " + str(node['nid'][0]['value']) + " not written to output CVS because its content type (" + \
-                        node['type'][0]['target_id'] + ") is not the same as the 'content_type' configuration option."
+                    message = f"Node {node['nid'][0]['value']} not written to output CVS because its content type (" + \
+                        f"{node['type'][0]['target_id']} does not match the \"content_type\" configuration setting."
+                    print("Warning: " + message)
                     logging.warning(message)
                     continue
 
