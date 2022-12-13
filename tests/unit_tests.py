@@ -190,6 +190,35 @@ class TestSplitTypedRelationString(unittest.TestCase):
                               'target_type': 'baz'})
 
 
+class TestMediaTrackString(unittest.TestCase):
+
+    def test_split_media_track_string_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_media_track_string(config, 'en:subtitles:en:/path/to/file')
+        self.assertDictEqual(res[0], {'label': 'en', 'kind': 'subtitles', 'srclang': 'en', 'file_path': '/path/to/file'})
+
+    def test_split_media_track_string_single_windows(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_media_track_string(config, 'en:subtitles:en:c:/path/to/file')
+        self.assertDictEqual(res[0], {'label': 'en', 'kind': 'subtitles', 'srclang': 'en', 'file_path': 'c:/path/to/file'})
+
+    def test_split_media_track_multiple(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_media_track_string(config, 'en:subtitles:en:c:/path/to/file.vtt|fr:subtitles:fr:/path/to/file2.vtt')
+        self.assertDictEqual(res[0], {'label': 'en', 'kind': 'subtitles', 'srclang': 'en', 'file_path': 'c:/path/to/file.vtt'})
+        self.assertDictEqual(res[1], {'label': 'fr', 'kind': 'subtitles', 'srclang': 'fr', 'file_path': '/path/to/file2.vtt'})
+
+
+class TestValidateMediaTrackString(unittest.TestCase):
+
+    def test_validate_media_track_values(self):
+        res = workbench_utils.validate_media_track_value('en:subtitles:en:c:/path/to/file')
+        self.assertTrue(res)
+
+        res = workbench_utils.validate_media_track_value('en:subtitle:en:c:/path/to/file')
+        self.assertFalse(res)
+
+
 class TestValidateLanguageCode(unittest.TestCase):
 
     def test_validate_code_in_list(self):

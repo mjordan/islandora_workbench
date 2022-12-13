@@ -2132,6 +2132,27 @@ def split_authority_link_string(config, authority_link_string):
     return return_list
 
 
+def split_media_track_string(config, media_track_string):
+    """Fields of type 'media_track' are represented in the CSV file using a structured string,
+       specifically 'label:kind:srclang:path_to_vtt_file', e.g. "en:subtitles:en:path/to/the/vtt/file.vtt".
+       This function takes one of those strings (optionally with a multivalue subdelimiter) and returns
+       a list of dictionaries with 'label', 'kind', 'srclang', 'file_path' keys required by the
+       'media_track' field type.
+    """
+    return_list = []
+    temp_list = media_track_string.split(config['subdelimiter'])
+    for item in temp_list:
+        track_parts_list = item.split(':', 3)
+        item_dict = {
+            'label': track_parts_list[0],
+            'kind': track_parts_list[1],
+            'srclang': track_parts_list[2],
+            'file_path': track_parts_list[3]}
+        return_list.append(item_dict)
+
+    return return_list
+
+
 def validate_media_use_tid_in_additional_files_setting(config, media_use_tid_value, additional_field_name):
     """Validate whether the term ID registered in the "additional_files" config setting
        is in the Islandora Media Use vocabulary.
@@ -3840,6 +3861,27 @@ def validate_authority_link_fields(config, field_definitions, csv_data):
         message = "OK, authority link field values in the CSV file validate."
         print(message)
         logging.info(message)
+
+
+def validate_media_track_value(media_track_value):
+    """Validates that the string in "media_track_value" has valid Drupal language
+       codes and valid 'kind' values.
+    """
+    """Parameters
+        ----------
+        media_track_value : string
+            The CSV value to validate.
+        Returns
+        -------
+        boolean
+            True if it does, False if not.
+    """
+    valid_kinds = ['subtitles']
+    parts = media_track_value.split(':', 3)
+    if validate_language_code(parts[0]) and validate_language_code(parts[2]) and parts[1] in valid_kinds:
+        return True
+    else:
+        return False
 
 
 def validate_latlong_value(latlong):
