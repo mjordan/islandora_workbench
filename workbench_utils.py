@@ -4,6 +4,7 @@
 import os
 import sys
 import json
+from json.decoder import JSONDecodeError
 import csv
 import openpyxl
 import time
@@ -39,6 +40,13 @@ http_response_times = []
 # Global lists of terms to reduce queries to Drupal.
 checked_terms = list()
 newly_created_terms = list()
+# These are the Drupal field names on the standard types of media.
+file_fields = [
+    'field_media_file',
+    'field_media_image',
+    'field_media_document',
+    'field_media_audio_file',
+    'field_media_video_file']
 
 
 def set_media_type(config, filepath, file_fieldname, csv_row):
@@ -48,6 +56,11 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     """
     if 'media_type' in config:
         return config['media_type']
+
+    # Determine if the incomtimg filepath matches a registered eEmbed media type.
+    oembed_media_type = get_oembed_url_media_type(config, filepath)
+    if oembed_media_type is not None:
+        return oembed_media_type
 
     if filepath.strip().startswith('http'):
         preprocessed_file_path = get_preprocessed_file_path(config, file_fieldname, csv_row)
@@ -69,8 +82,44 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
             for type, extensions in override.items():
                 if normalized_extension in extensions:
                     media_type = type
+
     # If extension isn't in one of the lists, default to 'file' bundle.
     return media_type
+
+
+def get_oembed_url_media_type(config, filepath):
+    """Since oEmbed remote media (e.g. remove video) don't have extensions, which we
+       use to detect the media type of local files, we use remote URL patterns to
+       detect if the value of the 'file' columns is an oEmbed media.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration object defined by set_config_defaults().
+       filepath: string
+           The value of the CSV 'file' column.
+       Returns
+       -------
+       mtype
+           A string naming the detected media type, e.g. 'remote_video', or None
+           if the filepath does not start with a configured provider URL.
+    """
+    for oembed_provider in config['oembed_providers']:
+        for mtype, provider_urls in oembed_provider.items():
+            for provider_url in provider_urls:
+                if filepath.startswith(provider_url):
+                    return mtype
+
+    return None
+
+
+def get_oembed_media_types(config):
+    # Get a list of the registered oEmbed media types from config.
+    media_types = list()
+    for omt in config['oembed_providers']:
+        keys = list(omt.keys())
+        media_types.append(keys[0])
+    return media_types
 
 
 def set_model_from_extension(file_name, config):
@@ -1025,7 +1074,9 @@ def check_input(config, args):
     # we exit immediately after doing these checks.
     if config['task'] == 'get_data_from_view':
         # First, ping the View.
-        view_url = config['host'] + '/' + config['view_path'].lstrip('/')
+        view_parameters = '&'.join(config['view_parameters']) if 'view_parameters' in config else ''
+        view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page=0&' + view_parameters
+
         view_path_status_code = ping_view_endpoint(config, view_url)
         if view_path_status_code != 200:
             message = f"Cannot access View at {view_url}."
@@ -1036,20 +1087,32 @@ def check_input(config, args):
             logging.info(message)
             print("OK, " + message)
 
+        if config['export_file_directory'] is not None:
+            if not os.path.exists(config['export_file_directory']):
+                try:
+                    os.mkdir(config['export_file_directory'])
+                    os.rmdir(config['export_file_directory'])
+                except Exception as e:
+                    message = 'Path in configuration option "export_file_directory" ("' + config['export_file_directory'] + '") is not writable.'
+                    logging.error(message + ' ' + str(e))
+                    sys.exit('Error: ' + message + ' See log for more detail.')
+
         # Check to make sure the output path for the CSV file is writable.
-        if config['data_from_view_file_path'] is not None:
-            csv_file_path = config['data_from_view_file_path']
+        if config['export_csv_file_path'] is not None:
+            csv_file_path = config['export_csv_file_path']
         else:
             csv_file_path = os.path.join(config['input_dir'], os.path.basename(args.config).split('.')[0] + '.csv_file_with_data_from_view')
         csv_file_path_file = open(csv_file_path, "a")
         if csv_file_path_file.writable() is False:
             message = f'Path to CSV file "{csv_file_path}" is not writable.'
             logging.error(message)
+            csv_file_path_file.close()
             sys.exit("Error: " + message)
         else:
             message = f'CSV output file location at {csv_file_path} is writable.'
             logging.info(message)
             print("OK, " + message)
+            csv_file_path_file.close()
 
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
@@ -1091,9 +1154,9 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
     if row_count == 0:
-            message = "Input CSV file " + config['input_csv'] + " has 0 rows."
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        message = "Input CSV file " + config['input_csv'] + " has 0 rows."
+        logging.error(message)
+        sys.exit('Error: ' + message)
     else:
         message = "OK, all " + str(row_count) + " rows in the CSV file have the same number of columns as there are headers (" + str(len(csv_column_headers)) + ")."
         print(message)
@@ -1757,11 +1820,15 @@ def check_input(config, args):
             logging.error(message)
             sys.exit('Error: ' + message)
 
-        if config['export_csv_file_path'] is not None:
-            if not os.access(config['export_csv_file_path'], os.W_OK):
-                message = 'Path in configuration option "export_csv_file_path" ("' + config['export_csv_file_path'] + '") is not writable.'
-                logging.error(message)
-                sys.exit('Error: ' + message)
+        if config['export_file_directory'] is not None:
+            if not os.path.exists(config['export_csv_file_path']):
+                try:
+                    os.mkdir(config['export_file_directory'])
+                    os.rmdir(config['export_file_directory'])
+                except Exception as e:
+                    message = 'Path in configuration option "export_file_directory" ("' + config['export_file_directory'] + '") is not writable.'
+                    logging.error(message + ' ' + str(e))
+                    sys.exit('Error: ' + message + ' See log for more detail.')
 
     # @todo issue 268: All checks for accumulator variables like 'rows_with_missing_files' should go here.
     if len(rows_with_missing_files) > 0 and config['strict_check'] is False:
@@ -2374,7 +2441,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
 
             return file_id
         else:
-            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s".', file_endpoint_path, file_response.status_code)
+            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.', file_endpoint_path, file_response.status_code, file_response.content)
             return False
     except requests.exceptions.RequestException as e:
         logging.error(e)
@@ -2408,11 +2475,20 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     if config['nodes_only'] is True:
         return
 
-    file_result = create_file(config, filename, file_fieldname, node_csv_row, node_id)
+    # media_type_for_oembed_check = set_media_type(config, filename, file_fieldname, node_csv_row)
+    media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
+
+    if media_type in get_oembed_media_types(config):
+        # file_result must be an integer.
+        file_result = -1
+    else:
+        file_result = create_file(config, filename, file_fieldname, node_csv_row, node_id)
+
     if filename.startswith('http'):
         if file_result is False:
             return False
         filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id)
+
     if isinstance(file_result, int):
         if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
             media_use_tid_value = node_csv_row['media_use_tid']
@@ -2432,7 +2508,6 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             if not value_is_numeric(media_use_term) and not media_use_term.strip().startswith('http'):
                 media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip()))
 
-        media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
         media_bundle_response_code = ping_media_bundle(config, media_type)
         if media_bundle_response_code == 404:
             message = 'File "' + filename + '" identified in CSV row ' + file_fieldname + \
@@ -2441,7 +2516,18 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             return False
 
         media_field = config['media_bundle_file_fields'][media_type]
-        media_name = os.path.basename(filename)
+        if media_type in get_oembed_media_types(config):
+            if 'title' in node_csv_row:
+                media_name = node_csv_row['title']
+            else:
+                media_name = get_node_title_from_nid(config, node_id)
+                if not media_name:
+                    message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using oEmbed URL instead.'
+                    logging.warning(message)
+                    media_name = filename
+        else:
+            media_name = os.path.basename(filename)
+
         if config['use_node_title_for_media']:
             if 'title' in node_csv_row:
                 media_name = node_csv_row['title']
@@ -2455,32 +2541,61 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             media_name = f"{node_id}-Original File"
         if config['field_for_media_title']:
             media_name = node_csv_row[config['field_for_media_title']].replace(':', '_')
-        media_json = {
-            "bundle": [{
-                "target_id": media_type,
-                "target_type": "media_type",
-            }],
-            "status": [{
-                "value": True
-            }],
-            "name": [{
-                "value": media_name
-            }],
-            media_field: [{
-                "target_id": file_result,
-                "target_type": 'file'
-            }],
-            "field_media_of": [{
-                "target_id": int(node_id),
-                "target_type": 'node'
-            }],
-            "field_media_use": [{
-                "target_id": media_use_tids[0],
-                "target_type": 'taxonomy_term'
-            }]
-        }
 
-        # @todo: We'll need a more generalized way of determining which media fields are required.
+        # Create a media from an oEmbed URL.
+        if media_type in get_oembed_media_types(config):
+            media_json = {
+                "bundle": [{
+                    "target_id": media_type,
+                    "target_type": "media_type",
+                }],
+                "status": [{
+                    "value": True
+                }],
+                "name": [{
+                    "value": media_name
+                }],
+                media_field: [{
+                    "value": filename
+                }],
+                "field_media_of": [{
+                    "target_id": int(node_id),
+                    "target_type": 'node'
+                }],
+                "field_media_use": [{
+                    "target_id": media_use_tids[0],
+                    "target_type": 'taxonomy_term'
+                }]
+            }
+        # Create a media from a local or remote file.
+        else:
+            media_json = {
+                "bundle": [{
+                    "target_id": media_type,
+                    "target_type": "media_type",
+                }],
+                "status": [{
+                    "value": True
+                }],
+                "name": [{
+                    "value": media_name
+                }],
+                media_field: [{
+                    "target_id": file_result,
+                    "target_type": 'file'
+                }],
+                "field_media_of": [{
+                    "target_id": int(node_id),
+                    "target_type": 'node'
+                }],
+                "field_media_use": [{
+                    "target_id": media_use_tids[0],
+                    "target_type": 'taxonomy_term'
+                }]
+            }
+
+        # Populate some media type-specific fields on the media. @todo: We need a generalized way of
+        # determining which media fields are required, e.g. checking the media type configuration.
         if media_field == 'field_media_image':
             if 'image_alt_text' in node_csv_row and len(node_csv_row['image_alt_text']) > 0:
                 alt_text = clean_image_alt_text(node_csv_row['image_alt_text'])
@@ -2489,12 +2604,24 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 alt_text = clean_image_alt_text(media_name)
                 media_json[media_field][0]['alt'] = alt_text
 
+        # extracted_text media must have their field_edited_text field populated for full text indexing.
+        if media_type == 'extracted_text':
+            if os.path.exists(filename):
+                media_json['field_edited_text'] = list()
+                extracted_text_file = open(filename, 'r', -1, 'utf-8')
+                media_json['field_edited_text'].append({'value': extracted_text_file.read()})
+            else:
+                logging.error("Extracted text file %s not found.", filename)
+
         media_endpoint_path = '/entity/media'
         media_headers = {
             'Content-Type': 'application/json'
         }
         try:
             media_response = issue_request(config, 'POST', media_endpoint_path, media_headers, media_json)
+            if media_response.status_code != 201:
+                logging.error('Media not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.', media_endpoint_path, media_response.status_code, media_response.content)
+                logging.error('JSON request body used in previous POST to "%s" was %s.', media_endpoint_path, media_json)
 
             if len(media_use_tids) > 1:
                 media_response_body = json.loads(media_response.text)
@@ -2759,13 +2886,6 @@ def remove_media_and_file(config, media_id):
         logging.error(message)
         sys.exit("Error: " + message)
 
-    # These are the Drupal field names on the standard types of media.
-    file_fields = [
-        'field_media_file',
-        'field_media_image',
-        'field_media_document',
-        'field_media_audio_file',
-        'field_media_video_file']
     for file_field_name in file_fields:
         if file_field_name in get_media_response_body:
             try:
@@ -4630,9 +4750,9 @@ def check_file_exists(config, filename):
 
 
 def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=None):
-    """For remote/downloaded files, generates the path to the local temporary
-       copy and returns that path. For local files, just returns the value of
-       node_csv_row['file'].
+    """For remote/downloaded files (other than from providers defined in config['oembed_providers]),
+       generates the path to the local temporary copy and returns that path. For local files or oEmbed URLs,
+       just returns the value of node_csv_row['file'].
     """
     """Parameters
         ----------
@@ -4650,6 +4770,13 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
     file_path_from_csv = node_csv_row[file_fieldname].strip()
     if config['task'] == 'add_media':
         config['id_field'] = 'node_id'
+
+    # Test whether file_path_from_csv is from one of the oEmbed providers
+    # and if so, return it here.
+    for oembed_provider in config['oembed_providers']:
+        for provider_url, mtype in oembed_provider.items():
+            if file_path_from_csv.startswith(provider_url):
+                return file_path_from_csv
 
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
@@ -4784,6 +4911,65 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     f.close
 
     return downloaded_file_path
+
+
+def download_file_from_drupal(config, node_id):
+    '''WIP on https://github.com/mjordan/islandora_workbench/issues/492.
+    '''
+
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        node_id : string
+            The ID of the node to delete media from.
+        Returns
+        -------
+        file_name
+            The downloaded file's name, or False if unable to download the file.
+    """
+    if config['export_file_directory'] is None:
+        return False
+
+    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
+    response = issue_request(config, 'GET', media_list_url)
+    if response.status_code == 200:
+        try:
+            media_list = json.loads(response.text)
+        except json.decoder.JSONDecodeError as e:
+            logging.error(f'Media query for node {node_id} produced the following error: {e}')
+            return False
+        if len(media_list) == 0:
+            logging.warning(f'Node {node_id} has no media.')
+            return False
+
+        if str(config['export_file_media_use_term_id']).startswith('http'):
+            config['export_file_media_use_term_id'] = get_term_id_from_uri(config, config['export_file_media_use_term_id'])
+
+        for media in media_list:
+            for file_field_name in file_fields:
+                if file_field_name in media:
+                    if len(media[file_field_name]) and media['field_media_use'][0]['target_id'] == config['export_file_media_use_term_id']:
+                        url_filename = os.path.basename(media[file_field_name][0]['url'])
+                        downloaded_file_path = os.path.join(config['export_file_directory'], url_filename)
+                        if os.path.exists(downloaded_file_path):
+                            downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+                        f = open(downloaded_file_path, 'wb+')
+                        f.write(response.content)
+                        f.close
+                        filename_for_logging = os.path.basename(downloaded_file_path)
+                        logging.info(f'File "{filename_for_logging}" downloaded for node {node_id}.')
+                        if os.path.isabs(config['export_file_directory']):
+                            return downloaded_file_path
+                        else:
+                            return filename_for_logging
+                    else:
+                        logging.warning(f'Node {node_id} in new Summit has no files in "{file_field_name}".')
+                else:
+                    continue
+    else:
+        logging.error(f'Attempt to fetch media list {media_list_url} returned an {r.status_code} HTTP response.')
+        return False
 
 
 def get_file_hash_from_drupal(config, file_uuid, algorithm):
@@ -5208,3 +5394,96 @@ def is_ascii(input):
             False otherwise.
     """
     return all(ord(c) < 128 for c in input)
+
+
+def quick_delete_node(config, args):
+    logging.info("--quick_delete_node task started for " + args.quick_delete_node)
+
+    response = issue_request(config, 'GET', args.quick_delete_node + '?_format=json')
+    if response.status_code != 200:
+        message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    node_id = get_nid_from_url_alias(config, args.quick_delete_node)
+    if node_id is False:
+        message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    entity = json.loads(response.text)
+    if 'type' in entity:
+        if entity['type'][0]['target_type'] == 'node_type':
+            # Delete the node's media first.
+            if config['delete_media_with_nodes'] is True:
+                media_endpoint = config['host'] + '/node/' + str(node_id) + '/media?_format=json'
+                media_response = issue_request(config, 'GET', media_endpoint)
+                media_response_body = json.loads(media_response.text)
+                media_messages = []
+                for media in media_response_body:
+                    if 'mid' in media:
+                        media_id = media['mid'][0]['value']
+                        media_delete_status_code = remove_media_and_file(config, media_id)
+                        if media_delete_status_code == 204:
+                            media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
+
+            # Then the node.
+            node_endpoint = config['host'] + '/node/' + str(node_id) + '?_format=json'
+            node_response = issue_request(config, 'DELETE', node_endpoint)
+            if node_response.status_code == 204:
+                if config['progress_bar'] is False:
+                    print("Node " + args.quick_delete_node + " deleted.")
+                logging.info("Node %s deleted.", args.quick_delete_node)
+            if config['delete_media_with_nodes'] is True and config['progress_bar'] is False:
+                if len(media_messages):
+                    for media_message in media_messages:
+                        print(media_message)
+        else:
+            message = f"{args.quick_delete_node} does not apear to be a node."
+            logging.error(message)
+            sys.exit("Error: " + message)
+    else:
+        message = f"{args.quick_delete_node} does not apear to be a node."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    sys.exit()
+
+
+def quick_delete_media(config, args):
+    logging.info("--quick_delete_mediatask started for " + args.quick_delete_media)
+
+    if config['standalone_media_url'] is False and not args.quick_delete_media.endswith('/edit'):
+        message = f"You need to add '/edit' to the end of your media URL (e.g. {args.quick_delete_media}/edit)."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    if config['standalone_media_url'] is True and args.quick_delete_media.endswith('/edit'):
+        message = f"You need to remove '/edit' to the end of your media URL."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    ping_response = issue_request(config, 'GET', args.quick_delete_media + '?_format=json')
+    if ping_response.status_code == 404:
+        message = f"Cannot find {args.quick_delete_media}. Please verify the media URL and try again."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    entity = json.loads(ping_response.text)
+    if 'mid' not in entity:
+        message = f"{args.quick_delete_media} does not apear to be a media."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    media_id = get_mid_from_media_url_alias(config, args.quick_delete_media)
+    media_delete_status_code = remove_media_and_file(config, media_id)
+    if media_delete_status_code == 204:
+        message = f"Media {args.quick_delete_media} and associated file deleted."
+        print(message)
+        logging.info(message)
+    else:
+        message = f"Media {args.quick_delete_media} and associated file not deleted. See Workbench log for more detail."
+        print("Error: " + message)
+        logging.error(message + f"HTTP response code was {media_delete_status_code}.")
+
+    sys.exit()

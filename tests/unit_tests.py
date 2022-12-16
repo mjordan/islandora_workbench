@@ -329,8 +329,18 @@ class TestSetMediaType(unittest.TestCase):
         self.assertEqual(res, 'file')
 
         fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.tif'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foocaps.TIF', 'file', fake_csv_record)
+        self.assertEqual(res, 'file')
+
+        fake_csv_record = collections.OrderedDict()
         fake_csv_record['file'] = '/tmp/foo.mp4'
         res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.mp4', 'file', fake_csv_record)
+        self.assertEqual(res, 'video')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.mp4'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foocaps.MP4', 'file', fake_csv_record)
         self.assertEqual(res, 'video')
 
         fake_csv_record = collections.OrderedDict()
@@ -341,6 +351,11 @@ class TestSetMediaType(unittest.TestCase):
         fake_csv_record = collections.OrderedDict()
         fake_csv_record['file'] = '/tmp/foo.pptx'
         res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.pptx', 'file', fake_csv_record)
+        self.assertEqual(res, 'document')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = '/tmp/foo.pptx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/foo.Pptx', 'file', fake_csv_record)
         self.assertEqual(res, 'document')
 
         fake_csv_record = collections.OrderedDict()
@@ -362,6 +377,16 @@ class TestSetMediaType(unittest.TestCase):
         fake_csv_record['file'] = '/tmp/xxx.foo'
         res = workbench_utils.set_media_type(self.multi_types_config_yaml, '/tmp/xxx.foo', 'file', fake_csv_record)
         self.assertEqual(res, 'foomedia')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = 'https://youtu.be/xxxx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, 'https://youtu.be/xxxx', 'file', fake_csv_record)
+        self.assertEqual(res, 'remote_video')
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record['file'] = 'https://vimeo.com/xxxx'
+        res = workbench_utils.set_media_type(self.multi_types_config_yaml, 'https://vimeo.com/xxxx', 'file', fake_csv_record)
+        self.assertEqual(res, 'remote_video')
 
     def test_single_type_set_media_type(self):
         fake_csv_record = collections.OrderedDict()
