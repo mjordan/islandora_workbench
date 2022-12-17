@@ -1097,6 +1097,11 @@ def check_input(config, args):
                     logging.error(message + ' ' + str(e))
                     sys.exit('Error: ' + message + ' See log for more detail.')
 
+        if config['export_file_media_use_term_id'] is False:
+            message = f'Unknown value for configuration setting "export_file_media_use_term_id": {config["export_file_media_use_term_id"]}.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
         # Check to make sure the output path for the CSV file is writable.
         if config['export_csv_file_path'] is not None:
             csv_file_path = config['export_csv_file_path']
@@ -1830,6 +1835,11 @@ def check_input(config, args):
                     logging.error(message + ' ' + str(e))
                     sys.exit('Error: ' + message + ' See log for more detail.')
 
+        if config['export_file_media_use_term_id'] is False:
+            message = f'Unknown value for configuration setting "export_file_media_use_term_id": {config["export_file_media_use_term_id"]}.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
     # @todo issue 268: All checks for accumulator variables like 'rows_with_missing_files' should go here.
     if len(rows_with_missing_files) > 0 and config['strict_check'] is False:
         if config['allow_missing_files'] is False:
@@ -2441,7 +2451,8 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
 
             return file_id
         else:
-            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.', file_endpoint_path, file_response.status_code, file_response.content)
+            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
+                          file_endpoint_path, file_response.status_code, file_response.content)
             return False
     except requests.exceptions.RequestException as e:
         logging.error(e)
@@ -2620,7 +2631,8 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         try:
             media_response = issue_request(config, 'POST', media_endpoint_path, media_headers, media_json)
             if media_response.status_code != 201:
-                logging.error('Media not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.', media_endpoint_path, media_response.status_code, media_response.content)
+                logging.error('Media not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
+                              media_endpoint_path, media_response.status_code, media_response.content)
                 logging.error('JSON request body used in previous POST to "%s" was %s.', media_endpoint_path, media_json)
 
             if len(media_use_tids) > 1:
@@ -4957,6 +4969,10 @@ def download_file_from_drupal(config, node_id):
         if str(config['export_file_media_use_term_id']).startswith('http'):
             config['export_file_media_use_term_id'] = get_term_id_from_uri(config, config['export_file_media_use_term_id'])
 
+        if config['export_file_media_use_term_id'] is False:
+            logging.error(f'Unknown value for configuration setting "export_file_media_use_term_id": {config["export_file_media_use_term_id"]}.')
+            return False
+
         for media in media_list:
             for file_field_name in file_fields:
                 if file_field_name in media:
@@ -4966,8 +4982,8 @@ def download_file_from_drupal(config, node_id):
                         if os.path.exists(downloaded_file_path):
                             downloaded_file_path = get_deduped_file_path(downloaded_file_path)
                         f = open(downloaded_file_path, 'wb+')
-                        # User needs to be anonymous since authenticated users who did not create the file
-                        # don't have any permissions on it (including users in the admin role).
+                        # User needs to be anonymous since authenticated users are getting 403 responses. Probably something in
+                        # Drupal's FileAccessControlHandler code is doing this.
                         file_download_response = requests.get(media[file_field_name][0]['url'], allow_redirects=True, verify=config['secure_ssl_only'])
                         if file_download_response.status_code == 200:
                             f.write(file_download_response.content)
