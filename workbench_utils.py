@@ -4908,7 +4908,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)
-    f.close
+    f.close()
 
     return downloaded_file_path
 
@@ -4931,11 +4931,22 @@ def download_file_from_drupal(config, node_id):
     if config['export_file_directory'] is None:
         return False
 
-    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
-    response = issue_request(config, 'GET', media_list_url)
-    if response.status_code == 200:
+    if not os.path.exists(config['export_file_directory']):
         try:
-            media_list = json.loads(response.text)
+            os.mkdir(config['export_file_directory'])
+        except Exception as e:
+            message = 'Path in configuration option "export_file_directory" ("' + config['export_file_directory'] + '") is not writable.'
+            logging.error(message + ' ' + str(e))
+            sys.exit('Error: ' + message + ' See log for more detail.')
+    else:
+        message = 'Path in configuration option "export_file_directory" ("' + config['export_file_directory'] + '") already exists.'
+        logging.info(message)
+
+    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
+    media_list_response = issue_request(config, 'GET', media_list_url)
+    if media_list_response.status_code == 200:
+        try:
+            media_list = json.loads(media_list_response.text)
         except json.decoder.JSONDecodeError as e:
             logging.error(f'Media query for node {node_id} produced the following error: {e}')
             return False
@@ -4955,16 +4966,26 @@ def download_file_from_drupal(config, node_id):
                         if os.path.exists(downloaded_file_path):
                             downloaded_file_path = get_deduped_file_path(downloaded_file_path)
                         f = open(downloaded_file_path, 'wb+')
-                        f.write(response.content)
-                        f.close
-                        filename_for_logging = os.path.basename(downloaded_file_path)
-                        logging.info(f'File "{filename_for_logging}" downloaded for node {node_id}.')
-                        if os.path.isabs(config['export_file_directory']):
-                            return downloaded_file_path
+                        # User needs to be anonymous since authenticated users who did not create the file
+                        # don't have any permissions on it (including users in the admin role).
+                        file_download_response = requests.get(media[file_field_name][0]['url'], allow_redirects=True, verify=config['secure_ssl_only'])
+                        if file_download_response.status_code == 200:
+                            f.write(file_download_response.content)
+                            f.close()
+                            filename_for_logging = os.path.basename(downloaded_file_path)
+                            logging.info(f'File "{filename_for_logging}" downloaded for node {node_id}.')
+                            if os.path.isabs(config['export_file_directory']):
+                                return downloaded_file_path
+                            else:
+                                return filename_for_logging
                         else:
-                            return filename_for_logging
+                            message = f"File at {media[file_field_name][0]['url']} (part of media for node {node_id}) could " + \
+                                f"not be downloaded (HTTP response code {file_download_response.status_code})."
+                            logging.error(message)
+                            return False
                     else:
                         logging.warning(f'Node {node_id} in new Summit has no files in "{file_field_name}".')
+                        return False
                 else:
                     continue
     else:
