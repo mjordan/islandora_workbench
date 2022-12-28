@@ -3879,8 +3879,7 @@ def validate_authority_link_fields(config, field_definitions, csv_data):
 
 
 def validate_media_track_value(media_track_value):
-    """Validates that the string in "media_track_value" has valid Drupal language
-       codes and valid 'kind' values.
+    """Validates that the string in "media_track_value" has valid values in its subparts.
     """
     """Parameters
         ----------
@@ -3891,9 +3890,12 @@ def validate_media_track_value(media_track_value):
         boolean
             True if it does, False if not.
     """
-    valid_kinds = ['subtitles']
+    valid_kinds = ['subtitles', 'descriptions', 'metadata', 'captions', 'chapters']
     parts = media_track_value.split(':', 3)
-    if validate_language_code(parts[0]) and validate_language_code(parts[2]) and parts[1] in valid_kinds:
+    # First part, the label, needs to have a length; second part needs to be one of the
+    # values in 'valid_kinds'; third part needs to be a valid Drupal language code; the fourth
+    # part needs to end in '.vtt'.
+    if len(parts[0]) > 0 and validate_language_code(parts[2]) and parts[1] in valid_kinds and parts[3].lower().endswith('.vtt'):
         return True
     else:
         return False

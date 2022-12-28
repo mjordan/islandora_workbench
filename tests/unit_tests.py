@@ -194,28 +194,43 @@ class TestMediaTrackString(unittest.TestCase):
 
     def test_split_media_track_string_single(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_media_track_string(config, 'en:subtitles:en:/path/to/file')
-        self.assertDictEqual(res[0], {'label': 'en', 'kind': 'subtitles', 'srclang': 'en', 'file_path': '/path/to/file'})
+        res = workbench_utils.split_media_track_string(config, 'Transcript:subtitles:en:/path/to/file')
+        self.assertDictEqual(res[0], {'label': 'Transcript', 'kind': 'subtitles', 'srclang': 'en', 'file_path': '/path/to/file'})
 
     def test_split_media_track_string_single_windows(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_media_track_string(config, 'en:subtitles:en:c:/path/to/file')
-        self.assertDictEqual(res[0], {'label': 'en', 'kind': 'subtitles', 'srclang': 'en', 'file_path': 'c:/path/to/file'})
+        res = workbench_utils.split_media_track_string(config, 'Foo:subtitles:en:c:/path/to/file')
+        self.assertDictEqual(res[0], {'label': 'Foo', 'kind': 'subtitles', 'srclang': 'en', 'file_path': 'c:/path/to/file'})
 
     def test_split_media_track_multiple(self):
         config = {'subdelimiter': '|'}
-        res = workbench_utils.split_media_track_string(config, 'en:subtitles:en:c:/path/to/file.vtt|fr:subtitles:fr:/path/to/file2.vtt')
-        self.assertDictEqual(res[0], {'label': 'en', 'kind': 'subtitles', 'srclang': 'en', 'file_path': 'c:/path/to/file.vtt'})
-        self.assertDictEqual(res[1], {'label': 'fr', 'kind': 'subtitles', 'srclang': 'fr', 'file_path': '/path/to/file2.vtt'})
+        res = workbench_utils.split_media_track_string(config, 'Bar:subtitles:en:c:/path/to/file.vtt|Baz:subtitles:fr:/path/to/file2.vtt')
+        self.assertDictEqual(res[0], {'label': 'Bar', 'kind': 'subtitles', 'srclang': 'en', 'file_path': 'c:/path/to/file.vtt'})
+        self.assertDictEqual(res[1], {'label': 'Baz', 'kind': 'subtitles', 'srclang': 'fr', 'file_path': '/path/to/file2.vtt'})
 
 
 class TestValidateMediaTrackString(unittest.TestCase):
 
     def test_validate_media_track_values(self):
-        res = workbench_utils.validate_media_track_value('en:subtitles:en:c:/path/to/file')
+        res = workbench_utils.validate_media_track_value('Transcript:subtitles:en:c:/path/to/file.vtt')
         self.assertTrue(res)
 
-        res = workbench_utils.validate_media_track_value('en:subtitle:en:c:/path/to/file')
+        res = workbench_utils.validate_media_track_value('Transcript:captions:de:c:/path/to/file.vtt')
+        self.assertTrue(res)
+
+        res = workbench_utils.validate_media_track_value('Transcript:subtitles:fr:c:/path/to/file.VTT')
+        self.assertTrue(res)
+
+        res = workbench_utils.validate_media_track_value('Transcript:subtitles:ff:c:/path/to/file.VTT')
+        self.assertFalse(res)
+
+        res = workbench_utils.validate_media_track_value('Transcript:subtitles:en:c:/path/to/file.ccc')
+        self.assertFalse(res)
+
+        res = workbench_utils.validate_media_track_value(':subtitles:en:c:/path/to/file.VTT')
+        self.assertFalse(res)
+
+        res = workbench_utils.validate_media_track_value('Transcript:subtitle:en:c:/path/to/file.vtt')
         self.assertFalse(res)
 
 
