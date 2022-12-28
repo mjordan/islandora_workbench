@@ -178,7 +178,7 @@ class WorkbenchConfig:
             'export_csv_file_path': None,
             'export_csv_field_list': [],
             'export_file_directory': None,
-            'export_file_media_use_term_id': 'https://pcdm.org/use#OriginalFile',
+            'export_file_media_use_term_id': 'http://pcdm.org/use#OriginalFile',
             'standalone_media_url': False,
             'require_entity_reference_views': True,
             'csv_start_row': 0,

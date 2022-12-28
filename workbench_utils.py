@@ -1097,6 +1097,11 @@ def check_input(config, args):
                     logging.error(message + ' ' + str(e))
                     sys.exit('Error: ' + message + ' See log for more detail.')
 
+        if config['export_file_media_use_term_id'] is False:
+            message = f'Unknown value for configuration setting "export_file_media_use_term_id": {config["export_file_media_use_term_id"]}.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
         # Check to make sure the output path for the CSV file is writable.
         if config['export_csv_file_path'] is not None:
             csv_file_path = config['export_csv_file_path']
@@ -1830,6 +1835,11 @@ def check_input(config, args):
                     logging.error(message + ' ' + str(e))
                     sys.exit('Error: ' + message + ' See log for more detail.')
 
+        if config['export_file_media_use_term_id'] is False:
+            message = f'Unknown value for configuration setting "export_file_media_use_term_id": {config["export_file_media_use_term_id"]}.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
     # @todo issue 268: All checks for accumulator variables like 'rows_with_missing_files' should go here.
     if len(rows_with_missing_files) > 0 and config['strict_check'] is False:
         if config['allow_missing_files'] is False:
@@ -2462,7 +2472,8 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
 
             return file_id
         else:
-            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.', file_endpoint_path, file_response.status_code, file_response.content)
+            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
+                          file_endpoint_path, file_response.status_code, file_response.content)
             return False
     except requests.exceptions.RequestException as e:
         logging.error(e)
@@ -2641,7 +2652,8 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         try:
             media_response = issue_request(config, 'POST', media_endpoint_path, media_headers, media_json)
             if media_response.status_code != 201:
-                logging.error('Media not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.', media_endpoint_path, media_response.status_code, media_response.content)
+                logging.error('Media not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
+                              media_endpoint_path, media_response.status_code, media_response.content)
                 logging.error('JSON request body used in previous POST to "%s" was %s.', media_endpoint_path, media_json)
 
             if len(media_use_tids) > 1:
@@ -2971,18 +2983,21 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
 
     if os.path.isabs(file_path):
         input_csv_path = file_path
-    # @todo: needs to be modified for vocabulary CSV files.
     elif file_path.startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+        if not os.path.exists(input_csv_path):
+            get_csv_from_google_sheet(config)
     elif file_path.endswith('.xlsx') is True:
         input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
+        if not os.path.exists(input_csv_path):
+            get_csv_from_excel(config)
     else:
         input_csv_path = os.path.join(config['input_dir'], file_path)
 
     if not os.path.exists(input_csv_path):
-        message = 'Error: CSV file ' + input_csv_path + ' not found.'
+        message = 'CSV file ' + input_csv_path + ' not found.'
         logging.error(message)
-        sys.exit(message)
+        sys.exit("Error: " + message)
 
     try:
         # 'utf-8-sig' encoding skips Microsoft BOM (0xef, 0xbb, 0xbf) at the start of files,
@@ -4950,7 +4965,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
     f = open(downloaded_file_path, 'wb+')
     f.write(response.content)
-    f.close
+    f.close()
 
     return downloaded_file_path
 
@@ -4973,11 +4988,22 @@ def download_file_from_drupal(config, node_id):
     if config['export_file_directory'] is None:
         return False
 
-    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
-    response = issue_request(config, 'GET', media_list_url)
-    if response.status_code == 200:
+    if not os.path.exists(config['export_file_directory']):
         try:
-            media_list = json.loads(response.text)
+            os.mkdir(config['export_file_directory'])
+        except Exception as e:
+            message = 'Path in configuration option "export_file_directory" ("' + config['export_file_directory'] + '") is not writable.'
+            logging.error(message + ' ' + str(e))
+            sys.exit('Error: ' + message + ' See log for more detail.')
+    else:
+        message = 'Path in configuration option "export_file_directory" ("' + config['export_file_directory'] + '") already exists.'
+        logging.info(message)
+
+    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
+    media_list_response = issue_request(config, 'GET', media_list_url)
+    if media_list_response.status_code == 200:
+        try:
+            media_list = json.loads(media_list_response.text)
         except json.decoder.JSONDecodeError as e:
             logging.error(f'Media query for node {node_id} produced the following error: {e}')
             return False
@@ -4988,6 +5014,10 @@ def download_file_from_drupal(config, node_id):
         if str(config['export_file_media_use_term_id']).startswith('http'):
             config['export_file_media_use_term_id'] = get_term_id_from_uri(config, config['export_file_media_use_term_id'])
 
+        if config['export_file_media_use_term_id'] is False:
+            logging.error(f'Unknown value for configuration setting "export_file_media_use_term_id": {config["export_file_media_use_term_id"]}.')
+            return False
+
         for media in media_list:
             for file_field_name in file_fields:
                 if file_field_name in media:
@@ -4997,16 +5027,26 @@ def download_file_from_drupal(config, node_id):
                         if os.path.exists(downloaded_file_path):
                             downloaded_file_path = get_deduped_file_path(downloaded_file_path)
                         f = open(downloaded_file_path, 'wb+')
-                        f.write(response.content)
-                        f.close
-                        filename_for_logging = os.path.basename(downloaded_file_path)
-                        logging.info(f'File "{filename_for_logging}" downloaded for node {node_id}.')
-                        if os.path.isabs(config['export_file_directory']):
-                            return downloaded_file_path
+                        # User needs to be anonymous since authenticated users are getting 403 responses. Probably something in
+                        # Drupal's FileAccessControlHandler code is doing this.
+                        file_download_response = requests.get(media[file_field_name][0]['url'], allow_redirects=True, verify=config['secure_ssl_only'])
+                        if file_download_response.status_code == 200:
+                            f.write(file_download_response.content)
+                            f.close()
+                            filename_for_logging = os.path.basename(downloaded_file_path)
+                            logging.info(f'File "{filename_for_logging}" downloaded for node {node_id}.')
+                            if os.path.isabs(config['export_file_directory']):
+                                return downloaded_file_path
+                            else:
+                                return filename_for_logging
                         else:
-                            return filename_for_logging
+                            message = f"File at {media[file_field_name][0]['url']} (part of media for node {node_id}) could " + \
+                                f"not be downloaded (HTTP response code {file_download_response.status_code})."
+                            logging.error(message)
+                            return False
                     else:
                         logging.warning(f'Node {node_id} in new Summit has no files in "{file_field_name}".')
+                        return False
                 else:
                     continue
     else:
