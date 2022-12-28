@@ -2962,18 +2962,21 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
 
     if os.path.isabs(file_path):
         input_csv_path = file_path
-    # @todo: needs to be modified for vocabulary CSV files.
     elif file_path.startswith('http') is True:
         input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+        if not os.path.exists(input_csv_path):
+            get_csv_from_google_sheet(config)
     elif file_path.endswith('.xlsx') is True:
         input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
+        if not os.path.exists(input_csv_path):
+            get_csv_from_excel(config)
     else:
         input_csv_path = os.path.join(config['input_dir'], file_path)
 
     if not os.path.exists(input_csv_path):
-        message = 'Error: CSV file ' + input_csv_path + ' not found.'
+        message = 'CSV file ' + input_csv_path + ' not found.'
         logging.error(message)
-        sys.exit(message)
+        sys.exit("Error: " + message)
 
     try:
         # 'utf-8-sig' encoding skips Microsoft BOM (0xef, 0xbb, 0xbf) at the start of files,
