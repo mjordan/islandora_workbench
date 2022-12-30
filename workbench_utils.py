@@ -2498,7 +2498,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     if filename.startswith('http'):
         if file_result is False:
             return False
-        filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id)
+        filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id, False)
 
     if isinstance(file_result, int):
         if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
@@ -4764,7 +4764,7 @@ def check_file_exists(config, filename):
             return True
 
 
-def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=None):
+def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=None, make_dir=True):
     """For remote/downloaded files (other than from providers defined in config['oembed_providers]),
        generates the path to the local temporary copy and returns that path. For local files or oEmbed URLs,
        just returns the value of node_csv_row['file'].
@@ -4800,7 +4800,8 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', 'nid_' + str(node_csv_row['node_id'])))
         else:
             subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
-        Path(subdir).mkdir(parents=True, exist_ok=True)
+        if make_dir:
+            Path(subdir).mkdir(parents=True, exist_ok=True)
 
         if config["use_node_title_for_media"]:
             # CSVs for add_media tasks don't contain 'title', so we need to get it.
