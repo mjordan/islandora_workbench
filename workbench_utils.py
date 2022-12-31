@@ -858,7 +858,7 @@ def get_required_bundle_fields(config, entity_type, bundle_type):
         entity_type : string
             One of 'node', 'media', or 'taxonomy_term'.
         bundle_type : string
-            The (node) content type, the vocabulary name, or the media type (image',
+            The (node) content type, the vocabulary name, or the media type ('image',
             'document', 'audio', 'video', 'file', etc.).
 
         Returns
@@ -1234,9 +1234,26 @@ def check_input(config, args):
             # Set this so we can validate langcode below.
             langcode_was_present = True
 
+        # We .remove() CSV column headers that use the 'media:video:field_foo' media track convention.
+        media_track_headers = list()
+        for column_header in csv_column_headers:
+            if column_header.startswith('media:'):
+                media_track_headers.append(column_header)
+        for media_track_header in media_track_headers:
+            if media_track_header in csv_column_headers:
+                csv_column_headers.remove(media_track_header)
+
+        # We also validate the structure of the media track column headers.
+        for media_track_header in media_track_headers:
+            media_track_header_parts = media_track_header.split(':')
+            if media_track_header_parts[0] != 'media' and len(media_track_header_parts) != 3:
+                message = f'"{media_track_header}" is not a valide media track CSV header.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
+        # Check for the View that is necessary for entity reference fields configured
+        # as "Views: Filter by an entity reference View" (issue 452).
         for csv_column_header in csv_column_headers:
-            # Check for the View that is necessary for entity reference fields configured
-            # as "Views: Filter by an entity reference View" (issue 452).
             if csv_column_header in field_definitions and field_definitions[csv_column_header]['handler'] == 'views':
                 if config['require_entity_reference_views'] is True:
                     entity_reference_view_exists = ping_entity_reference_view_endpoint(config, csv_column_header, field_definitions[csv_column_header]['handler_settings'])
@@ -1279,13 +1296,16 @@ def check_input(config, args):
 
     # Check that Drupal fields that are required are in the CSV file (create task only).
     if config['task'] == 'create':
-        required_drupal_fields = []
+        required_drupal_fields_node = get_required_bundle_fields(config, 'node', config['content_type'])
+        '''
+        required_drupal_fields_node = []
         for drupal_fieldname in field_definitions:
             # In the create task, we only check for required fields that apply to nodes.
             if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['entity_type'] == 'node':
                 if 'required' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['required'] is True:
-                    required_drupal_fields.append(drupal_fieldname)
-        for required_drupal_field in required_drupal_fields:
+                    required_drupal_fields_node.append(drupal_fieldname)
+        '''
+        for required_drupal_field in required_drupal_fields_node:
             if required_drupal_field not in csv_column_headers:
                 logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
                 sys.exit('Error: Field "' + required_drupal_field + '" required for content type "' + config['content_type'] + '" is not present in the CSV file.')
@@ -1492,6 +1512,10 @@ def check_input(config, args):
         warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_typed_relation_csv_data)
         if warn_user_about_typed_relation_terms is True:
             print('Warning: Issues detected with validating typed relation field values in the CSV file. See the log for more detail.')
+
+        validate_media_track_csv_data = get_csv_data(config)
+        # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+        validate_media_track_fields(config, validate_media_track_csv_data)
 
         # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
@@ -3868,12 +3892,49 @@ def validate_authority_link_fields(config, field_definitions, csv_data):
                     for field_value in delimited_field_values:
                         if len(field_value.strip()):
                             if not validate_authority_link_value(field_value.strip(), field_definitions[field_name]['authority_sources']):
-                                message = 'Value in field "' + field_name + '" in row with ID "' + row[config['id_field']] + '" (' + field_value + ') is not a valid authority link field value.'
+                                message = 'Value in field "' + field_name + '" in row with ID "' + \
+                                    row[config['id_field']] + '" (' + field_value + ') is not a valid authority link field value.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
     if authority_link_fields_present is True:
         message = "OK, authority link field values in the CSV file validate."
+        print(message)
+        logging.info(message)
+
+
+def validate_media_track_fields(config, csv_data):
+    """Validate values in fields that are of type 'media_track'.
+    """
+    # Must accommodate multiple media track fields in the same CSV. Therefore, we'll need to get the field definitions for more than one media bundle.
+    # See https://github.com/mjordan/islandora_workbench/issues/373#issuecomment-1367597787.
+    media_track_fields_present = False
+    media_track_field_definitions = list()
+    csv_column_headers = copy.copy(csv_data.fieldnames)
+    for column_header in csv_column_headers:
+        if column_header.startswith('media:'):
+            csv_data_to_check = copy.deepcopy(csv_data)
+            # Assumes well-formed column headers.
+            # @todo: --check for that where we check other field names.
+            media_bundle_name_parts = column_header.split(':')
+            media_bundle_name = media_bundle_name_parts[1]
+            media_track_field_definitions[media_bundle_name] = get_field_definitions(config, 'media', media_bundle_name)
+            for count, row in enumerate(csv_data_to_check, start=1):
+                for field_name in field_definitions.keys():
+                    if media_track_field_definitions[media_bundle_name][field_name]['field_type'] == 'media_track':
+                        if field_name in row:
+                            media_track_fields_present = True
+                            delimited_field_values = row[field_name].split(config['subdelimiter'])
+                            for field_value in delimited_field_values:
+                                if len(field_value.strip()):
+                                    if not validate_media_track_value(field_value.strip()):
+                                        message = 'Value in field "' + field_name + '" in row with ID "' + \
+                                            row[config['id_field']] + '" (' + field_value + ') is not a valid media track field value.'
+                                        logging.error(message)
+                                        sys.exit('Error: ' + message)
+
+    if media_track_fields_present is True:
+        message = "OK, media track field values in the CSV file validate."
         print(message)
         logging.info(message)
 
