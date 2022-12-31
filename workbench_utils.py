@@ -4803,6 +4803,9 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
         if make_dir:
             Path(subdir).mkdir(parents=True, exist_ok=True)
 
+        if 'check' in config.keys() and config['check'] is True:
+            os.rmdir(subdir)
+
         if config["use_node_title_for_media"]:
             # CSVs for add_media tasks don't contain 'title', so we need to get it.
             if config['task'] == 'add_media':
