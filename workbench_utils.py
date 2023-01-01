@@ -795,14 +795,29 @@ def get_field_definitions(config, entity_type, bundle_type=None):
         }
 
     if entity_type == 'media':
-        # @note: this section is incomplete.
         fields = get_entity_fields(config, entity_type, bundle_type)
         for fieldname in fields:
             field_definitions[fieldname] = {}
+            raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
+            field_config = json.loads(raw_field_config)
             if entity_type == 'media' and 'file_extensions' in field_config['settings']:
                 field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
             if entity_type == 'media':
                 field_definitions[fieldname]['media_type'] = bundle_type
+                field_definitions[fieldname]['field_type'] = field_config['field_type']
+
+            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
+            field_storage = json.loads(raw_field_storage)
+            field_definitions[fieldname]['field_type'] = field_storage['type']
+            field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
+            if 'max_length' in field_storage['settings']:
+                field_definitions[fieldname]['max_length'] = field_storage['settings']['max_length']
+            else:
+                field_definitions[fieldname]['max_length'] = None
+            if 'target_type' in field_storage['settings']:
+                field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
+            else:
+                field_definitions[fieldname]['target_type'] = None
 
     return field_definitions
 
@@ -3909,29 +3924,39 @@ def validate_media_track_fields(config, csv_data):
     # Must accommodate multiple media track fields in the same CSV. Therefore, we'll need to get the field definitions for more than one media bundle.
     # See https://github.com/mjordan/islandora_workbench/issues/373#issuecomment-1367597787.
     media_track_fields_present = False
-    media_track_field_definitions = list()
+    media_track_field_definitions = dict()
     csv_column_headers = copy.copy(csv_data.fieldnames)
     for column_header in csv_column_headers:
         if column_header.startswith('media:'):
-            csv_data_to_check = copy.deepcopy(csv_data)
             # Assumes well-formed column headers.
             # @todo: --check for that where we check other field names.
             media_bundle_name_parts = column_header.split(':')
             media_bundle_name = media_bundle_name_parts[1]
             media_track_field_definitions[media_bundle_name] = get_field_definitions(config, 'media', media_bundle_name)
-            for count, row in enumerate(csv_data_to_check, start=1):
-                for field_name in field_definitions.keys():
+            for count, row in enumerate(csv_data, start=1):
+                for field_name in media_track_field_definitions[media_bundle_name].keys():
                     if media_track_field_definitions[media_bundle_name][field_name]['field_type'] == 'media_track':
-                        if field_name in row:
+                        fully_qualified_field_name = f"media:{media_bundle_name}:{field_name}"
+                        if fully_qualified_field_name in row:
                             media_track_fields_present = True
-                            delimited_field_values = row[field_name].split(config['subdelimiter'])
+                            delimited_field_values = row[fully_qualified_field_name].split(config['subdelimiter'])
                             for field_value in delimited_field_values:
                                 if len(field_value.strip()):
-                                    if not validate_media_track_value(field_value.strip()):
-                                        message = 'Value in field "' + field_name + '" in row with ID "' + \
+                                    if validate_media_track_value(field_value) is False:
+                                        message = 'Value in field "' + fully_qualified_field_name + '" in row with ID "' + \
                                             row[config['id_field']] + '" (' + field_value + ') is not a valid media track field value.'
                                         logging.error(message)
                                         sys.exit('Error: ' + message)
+
+                                if config['nodes_only'] is False:
+                                    if len(field_value.strip()):
+                                        media_track_field_value_parts = field_value.split(':')
+                                        media_track_file_path = media_track_field_value_parts[3]
+                                        if not os.path.exists(media_track_file_path):
+                                            message = 'Media track file "' + media_track_file_path + '" in row with ID "' + \
+                                                row[config['id_field']] + '" not found.'
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
 
     if media_track_fields_present is True:
         message = "OK, media track field values in the CSV file validate."
