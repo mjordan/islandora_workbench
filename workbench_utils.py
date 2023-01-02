@@ -2685,32 +2685,26 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
-        # Create any media_track files here, since the media references them.
-
-        # @todo WIP on #373: Use config['media_track_file_fields']
-        media_types_with_track_files = ['video', 'audio']
+        # Create media_track files here, since the media references them.
+        media_types_with_track_files = config['media_track_file_fields'].keys()
+        valid_media_track_fields = list()
         if media_type in media_types_with_track_files:
             # Check for fields in node_csv_row that have names like 'media:video:field_track' and validate their contents.
-            # Note: Does not validate the fields' configuration.
+            # Note: Does not validate the fields' configuration (--check does that).
             node_csv_field_names = list(node_csv_row.keys())
             if len(node_csv_field_names):
-                valid_potential_media_track_fields = list()
-                invalid_potential_media_track_fields = list()
-                potential_media_track_fields = [x for x in node_csv_field_names if x.startswith('media:' + media_type)]
+                media_track_fields = [x for x in node_csv_field_names if x.startswith('media:' + media_type)]
                 # Should be just one field per media type.
-                if len(potential_media_track_fields):
-                    for potential_media_track_field in potential_media_track_fields:
-                        if validate_media_track_value(node_csv_row[potential_media_track_field]) is True:
-                            valid_potential_media_track_fields.append(potential_media_track_field)
-                        else:
-                            invalid_potential_media_track_fields.append(potential_media_track_field)
+                if len(media_track_fields) and media_type in config['media_track_file_fields']:
+                    for media_track_field in media_track_fields:
+                        if validate_media_track_value(node_csv_row[media_track_field]) is True:
+                            valid_media_track_fields.append(media_track_field)
 
-            # Create the media track file(s) for each entry in valid_potential_media_track_fields (there could be multiples).
-            # @todo WIP on #373: Use config['media_track_file_fields']
-            if len(valid_potential_media_track_fields):
+            # Create the media track file(s) for each entry in valid_potential_media_track_fields (there could be multiple track entries).
+            if len(valid_media_track_fields):
                 media_track_field_data = []
                 # Should be just one field per media type.
-                fully_qualified_media_track_field_name = valid_potential_media_track_fields[0]
+                fully_qualified_media_track_field_name = valid_media_track_fields[0]
                 media_track_entries = split_media_track_string(config, node_csv_row[fully_qualified_media_track_field_name])
                 for media_track_entry in media_track_entries:
                     media_track_field_name_parts = fully_qualified_media_track_field_name.split(':')
@@ -2989,9 +2983,6 @@ def patch_image_alt_text(config, media_id, node_csv_row):
 def remove_media_and_file(config, media_id):
     """Delete a media and the file associated with it.
     """
-
-    # @todo WIP on #373: Delete media track file if present. Use config['media_track_file_fields'].
-
     # First get the media JSON.
     if config['standalone_media_url'] is True:
         get_media_url = config['host'] + '/media/' + str(media_id) + '?_format=json'
@@ -3029,6 +3020,19 @@ def remove_media_and_file(config, media_id):
             logging.info("File %s (from media %s) deleted.", file_id, media_id)
         else:
             logging.error("File %s (from media %s) not deleted (HTTP response code %s).", file_id, media_id, file_response.status_code)
+
+    # Delete any audio/video media_track files.
+    media_bundle_name = get_media_response_body['bundle'][0]['target_id']
+    if media_bundle_name in config['media_track_file_fields']:
+        track_file_field = config['media_track_file_fields'][media_bundle_name]
+        for track_file in get_media_response_body[track_file_field]:
+            track_file_id = track_file['target_id']
+            track_file_endpoint = config['host'] + '/entity/file/' + str(track_file_id) + '?_format=json'
+            track_file_response = issue_request(config, 'DELETE', track_file_endpoint)
+            if track_file_response.status_code == 204:
+                logging.info("Track file %s (from media %s) deleted.", track_file_id, media_id)
+            else:
+                logging.error("Track file %s (from media %s) not deleted (HTTP response code %s).", track_file_id, media_id, track_file_response.status_code)
 
     # Then the media.
     if file_response.status_code == 204 or file_id is None:
@@ -3975,20 +3979,23 @@ def validate_authority_link_fields(config, field_definitions, csv_data):
 def validate_media_track_fields(config, csv_data):
     """Validate values in fields that are of type 'media_track'.
     """
-    # Must accommodate multiple media track fields in the same CSV. Therefore, we'll need
-    # to get the field definitions for more than one media bundle.
-
-    # @todo WIP on #373: Use config['media_track_file_fields']
-
     media_track_fields_present = False
+    # Must accommodate multiple media track fields in the same CSV (e.g. audio and vidoe media in the
+    # same CSV, each with its own track column). Therefore, we'll need to get the field definitions
+    # for more than one media bundle.
     media_track_field_definitions = dict()
     csv_column_headers = copy.copy(csv_data.fieldnames)
     for column_header in csv_column_headers:
         if column_header.startswith('media:'):
             # Assumes well-formed column headers.
-            # @todo: --check for that where we check other field names.
             media_bundle_name_parts = column_header.split(':')
             media_bundle_name = media_bundle_name_parts[1]
+            if media_bundle_name not in config['media_track_file_fields']:
+                message = 'Media type "' + media_bundle_name + '" in the CSV column header "' + column_header + \
+                    '" is not registered in the "media_track_file_fields" configuration setting.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
             media_track_field_definitions[media_bundle_name] = get_field_definitions(config, 'media', media_bundle_name)
             for count, row in enumerate(csv_data, start=1):
                 for field_name in media_track_field_definitions[media_bundle_name].keys():

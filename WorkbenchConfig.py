@@ -105,10 +105,7 @@ class WorkbenchConfig:
 
     # Returns standard field name for media track files for given media type.
     def get_media_track_file_fields(self):
-        return [
-            {'audio': 'field_track'},
-            {'video': 'field_track'}
-        ]
+        return {'audio': 'field_track', 'video': 'field_track'}
 
     # Returns the standard allowed oEmbed provider URLs for a given media type. These
     # are used to identify URLs in the 'file' CSV column as being remote media.
@@ -179,6 +176,7 @@ class WorkbenchConfig:
             'get_csv_template': self.args.get_csv_template,
             'paged_content_sequence_separator': '-',
             'media_bundle_file_fields': self.get_media_fields(),
+            'media_track_file_fields': self.get_media_track_file_fields(),
             'media_fields': self.get_media_fields(),
             'delete_media_by_node_media_use_tids': [],
             'export_csv_term_mode': 'tid',
