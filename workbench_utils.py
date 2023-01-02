@@ -2720,13 +2720,15 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                             'kind': media_track_entry['kind'],
                             'label': media_track_entry['label'],
                             'srclang': media_track_entry['srclang'],
-                            'default': True,
+                            'default': False,
                             'url': track_file_url}
                         media_track_field_data.append(track_file_data)
                     else:
                         # If there are any failures, proceed with creating the parent media.
                         logging.error(f"Media track {media_track_entry['file_path']} not created; create_file returned {create_track_file_result}.")
 
+                # Set the "default" attribute of the first media track.
+                media_track_field_data[0]['default'] = True
                 media_json[media_track_field_name_parts[2]] = media_track_field_data
 
         media_endpoint_path = '/entity/media'
