@@ -2414,11 +2414,13 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
                 The name of the CSV column containing the filename.
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+            node_id: string
+                The nid of the parent media's parent node.
             Returns
             -------
             string|int|bool|None
-                The file ID of the successfully created file; the HTTP status code if the
-                attempt was unsuccessful, False if there is insufficient information to create
+                The file ID (string) of the successfully created file; the HTTP status code (int) if
+                the attempt was unsuccessful, False if there is insufficient information to create
                 the file or file creation failed, or None if config['nodes_only'] or
                 config['allow_missing_files'] is True.
     """
@@ -2683,6 +2685,55 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 media_json['field_edited_text'].append({'value': extracted_text_file.read()})
             else:
                 logging.error("Extracted text file %s not found.", filename)
+
+        # WIP on #373.
+        # Create any media_track files here, since the media references them.
+        media_types_with_track_files = ['video', 'audio']
+        if media_type in media_types_with_track_files:
+            # Check for fields in node_csv_row that have names like 'media:video:field_track' and validate their contents.
+            # Note: Does not validate the fields' configuration.
+            node_csv_field_names = list(node_csv_row.keys())
+            if len(node_csv_field_names):
+                valid_potential_media_track_fields = list()
+                invalid_potential_media_track_fields = list()
+                potential_media_track_fields = [x for x in node_csv_field_names if x.startswith('media:' + media_type)]
+                # Should be just one field per media type.
+                if len(potential_media_track_fields):
+                    for potential_media_track_field in potential_media_track_fields:
+                        if validate_media_track_value(node_csv_row['potential_media_track_field']) is True:
+                            valid_potential_media_track_fields.append(potential_media_track_field)
+                        else:
+                            invalid_potential_media_track_fields.append(potential_media_track_field)
+
+            # Create the media track file(s) for each entry in valid_potential_media_track_fields (there could be multiples).
+            if len(valid_potential_media_track_fields):
+                media_track_field_data = []
+                # Should be just one field per media type.
+                fully_qualified_media_track_field_name = valid_potential_media_track_fields[0]
+                media_track_entries = split_media_track_string(config, node_csv_row[fully_qualified_media_track_field_name])
+                for media_track_entry in media_track_entries:
+                    media_track_field_name_parts = fully_qualified_media_track_field_name.split(':')
+                    create_track_file_result = create_file(config, media_track_entry['file_path'], media_track_field_name_parts[2], node_csv_row, node_id)
+                    # /entity/file/663?_format=json will return JSON containing the file's 'uri'.
+                    if isinstance(create_track_file_result, str):
+                        track_file_info_response = issue_request(config, 'GET', f"/entity/file/{create_track_file_result}?_format=json")
+                        track_file_info = json.loads(track_file_info_response.text)
+                        track_file_uri = track_file_info['uri']
+                        logging.info(f"Media track file {track_file_uri} created from {media_track_entry['file_path']}.")
+                        track_file_data = dict(
+                            'target_id': track_file_info['fid'],
+                            'kind': track_file_info['kind'],
+                            'label': track_file_info['label'],
+                            'srclang': track_file_info['scrlang'],
+                            'url': track_file_uri)
+                        media_track_field_data.append(track_file_data)
+                    else:
+                        # If there are any failures, proceed with creating the parent media.
+                        if isinstance(create_track_file_result, int):
+                            create_track_file_result = f"HTTP response code {create_track_file_result}"
+                        logging.error(f"Media track file {media_track_entry['file_path']} not created; create_file returned {create_track_file_result}.")
+
+                media_json[media_track_field_name_parts[2]] = media_track_field_data
 
         media_endpoint_path = '/entity/media'
         media_headers = {
@@ -3921,8 +3972,8 @@ def validate_authority_link_fields(config, field_definitions, csv_data):
 def validate_media_track_fields(config, csv_data):
     """Validate values in fields that are of type 'media_track'.
     """
-    # Must accommodate multiple media track fields in the same CSV. Therefore, we'll need to get the field definitions for more than one media bundle.
-    # See https://github.com/mjordan/islandora_workbench/issues/373#issuecomment-1367597787.
+    # Must accommodate multiple media track fields in the same CSV. Therefore, we'll need
+    # to get the field definitions for more than one media bundle.
     media_track_fields_present = False
     media_track_field_definitions = dict()
     csv_column_headers = copy.copy(csv_data.fieldnames)
