@@ -4008,7 +4008,18 @@ def validate_media_track_fields(config, csv_data):
                                 if len(field_value.strip()):
                                     if validate_media_track_value(field_value) is False:
                                         message = 'Value in field "' + fully_qualified_field_name + '" in row with ID "' + \
-                                            row[config['id_field']] + '" (' + field_value + ') is not a valid media track field value.'
+                                            row[config['id_field']] + '" (' + field_value + ') has a media type is not a valid media track field value.'
+                                        logging.error(message)
+                                        sys.exit('Error: ' + message)
+
+                                    # Confirm that the media bundle name in the column header matches the media type
+                                    # of the file in the 'file' column.
+                                    file_media_type = set_media_type(config, row['file'], 'file', row)
+                                    if file_media_type != media_bundle_name:
+                                        message = 'File named in the "file" field in row with ID "' + \
+                                            row[config['id_field']] + '" (' + row['file'] + ') has a media type ' + \
+                                            '(' + file_media_type + ') that differs from the media type indicated in the column header "' + \
+                                            fully_qualified_field_name + '" (' + media_bundle_name + ').'
                                         logging.error(message)
                                         sys.exit('Error: ' + message)
 
