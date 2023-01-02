@@ -162,6 +162,10 @@ def create():
             if custom_field == 'checksum':
                 continue
 
+            # We skip CSV columns whose headers use the 'media:video:field_foo' media track convention.
+            if custom_field.startswith('media:'):
+                continue
+
             # Execute field preprocessor scripts, if any are configured. Note that these scripts
             # are applied to the entire value from the CSV field and not split field values,
             # e.g., if a field is multivalued, the preprocesor must split it and then reassemble

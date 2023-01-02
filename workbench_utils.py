@@ -2418,10 +2418,9 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
                 The nid of the parent media's parent node.
             Returns
             -------
-            string|int|bool|None
-                The file ID (string) of the successfully created file; the HTTP status code (int) if
-                the attempt was unsuccessful, False if there is insufficient information to create
-                the file or file creation failed, or None if config['nodes_only'] or
+            int|bool|None
+                The file ID (int) of the successfully created file; False if there is insufficient
+                information to create the file or file creation failed, or None if config['nodes_only'] or
                 config['allow_missing_files'] is True.
     """
     if config['nodes_only'] is True:
@@ -2686,8 +2685,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
-        # WIP on #373.
         # Create any media_track files here, since the media references them.
+
+        # @todo WIP on #373: Use config['media_track_file_fields']
         media_types_with_track_files = ['video', 'audio']
         if media_type in media_types_with_track_files:
             # Check for fields in node_csv_row that have names like 'media:video:field_track' and validate their contents.
@@ -2700,12 +2700,13 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 # Should be just one field per media type.
                 if len(potential_media_track_fields):
                     for potential_media_track_field in potential_media_track_fields:
-                        if validate_media_track_value(node_csv_row['potential_media_track_field']) is True:
+                        if validate_media_track_value(node_csv_row[potential_media_track_field]) is True:
                             valid_potential_media_track_fields.append(potential_media_track_field)
                         else:
                             invalid_potential_media_track_fields.append(potential_media_track_field)
 
             # Create the media track file(s) for each entry in valid_potential_media_track_fields (there could be multiples).
+            # @todo WIP on #373: Use config['media_track_file_fields']
             if len(valid_potential_media_track_fields):
                 media_track_field_data = []
                 # Should be just one field per media type.
@@ -2715,23 +2716,22 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                     media_track_field_name_parts = fully_qualified_media_track_field_name.split(':')
                     create_track_file_result = create_file(config, media_track_entry['file_path'], media_track_field_name_parts[2], node_csv_row, node_id)
                     # /entity/file/663?_format=json will return JSON containing the file's 'uri'.
-                    if isinstance(create_track_file_result, str):
+                    if isinstance(create_track_file_result, int):
                         track_file_info_response = issue_request(config, 'GET', f"/entity/file/{create_track_file_result}?_format=json")
                         track_file_info = json.loads(track_file_info_response.text)
-                        track_file_uri = track_file_info['uri']
-                        logging.info(f"Media track file {track_file_uri} created from {media_track_entry['file_path']}.")
-                        track_file_data = dict(
-                            'target_id': track_file_info['fid'],
-                            'kind': track_file_info['kind'],
-                            'label': track_file_info['label'],
-                            'srclang': track_file_info['scrlang'],
-                            'url': track_file_uri)
+                        track_file_url = track_file_info['uri'][0]['url']
+                        logging.info(f"Media track file {track_file_url} created from {media_track_entry['file_path']}.")
+                        track_file_data = {
+                            'target_id': track_file_info['fid'][0]['value'],
+                            'kind': media_track_entry['kind'],
+                            'label': media_track_entry['label'],
+                            'srclang': media_track_entry['srclang'],
+                            'default': True,
+                            'url': track_file_url}
                         media_track_field_data.append(track_file_data)
                     else:
                         # If there are any failures, proceed with creating the parent media.
-                        if isinstance(create_track_file_result, int):
-                            create_track_file_result = f"HTTP response code {create_track_file_result}"
-                        logging.error(f"Media track file {media_track_entry['file_path']} not created; create_file returned {create_track_file_result}.")
+                        logging.error(f"Media track {media_track_entry['file_path']} not created; create_file returned {create_track_file_result}.")
 
                 media_json[media_track_field_name_parts[2]] = media_track_field_data
 
@@ -2989,6 +2989,9 @@ def patch_image_alt_text(config, media_id, node_csv_row):
 def remove_media_and_file(config, media_id):
     """Delete a media and the file associated with it.
     """
+
+    # @todo WIP on #373: Delete media track file if present. Use config['media_track_file_fields'].
+
     # First get the media JSON.
     if config['standalone_media_url'] is True:
         get_media_url = config['host'] + '/media/' + str(media_id) + '?_format=json'
@@ -3974,6 +3977,9 @@ def validate_media_track_fields(config, csv_data):
     """
     # Must accommodate multiple media track fields in the same CSV. Therefore, we'll need
     # to get the field definitions for more than one media bundle.
+
+    # @todo WIP on #373: Use config['media_track_file_fields']
+
     media_track_fields_present = False
     media_track_field_definitions = dict()
     csv_column_headers = copy.copy(csv_data.fieldnames)
@@ -4002,9 +4008,13 @@ def validate_media_track_fields(config, csv_data):
                                 if config['nodes_only'] is False:
                                     if len(field_value.strip()):
                                         media_track_field_value_parts = field_value.split(':')
-                                        media_track_file_path = media_track_field_value_parts[3]
-                                        if not os.path.exists(media_track_file_path):
-                                            message = 'Media track file "' + media_track_file_path + '" in row with ID "' + \
+                                        media_track_file_path_in_csv = media_track_field_value_parts[3]
+                                        if os.path.isabs(media_track_file_path_in_csv):
+                                            media_track_file_path = media_track_file_path_in_csv
+                                        else:
+                                            media_track_file_path = os.path.join(config['input_dir'], media_track_file_path_in_csv)
+                                        if not os.path.exists(media_track_file_path) or not os.path.isfile(media_track_file_path):
+                                            message = 'Media track file "' + media_track_file_path_in_csv + '" in row with ID "' + \
                                                 row[config['id_field']] + '" not found.'
                                             logging.error(message)
                                             sys.exit('Error: ' + message)
@@ -4032,7 +4042,7 @@ def validate_media_track_value(media_track_value):
     # First part, the label, needs to have a length; second part needs to be one of the
     # values in 'valid_kinds'; third part needs to be a valid Drupal language code; the fourth
     # part needs to end in '.vtt'.
-    if len(parts[0]) > 0 and validate_language_code(parts[2]) and parts[1] in valid_kinds and parts[3].lower().endswith('.vtt'):
+    if len(parts) == 4 and len(parts[0]) > 0 and validate_language_code(parts[2]) and parts[1] in valid_kinds and parts[3].lower().endswith('.vtt'):
         return True
     else:
         return False
