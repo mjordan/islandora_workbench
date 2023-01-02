@@ -2685,7 +2685,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
-        # Create media_track files here, since the media references them.
+        # Create media_track files here, since they should exist before we create the parent media.
         media_types_with_track_files = config['media_track_file_fields'].keys()
         valid_media_track_fields = list()
         if media_type in media_types_with_track_files:
@@ -2709,8 +2709,8 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 for media_track_entry in media_track_entries:
                     media_track_field_name_parts = fully_qualified_media_track_field_name.split(':')
                     create_track_file_result = create_file(config, media_track_entry['file_path'], media_track_field_name_parts[2], node_csv_row, node_id)
-                    # /entity/file/663?_format=json will return JSON containing the file's 'uri'.
-                    if isinstance(create_track_file_result, int):
+                    if create_track_file_result is not False and isinstance(create_track_file_result, int):
+                        # /entity/file/663?_format=json will return JSON containing the file's 'uri'.
                         track_file_info_response = issue_request(config, 'GET', f"/entity/file/{create_track_file_result}?_format=json")
                         track_file_info = json.loads(track_file_info_response.text)
                         track_file_url = track_file_info['uri'][0]['url']
@@ -3030,9 +3030,9 @@ def remove_media_and_file(config, media_id):
             track_file_endpoint = config['host'] + '/entity/file/' + str(track_file_id) + '?_format=json'
             track_file_response = issue_request(config, 'DELETE', track_file_endpoint)
             if track_file_response.status_code == 204:
-                logging.info("Track file %s (from media %s) deleted.", track_file_id, media_id)
+                logging.info("Media track file %s (from media %s) deleted.", track_file_id, media_id)
             else:
-                logging.error("Track file %s (from media %s) not deleted (HTTP response code %s).", track_file_id, media_id, track_file_response.status_code)
+                logging.error("Media track file %s (from media %s) not deleted (HTTP response code %s).", track_file_id, media_id, track_file_response.status_code)
 
     # Then the media.
     if file_response.status_code == 204 or file_id is None:
