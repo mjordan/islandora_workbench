@@ -2314,9 +2314,9 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
-                    message = 'Warning: URI "' + media_use_term + '" provided ' + message_wording + \
+                    message = 'Warning: URI "' + media_use_term + '" provided' + message_wording + \
                         "will assign an Islandora Media Use term that might conflict with derivative media. " + \
-                        " You should temporarily disable the Context or Action that generates those derivatives."
+                        "You should temporarily disable the Context or Action that generates those derivatives."
                     print(message)
                     logging.warning(message)
             else:
@@ -2606,6 +2606,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id, False)
 
     if isinstance(file_result, int):
+        # @todo: Resolve issue 500 here. We should be processing media_use_tid in CSV after we define the media_use_tids list, below.
         if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
             media_use_tid_value = node_csv_row['media_use_tid']
         else:
@@ -2758,7 +2759,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                         track_file_info_response = issue_request(config, 'GET', f"/entity/file/{create_track_file_result}?_format=json")
                         track_file_info = json.loads(track_file_info_response.text)
                         track_file_url = track_file_info['uri'][0]['url']
-                        logging.info(f"Media track file {track_file_url} created from {media_track_entry['file_path']}.")
+                        logging.info(f"Media track file {config['host'].rstrip('/')}{track_file_url} created from {media_track_entry['file_path']}.")
                         track_file_data = {
                             'target_id': track_file_info['fid'][0]['value'],
                             'kind': media_track_entry['kind'],
@@ -2769,7 +2770,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                         media_track_field_data.append(track_file_data)
                     else:
                         # If there are any failures, proceed with creating the parent media.
-                        logging.error(f"Media track {media_track_entry['file_path']} not created; create_file returned {create_track_file_result}.")
+                        logging.error(f"Media track using {media_track_entry['file_path']} not created; create_file returned {create_track_file_result}.")
 
                 # Set the "default" attribute of the first media track.
                 media_track_field_data[0]['default'] = True
@@ -3373,13 +3374,35 @@ def get_term_vocab(config, term_id):
 
 
 def get_term_name(config, term_id):
-    """Get the term's and return it. If the term doesn't exist, return False.
+    """Get the term's name and return it. If the term doesn't exist, return False.
     """
     url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         term_data = json.loads(response.text)
         return term_data['name'][0]['value']
+    else:
+        logging.warning('Query for term ID "%s" returned a %s status code', term_id, response.status_code)
+        return False
+
+
+def get_term_uri(config, term_id):
+    """Get the term's URI and return it. If the term or URI doesn't exist, return False.
+       If the term has no URI, return None.
+    """
+    url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        term_data = json.loads(response.text)
+        if 'field_external_uri' in term_data:
+            uri = term_data['field_external_uri'][0]['uri']
+            return uri
+        elif 'field_authority_link' in term_data:
+            uri = term_data['field_authority_link'][0]['uri']
+            return uri
+        else:
+            logging.warning('Query for term ID "%s" does not have either a field_authority_link or field_exteral_uri field.', term_id)
+            return None
     else:
         logging.warning('Query for term ID "%s" returned a %s status code', term_id, response.status_code)
         return False
@@ -3441,6 +3464,40 @@ def get_term_id_from_uri(config, uri):
 
     # Non-200 response code.
     return False
+
+
+def get_all_representations_of_term(config, vocab_id=None, name=None, term_id=None, uri=None):
+    """Parameters
+    ----------
+    config : dict
+        The configuration object defined by set_config_defaults().
+    vocab_id: string
+        The vocabulary ID to use in the query to find the term. Required if 'name' is the other arguments.
+    name: string
+        The term name.
+    term_id: int
+        The term ID. Does not require any other named arguments, since term IDs are unique.
+    uri: string
+        The term URI. Does not require any other named arguments, since term IDs (in theory) are unique.
+    Returns
+    -------
+    dict/False
+        A dictionary containing keys 'term_id', 'name', and 'uri. False if there is insufficient
+        information to get all representations of the term.
+    """
+    if term_id is not None and value_is_numeric(term_id):
+        name = get_term_name(config, term_id)
+        uri = get_term_uri(config, term_id)
+    elif name is not None:
+        if vocab_id is None:
+            return False
+        term_id = find_term_in_vocab(config, vocab_id, name)
+        uri = get_term_uri(config, term_id)
+    elif uri is not None:
+        term_id = get_term_id_from_uri(config, uri)
+        name = get_term_name(config, term_id)
+
+    return {'term_id': term_id, 'name': name, 'uri': uri}
 
 
 def create_term(config, vocab_id, term_name, term_csv_row=None):
@@ -4066,6 +4123,32 @@ def validate_media_track_fields(config, csv_data):
                                             row[config['id_field']] + '" (' + row['file'] + ') has a media type ' + \
                                             '(' + file_media_type + ') that differs from the media type indicated in the column header "' + \
                                             fully_qualified_field_name + '" (' + media_bundle_name + ').'
+                                        logging.error(message)
+                                        sys.exit('Error: ' + message)
+
+                                # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
+                                if 'media_use_tid' in row:
+                                    if row['media_use_tid'].startswith('http') and row['media_use_tid'] != 'http://pcdm.org/use#ServiceFile':
+                                        message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
+                                        logging.error(message)
+                                        sys.exit('Error: ' + message)
+                                    elif value_is_numeric(row['media_use_tid']):
+                                        media_use_uri = get_term_uri(config, row['media_use_tid'])
+                                        if media_use_uri != 'http://pcdm.org/use#ServiceFile':
+                                            message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
+                                    else:
+                                        # It's a term name.
+                                        media_use_term_data = get_all_representations_of_term(config, vocab_id='islandora_media_use', name=row['media_use_tid'])
+                                        if media_use_term_data['uri'] != 'http://pcdm.org/use#ServiceFile':
+                                            message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" in your CSV value when creating media tracks."
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
+                                else:
+                                    media_use_term_data = get_all_representations_of_term(config, uri='http://pcdm.org/use#ServiceFile')
+                                    if config['media_use_tid'] not in media_use_term_data.values():
+                                        message = f"{config['media_use_tid']} cannot be used as a value in your configuaration's \"media_use_tid\" setting when creating media tracks."
                                         logging.error(message)
                                         sys.exit('Error: ' + message)
 
