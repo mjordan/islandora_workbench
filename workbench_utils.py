@@ -1867,17 +1867,37 @@ def check_input(config, args):
         sys.exit(0)
 
 
-def get_registered_media_extensions(field_definitions):
-    # Unfinished. See https://github.com/mjordan/islandora_workbench/issues/126.
-    for field_name, field_def in field_definitions.items():
-        """
-        print(field_def)
-        if field_def['entity_type'] == 'media':
-            if 'file_extensions' in field_def:
-                print('Allowed file extensions for ' + field_def['media_type'] + ' :' + field_def['file_extensions'])
-            else:
-                print("No file extensions for " + field_def['media_type'])
-        """
+def get_registered_media_extensions(config, media_bundle):
+    # Unfinished, waiting on issue-373 to be merged. See https://github.com/mjordan/islandora_workbench/issues/126.
+    """Gets a list of file extensions registered with Drupal for the file-type field in the given
+       bundle type. config['media_bundle_file_fields'] maps media bundle names to a single file field,
+       so for bundles that can have media track files (which we'll want to check the extension of),
+       we'll need to add those to that mapping. Those mappings will be in config['media_track_file_fields']
+       once issue-373 is merged into main.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        bundle_type : string
+            The (node) content type, the vocabulary name, or the media type (image',
+            'document', 'audio', 'video', 'file', etc.).
+        Returns
+        -------
+        dict
+            A dictionary with one key per media bundle field name. Each key has as its value
+            a list of registered file extensions.
+    """
+    '''
+    media_field_definitions = get_field_definitions(config, 'media', media_bundle)
+    # Assumes one file field-type per media bundle.
+    file_field_name = config['media_bundle_file_fields'][media_bundle]
+    print(file_field_name)
+    for field_name, field_def in media_field_definitions.items():
+        if field_name = file_field_name:
+            print(field_def)
+    '''
+    pass
 
 
 def check_input_for_create_from_files(config, args):
