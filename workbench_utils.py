@@ -430,6 +430,8 @@ def ping_node(config, nid, method='HEAD', return_json=False):
             True if method is HEAD and node was found, the response JSON response
             body if method was GET. False if request returns a non-allowed status code.
     """
+    if value_is_numeric(nid) is False:
+        nid = get_nid_from_url_alias(config, nid)
     url = config['host'] + '/node/' + str(nid) + '?_format=json'
     response = issue_request(config, method.upper(), url)
     allowed_status_codes = [200, 301, 302]
@@ -1504,8 +1506,8 @@ def check_input(config, args):
                     if len(parent_nid) > 0:
                         parent_node_exists = ping_node(config, parent_nid)
                         if parent_node_exists is False:
-                            message = "The 'field_member_of' field in row with ID " + row[config['id_field']] + \
-                                " of your CSV file contains a node ID (" + parent_nid + ") that " + \
+                            message = "The 'field_member_of' field in row with ID '" + row[config['id_field']] + \
+                                "' of your CSV file contains a node ID (" + parent_nid + ") that " + \
                                 "doesn't exist or is not accessible. See the workbench log for more information."
                             logging.error(message)
                             sys.exit('Error: ' + message)
