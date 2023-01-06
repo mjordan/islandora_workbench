@@ -239,7 +239,7 @@ def create():
         else:
             message = "Node for CSV record " + id_field + " not created"
             print("ERROR: " + message + '.')
-            logging.error(message + ', HTTP response code was ' + str(node_response.status_code) + ', response body was ' + node_response.content + '.')
+            logging.error(message + f', HTTP response code was {node_response.status_code}, response body was {node_response.content}')
             logging.error('JSON request body used in previous POST to "%s" was %s.', node_endpoint, node)
             continue
 
