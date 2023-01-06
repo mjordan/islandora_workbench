@@ -765,34 +765,36 @@ class EntityReferenceField():
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
-            if config['subdelimiter'] in row[field_name]:
+            if config['subdelimiter'] in str(row[field_name]):
                 field_values = []
                 subvalues = row[field_name].split(config['subdelimiter'])
                 subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
+                    subvalue =  str(subvalue)
                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                 entity[field_name] = field_values
             else:
-                entity[field_name] = [{'target_id': row[field_name], 'target_type': target_type}]
+                entity[field_name] = [{'target_id': str(row[field_name]), 'target_type': target_type}]
         # Cardinality has a limit.
         elif field_definitions[field_name]['cardinality'] > 0:
-            if config['subdelimiter'] in row[field_name]:
+            if config['subdelimiter'] in str(row[field_name]):
                 field_values = []
                 subvalues = row[field_name].split(config['subdelimiter'])
                 subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
+                    subvalue =  str(subvalue)
                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                 if len(field_values) > int(field_definitions[field_name]['cardinality']):
                     entity[field_name] = field_values[:field_definitions[field_name]['cardinality']]
                     log_field_cardinality_violation(field_name, id_field, field_definitions[field_name]['cardinality'])
                 else:
-                    entity[field_name] = field_values
+                    entity[field_name] = str(field_values)
             else:
-                entity[field_name] = [{'target_id': row[field_name], 'target_type': target_type}]
+                entity[field_name] = [{'target_id': str(row[field_name]), 'target_type': target_type}]
         # Cardinality is 1.
         else:
             subvalues = row[field_name].split(config['subdelimiter'])
-            entity[field_name] = [{'target_id': subvalues[0], 'target_type': target_type}]
+            entity[field_name] = [{'target_id': str(subvalues[0]), 'target_type': target_type}]
             if len(subvalues) > 1:
                 log_field_cardinality_violation(field_name, id_field, '1')
 
