@@ -770,7 +770,7 @@ class EntityReferenceField():
                 subvalues = row[field_name].split(config['subdelimiter'])
                 subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
-                    subvalue =  str(subvalue)
+                    subvalue = str(subvalue)
                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                 entity[field_name] = field_values
             else:
@@ -782,7 +782,7 @@ class EntityReferenceField():
                 subvalues = row[field_name].split(config['subdelimiter'])
                 subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
-                    subvalue =  str(subvalue)
+                    subvalue = str(subvalue)
                     field_values.append({'target_id': subvalue, 'target_type': target_type})
                 if len(field_values) > int(field_definitions[field_name]['cardinality']):
                     entity[field_name] = field_values[:field_definitions[field_name]['cardinality']]
@@ -835,7 +835,7 @@ class EntityReferenceField():
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
             field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
-            if config['subdelimiter'] in row[field_name]:
+            if config['subdelimiter'] in str(row[field_name]):
                 prepared_tids = []
                 delimited_values = row[field_name].split(config['subdelimiter'])
                 for delimited_value in delimited_values:
@@ -857,12 +857,12 @@ class EntityReferenceField():
         # Cardinality has a limit.
         if field_definitions[field_name]['cardinality'] > 0:
             if config['update_mode'] == 'replace':
-                if config['subdelimiter'] in row[field_name]:
+                if config['subdelimiter'] in str(row[field_name]):
                     field_values = []
                     subvalues = row[field_name].split(config['subdelimiter'])
                     subvalues = self.dedupe_values(subvalues)
                     for subvalue in subvalues:
-                        field_values.append({'target_id': subvalue, 'target_type': target_type})
+                        field_values.append({'target_id': str(subvalue), 'target_type': target_type})
                     if len(field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = field_values[:field_definitions[field_name]['cardinality']]
                         log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
@@ -871,10 +871,10 @@ class EntityReferenceField():
                 else:
                     entity[field_name] = [{'target_id': row[field_name], 'target_type': target_type}]
             if config['update_mode'] == 'append':
-                if config['subdelimiter'] in row[field_name]:
+                if config['subdelimiter'] in str(row[field_name]):
                     subvalues = row[field_name].split(config['subdelimiter'])
                     for subvalue in subvalues:
-                        entity_field_values.append({'target_id': subvalue, 'target_type': target_type})
+                        entity_field_values.append({'target_id': str(subvalue), 'target_type': target_type})
                     entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
@@ -882,7 +882,7 @@ class EntityReferenceField():
                     else:
                         entity[field_name] = entity_field_values
                 else:
-                    entity_field_values.append({'target_id': row[field_name], 'target_type': target_type})
+                    entity_field_values.append({'target_id': str(row[field_name]), 'target_type': target_type})
                     entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
@@ -893,24 +893,24 @@ class EntityReferenceField():
         # Cardinality is unlimited.
         else:
             if config['update_mode'] == 'replace':
-                if config['subdelimiter'] in row[field_name]:
+                if config['subdelimiter'] in str(row[field_name]):
                     field_values = []
                     subvalues = row[field_name].split(config['subdelimiter'])
                     subvalues = self.dedupe_values(subvalues)
                     for subvalue in subvalues:
-                        field_values.append({'target_id': subvalue, 'target_type': target_type})
+                        field_values.append({'target_id': str(subvalue), 'target_type': target_type})
                         entity[field_name] = field_values
                 else:
-                    entity[field_name] = [{'target_id': row[field_name], 'target_type': target_type}]
+                    entity[field_name] = [{'target_id': str(row[field_name]), 'target_type': target_type}]
             if config['update_mode'] == 'append':
-                if config['subdelimiter'] in row[field_name]:
+                if config['subdelimiter'] in str(row[field_name]):
                     field_values = []
                     subvalues = row[field_name].split(config['subdelimiter'])
                     for subvalue in subvalues:
-                        entity_field_values.append({'target_id': subvalue, 'target_type': target_type})
+                        entity_field_values.append({'target_id': str(subvalue), 'target_type': target_type})
                     entity[field_name] = self.dedupe_values(entity_field_values)
                 else:
-                    entity_field_values.append({'target_id': row[field_name], 'target_type': target_type})
+                    entity_field_values.append({'target_id': str(row[field_name]), 'target_type': target_type})
                     entity[field_name] = self.dedupe_values(entity_field_values)
 
         return entity

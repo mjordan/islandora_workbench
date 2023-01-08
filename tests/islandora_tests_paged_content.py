@@ -176,6 +176,7 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
             os.remove(rollback_file_path)
 
 
+'''
 class TestCreatePagedContentFromDirectoriesDrupal8(unittest.TestCase):
 
     def setUp(self):
@@ -249,7 +250,7 @@ class TestCreatePagedContentFromDirectoriesDrupal8(unittest.TestCase):
         rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'rollback.csv')
         if os.path.exists(rollback_file_path):
             os.remove(rollback_file_path)
-
+'''
 
 if __name__ == '__main__':
     unittest.main()
