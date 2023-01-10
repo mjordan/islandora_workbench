@@ -676,7 +676,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
         config : dict
             The configuration object defined by set_config_defaults().
         entity_type : string
-            One of 'node', 'media', or 'taxonomy_term'.
+            One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
         bundle_type : string
             None for nodes (the content type can optionally be gotten from config),
             the vocabulary name, or the media type (image', 'document', 'audio',
@@ -797,14 +797,73 @@ def get_field_definitions(config, entity_type, bundle_type=None):
         }
 
     if entity_type == 'media':
-        # @note: this section is incomplete.
         fields = get_entity_fields(config, entity_type, bundle_type)
         for fieldname in fields:
             field_definitions[fieldname] = {}
+            raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
+            field_config = json.loads(raw_field_config)
             if entity_type == 'media' and 'file_extensions' in field_config['settings']:
                 field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
             if entity_type == 'media':
                 field_definitions[fieldname]['media_type'] = bundle_type
+                field_definitions[fieldname]['field_type'] = field_config['field_type']
+
+            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
+            field_storage = json.loads(raw_field_storage)
+            field_definitions[fieldname]['field_type'] = field_storage['type']
+            field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
+            if 'max_length' in field_storage['settings']:
+                field_definitions[fieldname]['max_length'] = field_storage['settings']['max_length']
+            else:
+                field_definitions[fieldname]['max_length'] = None
+            if 'target_type' in field_storage['settings']:
+                field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
+            else:
+                field_definitions[fieldname]['target_type'] = None
+
+    if entity_type == 'paragraph':
+        fields = get_entity_fields(config, entity_type, bundle_type)
+        for fieldname in fields:
+            # NOTE, WIP on #292. Code below copied from 'node' section above, may need modification.
+            field_definitions[fieldname] = {}
+            raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
+            field_config = json.loads(raw_field_config)
+
+            field_definitions[fieldname]['entity_type'] = field_config['entity_type']
+            field_definitions[fieldname]['required'] = field_config['required']
+            field_definitions[fieldname]['label'] = field_config['label']
+            raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+            if len(raw_vocabularies) > 0:
+                vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
+                field_definitions[fieldname]['vocabularies'] = vocabularies
+            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
+            if 'handler' in field_config['settings']:
+                field_definitions[fieldname]['handler'] = field_config['settings']['handler']
+            else:
+                field_definitions[fieldname]['handler'] = None
+            if 'handler_settings' in field_config['settings']:
+                field_definitions[fieldname]['handler_settings'] = field_config['settings']['handler_settings']
+            else:
+                field_definitions[fieldname]['handler_settings'] = None
+
+            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
+            field_storage = json.loads(raw_field_storage)
+            field_definitions[fieldname]['field_type'] = field_storage['type']
+            field_definitions[fieldname]['cardinality'] = field_storage['cardinality']
+            if 'max_length' in field_storage['settings']:
+                field_definitions[fieldname]['max_length'] = field_storage['settings']['max_length']
+            else:
+                field_definitions[fieldname]['max_length'] = None
+            if 'target_type' in field_storage['settings']:
+                field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
+            else:
+                field_definitions[fieldname]['target_type'] = None
+            if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
+                field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
+            if 'authority_sources' in field_config['settings']:
+                field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
+            else:
+                field_definitions[fieldname]['authority_sources'] = None
 
     return field_definitions
 
@@ -860,7 +919,7 @@ def get_required_bundle_fields(config, entity_type, bundle_type):
         entity_type : string
             One of 'node', 'media', or 'taxonomy_term'.
         bundle_type : string
-            The (node) content type, the vocabulary name, or the media type (image',
+            The (node) content type, the vocabulary name, or the media type ('image',
             'document', 'audio', 'video', 'file', etc.).
 
         Returns
@@ -1236,9 +1295,26 @@ def check_input(config, args):
             # Set this so we can validate langcode below.
             langcode_was_present = True
 
+        # We .remove() CSV column headers that use the 'media:video:field_foo' media track convention.
+        media_track_headers = list()
+        for column_header in csv_column_headers:
+            if column_header.startswith('media:'):
+                media_track_headers.append(column_header)
+        for media_track_header in media_track_headers:
+            if media_track_header in csv_column_headers:
+                csv_column_headers.remove(media_track_header)
+
+        # We also validate the structure of the media track column headers.
+        for media_track_header in media_track_headers:
+            media_track_header_parts = media_track_header.split(':')
+            if media_track_header_parts[0] != 'media' and len(media_track_header_parts) != 3:
+                message = f'"{media_track_header}" is not a valide media track CSV header.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
+        # Check for the View that is necessary for entity reference fields configured
+        # as "Views: Filter by an entity reference View" (issue 452).
         for csv_column_header in csv_column_headers:
-            # Check for the View that is necessary for entity reference fields configured
-            # as "Views: Filter by an entity reference View" (issue 452).
             if csv_column_header in field_definitions and field_definitions[csv_column_header]['handler'] == 'views':
                 if config['require_entity_reference_views'] is True:
                     entity_reference_view_exists = ping_entity_reference_view_endpoint(config, csv_column_header, field_definitions[csv_column_header]['handler_settings'])
@@ -1281,13 +1357,16 @@ def check_input(config, args):
 
     # Check that Drupal fields that are required are in the CSV file (create task only).
     if config['task'] == 'create':
-        required_drupal_fields = []
+        required_drupal_fields_node = get_required_bundle_fields(config, 'node', config['content_type'])
+        '''
+        required_drupal_fields_node = []
         for drupal_fieldname in field_definitions:
             # In the create task, we only check for required fields that apply to nodes.
             if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['entity_type'] == 'node':
                 if 'required' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['required'] is True:
-                    required_drupal_fields.append(drupal_fieldname)
-        for required_drupal_field in required_drupal_fields:
+                    required_drupal_fields_node.append(drupal_fieldname)
+        '''
+        for required_drupal_field in required_drupal_fields_node:
             if required_drupal_field not in csv_column_headers:
                 logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
                 sys.exit('Error: Field "' + required_drupal_field + '" required for content type "' + config['content_type'] + '" is not present in the CSV file.')
@@ -1494,6 +1573,10 @@ def check_input(config, args):
         warn_user_about_typed_relation_terms = validate_typed_relation_field_values(config, field_definitions, validate_typed_relation_csv_data)
         if warn_user_about_typed_relation_terms is True:
             print('Warning: Issues detected with validating typed relation field values in the CSV file. See the log for more detail.')
+
+        validate_media_track_csv_data = get_csv_data(config)
+        # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+        validate_media_track_fields(config, validate_media_track_csv_data)
 
         # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
@@ -2164,6 +2247,27 @@ def split_authority_link_string(config, authority_link_string):
     return return_list
 
 
+def split_media_track_string(config, media_track_string):
+    """Fields of type 'media_track' are represented in the CSV file using a structured string,
+       specifically 'label:kind:srclang:path_to_vtt_file', e.g. "en:subtitles:en:path/to/the/vtt/file.vtt".
+       This function takes one of those strings (optionally with a multivalue subdelimiter) and returns
+       a list of dictionaries with 'label', 'kind', 'srclang', 'file_path' keys required by the
+       'media_track' field type.
+    """
+    return_list = []
+    temp_list = media_track_string.split(config['subdelimiter'])
+    for item in temp_list:
+        track_parts_list = item.split(':', 3)
+        item_dict = {
+            'label': track_parts_list[0],
+            'kind': track_parts_list[1],
+            'srclang': track_parts_list[2],
+            'file_path': track_parts_list[3]}
+        return_list.append(item_dict)
+
+    return return_list
+
+
 def validate_media_use_tid_in_additional_files_setting(config, media_use_tid_value, additional_field_name):
     """Validate whether the term ID registered in the "additional_files" config setting
        is in the Islandora Media Use vocabulary.
@@ -2232,9 +2336,9 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     logging.error(message)
                     sys.exit('Error: ' + message)
                 if media_use_tid is not False and media_use_term.strip() != 'http://pcdm.org/use#OriginalFile':
-                    message = 'Warning: URI "' + media_use_term + '" provided ' + message_wording + \
+                    message = 'Warning: URI "' + media_use_term + '" provided' + message_wording + \
                         "will assign an Islandora Media Use term that might conflict with derivative media. " + \
-                        " You should temporarily disable the Context or Action that generates those derivatives."
+                        "You should temporarily disable the Context or Action that generates those derivatives."
                     print(message)
                     logging.warning(message)
             else:
@@ -2376,12 +2480,13 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
                 The name of the CSV column containing the filename.
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+            node_id: string
+                The nid of the parent media's parent node.
             Returns
             -------
-            string|int|bool|None
-                The file ID of the successfully created file; the HTTP status code if the
-                attempt was unsuccessful, False if there is insufficient information to create
-                the file or file creation failed, or None if config['nodes_only'] or
+            int|bool|None
+                The file ID (int) of the successfully created file; False if there is insufficient
+                information to create the file or file creation failed, or None if config['nodes_only'] or
                 config['allow_missing_files'] is True.
     """
     if config['nodes_only'] is True:
@@ -2523,6 +2628,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id, False)
 
     if isinstance(file_result, int):
+        # @todo: Resolve issue 500 here. We should be processing media_use_tid in CSV after we define the media_use_tids list, below.
         if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
             media_use_tid_value = node_csv_row['media_use_tid']
         else:
@@ -2645,6 +2751,52 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 media_json['field_edited_text'].append({'value': extracted_text_file.read()})
             else:
                 logging.error("Extracted text file %s not found.", filename)
+
+        # Create media_track files here, since they should exist before we create the parent media.
+        media_types_with_track_files = config['media_track_file_fields'].keys()
+        valid_media_track_fields = list()
+        if media_type in media_types_with_track_files:
+            # Check for fields in node_csv_row that have names like 'media:video:field_track' and validate their contents.
+            # Note: Does not validate the fields' configuration (--check does that).
+            node_csv_field_names = list(node_csv_row.keys())
+            if len(node_csv_field_names):
+                media_track_fields = [x for x in node_csv_field_names if x.startswith('media:' + media_type)]
+                # Should be just one field per media type.
+                if len(media_track_fields) and media_type in config['media_track_file_fields']:
+                    for media_track_field in media_track_fields:
+                        if validate_media_track_value(node_csv_row[media_track_field]) is True:
+                            valid_media_track_fields.append(media_track_field)
+
+            # Create the media track file(s) for each entry in valid_potential_media_track_fields (there could be multiple track entries).
+            if len(valid_media_track_fields):
+                media_track_field_data = []
+                # Should be just one field per media type.
+                fully_qualified_media_track_field_name = valid_media_track_fields[0]
+                media_track_entries = split_media_track_string(config, node_csv_row[fully_qualified_media_track_field_name])
+                for media_track_entry in media_track_entries:
+                    media_track_field_name_parts = fully_qualified_media_track_field_name.split(':')
+                    create_track_file_result = create_file(config, media_track_entry['file_path'], media_track_field_name_parts[2], node_csv_row, node_id)
+                    if create_track_file_result is not False and isinstance(create_track_file_result, int):
+                        # /entity/file/663?_format=json will return JSON containing the file's 'uri'.
+                        track_file_info_response = issue_request(config, 'GET', f"/entity/file/{create_track_file_result}?_format=json")
+                        track_file_info = json.loads(track_file_info_response.text)
+                        track_file_url = track_file_info['uri'][0]['url']
+                        logging.info(f"Media track file {config['host'].rstrip('/')}{track_file_url} created from {media_track_entry['file_path']}.")
+                        track_file_data = {
+                            'target_id': track_file_info['fid'][0]['value'],
+                            'kind': media_track_entry['kind'],
+                            'label': media_track_entry['label'],
+                            'srclang': media_track_entry['srclang'],
+                            'default': False,
+                            'url': track_file_url}
+                        media_track_field_data.append(track_file_data)
+                    else:
+                        # If there are any failures, proceed with creating the parent media.
+                        logging.error(f"Media track using {media_track_entry['file_path']} not created; create_file returned {create_track_file_result}.")
+
+                # Set the "default" attribute of the first media track.
+                media_track_field_data[0]['default'] = True
+                media_json[media_track_field_name_parts[2]] = media_track_field_data
 
         media_endpoint_path = '/entity/media'
         media_headers = {
@@ -2937,6 +3089,19 @@ def remove_media_and_file(config, media_id):
             logging.info("File %s (from media %s) deleted.", file_id, media_id)
         else:
             logging.error("File %s (from media %s) not deleted (HTTP response code %s).", file_id, media_id, file_response.status_code)
+
+    # Delete any audio/video media_track files.
+    media_bundle_name = get_media_response_body['bundle'][0]['target_id']
+    if media_bundle_name in config['media_track_file_fields']:
+        track_file_field = config['media_track_file_fields'][media_bundle_name]
+        for track_file in get_media_response_body[track_file_field]:
+            track_file_id = track_file['target_id']
+            track_file_endpoint = config['host'] + '/entity/file/' + str(track_file_id) + '?_format=json'
+            track_file_response = issue_request(config, 'DELETE', track_file_endpoint)
+            if track_file_response.status_code == 204:
+                logging.info("Media track file %s (from media %s) deleted.", track_file_id, media_id)
+            else:
+                logging.error("Media track file %s (from media %s) not deleted (HTTP response code %s).", track_file_id, media_id, track_file_response.status_code)
 
     # Then the media.
     if file_response.status_code == 204 or file_id is None:
@@ -3231,13 +3396,35 @@ def get_term_vocab(config, term_id):
 
 
 def get_term_name(config, term_id):
-    """Get the term's and return it. If the term doesn't exist, return False.
+    """Get the term's name and return it. If the term doesn't exist, return False.
     """
     url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         term_data = json.loads(response.text)
         return term_data['name'][0]['value']
+    else:
+        logging.warning('Query for term ID "%s" returned a %s status code', term_id, response.status_code)
+        return False
+
+
+def get_term_uri(config, term_id):
+    """Get the term's URI and return it. If the term or URI doesn't exist, return False.
+       If the term has no URI, return None.
+    """
+    url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        term_data = json.loads(response.text)
+        if 'field_external_uri' in term_data:
+            uri = term_data['field_external_uri'][0]['uri']
+            return uri
+        elif 'field_authority_link' in term_data:
+            uri = term_data['field_authority_link'][0]['uri']
+            return uri
+        else:
+            logging.warning('Query for term ID "%s" does not have either a field_authority_link or field_exteral_uri field.', term_id)
+            return None
     else:
         logging.warning('Query for term ID "%s" returned a %s status code', term_id, response.status_code)
         return False
@@ -3299,6 +3486,40 @@ def get_term_id_from_uri(config, uri):
 
     # Non-200 response code.
     return False
+
+
+def get_all_representations_of_term(config, vocab_id=None, name=None, term_id=None, uri=None):
+    """Parameters
+    ----------
+    config : dict
+        The configuration object defined by set_config_defaults().
+    vocab_id: string
+        The vocabulary ID to use in the query to find the term. Required if 'name' is the other arguments.
+    name: string
+        The term name.
+    term_id: int
+        The term ID. Does not require any other named arguments, since term IDs are unique.
+    uri: string
+        The term URI. Does not require any other named arguments, since term IDs (in theory) are unique.
+    Returns
+    -------
+    dict/False
+        A dictionary containing keys 'term_id', 'name', and 'uri. False if there is insufficient
+        information to get all representations of the term.
+    """
+    if term_id is not None and value_is_numeric(term_id):
+        name = get_term_name(config, term_id)
+        uri = get_term_uri(config, term_id)
+    elif name is not None:
+        if vocab_id is None:
+            return False
+        term_id = find_term_in_vocab(config, vocab_id, name)
+        uri = get_term_uri(config, term_id)
+    elif uri is not None:
+        term_id = get_term_id_from_uri(config, uri)
+        name = get_term_name(config, term_id)
+
+    return {'term_id': term_id, 'name': name, 'uri': uri}
 
 
 def create_term(config, vocab_id, term_name, term_csv_row=None):
@@ -3869,7 +4090,8 @@ def validate_authority_link_fields(config, field_definitions, csv_data):
                     for field_value in delimited_field_values:
                         if len(field_value.strip()):
                             if not validate_authority_link_value(field_value.strip(), field_definitions[field_name]['authority_sources']):
-                                message = 'Value in field "' + field_name + '" in row with ID "' + row[config['id_field']] + '" (' + field_value + ') is not a valid authority link field value.'
+                                message = 'Value in field "' + field_name + '" in row with ID "' + \
+                                    row[config['id_field']] + '" (' + field_value + ') is not a valid authority link field value.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -3877,6 +4099,122 @@ def validate_authority_link_fields(config, field_definitions, csv_data):
         message = "OK, authority link field values in the CSV file validate."
         print(message)
         logging.info(message)
+
+
+def validate_media_track_fields(config, csv_data):
+    """Validate values in fields that are of type 'media_track'.
+    """
+    media_track_fields_present = False
+    # Must accommodate multiple media track fields in the same CSV (e.g. audio and vidoe media in the
+    # same CSV, each with its own track column). Therefore, we'll need to get the field definitions
+    # for more than one media bundle.
+    media_track_field_definitions = dict()
+    csv_column_headers = copy.copy(csv_data.fieldnames)
+    for column_header in csv_column_headers:
+        if column_header.startswith('media:'):
+            # Assumes well-formed column headers.
+            media_bundle_name_parts = column_header.split(':')
+            media_bundle_name = media_bundle_name_parts[1]
+            if media_bundle_name not in config['media_track_file_fields']:
+                message = 'Media type "' + media_bundle_name + '" in the CSV column header "' + column_header + \
+                    '" is not registered in the "media_track_file_fields" configuration setting.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
+            media_track_field_definitions[media_bundle_name] = get_field_definitions(config, 'media', media_bundle_name)
+            for count, row in enumerate(csv_data, start=1):
+                for field_name in media_track_field_definitions[media_bundle_name].keys():
+                    if media_track_field_definitions[media_bundle_name][field_name]['field_type'] == 'media_track':
+                        fully_qualified_field_name = f"media:{media_bundle_name}:{field_name}"
+                        if fully_qualified_field_name in row:
+                            media_track_fields_present = True
+                            delimited_field_values = row[fully_qualified_field_name].split(config['subdelimiter'])
+                            for field_value in delimited_field_values:
+                                if len(field_value.strip()):
+                                    if validate_media_track_value(field_value) is False:
+                                        message = 'Value in field "' + fully_qualified_field_name + '" in row with ID "' + \
+                                            row[config['id_field']] + '" (' + field_value + ') has a media type is not a valid media track field value.'
+                                        logging.error(message)
+                                        sys.exit('Error: ' + message)
+
+                                    # Confirm that the media bundle name in the column header matches the media type
+                                    # of the file in the 'file' column.
+                                    file_media_type = set_media_type(config, row['file'], 'file', row)
+                                    if file_media_type != media_bundle_name:
+                                        message = 'File named in the "file" field in row with ID "' + \
+                                            row[config['id_field']] + '" (' + row['file'] + ') has a media type ' + \
+                                            '(' + file_media_type + ') that differs from the media type indicated in the column header "' + \
+                                            fully_qualified_field_name + '" (' + media_bundle_name + ').'
+                                        logging.error(message)
+                                        sys.exit('Error: ' + message)
+
+                                # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
+                                if 'media_use_tid' in row:
+                                    if row['media_use_tid'].startswith('http') and row['media_use_tid'] != 'http://pcdm.org/use#ServiceFile':
+                                        message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
+                                        logging.error(message)
+                                        sys.exit('Error: ' + message)
+                                    elif value_is_numeric(row['media_use_tid']):
+                                        media_use_uri = get_term_uri(config, row['media_use_tid'])
+                                        if media_use_uri != 'http://pcdm.org/use#ServiceFile':
+                                            message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
+                                    else:
+                                        # It's a term name.
+                                        media_use_term_data = get_all_representations_of_term(config, vocab_id='islandora_media_use', name=row['media_use_tid'])
+                                        if media_use_term_data['uri'] != 'http://pcdm.org/use#ServiceFile':
+                                            message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" in your CSV value when creating media tracks."
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
+                                else:
+                                    media_use_term_data = get_all_representations_of_term(config, uri='http://pcdm.org/use#ServiceFile')
+                                    if config['media_use_tid'] not in media_use_term_data.values():
+                                        message = f"{config['media_use_tid']} cannot be used as a value in your configuaration's \"media_use_tid\" setting when creating media tracks."
+                                        logging.error(message)
+                                        sys.exit('Error: ' + message)
+
+                                if config['nodes_only'] is False:
+                                    if len(field_value.strip()):
+                                        media_track_field_value_parts = field_value.split(':')
+                                        media_track_file_path_in_csv = media_track_field_value_parts[3]
+                                        if os.path.isabs(media_track_file_path_in_csv):
+                                            media_track_file_path = media_track_file_path_in_csv
+                                        else:
+                                            media_track_file_path = os.path.join(config['input_dir'], media_track_file_path_in_csv)
+                                        if not os.path.exists(media_track_file_path) or not os.path.isfile(media_track_file_path):
+                                            message = 'Media track file "' + media_track_file_path_in_csv + '" in row with ID "' + \
+                                                row[config['id_field']] + '" not found.'
+                                            logging.error(message)
+                                            sys.exit('Error: ' + message)
+
+    if media_track_fields_present is True:
+        message = "OK, media track field values in the CSV file validate."
+        print(message)
+        logging.info(message)
+
+
+def validate_media_track_value(media_track_value):
+    """Validates that the string in "media_track_value" has valid values in its subparts.
+    """
+    """Parameters
+        ----------
+        media_track_value : string
+            The CSV value to validate.
+        Returns
+        -------
+        boolean
+            True if it does, False if not.
+    """
+    valid_kinds = ['subtitles', 'descriptions', 'metadata', 'captions', 'chapters']
+    parts = media_track_value.split(':', 3)
+    # First part, the label, needs to have a length; second part needs to be one of the
+    # values in 'valid_kinds'; third part needs to be a valid Drupal language code; the fourth
+    # part needs to end in '.vtt'.
+    if len(parts) == 4 and len(parts[0]) > 0 and validate_language_code(parts[2]) and parts[1] in valid_kinds and parts[3].lower().endswith('.vtt'):
+        return True
+    else:
+        return False
 
 
 def validate_latlong_value(latlong):

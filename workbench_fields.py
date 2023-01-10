@@ -1379,7 +1379,7 @@ class AuthorityLinkField():
                     if field_name in entity:
                         for field_subvalue in field_values:
                             entity_field_values.append(field_subvalue)
-                        entity_field_values = subvalues = self.dedupe_values(entity_field_values)
+                        entity_field_values = self.dedupe_values(entity_field_values)
                         entity[field_name] = entity_field_values
                 else:
                     field_value = split_authority_link_string(config, row[field_name])
@@ -1482,6 +1482,231 @@ class AuthorityLinkField():
                 subvalues.append(subvalue['source'] + '%%' + subvalue['uri'] + '%%' + subvalue['title'])
             else:
                 subvalues.append(subvalue['source'] + '%%' + subvalue['uri'])
+
+        if len(subvalues) > 1:
+            return config['subdelimiter'].join(subvalues)
+        elif len(subvalues) == 0:
+            return None
+        else:
+            return subvalues[0]
+
+
+class MediaTrackField():
+    """Functions for handling fields with "media_track" Drupal (Islandora) field data type.
+       All functions return a "entity" dictionary that is passed to Requests' "json"
+       parameter.
+
+       Note: this class assumes that the entity has the field identified in "field_name".
+       Callers should pre-emptively confirm that. For an example, see code near the top
+       of workbench.update().
+    """
+    def create(self, config, field_definitions, entity, row, field_name):
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            entity : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            Returns
+            -------
+            dictionary
+                A dictionary represeting the entity that is POSTed to Drupal as JSON.
+        """
+        if row[field_name] is None:
+            return entity
+
+        id_field = row[config['id_field']]
+        # Cardinality is unlimited.
+        if field_definitions[field_name]['cardinality'] == -1:
+            if config['subdelimiter'] in row[field_name]:
+                subvalues = split_media_track_string(config, row[field_name])
+                subvalues = self.dedupe_values(subvalues)
+                entity[field_name] = subvalues
+            else:
+                field_value = split_media_track_string(config, row[field_name])
+                entity[field_name] = field_value
+        # Cardinality has a limit, including 1.
+        else:
+            if config['subdelimiter'] in row[field_name]:
+                subvalues = split_media_track_string(config, row[field_name])
+                subvalues = self.dedupe_values(subvalues)
+                if len(subvalues) > int(field_definitions[field_name]['cardinality']):
+                    subvalues = subvalues[:field_definitions[field_name]['cardinality']]
+                    log_field_cardinality_violation(field_name, id_field, field_definitions[field_name]['cardinality'])
+                entity[field_name] = subvalues
+            else:
+                field_value = split_media_track_string(config, row[field_name])
+                entity[field_name] = field_value
+
+        return entity
+
+    def update(self, config, field_definitions, entity, row, field_name, entity_field_values):
+        """Note: this method appends incoming CSV values to existing values, replaces existing field
+           values with incoming values, or deletes all values from fields, depending on whether
+           config['update_mode'] is 'append', 'replace', or 'delete'. It doesn not replace individual
+           values within fields.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            entity : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            entity_field_values : list
+                List of dictionaries containing existing value(s) for field_name in the entity being updated.
+            Returns
+            -------
+            dictionary
+                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
+        """
+        if config['update_mode'] == 'delete':
+            entity[field_name] = []
+            return entity
+
+        if row[field_name] is None:
+            return entity
+
+        # Cardinality is unlimited.
+        if field_definitions[field_name]['cardinality'] == -1:
+            if config['update_mode'] == 'replace':
+                if config['subdelimiter'] in row[field_name]:
+                    field_values = []
+                    subvalues = split_media_track_string(config, row[field_name])
+                    subvalues = self.dedupe_values(subvalues)
+                    for subvalue in subvalues:
+                        field_values.append(subvalue)
+                    entity[field_name] = field_values
+                else:
+                    field_value = split_media_track_string(config, row[field_name])
+                    entity[field_name] = field_value
+            if config['update_mode'] == 'append':
+                if config['subdelimiter'] in row[field_name]:
+                    field_values = []
+                    subvalues = split_media_track_string(config, row[field_name])
+                    for subvalue in subvalues:
+                        field_values.append(subvalue)
+                    if field_name in entity:
+                        for field_subvalue in field_values:
+                            entity_field_values.append(field_subvalue)
+                        entity_field_values = self.dedupe_values(entity_field_values)
+                        entity[field_name] = entity_field_values
+                else:
+                    field_value = split_media_track_string(config, row[field_name])
+                    if field_name in entity:
+                        for field_subvalue in field_value:
+                            entity_field_values.append(field_subvalue)
+                        entity[field_name] = entity_field_values
+        # Cardinality has a limit.
+        else:
+            if config['update_mode'] == 'replace':
+                if config['subdelimiter'] in row[field_name]:
+                    field_values = []
+                    subvalues = split_media_track_string(config, row[field_name])
+                    subvalues = self.dedupe_values(subvalues)
+                    if len(subvalues) > int(field_definitions[field_name]['cardinality']):
+                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                    subvalues = subvalues[:field_definitions[field_name]['cardinality']]
+                    for subvalue in subvalues:
+                        field_values.append(subvalue)
+                    entity[field_name] = field_values
+                else:
+                    field_value = split_media_track_string(config, row[field_name])
+                    entity[field_name] = field_value
+            if config['update_mode'] == 'append':
+                subvalues = split_media_track_string(config, row[field_name])
+                for subvalue in subvalues:
+                    entity_field_values.append(subvalue)
+                entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
+                if len(entity[field_name]) > int(field_definitions[field_name]['cardinality']):
+                    log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+
+        return entity
+
+    def dedupe_values(self, values):
+        """Removes duplicate entries from 'values'.
+        """
+        """Parameters
+           ----------
+            values : list
+                List containing value(s) to dedupe. Members could be strings
+                from CSV or dictionairies.
+            Returns
+            -------
+            list
+                A list of unique field values.
+        """
+        return list(unique_everseen(values))
+
+    def remove_invalid_values(self, config, field_definitions, field_name, values):
+        """Removes invalid entries from 'values'.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            values : list
+                List containing strings split from CSV values.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        valid_values = list()
+        for subvalue in values:
+            if validate_media_track_value(subvalue, field_definitions[field_name]['authority_sources']) is True:
+                valid_values.append(subvalue)
+            else:
+                message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Authority Link field value.'
+                logging.warning(message)
+        return valid_values
+
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration object defined by set_config_defaults().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            string
+                A string structured same as the Workbench CSV field data for this field type.
+        """
+        if 'field_type' not in field_definitions[field_name]:
+            return values
+
+        subvalues = list()
+        for subvalue in field_data:
+            if all('label' in subvalue, subvalue['label'] is not None,
+                   'kind' in subvalue, subvalue['kind'] is not None,
+                   'srclang' in subvalue, subvalue['srclang'] is not None,
+                   'url' in subvalue, subvalue['url'] is not None):
+                serialized = f"{subvalue['label']}:{subvalue['kind']}:{subvalue['srclang']}:{os.path.basename(subvalue['url'])}"
+                subvalues.append(serialized)
+            else:
+                subvalues.append(f"{subvalue['label']}:{subvalue['kind']}:{subvalue['srclang']}:{os.path.basename(subvalue['url'])}")
 
         if len(subvalues) > 1:
             return config['subdelimiter'].join(subvalues)
