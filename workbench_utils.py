@@ -50,9 +50,23 @@ file_fields = [
 
 
 def set_media_type(config, filepath, file_fieldname, csv_row):
-    """Using configuration options, determine which media bundle type to use.
-       Options are either a single media type or a set of mappings from
-       file extenstion to media type.
+    """Using either the 'media_type' or 'media_types_override' configuration
+       setting, determine which media bundle type to use.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration object defined by set_config_defaults().
+       filepath: string
+           The value of the CSV 'file' column.
+        file_fieldname: string
+            The name of the CSV column containing the filename (usually 'file').
+        csv_row : OrderedDict
+            The CSV row for the current item.
+       Returns
+       -------
+       string
+           A string naming the configured media type, e.g. 'image'.
     """
     if 'media_type' in config:
         return config['media_type']
@@ -802,11 +816,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname] = {}
             raw_field_config = get_entity_field_config(config, fieldname, entity_type, bundle_type)
             field_config = json.loads(raw_field_config)
-            if entity_type == 'media' and 'file_extensions' in field_config['settings']:
+            field_definitions[fieldname]['media_type'] = bundle_type
+            field_definitions[fieldname]['field_type'] = field_config['field_type']
+            if 'file_extensions' in field_config['settings']:
                 field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
-            if entity_type == 'media':
-                field_definitions[fieldname]['media_type'] = bundle_type
-                field_definitions[fieldname]['field_type'] = field_config['field_type']
 
             raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
             field_storage = json.loads(raw_field_storage)
@@ -1953,12 +1966,8 @@ def check_input(config, args):
 
 
 def get_registered_media_extensions(config, media_bundle):
-    # Unfinished, waiting on issue-373 to be merged. See https://github.com/mjordan/islandora_workbench/issues/126.
-    """Gets a list of file extensions registered with Drupal for the file-type field in the given
-       bundle type. config['media_bundle_file_fields'] maps media bundle names to a single file field,
-       so for bundles that can have media track files (which we'll want to check the extension of),
-       we'll need to add those to that mapping. Those mappings will be in config['media_track_file_fields']
-       once issue-373 is merged into main.
+    """For the given media bundle, gets a list of file extensions registered in Drupal's
+       "Allowed file extensions" configuration for each field that has this setting.
     """
     """Parameters
         ----------
@@ -1970,19 +1979,17 @@ def get_registered_media_extensions(config, media_bundle):
         Returns
         -------
         dict
-            A dictionary with one key per media bundle field name. Each key has as its value
-            a list of registered file extensions.
+            A dictionary with one key per media bundle field name that has registered exensions.
+            Each key has as its value a list of file extensions, without leading periods,
+            registered for those fields in Drupal.
     """
-    '''
+    registered_extensions = dict()
     media_field_definitions = get_field_definitions(config, 'media', media_bundle)
-    # Assumes one file field-type per media bundle.
-    file_field_name = config['media_bundle_file_fields'][media_bundle]
-    print(file_field_name)
     for field_name, field_def in media_field_definitions.items():
-        if field_name = file_field_name:
-            print(field_def)
-    '''
-    pass
+        if 'file_extensions' in field_def:
+            registered_extensions[field_name] = re.split(r'\s+', field_def['file_extensions'])
+
+    return registered_extensions
 
 
 def check_input_for_create_from_files(config, args):
