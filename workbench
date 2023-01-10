@@ -1266,7 +1266,8 @@ logging.basicConfig(
     datefmt='%d-%b-%y %H:%M:%S')
 
 if 'check' in config.keys():
-    if config['check'] is False:
+    tasks_to_skip = ['create_from_files', 'get_data_from_view']
+    if config['check'] is False and config['task'] not in tasks_to_skip:
         csv_data_to_count = get_csv_data(config)
         num_csv_records = len(list(csv_data_to_count))
         if num_csv_records == 0:
