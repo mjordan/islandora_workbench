@@ -1722,9 +1722,12 @@ def check_input(config, args):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-        # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
-        # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
-        # 'media_type[s]' config option?
+                # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
+                # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
+                # 'media_type[s]' config option?
+                print("DEBUG media file fields", config['media_type_file_fields'])
+                for filename_field in filename_fields_to_check:
+                    print("DEBUG file field name", filename_field)
 
     # Check existence of fields identified in 'additional_files' config setting, and the files named in those fields.
     # Also check for the acommpanying Media Use tid.
@@ -1740,6 +1743,8 @@ def check_input(config, args):
                         message = 'CSV column "' + additional_file_field + '" registered in the "additional_files" configuration setting is missing from your CSV file.'
                         logging.error(message)
                         sys.exit('Error: ' + message)
+
+                # @todo: validate extensions of files here as well - #126.
 
             # Verify media use tids.
             # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -1965,7 +1970,7 @@ def check_input(config, args):
         sys.exit(0)
 
 
-def get_registered_media_extensions(config, media_bundle):
+def get_registered_media_extensions(config, media_bundle, field_name_filter=None):
     """For the given media bundle, gets a list of file extensions registered in Drupal's
        "Allowed file extensions" configuration for each field that has this setting.
     """
@@ -1976,6 +1981,9 @@ def get_registered_media_extensions(config, media_bundle):
         bundle_type : string
             The (node) content type, the vocabulary name, or the media type (image',
             'document', 'audio', 'video', 'file', etc.).
+        field_name_filter: string
+            If not None, filter the return value to just that field; if the field is
+            not a key in the return dict, return False.
         Returns
         -------
         dict
@@ -1989,7 +1997,12 @@ def get_registered_media_extensions(config, media_bundle):
         if 'file_extensions' in field_def:
             registered_extensions[field_name] = re.split(r'\s+', field_def['file_extensions'])
 
-    return registered_extensions
+    if field_name_filter is not None and field_name_filter in registered_extensions:
+        return {field_name_filter: registered_extensions[field_name_filter]}
+    elif field_name_filter is not None and field_name_filter not in registered_extensions:
+        return False
+    else:
+        return registered_extensions
 
 
 def check_input_for_create_from_files(config, args):
@@ -2524,8 +2537,8 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
 
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(config, file_path, file_fieldname, node_csv_row)
-    if media_type in config['media_bundle_file_fields']:
-        media_file_field = config['media_bundle_file_fields'][media_type]
+    if media_type in config['media_type_file_fields']:
+        media_file_field = config['media_type_file_fields'][media_type]
     else:
         logging.error('File not created for CSV row "%s": media type "%s" not recognized.', node_csv_row[config['id_field']], media_type)
         return False
@@ -2635,7 +2648,6 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id, False)
 
     if isinstance(file_result, int):
-        # @todo: Resolve issue 500 here. We should be processing media_use_tid in CSV after we define the media_use_tids list, below.
         if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
             media_use_tid_value = node_csv_row['media_use_tid']
         else:
@@ -2661,7 +2673,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             logging.error(message)
             return False
 
-        media_field = config['media_bundle_file_fields'][media_type]
+        media_field = config['media_type_file_fields'][media_type]
         if media_type in get_oembed_media_types(config):
             if 'title' in node_csv_row:
                 media_name = node_csv_row['title']

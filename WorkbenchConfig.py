@@ -72,7 +72,7 @@ class WorkbenchConfig:
                 for media_type, media_field in media_field.items():
                     media_fields[media_type] = media_field
             loaded['media_fields'] = media_fields
-            loaded['media_bundle_file_fields'] = media_fields
+            loaded['media_type_file_fields'] = media_fields
         if os.path.isabs(self.args.config):
             loaded['config_file_path'] = self.args.config
         else:
@@ -175,7 +175,7 @@ class WorkbenchConfig:
             'check': self.args.check,
             'get_csv_template': self.args.get_csv_template,
             'paged_content_sequence_separator': '-',
-            'media_bundle_file_fields': self.get_media_fields(),
+            'media_type_file_fields': self.get_media_fields(),
             'media_track_file_fields': self.get_media_track_file_fields(),
             'media_fields': self.get_media_fields(),
             'delete_media_by_node_media_use_tids': [],
