@@ -226,6 +226,15 @@ class SimpleField():
                     message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid EDTF field value.'
                     logging.warning(message)
             return valid_values
+        elif field_definitions[field_name]['field_type'] == 'list_string':
+            valid_values = list()
+            for subvalue in values:
+                if subvalue in field_definitions[field_name]['allowed_values']:
+                    valid_values.append(subvalue)
+                else:
+                    message = 'Value "' + subvalue + '" in field "' + field_name + '" is not in the field\'s list of allowed values.'
+                    logging.warning(message)
+            return valid_values
         else:
             # For now, just return values if the field is not an EDTF field.
             return values

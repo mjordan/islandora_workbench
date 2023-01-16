@@ -747,6 +747,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
             else:
                 field_definitions[fieldname]['authority_sources'] = None
+            if 'allowed_values' in field_storage['settings']:
+                field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
+            else:
+                field_definitions[fieldname]['allowed_values'] = None
 
         # title's configuration is not returned by Drupal so we construct it here. Note: if you add a new key to
         # 'field_definitions', also add it to title's entry here. Also add it for 'title' in the other entity types, below.
@@ -797,6 +801,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
             else:
                 field_definitions[fieldname]['authority_sources'] = None
+            if 'allowed_values' in field_storage['settings']:
+                field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
+            else:
+                field_definitions[fieldname]['allowed_values'] = None
 
         field_definitions['term_name'] = {
             'entity_type': 'taxonomy_term',
@@ -833,6 +841,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
             else:
                 field_definitions[fieldname]['target_type'] = None
+            if 'allowed_values' in field_storage['settings']:
+                field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
+            else:
+                field_definitions[fieldname]['allowed_values'] = None
 
     if entity_type == 'paragraph':
         fields = get_entity_fields(config, entity_type, bundle_type)
@@ -877,6 +889,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
             else:
                 field_definitions[fieldname]['authority_sources'] = None
+            if 'allowed_values' in field_storage['settings']:
+                field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
+            else:
+                field_definitions[fieldname]['allowed_values'] = None
 
     return field_definitions
 
@@ -1574,6 +1590,10 @@ def check_input(config, args):
         validate_csv_field_length_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         validate_csv_field_length(config, field_definitions, validate_csv_field_length_csv_data)
+
+        validate_text_list_fields_data = get_csv_data(config)
+        # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+        validate_text_list_fields(config, field_definitions, validate_text_list_fields_data)
 
         validate_taxonomy_field_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -4008,6 +4028,38 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                         field_cardinalities[field_name]) + ' values.'
                     print('Warning: ' + message + message_2)
                     logging.warning(message + message_2)
+
+
+def validate_text_list_fields(config, field_definitions, csv_data):
+    """For fields that are of "list_string" field type, check that values
+       in CSV are in the field's "allowed_values" config setting.
+    """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
+
+    list_field_allowed_values = dict()
+    csv_headers = csv_data.fieldnames
+    for csv_header in csv_headers:
+        if csv_header in field_definitions.keys():
+            if 'allowed_values' in field_definitions[csv_header]:
+                if field_definitions[csv_header]['allowed_values'] is not None:
+                    list_field_allowed_values[csv_header] = field_definitions[csv_header]['allowed_values']
+
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in list_field_allowed_values.keys():
+            if field_name in row:
+                delimited_field_values = row[field_name].split(config['subdelimiter'])
+                for field_value in delimited_field_values:
+                    if field_name in list_field_allowed_values and field_value not in list_field_allowed_values[field_name]:
+                        if config['task'] == 'create':
+                            message = 'CSV field "' + field_name + '" in record with ID ' + \
+                                row[config['id_field']] + ' contains a value ("' + field_value + '") that is not in the fields\'s allowed values.'
+                        if config['task'] == 'update':
+                            message = 'CSV field "' + field_name + '" in record with node ID ' + \
+                                row[config['id_field']] + ' contains a value ("' + field_value + '") that is not in the fields\'s allowed values.'
+                        print('Warning: ' + message)
+                        logging.warning(message)
 
 
 def validate_csv_field_length(config, field_definitions, csv_data):
