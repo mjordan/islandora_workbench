@@ -1722,12 +1722,18 @@ def check_input(config, args):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-                # @todo: check that each file's extension is allowed for the current media type using get_registered_media_extensions().
-                # See https://github.com/mjordan/islandora_workbench/issues/126. Maybe also compare allowed extensions with those in
-                # 'media_type[s]' config option?
-                print("DEBUG media file fields", config['media_type_file_fields'])
-                for filename_field in filename_fields_to_check:
-                    print("DEBUG file field name", filename_field)
+                # Check that each file's extension is allowed for the current media type. 'file' is the only
+                # CSV field to check here. Files added using the 'additional_files' setting are checked below.
+                media_type_file_field = config['media_type_file_fields'][media_type]
+                extension = os.path.splitext(file_check_row['file'])[1]
+                extension = extension.lstrip('.').lower()
+                media_type_file_field = config['media_type_file_fields'][media_type]
+                registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
+                if extension not in registered_extensions[media_type_file_field]:
+                    message = 'File "' + file_check_row[filename_field] + '" in CSV row ' + file_check_row[config['id_field']] + \
+                        ' does not have an extension allowed in the "' + media_type_file_field + '" field of the  (' + media_type + ') media type.'
+                    logging.error(message)
+                    sys.exit('Error: ' + message)
 
     # Check existence of fields identified in 'additional_files' config setting, and the files named in those fields.
     # Also check for the acommpanying Media Use tid.
@@ -1743,8 +1749,6 @@ def check_input(config, args):
                         message = 'CSV column "' + additional_file_field + '" registered in the "additional_files" configuration setting is missing from your CSV file.'
                         logging.error(message)
                         sys.exit('Error: ' + message)
-
-                # @todo: validate extensions of files here as well - #126.
 
             # Verify media use tids.
             # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -1776,6 +1780,9 @@ def check_input(config, args):
                                     + file_check_row[config['id_field']] + ' not found.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
+
+                            # @todo: validate extensions of files added using 'additional_files' here - issue 126.
+
                 message = 'OK, files named in the CSV "' + additional_file_field + '" column are all present.'
                 print(message)
                 logging.info(message)
@@ -1989,13 +1996,15 @@ def get_registered_media_extensions(config, media_bundle, field_name_filter=None
         dict
             A dictionary with one key per media bundle field name that has registered exensions.
             Each key has as its value a list of file extensions, without leading periods,
-            registered for those fields in Drupal.
+            registered for those fields in Drupal. All extensions are lower case.
     """
     registered_extensions = dict()
     media_field_definitions = get_field_definitions(config, 'media', media_bundle)
     for field_name, field_def in media_field_definitions.items():
         if 'file_extensions' in field_def:
             registered_extensions[field_name] = re.split(r'\s+', field_def['file_extensions'])
+            for i in range(len(registered_extensions[field_name])):
+                registered_extensions[field_name][i] = registered_extensions[field_name][i].lower()
 
     if field_name_filter is not None and field_name_filter in registered_extensions:
         return {field_name_filter: registered_extensions[field_name_filter]}
