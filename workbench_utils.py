@@ -467,6 +467,47 @@ def ping_url_alias(config, url_alias):
     return response.status_code
 
 
+def get_members(config, node_id, content_type=None):
+    """Get the node IDs that are identified by the "Manage Members" View's REST endpoint.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        node_id: string|int
+            The parent node's ID.
+        content_type: string
+            An optinal machine name for the conent type to filter on.
+            If provided, only nodes of this type will be included in
+            the return list.
+        Returns
+        -------
+        list
+            A list of node IDs for all the items that reference the parent node
+            as included in the View.
+    """
+    url = f"{config['host']}/node/{node_id}/members?_format=json"
+    try:
+        response = issue_request(config, 'GET', url)
+        if response.status_code == 200:
+            member_nids = list()
+            members = json.loads(response.text)
+            for member in members:
+                if content_type is not None:
+                    if member['type'][0]['target_id'] == content_type:
+                        member_nids.append(member['nid'][0]['value'])
+                else:
+                    member_nids.append(member['nid'][0]['value'])
+            return member_nids
+        else:
+            logging.warning(f"Workbench could not access the Manage Members View REST endpoint at {url} (HTTP response code {response.status_code}).")
+            return False
+    except requests.exceptions.Timeout as err_timeout:
+        message = f'Workbench timed out trying to reach the "members" View at {url}.'
+        logging.warning(message)
+        return False
+
+
 def ping_vocabulary(config, vocab_id):
     """Ping the node to see if it exists.
     """
@@ -5971,3 +6012,40 @@ def quick_delete_media(config, args):
         logging.error(message + f"HTTP response code was {media_delete_status_code}.")
 
     sys.exit()
+
+
+def convert_node_to_csv_row(config, node, field_names, field_definitions):
+    """Used in export_csv and get_data_from_view tasks to convert a node's JSON
+       representation to a CSV row (OrderedDict).
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        node: dict
+            The dict representation of the raw node JSON.
+        field_names: list
+            List of field names for the CSV row.
+        field_definitions: dict
+            Field definitions as returned by get_field_definitions(config, 'node').
+        Returns
+        -------
+        csv_row: OrderedDict
+            The CSV representation of the node, to write to the output file. Returns None
+            if node's content type is not the same as config['content_type'].
+    """
+    csv_row = collections.OrderedDict()
+    node_id = node['nid'][0]['value']
+
+    if node['type'][0]['target_id'] != config['content_type']:
+        message = f"Node {node_id} not written to output CSV because its content type ({node['type'][0]['target_id']})" + \
+            f" does not match the \"content_type\" configuration setting ({config['content_type']})."
+        logging.warning(message)
+        return None
+
+    for fieldname_to_serialize in field_names:
+        if fieldname_to_serialize in node and fieldname_to_serialize in field_definitions:
+            csv_data = serialize_field_json(config, field_definitions, fieldname_to_serialize, node[fieldname_to_serialize])
+            csv_row[fieldname_to_serialize] = csv_data
+
+    return csv_row
