@@ -185,10 +185,15 @@ def issue_request(
 
     headers.update({'User-Agent': config['user_agent']})
 
+    # The trailing / is stripped in config, but we do it here too, just in case.
     config['host'] = config['host'].rstrip('/')
     if config['host'] in path:
         url = path
     else:
+        # Since we remove the trailing / from the hostname, we need to ensure
+        # that there is a / separating the host from the path.
+        if not path.startswith('/'):
+            path = '/' + path
         url = config['host'] + path
 
     if config['log_request_url'] is True:

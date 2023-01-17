@@ -56,6 +56,8 @@ class WorkbenchConfig:
                 for key, value in preprocessor.items():
                     config['preprocessors'][key] = value
 
+        config['host'] = config['host'].rstrip('/')
+
         return config
 
     # Get user input as dictionary.
