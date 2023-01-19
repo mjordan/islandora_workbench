@@ -1619,19 +1619,24 @@ def check_input(config, args):
         # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
-        validate_field_member_of_csv_data = get_csv_data(config)
-        for count, row in enumerate(validate_field_member_of_csv_data, start=1):
-            if 'field_member_of' in csv_column_headers:
-                parent_nids = row['field_member_of'].split(config['subdelimiter'])
-                for parent_nid in parent_nids:
-                    if len(parent_nid) > 0:
-                        parent_node_exists = ping_node(config, parent_nid)
-                        if parent_node_exists is False:
-                            message = "The 'field_member_of' field in row with ID '" + row[config['id_field']] + \
-                                "' of your CSV file contains a node ID (" + parent_nid + ") that " + \
-                                "doesn't exist or is not accessible. See the workbench log for more information."
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
+        if config['validate_parent_node_exists'] is True:
+            validate_field_member_of_csv_data = get_csv_data(config)
+            for count, row in enumerate(validate_field_member_of_csv_data, start=1):
+                if 'field_member_of' in csv_column_headers:
+                    parent_nids = row['field_member_of'].split(config['subdelimiter'])
+                    for parent_nid in parent_nids:
+                        if len(parent_nid) > 0:
+                            parent_node_exists = ping_node(config, parent_nid)
+                            if parent_node_exists is False:
+                                message = "The 'field_member_of' field in row with ID '" + row[config['id_field']] + \
+                                    "' of your CSV file contains a node ID (" + parent_nid + ") that " + \
+                                    "doesn't exist or is not accessible. See the workbench log for more information."
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+        else:
+            message = '"validate_parent_node_exists" is set to false. Node IDs in "field_member_of" that do not exist or are not accessible ' + \
+                'will result in 422 errors in "create" and "update" tasks.'
+            logging.warning(message)
 
         # Validate 'langcode' values if that field exists in the CSV.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
