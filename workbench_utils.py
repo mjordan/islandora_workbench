@@ -4058,7 +4058,7 @@ def validate_text_list_fields(config, field_definitions, csv_data):
 
     for count, row in enumerate(csv_data, start=1):
         for field_name in list_field_allowed_values.keys():
-            if field_name in row:
+            if field_name in row and len(row[field_name]) > 0:
                 delimited_field_values = row[field_name].split(config['subdelimiter'])
                 for field_value in delimited_field_values:
                     if field_name in list_field_allowed_values and field_value not in list_field_allowed_values[field_name]:
