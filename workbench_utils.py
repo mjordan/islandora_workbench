@@ -1752,18 +1752,18 @@ def check_input(config, args):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-                # Check that each file's extension is allowed for the current media type. 'file' is the only
-                # CSV field to check here. Files added using the 'additional_files' setting are checked below.
-                media_type_file_field = config['media_type_file_fields'][media_type]
-                extension = os.path.splitext(file_check_row['file'])[1]
-                extension = extension.lstrip('.').lower()
-                media_type_file_field = config['media_type_file_fields'][media_type]
-                registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
-                if extension not in registered_extensions[media_type_file_field]:
-                    message = 'File "' + file_check_row[filename_field] + '" in CSV row ' + file_check_row[config['id_field']] + \
-                        ' does not have an extension allowed in the "' + media_type_file_field + '" field of the  (' + media_type + ') media type.'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
+                        # Check that each file's extension is allowed for the current media type. 'file' is the only
+                        # CSV field to check here. Files added using the 'additional_files' setting are checked below.
+                        media_type_file_field = config['media_type_file_fields'][media_type]
+                        extension = os.path.splitext(file_check_row['file'])[1]
+                        extension = extension.lstrip('.').lower()
+                        media_type_file_field = config['media_type_file_fields'][media_type]
+                        registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
+                        if extension not in registered_extensions[media_type_file_field]:
+                            message = 'File "' + file_check_row[filename_field] + '" in CSV row ' + file_check_row[config['id_field']] + \
+                                ' does not have an extension allowed in the "' + media_type_file_field + '" field of the  (' + media_type + ') media type.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
 
     # Check existence of fields identified in 'additional_files' config setting, and the files named in those fields.
     # Also check for the acommpanying Media Use tid.
