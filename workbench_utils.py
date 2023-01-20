@@ -3855,7 +3855,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
     ----------
     config : dict
         The configuration object defined by set_config_defaults().
-    vocab_ids: list
+    vocab_ids: list|boolean
         The vocabulary IDs associated with the field handling code calling this function.
     field_name: string
         The field's machine name.
@@ -3863,13 +3863,18 @@ def prepare_term_id(config, vocab_ids, field_name, term):
         The term name from CSV.
     Returns
     -------
-    int
-        The term ID, existing or newly created.
+    int|None
+        The term ID, existing or newly created. None if there are no vocabularies
+        associated with the field identified in field_name (which is the case with
+        "Filter by an entity reference view" reference type fields)or if the vocab
+        ID is otherwise unknown.
 """
     term = str(term)
     term = term.strip()
     if value_is_numeric(term):
         return term
+    if vocab_ids is False:
+        return None
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
     elif term.startswith('http'):
