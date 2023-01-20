@@ -1691,7 +1691,7 @@ def check_input(config, args):
                 else:
                     if file_check_row[config['id_field']] not in rows_with_missing_files:
                         rows_with_missing_files.append(file_check_row[config['id_field']])
-                        logging.error(message)
+                        logging.warning(message)
             # Check for URLs.
             elif file_check_row['file'].startswith('http'):
                 http_response_code = ping_remote_file(config, file_check_row['file'])
@@ -1761,7 +1761,7 @@ def check_input(config, args):
                         registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                         if extension not in registered_extensions[media_type_file_field]:
                             message = 'File "' + file_check_row[filename_field] + '" in CSV row ' + file_check_row[config['id_field']] + \
-                                ' does not have an extension allowed in the "' + media_type_file_field + '" field of the  (' + media_type + ') media type.'
+                                ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
