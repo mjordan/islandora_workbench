@@ -1068,17 +1068,15 @@ def get_data_from_view():
 
     if len(config['export_csv_field_list']) > 0:
         field_names = config['export_csv_field_list']
-        # Always include node_id and title.
-        field_names.insert(0, 'title')
-        field_names.insert(0, 'node_id')
     else:
         field_names = []
         for field_name in field_definitions.keys():
             if field_name.startswith('field_'):
                 field_names.insert(0, field_name)
-        # Always include node_id and title.
-        field_names.insert(0, 'title')
-        field_names.insert(0, 'node_id')
+
+    # Always include node_id and title.
+    field_names.insert(0, 'title')
+    field_names.insert(0, 'node_id')
 
     deduped_field_names = list('')
     [deduped_field_names.append(x) for x in field_names if x not in deduped_field_names]
@@ -1106,38 +1104,72 @@ def get_data_from_view():
         if node['nid'][0]['value'] not in seen_nids:
             if node['type'][0]['target_id'] == config['content_type']:
                 seen_nids.append(node['nid'][0]['value'])
-                row = dict()
-                row['node_id'] = node['nid'][0]['value']
-                row['title'] = node['title'][0]['value']
-
                 if config['export_file_directory'] is not None:
                     and_files = f"and file "
                 else:
                     and_files = ''
-                message = f"Exporting data {and_files}for node {row['node_id']} \"{row['title']}\"."
+                message = f"Exporting data {and_files}for node {node['nid'][0]['value']} \"{node['title'][0]['value']}\"."
                 print(message)
                 logging.info(message)
 
-                # WIP #519 convert_node_to_csv_row() starts here.
-                for field_name in deduped_field_names:
-                    if field_name.startswith('field_') and field_name in node:
-                        csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
-                        row[field_name] = csv_data
-
-                output_row = convert_node_to_csv_row(config, response.text, field_names, field_definitions)
-                # WIP #519 convert_node_to_csv_row() ends here.
+                output_row = convert_node_to_csv_row(config, node, field_names, field_definitions)
+                output_row['node_id'] = node['nid'][0]['value']
+                output_row['title'] = node['title'][0]['value']
 
                 if config['export_file_directory'] is not None:
-                    downloaded_file_name = download_file_from_drupal(config, row['node_id'])
-                    row['file'] = downloaded_file_name
+                    downloaded_file_name = download_file_from_drupal(config, output_row['node_id'])
+                    output_row['file'] = downloaded_file_name
 
-                writer.writerow(row)
-        else:
-            message = f"Node {node['nid'][0]['value']} not written to output CVS because its content type (" + \
-                f"{node['type'][0]['target_id']} does not match the \"content_type\" configuration setting."
-            print("Warning: " + message)
-            logging.warning(message)
-            continue
+                writer.writerow(output_row)
+            else:
+                message = f"Node {node['nid'][0]['value']} not written to output CVS because its content type (" + \
+                    f"{node['type'][0]['target_id']} does not match the \"content_type\" configuration setting."
+                print("Warning: " + message)
+                logging.warning(message)
+                continue
+
+            if config['export_csv_include_children'] is True:
+                member_nids = get_members(config, node['nid'][0]['value'])
+                if len(member_nids) > 0:
+                    for member_nid in member_nids:
+                        if member_nid in seen_nids:
+                            continue
+                        else:
+                            seen_nids.append(member_nid)
+                        # Get child/member node.
+                        member_url = f"{config['host']}/node/{member_nid}?_format=json"
+                        member_response = issue_request(config, 'GET', member_url)
+                        if member_response.status_code == 200:
+                            member_node = json.loads(member_response.text)
+                            output_row = convert_node_to_csv_row(config, member_node, deduped_field_names, field_definitions)
+                            if output_row is not None:
+                                seen_nids.append(member_node['nid'][0]['value'])
+                                output_row['node_id'] = member_node['nid'][0]['value']
+                                output_row['title'] = member_node['title'][0]['value']
+                                if config['export_file_directory'] is not None:
+                                    downloaded_file_name = download_file_from_drupal(config, member_nid)
+                                    if downloaded_file_name is False:
+                                        downloaded_file_name = ''
+                                    output_row['file'] = downloaded_file_name
+
+                                if config['export_file_directory'] is not None:
+                                    and_files = f"and file "
+                                else:
+                                    and_files = ''
+                                message = f"Exporting data {and_files}for node {output_row['node_id']} \"{output_row['title']}\"."
+                                if config['progress_bar'] is True:
+                                    row_count += 1
+                                    row_position = get_percentage(row_count, num_csv_records)
+                                    pbar(row_position)
+                                else:
+                                    print(message)
+
+                                writer.writerow(output_row)
+                        else:
+                            message = f"Attempt to get node {member_nid} returned a {member_response.status_code} status code."
+                            print("  Error: " + message)
+                            logging.warning(message)
+                            continue
 
     # Loop through the remaining pages, until we encounter an empty page.
     while len(nodes) > 0:
@@ -1153,34 +1185,76 @@ def get_data_from_view():
             if node['nid'][0]['value'] not in seen_nids:
                 if node['type'][0]['target_id'] == config['content_type']:
                     seen_nids.append(node['nid'][0]['value'])
-                    row = dict()
-                    row['node_id'] = node['nid'][0]['value']
-                    row['title'] = node['title'][0]['value']
-
                     if config['export_file_directory'] is not None:
                         and_files = f"and file "
                     else:
                         and_files = ''
-                    message = f"Exporting data {and_files}for node {row['node_id']} \"{row['title']}\"."
+                    message = f"ccc Exporting data {and_files}for node {row['node_id']} \"{row['title']}\"."
                     print(message)
                     logging.info(message)
 
-                    for field_name in deduped_field_names:
-                        if field_name.startswith('field_') and field_name in node:
-                            csv_data = serialize_field_json(config, field_definitions, field_name, node[field_name])
-                            row[field_name] = csv_data
+                    output_row = convert_node_to_csv_row(config, node, field_names, field_definitions)
+                    if output_row is not None:
+                        output_row['node_id'] = node['nid'][0]['value']
+                        output_row['title'] = node['title'][0]['value']
 
-                    if config['export_file_directory'] is not None:
-                        downloaded_file_name = download_file_from_drupal(config, row['node_id'])
-                        row['file'] = downloaded_file_name
+                        if config['export_file_directory'] is not None:
+                            downloaded_file_name = download_file_from_drupal(config, output_row['node_id'])
+                            output_row['file'] = downloaded_file_name
 
-                    writer.writerow(row)
+                        writer.writerow(output_row)
                 else:
                     message = f"Node {node['nid'][0]['value']} not written to output CVS because its content type (" + \
                         f"{node['type'][0]['target_id']} does not match the \"content_type\" configuration setting."
                     print("Warning: " + message)
                     logging.warning(message)
                     continue
+
+                if config['export_csv_include_children'] is True:
+                    member_nids = get_members(config, node['nid'][0]['value'])
+                    if len(member_nids) > 0:
+                        for member_nid in member_nids:
+                            # Get child/member node.
+                            if member_nid in seen_nids:
+                                continue
+                            else:
+                                seen_nids.append(member_nid)
+                            member_url = f"{config['host']}/node/{member_nid}?_format=json"
+                            member_response = issue_request(config, 'GET', member_url)
+                            if member_response.status_code == 200:
+                                member_node = json.loads(member_response.text)
+                                output_row = convert_node_to_csv_row(config, member_node, deduped_field_names, field_definitions)
+                                if output_row is not None:
+                                    seen_nids.append(member_node['nid'][0]['value'])
+                                    output_row['node_id'] = member_node['nid'][0]['value']
+                                    output_row['title'] = member_node['title'][0]['value']
+                                    if config['export_file_directory'] is not None:
+                                        downloaded_file_name = download_file_from_drupal(config, member_nid)
+                                        if downloaded_file_name is False:
+                                            downloaded_file_name = ''
+                                        output_row['file'] = downloaded_file_name
+
+                                if output_row is None:
+                                    continue
+                                else:
+                                    if config['export_file_directory'] is not None:
+                                        and_files = f"and file "
+                                    else:
+                                        and_files = ''
+                                    message = f"ddd Exporting data {and_files}for node {output_row['node_id']} \"{output_row['title']}\"."
+                                    if config['progress_bar'] is True:
+                                        row_count += 1
+                                        row_position = get_percentage(row_count, num_csv_records)
+                                        pbar(row_position)
+                                    else:
+                                        print(message)
+
+                                    writer.writerow(output_row)
+                            else:
+                                message = f"Attempt to get node {member_nid} returned a {member_response.status_code} status code."
+                                print("  Error: " + message)
+                                logging.warning(message)
+                                continue
 
     csv_file.close()
     message = "CSV file is available at " + csv_file_path + '.'
