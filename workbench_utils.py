@@ -6031,17 +6031,9 @@ def convert_node_to_csv_row(config, node, field_names, field_definitions):
         Returns
         -------
         csv_row: OrderedDict
-            The CSV representation of the node, to write to the output file. Returns None
-            if node's content type is not the same as config['content_type'].
+            The CSV representation of the node, to write to the output file.
     """
     csv_row = collections.OrderedDict()
-    node_id = node['nid'][0]['value']
-
-    if node['type'][0]['target_id'] != config['content_type']:
-        message = f"Node {node_id} not written to output CSV because its content type ({node['type'][0]['target_id']})" + \
-            f" does not match the \"content_type\" configuration setting ({config['content_type']})."
-        logging.warning(message)
-        return None
 
     for fieldname_to_serialize in field_names:
         if fieldname_to_serialize in node and fieldname_to_serialize in field_definitions:
