@@ -190,12 +190,6 @@ def create():
                             logging.error(message)
                             sys.exit(message)
 
-            # Since we allow use of full URLs or node IDs in field_member_of, but Drupal requires this
-            # value to be numeric, we convert here.
-            if custom_field == 'field_member_of':
-                if value_is_numeric(row['field_member_of']) is False:
-                    row['field_member_of'] = get_nid_from_url_alias(config, row['field_member_of'])
-
             # Assemble Drupal field structures for entity reference fields from CSV data.
             # Entity reference fields (taxonomy_term and node)
             if field_definitions[custom_field]['field_type'] == 'entity_reference':

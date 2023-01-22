@@ -56,6 +56,8 @@ class WorkbenchConfig:
                 for key, value in preprocessor.items():
                     config['preprocessors'][key] = value
 
+        config['host'] = config['host'].rstrip('/')
+
         return config
 
     # Get user input as dictionary.
@@ -168,6 +170,7 @@ class WorkbenchConfig:
             'timestamp_rollback': False,
             'enable_http_cache': True,
             'validate_terms_exist': True,
+            'validate_parent_node_exists': True,
             'drupal_8': None,
             'published': 1,
             'media_types': self.get_media_types(),

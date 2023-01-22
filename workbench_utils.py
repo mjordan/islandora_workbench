@@ -185,10 +185,15 @@ def issue_request(
 
     headers.update({'User-Agent': config['user_agent']})
 
+    # The trailing / is stripped in config, but we do it here too, just in case.
     config['host'] = config['host'].rstrip('/')
     if config['host'] in path:
         url = path
     else:
+        # Since we remove the trailing / from the hostname, we need to ensure
+        # that there is a / separating the host from the path.
+        if not path.startswith('/'):
+            path = '/' + path
         url = config['host'] + path
 
     if config['log_request_url'] is True:
@@ -1428,14 +1433,6 @@ def check_input(config, args):
     # Check that Drupal fields that are required are in the CSV file (create task only).
     if config['task'] == 'create':
         required_drupal_fields_node = get_required_bundle_fields(config, 'node', config['content_type'])
-        '''
-        required_drupal_fields_node = []
-        for drupal_fieldname in field_definitions:
-            # In the create task, we only check for required fields that apply to nodes.
-            if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['entity_type'] == 'node':
-                if 'required' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['required'] is True:
-                    required_drupal_fields_node.append(drupal_fieldname)
-        '''
         for required_drupal_field in required_drupal_fields_node:
             if required_drupal_field not in csv_column_headers:
                 logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
@@ -1655,19 +1652,24 @@ def check_input(config, args):
         # Validate existence of nodes specified in 'field_member_of'. This could be generalized out to validate node IDs in other fields.
         # See https://github.com/mjordan/islandora_workbench/issues/90.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
-        validate_field_member_of_csv_data = get_csv_data(config)
-        for count, row in enumerate(validate_field_member_of_csv_data, start=1):
-            if 'field_member_of' in csv_column_headers:
-                parent_nids = row['field_member_of'].split(config['subdelimiter'])
-                for parent_nid in parent_nids:
-                    if len(parent_nid) > 0:
-                        parent_node_exists = ping_node(config, parent_nid)
-                        if parent_node_exists is False:
-                            message = "The 'field_member_of' field in row with ID '" + row[config['id_field']] + \
-                                "' of your CSV file contains a node ID (" + parent_nid + ") that " + \
-                                "doesn't exist or is not accessible. See the workbench log for more information."
-                            logging.error(message)
-                            sys.exit('Error: ' + message)
+        if config['validate_parent_node_exists'] is True:
+            validate_field_member_of_csv_data = get_csv_data(config)
+            for count, row in enumerate(validate_field_member_of_csv_data, start=1):
+                if 'field_member_of' in csv_column_headers:
+                    parent_nids = row['field_member_of'].split(config['subdelimiter'])
+                    for parent_nid in parent_nids:
+                        if len(parent_nid) > 0:
+                            parent_node_exists = ping_node(config, parent_nid)
+                            if parent_node_exists is False:
+                                message = "The 'field_member_of' field in row with ID '" + row[config['id_field']] + \
+                                    "' of your CSV file contains a node ID (" + parent_nid + ") that " + \
+                                    "doesn't exist or is not accessible. See the workbench log for more information."
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+        else:
+            message = '"validate_parent_node_exists" is set to false. Node IDs in "field_member_of" that do not exist or are not accessible ' + \
+                'will result in 422 errors in "create" and "update" tasks.'
+            logging.warning(message)
 
         # Validate 'langcode' values if that field exists in the CSV.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -1722,7 +1724,7 @@ def check_input(config, args):
                 else:
                     if file_check_row[config['id_field']] not in rows_with_missing_files:
                         rows_with_missing_files.append(file_check_row[config['id_field']])
-                        logging.error(message)
+                        logging.warning(message)
             # Check for URLs.
             elif file_check_row['file'].startswith('http'):
                 http_response_code = ping_remote_file(config, file_check_row['file'])
@@ -1783,18 +1785,18 @@ def check_input(config, args):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-                # Check that each file's extension is allowed for the current media type. 'file' is the only
-                # CSV field to check here. Files added using the 'additional_files' setting are checked below.
-                media_type_file_field = config['media_type_file_fields'][media_type]
-                extension = os.path.splitext(file_check_row['file'])[1]
-                extension = extension.lstrip('.').lower()
-                media_type_file_field = config['media_type_file_fields'][media_type]
-                registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
-                if extension not in registered_extensions[media_type_file_field]:
-                    message = 'File "' + file_check_row[filename_field] + '" in CSV row ' + file_check_row[config['id_field']] + \
-                        ' does not have an extension allowed in the "' + media_type_file_field + '" field of the  (' + media_type + ') media type.'
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
+                        # Check that each file's extension is allowed for the current media type. 'file' is the only
+                        # CSV field to check here. Files added using the 'additional_files' setting are checked below.
+                        media_type_file_field = config['media_type_file_fields'][media_type]
+                        extension = os.path.splitext(file_check_row['file'])[1]
+                        extension = extension.lstrip('.').lower()
+                        media_type_file_field = config['media_type_file_fields'][media_type]
+                        registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
+                        if extension not in registered_extensions[media_type_file_field]:
+                            message = 'File "' + file_check_row[filename_field] + '" in CSV row ' + file_check_row[config['id_field']] + \
+                                ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
 
     # Check existence of fields identified in 'additional_files' config setting, and the files named in those fields.
     # Also check for the acommpanying Media Use tid.
@@ -3886,7 +3888,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
     ----------
     config : dict
         The configuration object defined by set_config_defaults().
-    vocab_ids: list
+    vocab_ids: list|boolean
         The vocabulary IDs associated with the field handling code calling this function.
     field_name: string
         The field's machine name.
@@ -3894,13 +3896,18 @@ def prepare_term_id(config, vocab_ids, field_name, term):
         The term name from CSV.
     Returns
     -------
-    int
-        The term ID, existing or newly created.
+    int|None
+        The term ID, existing or newly created. None if there are no vocabularies
+        associated with the field identified in field_name (which is the case with
+        "Filter by an entity reference view" reference type fields)or if the vocab
+        ID is otherwise unknown.
 """
     term = str(term)
     term = term.strip()
     if value_is_numeric(term):
         return term
+    if vocab_ids is False:
+        return None
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
     elif term.startswith('http'):
@@ -4089,7 +4096,7 @@ def validate_text_list_fields(config, field_definitions, csv_data):
 
     for count, row in enumerate(csv_data, start=1):
         for field_name in list_field_allowed_values.keys():
-            if field_name in row:
+            if field_name in row and len(row[field_name]) > 0:
                 delimited_field_values = row[field_name].split(config['subdelimiter'])
                 for field_value in delimited_field_values:
                     if field_name in list_field_allowed_values and field_value not in list_field_allowed_values[field_name]:
