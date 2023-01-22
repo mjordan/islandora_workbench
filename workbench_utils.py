@@ -1392,14 +1392,6 @@ def check_input(config, args):
     # Check that Drupal fields that are required are in the CSV file (create task only).
     if config['task'] == 'create':
         required_drupal_fields_node = get_required_bundle_fields(config, 'node', config['content_type'])
-        '''
-        required_drupal_fields_node = []
-        for drupal_fieldname in field_definitions:
-            # In the create task, we only check for required fields that apply to nodes.
-            if 'entity_type' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['entity_type'] == 'node':
-                if 'required' in field_definitions[drupal_fieldname] and field_definitions[drupal_fieldname]['required'] is True:
-                    required_drupal_fields_node.append(drupal_fieldname)
-        '''
         for required_drupal_field in required_drupal_fields_node:
             if required_drupal_field not in csv_column_headers:
                 logging.error("Required Drupal field %s is not present in the CSV file.", required_drupal_field)
