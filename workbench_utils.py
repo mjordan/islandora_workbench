@@ -6021,19 +6021,19 @@ def create_contact_sheet_thumbnail(config, source_filename):
         tn_filepath = image_icon_filename
     elif source_file_extension.lower() in pdf_extensions:
         pdf_icon_filename = 'tn_generic_pdf.png'
-        pdf_icon_path = os.path.join(output_dir, pdf_icon_filename)
+        pdf_icon_path = os.path.join(config['contact_sheet_output_dir'], pdf_icon_filename)
         if not os.path.exists(pdf_icon_path):
             shutil.copyfile(os.path.join(generic_icons_dir, pdf_icon_filename), pdf_icon_path)
         tn_filepath = pdf_icon_filename
     elif source_file_extension.lower() in audio_extensions:
         audio_icon_filename = 'tn_generic_audio.png'
-        audio_icon_path = os.path.join(output_dir, audio_icon_filename)
+        audio_icon_path = os.path.join(config['contact_sheet_output_dir'], audio_icon_filename)
         if not os.path.exists(audio_icon_path):
             shutil.copyfile(os.path.join(generic_icons_dir, audio_icon_filename), audio_icon_path)
         tn_filepath = audio_icon_filename
     elif source_file_extension.lower() in video_extensions:
         video_icon_filename = 'tn_generic_video.png'
-        video_icon_path = os.path.join(output_dir, video_icon_filename)
+        video_icon_path = os.path.join(config['contact_sheet_output_dir'], video_icon_filename)
         if not os.path.exists(video_icon_path):
             shutil.copyfile(os.path.join(generic_icons_dir, video_icon_filename), video_icon_path)
         tn_filepath = video_icon_filename
