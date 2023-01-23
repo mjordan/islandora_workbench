@@ -537,13 +537,15 @@ class TestCleanCsvValues(unittest.TestCase):
         csv_record['one'] = ' blsidlw  '
         csv_record['two'] = 'hheo "s7s9w9"'
         csv_record['three'] = "b‘bbbbb’"
-        csv_record['four'] = 'لدولي, العاشر []ليونيكود'
+        csv_record['four'] = 'لدولي, العاشر []ليونيكود '
+        csv_record['five'] = "new lines\n\n"
 
         clean_csv_record = collections.OrderedDict()
         clean_csv_record['one'] = 'blsidlw'
         clean_csv_record['two'] = 'hheo "s7s9w9"'
         clean_csv_record['three'] = "b'bbbbb'"
         clean_csv_record['four'] = 'لدولي, العاشر []ليونيكود'
+        clean_csv_record['five'] = 'new lines'
 
         csv_record = workbench_utils.clean_csv_values(csv_record)
         self.assertEqual(clean_csv_record, csv_record)
