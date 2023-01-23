@@ -1984,8 +1984,12 @@ def check_input(config, args):
     logging.info('Configuration checked for "%s" task using config file "%s", no problems found.', config['task'], args.config)
 
     if args.contactsheet is True:
-        print(f"Contact sheet is at {os.path.join(config['contact_sheet_output_dir'], 'contact_sheet.htm')}.")
+        if os.path.isabs(config['contact_sheet_output_dir']):
+            contact_sheet_path = os.path.join(config['contact_sheet_output_dir'], 'contact_sheet.htm')
+        else:
+            contact_sheet_path = os.path.join(os.getcwd(), config['contact_sheet_output_dir'], 'contact_sheet.htm')
         generate_contact_sheet(config, 'pre')
+        print(f"Contact sheet is at {contact_sheet_path}.")
 
     if config['secondary_tasks'] is None:
         sys.exit(0)
@@ -5988,7 +5992,7 @@ def create_contact_sheet_thumbnail(config, source_filename):
     if len(source_filename.strip()) == 0:
         return None
 
-    generic_icons_dir = os.path.join('contact_sheet_assets', 'generic_icons')
+    generic_icons_dir = os.path.join('assets', 'contact_sheet', 'generic_icons')
 
     # todo: get these from config['media_types']
     pdf_extensions = ['.pdf']
@@ -6043,23 +6047,20 @@ def create_contact_sheet_thumbnail(config, source_filename):
     return tn_filepath
 
 
-def generate_contact_sheet(config, stage, node=None):
+def generate_contact_sheet(config, stage):
     """Generates a contact sheet from CSV (or Drupal) data.
     """
     """Parameters
         ----------
         stage : str
             One of 'pre' (i.e. in --check) or 'post' (as nodes are created/updated).
-        node: dict
-            If stage is 'post', the dictionary representation of the HTTP request body
-            that created the node.
     """
     # input_dir = 'input_data'
     # config['contact_sheet_output_dir'] = 'output_data'
     css_file_name = 'contact-sheet.css'
-    css_file_path = os.path.join('contact_sheet_assets', css_file_name)
+    css_file_path = os.path.join('assets', 'contact_sheet', css_file_name)
 
-    generic_icons_dir = os.path.join('contact_sheet_assets', 'generic_icons')
+    generic_icons_dir = os.path.join('assets', 'contact_sheet', 'generic_icons')
 
     if stage == 'pre':
         csv_data = get_csv_data(config)
@@ -6075,16 +6076,25 @@ def generate_contact_sheet(config, stage, node=None):
 
         tn_filename = create_contact_sheet_thumbnail(config, row['file'])
 
-        csv_id = row['id']
+        csv_id = row[config['id_field']]
         title = row['title']
         if tn_filename is None:
             div += ''
         else:
             div += f'<img alt="{title}" src="{tn_filename}" />'
-        div += '<div class="fields">'
-        div += f'<div class="field csv-id">csv ID: {csv_id}</div>'
-        div += f'<div class="field"><span class="field-label">Title:</span> {row["title"]}</div>'
-        # div += f'<div class="field"><span class="field-label">Description:</span> {row["description"]}</div>'
+        div += f'<div class="fields">'
+        div += f'<div class="field csv-id"><span class="field-label">{config["id_field"]}</span>: {csv_id}</div>'
+        if len(row["file"]) > 0:
+            div += f'<div class="field csv-id"><span class="field-label">file</span>: {row["file"]}</div>'
+        div += f'<div class="field"><span class="field-label">title:</span> {title}</div>'
+        for fieldname in row:
+            if fieldname not in [config['id_field'], 'title', 'file']:
+                if len(row[fieldname]) > 30:
+                    field_value = row[fieldname][:30]
+                    div += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value} <a href="" title="{row[fieldname]}">[...]</a></div>'
+                else:
+                    field_value = row[fieldname]
+                    div += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value}</div>'
         # .fields
         div += '</div>'
         # .card
@@ -6093,7 +6103,7 @@ def generate_contact_sheet(config, stage, node=None):
 
     # .cards
     f.write('</div>')
-    f.write('<div class="icons-link">Generic icons courtesy of <a href="https://icons8.com/">icons8</a>.</div>')
+    f.write('<div class="icons-link">Icons courtesy of <a href="https://icons8.com/">icons8</a>.</div>')
     f.write('<html>')
 
     shutil.copyfile(os.path.join(css_file_path), os.path.join(config['contact_sheet_output_dir'], css_file_name))

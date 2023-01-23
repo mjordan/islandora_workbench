@@ -31,12 +31,13 @@
 }
 
 .field-label {
-  font-style: bold;
+  text-decoration-style: dashed;
 }
 
 .icons-link {
   margin-top: .5rem;
   font-family: Helvetica, sans-serif;
+  font-size: .8em;
 }
 
 @media (min-width: 900px) {
