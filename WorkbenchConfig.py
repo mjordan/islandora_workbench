@@ -193,7 +193,8 @@ class WorkbenchConfig:
             'csv_stop_row': None,
             'path_to_python': 'python',
             'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench'),
-            'oembed_providers': self.get_oembed_media_types()
+            'oembed_providers': self.get_oembed_media_types(),
+            'contact_sheet_output_dir': 'contact_sheet_output'
         }
 
     # Tests validity and existence of configuration file path.

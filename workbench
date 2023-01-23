@@ -1250,6 +1250,7 @@ parser.add_argument('--check', help='Check input data and exit without creating/
 parser.add_argument('--get_csv_template', help='Generate a CSV template using the specified configuration file.', action='store_true')
 parser.add_argument('--quick_delete_node', help='Delete the node (and all attached media) identified by the URL).')
 parser.add_argument('--quick_delete_media', help='Delete the media (and attached file) identified by the URL).')
+parser.add_argument('--contactsheet', help='Generate a contact sheet.', action='store_true')
 args = parser.parse_args()
 workbench_config = WorkbenchConfig(args)
 

@@ -1983,6 +1983,10 @@ def check_input(config, args):
     print("Configuration and input data appear to be valid.")
     logging.info('Configuration checked for "%s" task using config file "%s", no problems found.', config['task'], args.config)
 
+    if args.contactsheet is True:
+        print(f"Contact sheet is at {os.path.join(config['contact_sheet_output_dir'], 'contact_sheet.htm')}.")
+        generate_contact_sheet(config, 'pre')
+
     if config['secondary_tasks'] is None:
         sys.exit(0)
     else:
@@ -5978,3 +5982,118 @@ def quick_delete_media(config, args):
         logging.error(message + f"HTTP response code was {media_delete_status_code}.")
 
     sys.exit()
+
+
+def create_contact_sheet_thumbnail(config, source_filename):
+    if len(source_filename.strip()) == 0:
+        return None
+
+    generic_icons_dir = os.path.join('contact_sheet_assets', 'generic_icons')
+
+    # todo: get these from config['media_types']
+    pdf_extensions = ['.pdf']
+    video_extensions = ['.mp4']
+    audio_extensions = ['.mp3']
+    image_extensions = ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.jp2']
+
+    source_file_name, source_file_extension = os.path.splitext(source_filename)
+    if source_file_extension.lower() in image_extensions:
+        '''
+        # Note: this block can be used to generate thumbnails for images if "from PIL import Image".
+        image_source_path = os.path.join(input_dir, source_filename)
+        image_source = Image.open(image_source_path)
+        image_tn = image_source.copy()
+        image_tn.thumbnail((200, 200))
+        filename_info = os.path.splitext(row['file'])
+        tn_filename = f'tn_{filename_info[0]}.png'
+        tn_filepath = os.path.join(output_dir, tn_filename)
+        image_tn.save(tn_filepath)
+        tn_filepath = tn_filename
+        '''
+        image_icon_filename = 'tn_generic_image.png'
+        image_icon_path = os.path.join(config['contact_sheet_output_dir'], image_icon_filename)
+        if not os.path.exists(image_icon_path):
+            shutil.copyfile(os.path.join(generic_icons_dir, image_icon_filename), image_icon_path)
+        tn_filepath = image_icon_filename
+    elif source_file_extension.lower() in pdf_extensions:
+        pdf_icon_filename = 'tn_generic_pdf.png'
+        pdf_icon_path = os.path.join(output_dir, pdf_icon_filename)
+        if not os.path.exists(pdf_icon_path):
+            shutil.copyfile(os.path.join(generic_icons_dir, pdf_icon_filename), pdf_icon_path)
+        tn_filepath = pdf_icon_filename
+    elif source_file_extension.lower() in audio_extensions:
+        audio_icon_filename = 'tn_generic_audio.png'
+        audio_icon_path = os.path.join(output_dir, audio_icon_filename)
+        if not os.path.exists(audio_icon_path):
+            shutil.copyfile(os.path.join(generic_icons_dir, audio_icon_filename), audio_icon_path)
+        tn_filepath = audio_icon_filename
+    elif source_file_extension.lower() in video_extensions:
+        video_icon_filename = 'tn_generic_video.png'
+        video_icon_path = os.path.join(output_dir, video_icon_filename)
+        if not os.path.exists(video_icon_path):
+            shutil.copyfile(os.path.join(generic_icons_dir, video_icon_filename), video_icon_path)
+        tn_filepath = video_icon_filename
+    else:
+        binary_icon_filename = 'tn_generic_binary.png'
+        binary_icon_path = os.path.join(config['contact_sheet_output_dir'], binary_icon_filename)
+        if not os.path.exists(binary_icon_path):
+            shutil.copyfile(os.path.join(generic_icons_dir, binary_icon_filename), binary_icon_path)
+        tn_filepath = binary_icon_filename
+
+    return tn_filepath
+
+
+def generate_contact_sheet(config, stage, node=None):
+    """Generates a contact sheet from CSV (or Drupal) data.
+    """
+    """Parameters
+        ----------
+        stage : str
+            One of 'pre' (i.e. in --check) or 'post' (as nodes are created/updated).
+        node: dict
+            If stage is 'post', the dictionary representation of the HTTP request body
+            that created the node.
+    """
+    # input_dir = 'input_data'
+    # config['contact_sheet_output_dir'] = 'output_data'
+    css_file_name = 'contact-sheet.css'
+    css_file_path = os.path.join('contact_sheet_assets', css_file_name)
+
+    generic_icons_dir = os.path.join('contact_sheet_assets', 'generic_icons')
+
+    if stage == 'pre':
+        csv_data = get_csv_data(config)
+
+    contact_sheet_file_path = os.path.join(config['contact_sheet_output_dir'], 'contact_sheet.htm')
+    f = open(contact_sheet_file_path, 'w')
+    f.write('<html><head></head>')
+    f.write(f'<link rel="stylesheet" media="all" href="{css_file_name}" />')
+    f.write('<div class="cards">')
+
+    for row in csv_data:
+        div = f'<div class="card">'
+
+        tn_filename = create_contact_sheet_thumbnail(config, row['file'])
+
+        csv_id = row['id']
+        title = row['title']
+        if tn_filename is None:
+            div += ''
+        else:
+            div += f'<img alt="{title}" src="{tn_filename}" />'
+        div += '<div class="fields">'
+        div += f'<div class="field csv-id">csv ID: {csv_id}</div>'
+        div += f'<div class="field"><span class="field-label">Title:</span> {row["title"]}</div>'
+        # div += f'<div class="field"><span class="field-label">Description:</span> {row["description"]}</div>'
+        # .fields
+        div += '</div>'
+        # .card
+        div += '</div>'
+        f.write(div + "\n")
+
+    # .cards
+    f.write('</div>')
+    f.write('<div class="icons-link">Generic icons courtesy of <a href="https://icons8.com/">icons8</a>.</div>')
+    f.write('<html>')
+
+    shutil.copyfile(os.path.join(css_file_path), os.path.join(config['contact_sheet_output_dir'], css_file_name))
