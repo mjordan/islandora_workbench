@@ -6091,11 +6091,16 @@ def generate_contact_sheet(config, stage):
         div += f'<div class="field"><span class="field-label">title:</span> {title}</div>'
         for fieldname in row:
             if fieldname not in [config['id_field'], 'title', 'file']:
+                if len(row[fieldname].strip()) == 0:
+                    continue
                 if len(row[fieldname]) > 30:
                     field_value = row[fieldname][:30]
-                    div += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value} <a href="" title="{row[fieldname]}">[...]</a></div>'
+                    row_value_with_enhanced_subdelimiter = row[fieldname].replace(config['subdelimiter'], ' // ')
+                    field_value = field_value.replace(config['subdelimiter'], ' // ')
+                    div += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value} <a href="" title="{row_value_with_enhanced_subdelimiter}">[...]</a></div>'
                 else:
                     field_value = row[fieldname]
+                    field_value = field_value.replace(config['subdelimiter'], ' // ')
                     div += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value}</div>'
         # .fields
         div += '</div>'
