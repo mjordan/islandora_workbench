@@ -538,7 +538,8 @@ class TestCleanCsvValues(unittest.TestCase):
         csv_record['two'] = 'hheo "s7s9w9"'
         csv_record['three'] = "b‘bbbbb’"
         csv_record['four'] = 'لدولي, العاشر []ليونيكود '
-        csv_record['five'] = "new lines\n\n"
+        newline = "\n"
+        csv_record['five'] = f"{newline}new lines{newline}"
 
         clean_csv_record = collections.OrderedDict()
         clean_csv_record['one'] = 'blsidlw'

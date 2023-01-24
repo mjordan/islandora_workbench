@@ -3290,6 +3290,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
             if not list(row.values())[0].startswith('#'):
                 try:
                     unique_identifiers.append(row[config['id_field']])
+                    row = clean_csv_values(row)
                     csv_writer.writerow(row)
                 except (ValueError):
                     # Note: this message is also generated in check_input().
@@ -3325,6 +3326,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
                 try:
+                    row = clean_csv_values(row)
                     csv_writer.writerow(row)
                 except (ValueError):
                     # Note: this message is also generated in check_input().

@@ -51,8 +51,6 @@ def create():
 
     row_count = 0
     for row in csv_data:
-        row = clean_csv_values(row)
-
         # Create a copy of the current item's row to pass to create_media().
         row_for_media = copy.deepcopy(row)
         if config['paged_content_from_directories'] is True:
@@ -367,7 +365,6 @@ def update():
             logging.warning("Node " + row['node_id'] + " not found or not accessible, skipping update.")
             continue
 
-        row = clean_csv_values(row)
         # Add the target_id field.
         node = {
             'type': [
@@ -501,7 +498,6 @@ def delete():
 
     row_count = 0
     for row in csv_data:
-        row = clean_csv_values(row)
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
@@ -551,7 +547,6 @@ def add_media():
 
     row_count = 0
     for row in csv_data:
-        row = clean_csv_values(row)
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
@@ -673,7 +668,6 @@ def delete_media():
 
     row_count = 0
     for row in csv_data:
-        row = clean_csv_values(row)
         if not value_is_numeric(row['media_id']):
             row['media_id'] = get_mid_from_media_url_alias(config, row['node_id'])
         media_delete_status_code = remove_media_and_file(config, row['media_id'])
@@ -704,7 +698,6 @@ def delete_media_by_node():
 
     row_count = 0
     for row in csv_data:
-        row = clean_csv_values(row)
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['row_id'])
 
@@ -924,7 +917,6 @@ def export_csv():
 
     row_count = 0
     for row in csv_data:
-        row = clean_csv_values(row)
         output_row = collections.OrderedDict()
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
@@ -1183,7 +1175,6 @@ def create_terms():
             if parent_row['term_name'] in is_parent:
                 term_exists = find_term_in_vocab(config, config['vocab_id'], parent_row['term_name'])
                 if term_exists is False:
-                    parent_row = clean_csv_values(parent_row)
                     parent_term_id = create_term(config, config['vocab_id'], parent_row['term_name'], parent_row)
                     if config['progress_bar'] is not True:
                         if parent_term_id is not False:
@@ -1208,7 +1199,6 @@ def create_terms():
 
     # Finally, create any non-existent child terms.
     for row in csv_data:
-        row = clean_csv_values(row)
         # If it's a parent term, it will have been created above.
         if row['term_name'] in is_parent:
             continue
