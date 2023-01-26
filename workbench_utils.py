@@ -1988,7 +1988,7 @@ def check_input(config, args):
             contact_sheet_path = os.path.join(config['contact_sheet_output_dir'], 'contact_sheet.htm')
         else:
             contact_sheet_path = os.path.join(os.getcwd(), config['contact_sheet_output_dir'], 'contact_sheet.htm')
-        generate_contact_sheet(config, 'pre')
+        generate_contact_sheet_from_csv(config)
         print(f"Contact sheet is at {contact_sheet_path}.")
 
     if config['secondary_tasks'] is None:
@@ -5991,10 +5991,31 @@ def quick_delete_media(config, args):
 
 
 def create_contact_sheet_thumbnail(config, source_filename):
+    """Check if a string contains only ASCII characters.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        source_filename: string
+            The value of the CSV row's "file" column, or the reserved value "compound".
+        Returns
+        -------
+        string|None
+            The file name of the thumbnail image to use, or None to use no
+            thumbnail.
+    """
     if len(source_filename.strip()) == 0:
         return None
 
     generic_icons_dir = os.path.join('assets', 'contact_sheet', 'generic_icons')
+
+    if source_filename == 'compound':
+        compound_icon_filename = 'tn_generic_compound.png'
+        compound_icon_path = os.path.join(config['contact_sheet_output_dir'], compound_icon_filename)
+        if not os.path.exists(compound_icon_path):
+            shutil.copyfile(os.path.join(generic_icons_dir, compound_icon_filename), compound_icon_path)
+        return compound_icon_filename
 
     # todo: get these from config['media_types']
     pdf_extensions = ['.pdf']
@@ -6049,23 +6070,38 @@ def create_contact_sheet_thumbnail(config, source_filename):
     return tn_filepath
 
 
-def generate_contact_sheet(config, stage):
-    """Generates a contact sheet from CSV (or Drupal) data.
+def generate_contact_sheet_from_csv(config):
+    """Generates a contact sheet from CSV data.
     """
     """Parameters
         ----------
-        stage : str
-            One of 'pre' (i.e. in --check) or 'post' (as nodes are created/updated).
+        config : dict
+            The configuration object defined by set_config_defaults().
     """
-    # input_dir = 'input_data'
-    # config['contact_sheet_output_dir'] = 'output_data'
+    # @todo: Allow naming of CSS files in config.
     css_file_name = 'contact-sheet.css'
     css_file_path = os.path.join('assets', 'contact_sheet', css_file_name)
 
     generic_icons_dir = os.path.join('assets', 'contact_sheet', 'generic_icons')
 
-    if stage == 'pre':
-        csv_data = get_csv_data(config)
+    csv_data = get_csv_data(config)
+
+    # Collect the IDs of items whose IDs are in other (child) items' "parent_id" column, a.k.a.
+    # compound items. (@todo: this only works with the "With page/child-level metadata") method
+    # of creating compound/paged items. We need to add similar logic for the "subdirectories" method.
+    compound_items = list()
+    if 'parent_id' in csv_data.fieldnames:
+        csv_data_to_get_children = get_csv_data(config)
+        # @todo: iterate through csv_data_to_get_children and collect compound items.
+        for get_children_row in csv_data_to_get_children:
+            compound_items.append(get_children_row['parent_id'])
+            # @todo: Get all the children of the current parent and store them in a list
+            # so we can generate a separate contact sheet for those items.
+
+    deduplicated_compound_items = list(set(compound_items))
+    compound_items = deduplicated_compound_items
+    if '' in compound_items:
+        compound_items.remove('')
 
     contact_sheet_file_path = os.path.join(config['contact_sheet_output_dir'], 'contact_sheet.htm')
     f = open(contact_sheet_file_path, 'w')
@@ -6074,9 +6110,18 @@ def generate_contact_sheet(config, stage):
     f.write('<div class="cards">')
 
     for row in csv_data:
-        div = f'<div class="card">'
+        if 'parent_id' not in row:
+            tn_filename = create_contact_sheet_thumbnail(config, row['file'])
+        else:
+            if row[config["id_field"]] in compound_items:
+                tn_filename = create_contact_sheet_thumbnail(config, 'compound')
+                # @todo: Generate a contact sheet for all this parent's children.
+            elif row['parent_id'] == '':
+                tn_filename = create_contact_sheet_thumbnail(config, row['file'])
+            else:
+                continue
 
-        tn_filename = create_contact_sheet_thumbnail(config, row['file'])
+        div = f'<div class="card">'
 
         csv_id = row[config['id_field']]
         title = row['title']
@@ -6090,17 +6135,18 @@ def generate_contact_sheet(config, stage):
             div += f'<div class="field csv-id"><span class="field-label">file</span>: {row["file"]}</div>'
         div += f'<div class="field"><span class="field-label">title:</span> {title}</div>'
         for fieldname in row:
+            # These three fields have already been rendered.
             if fieldname not in [config['id_field'], 'title', 'file']:
                 if len(row[fieldname].strip()) == 0:
                     continue
                 if len(row[fieldname]) > 30:
                     field_value = row[fieldname][:30]
-                    row_value_with_enhanced_subdelimiter = row[fieldname].replace(config['subdelimiter'], ' // ')
-                    field_value = field_value.replace(config['subdelimiter'], ' // ')
+                    row_value_with_enhanced_subdelimiter = row[fieldname].replace(config['subdelimiter'], ' &square; ')
+                    field_value = field_value.replace(config['subdelimiter'], ' &square; ')
                     div += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value} <a href="" title="{row_value_with_enhanced_subdelimiter}">[...]</a></div>'
                 else:
                     field_value = row[fieldname]
-                    field_value = field_value.replace(config['subdelimiter'], ' // ')
+                    field_value = field_value.replace(config['subdelimiter'], ' &square; ')
                     div += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value}</div>'
         # .fields
         div += '</div>'
