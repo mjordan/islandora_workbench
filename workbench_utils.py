@@ -1286,6 +1286,9 @@ def check_input(config, args):
         if 'url_alias' in csv_column_headers:
             validate_url_aliases_csv_data = get_csv_data(config)
             validate_url_aliases(config, validate_url_aliases_csv_data)
+        if 'parent_id' in csv_column_headers:
+            validate_parent_ids_precede_children_csv_data = get_csv_data(config)
+            validate_parent_ids_precede_children(config, validate_parent_ids_precede_children_csv_data)
 
         # Specific to creating aggregated content such as collections, compound objects and paged content. Currently, if 'parent_id' is present
         # in the CSV file 'field_member_of' is mandatory.
@@ -4499,6 +4502,36 @@ def validate_node_uid(config, csv_data):
     message = 'OK, user IDs in the "uid" CSV field all exist.'
     print(message)
     logging.info(message)
+
+
+def validate_parent_ids_precede_children(config, csv_data):
+    """In the page/child-level metadata method of creating compound content,
+       CSV rows for parent items must come before their children in the CSV file.
+       This function checks for that. Note that this check only applies to one
+       level of parent/child hierarchy (i.e., parents and their immediate children).
+    """
+    positions = dict()
+    id_field = config['id_field']
+    row_num = 0
+    if 'parent_id' in csv_data.fieldnames:
+        for row in csv_data:
+            row_num += 1
+            positions[row[id_field]] = {'position': row_num, 'parent_id': row['parent_id']}
+    else:
+        return False
+
+    # Loop through position records and check to see if the "position" of each child row
+    # (i.e. a row with a value in its "parent_id" CSV column) is lower than the "position"
+    # of the row identified in its "parent_id" value. If it is lower, error out.
+    for row in positions.items():
+        # Only child items have a value in their "parent_id" field.
+        if row[1]['parent_id'] == '':
+            continue
+        parent_id = row[1]['parent_id']
+        if row[1]['position'] < positions[parent_id]['position']:
+            message = f"Child item with CSV ID \"{row[0]}\" must come after its parent (CSV ID \"{row[1]['parent_id']}\") in the CSV file."
+            logging.error(message)
+            sys.exit('Error: ' + message)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):

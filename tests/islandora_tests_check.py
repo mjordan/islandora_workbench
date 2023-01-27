@@ -480,5 +480,35 @@ class TestGoogleGid(unittest.TestCase):
         self.assertRegex(output, 'OK, all 1 rows in the CSV file')
 
 
+class TestParentsPrecedeChildren(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    def test_good_csv(self):
+        config_file_path = os.path.join(self.current_dir, 'assets', 'parents_precede_children_test', 'good.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'Configuration and input data appear to be valid')
+
+    def test_bad_csv(self):
+        config_file_path = os.path.join(self.current_dir, 'assets', 'parents_precede_children_test', 'bad.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = proc.communicate()
+        self.assertRegex(str(stdout), '"c2p2" must come after', '')
+
+    def tearDown(self):
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'parents_precede_children_test', 'good.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'parents_precede_children_test', 'bad.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+
 if __name__ == '__main__':
     unittest.main()
