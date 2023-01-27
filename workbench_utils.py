@@ -2640,7 +2640,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
 
             return file_id
         else:
-            logging.error('File not created, POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
+            logging.error('File not created for "' + file_path + '", POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
                           file_endpoint_path, file_response.status_code, file_response.content)
             return False
     except requests.exceptions.RequestException as e:
