@@ -996,10 +996,12 @@ class EntityReferenceField():
                 # Output term names.
                 vocab_id = get_term_vocab(config, subvalue['target_id'])
                 term_name = get_term_name(config, subvalue['target_id'])
-                subvalues.append(vocab_id + ':' + term_name)
+                if vocab_id is True and term_name is True:
+                    subvalues.append(vocab_id + ':' + term_name)
             else:
                 # Output term IDs.
-                subvalues.append(str(subvalue['target_id']))
+                if ping_term(config, subvalue['target_id']) is True:
+                    subvalues.append(str(subvalue['target_id']))
 
         if len(subvalues) > 1:
             return config['subdelimiter'].join(subvalues)
