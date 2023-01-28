@@ -6149,9 +6149,10 @@ def generate_contact_sheet_from_csv(config):
 
     for output_file in contact_sheet_output_files.keys():
         contact_sheet_output_files[output_file]['file_handle'] = open(contact_sheet_output_files[output_file]['path'], 'a')
-        contact_sheet_output_files[output_file]['file_handle'].write('<html><head></head>')
-        contact_sheet_output_files[output_file]['file_handle'].write(f'<link rel="stylesheet" media="all" href="{css_file_name}" />')
-        contact_sheet_output_files[output_file]['file_handle'].write('<div class="cards">')
+        contact_sheet_output_files[output_file]['file_handle'].write('<html>\n<head>\n<title>Islandora Workbench contact sheet</title>')
+        contact_sheet_output_files[output_file]['file_handle'].write('\n<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />')
+        contact_sheet_output_files[output_file]['file_handle'].write(f'\n<link rel="stylesheet" media="all" href="{css_file_name}" /></head>')
+        contact_sheet_output_files[output_file]['file_handle'].write('\n<div class="cards">')
 
     for row in csv_data:
         if 'parent_id' not in row:
@@ -6168,22 +6169,22 @@ def generate_contact_sheet_from_csv(config):
             else:
                 tn_filename = create_contact_sheet_thumbnail(config, row['file'])
 
-        contact_sheet_output_files[output_file]['markup'] = f'<div class="card">'
+        contact_sheet_output_files[output_file]['markup'] += f'\n<div class="card">'
         if 'parent_id' in row and row['parent_id'] in compound_items:
             output_file = row['parent_id']
 
         csv_id = row[config['id_field']]
         title = row['title']
-        contact_sheet_output_files[output_file]['markup'] = ''
+        contact_sheet_output_files[output_file]['markup'] += ''
         if tn_filename is None:
             contact_sheet_output_files[output_file]['markup'] += ''
         else:
             contact_sheet_output_files[output_file]['markup'] += f'<img alt="{title}" src="{tn_filename}" />'
-        contact_sheet_output_files[output_file]['markup'] += f'<div class="fields">'
-        contact_sheet_output_files[output_file]['markup'] += f'<div class="field csv-id"><span class="field-label">{config["id_field"]}</span>: {csv_id}</div>'
+        contact_sheet_output_files[output_file]['markup'] += f'\n<div class="fields">'
+        contact_sheet_output_files[output_file]['markup'] += f'\n<div class="field csv-id"><span class="field-label">{config["id_field"]}</span>: {csv_id}</div>'
         if len(row["file"]) > 0:
-            contact_sheet_output_files[output_file]['markup'] += f'<div class="field csv-id"><span class="field-label">file</span>: {row["file"]}</div>'
-        contact_sheet_output_files[output_file]['markup'] += f'<div class="field"><span class="field-label">title:</span> {title}</div>'
+            contact_sheet_output_files[output_file]['markup'] += f'\n<div class="field csv-id"><span class="field-label">file</span>: {row["file"]}</div>'
+        contact_sheet_output_files[output_file]['markup'] += f'\n<div class="field"><span class="field-label">title:</span> {title}</div>'
         for fieldname in row:
             # These three fields have already been rendered.
             if fieldname not in [config['id_field'], 'title', 'file']:
@@ -6193,11 +6194,11 @@ def generate_contact_sheet_from_csv(config):
                     field_value = row[fieldname][:30]
                     row_value_with_enhanced_subdelimiter = row[fieldname].replace(config['subdelimiter'], ' &square; ')
                     field_value = field_value.replace(config['subdelimiter'], ' &square; ')
-                    contact_sheet_output_files[output_file]['markup'] += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value} <a href="" title="{row_value_with_enhanced_subdelimiter}">[...]</a></div>'
+                    contact_sheet_output_files[output_file]['markup'] += f'\n<div class="field"><span class="field-label">{fieldname}:</span> {field_value} <a href="" title="{row_value_with_enhanced_subdelimiter}">[...]</a></div>'
                 else:
                     field_value = row[fieldname]
                     field_value = field_value.replace(config['subdelimiter'], ' &square; ')
-                    contact_sheet_output_files[output_file]['markup'] += f'<div class="field"><span class="field-label">{fieldname}:</span> {field_value}</div>'
+                    contact_sheet_output_files[output_file]['markup'] += f'\n<div class="field"><span class="field-label">{fieldname}:</span> {field_value}</div>'
         # .fields
         contact_sheet_output_files[output_file]['markup'] += '</div>'
         # .card
@@ -6207,8 +6208,8 @@ def generate_contact_sheet_from_csv(config):
     for output_file in contact_sheet_output_files.keys():
         # .cards
         contact_sheet_output_files[output_file]['file_handle'].write('</div>')
-        contact_sheet_output_files[output_file]['file_handle'].write('<div class="icons-link">Icons courtesy of <a href="https://icons8.com/">icons8</a>.</div>')
-        contact_sheet_output_files[output_file]['file_handle'].write('</html>')
+        contact_sheet_output_files[output_file]['file_handle'].write('\n<div class="icons-link">Icons courtesy of <a href="https://icons8.com/">icons8</a>.</div>')
+        contact_sheet_output_files[output_file]['file_handle'].write('\n</html>')
         contact_sheet_output_files[output_file]['file_handle'].close()
 
     shutil.copyfile(os.path.join(css_file_path), os.path.join(config['contact_sheet_output_dir'], css_file_name))
