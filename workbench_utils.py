@@ -460,7 +460,7 @@ def ping_node(config, nid, method='HEAD', return_json=False):
         else:
             return True
     else:
-        logging.warning("Node ping (%s) on %s returned a %s status code", method.upper(), url, response.status_code)
+        logging.warning("Node ping (%s) on %s returned a %s status code.", method.upper(), url, response.status_code)
         return False
 
 
@@ -480,7 +480,19 @@ def ping_vocabulary(config, vocab_id):
     if response.status_code == 200:
         return True
     else:
-        logging.warning("Node ping (HEAD) on %s returned a %s status code", url, response.status_code)
+        logging.warning("Node ping (HEAD) on %s returned a %s status code.", url, response.status_code)
+        return False
+
+
+def ping_term(config, term_id):
+    """Ping the term to see if it exists.
+    """
+    url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        return True
+    else:
+        logging.warning("Term ping (HEAD) on %s returned a %s status code.", url, response.status_code)
         return False
 
 
