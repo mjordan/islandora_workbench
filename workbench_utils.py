@@ -27,7 +27,6 @@ import edtf_validate.valid_edtf
 import shutil
 import itertools
 import http.client
-import html
 
 
 # Set some global variables.
@@ -6120,6 +6119,14 @@ def generate_contact_sheet_from_csv(config):
     css_file_path = os.path.join('assets', 'contact_sheet', css_file_name)
 
     generic_icons_dir = os.path.join('assets', 'contact_sheet', 'generic_icons')
+
+    if not os.path.exists(config['contact_sheet_output_dir']):
+        try:
+            os.mkdir(config['contact_sheet_output_dir'])
+        except Exception as e:
+            message = 'Path in configuration option "contact_sheet_output_dir" ("' + config['contact_sheet_output_dir'] + '") is not writable.'
+            logging.error(message + ' ' + str(e))
+            sys.exit('Error: ' + message + ' See log for more detail.')
 
     csv_data = get_csv_data(config)
 
