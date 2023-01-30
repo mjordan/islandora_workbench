@@ -1992,7 +1992,9 @@ def check_input(config, args):
         else:
             contact_sheet_path = os.path.join(os.getcwd(), config['contact_sheet_output_dir'], 'contact_sheet.htm')
         generate_contact_sheet_from_csv(config)
-        print(f"Contact sheet is at {contact_sheet_path}.")
+        message = f"Contact sheet is at {contact_sheet_path}."
+        print(message)
+        logging.info(message)
 
     if config['secondary_tasks'] is None:
         sys.exit(0)
@@ -6114,9 +6116,8 @@ def generate_contact_sheet_from_csv(config):
         config : dict
             The configuration object defined by set_config_defaults().
     """
-    # @todo: Allow naming of CSS files in config, including absolute paths.
-    css_file_name = 'contact-sheet.css'
-    css_file_path = os.path.join('assets', 'contact_sheet', css_file_name)
+    css_file_path = config['contact_sheet_css_path']
+    css_file_name = os.path.basename(css_file_path)
 
     generic_icons_dir = os.path.join('assets', 'contact_sheet', 'generic_icons')
 
