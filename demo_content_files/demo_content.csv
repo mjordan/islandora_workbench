@@ -1,0 +1,47 @@
+title,id,parent_id,field_weight,field_identifier,field_resource_type,field_genre,field_linked_agent,field_model,field_edtf_date_created,field_edtf_date_issued,field_place_published,field_description,field_rights,field_subject,field_member_of,field_language,file
+Easthampton Town Hall (Large Image),1,,,Easthampton Town Hall,still image,photograph,relators:cre:corporate_body:Historic American Buildings Survey|relators:pbl:corporate_body:Historic American Buildings Survey,Image,1933?,,,Photo number 1. Photographs are albumen prints mounted on cardboard.,No Copyright _ United States,"subject:Black, Francis",,,EasthamptonTownHall.tif
+Nehemiah Strong House (Large Image),2,,,Nehemiah Strong House,still image,photograph,relators:cre:corporate_body:Historic American Buildings Survey|relators:pbl:corporate_body:Historic American Buildings Survey,Image,1933?,,,Photo number 2. Photographs are albumen prints mounted on cardboard.,No Copyright _ United States,"subject:Chittendon, Chester P.",,,Nehemiah Strong House.tif
+"Amherst College, Lawrence Observatory (Large Image)",3,,,"Amherst College, Lawrence Observatory",still image,photograph,relators:cre:corporate_body:Historic American Buildings Survey|relators:pbl:corporate_body:Historic American Buildings Survey,Image,1933?,,,Photo number 3. Photographs are albumen prints mounted on cardboard.,No Copyright _ United States,"subject:T'Shawn, David",,,Amherst College Lawrence Observatory.tif
+American Goldfinch (Audio),4,,,sound1,sound,sound recording,relators:cre:person:Sue Riffe|relators:pbl:corporate_body:xeno-canto,Audio,2016-04-12,,,,No Copyright _ United States,,,,XC313060 - American Goldfinch - Spinus tristis.mp3
+Red-winged Blackbird (Audio),5,,,sound2,sound,sound recording,relators:cre:person:Peter Boesman|relators:pbl:corporate_body:xeno-canto,Audio,2002-04-01,,,,No Copyright _ United States,,,,XC218220 - Red-winged Blackbird - Agelaius phoeniceus.mp3
+Worm-eating Warbler (Audio),6,,,sound3,sound,sound recording,relators:pbl:corporate_body:xeno-canto,Audio,2016-04-01,,,heard calling in large oak tree near steep ravine. responded aggressively to playback.,No Copyright _ United States,,,,XC309896 - Worm-eating Warbler - Helmitheros vermivorum.mp3
+Historic Western Mass pt 1 (Compound Object),7,,,comp1,collection,maps,relators:pbl:corporate_body:fake co.,Compound Object,1860/1880?,,,,No Copyright _ United States,,,,
+Amherst 1886,8,7,1,comp1.1,still image,maps,relators:cre:corporate_body:Burleigh Litho.|relators:pbl:corporate_body:L. R. Burleigh [1886],Image,1886-01-01,,"Troy, N.Y.",,No Copyright _ United States,subject:panoramic maps,,,amherst.jpg
+Adams 1882,9,7,2,comp1.2,still image,maps,relators:pbl:corporate_body:fake co.,Image,1862-01-02,,,,No Copyright _ United States,subject:panoramic maps,,,adams_mass.jpg
+Historic Western Mass pt 2 (Compound Object),10,,,comp2,collection,maps,relators:pbl:corporate_body:fake co.,Compound Object,1870/1880?,,,,No Copyright _ United States,,,,
+Holyoke 1872,11,10,1,comp2.1,still image,maps,relators:pbl:corporate_body:fake co.,Image,1872-01-04,,,,No Copyright _ United States,subject:panoramic maps,,,holyoke.jpg
+Holyoke / S. Hadley 1881,12,10,2,comp2.2,still image,maps,"relators:cre:person:Poole, A. F.|relators:cre:corporate_body:Beck & Pauli|relators:pbl:corporate_body:J. J. Stoner [1881]",Image,1881-01-05,,"Madison, Wis.","Bird's eye view of the 1881 city of Holyoke, and village of South Hadley Falls, Mass.",No Copyright _ United States,subject:panoramic maps,,,holyoke-sHadley.jpg
+Historic Western Mass pt 3 (Compound Object),13,,,comp3,collection,maps,relators:pbl:corporate_body:fake co.,Compound Object,1860/1870?,,,,No Copyright _ United States,,,,
+Springfield 1875,14,13,1,comp3.1,still image,maps,relators:pbl:corporate_body:O.H. Bailey & Co.,Image,1875-01-01,,,,No Copyright _ United States,subject:panoramic maps,,,Springfield.jpg
+Turners Falls 1877,15,13,2,comp3.2,still image,maps,relators:pbl:corporate_body:O.H. Bailey & Co.,Image,1877-12-01,,"Milwaukee, C.H. Vogt & Co",,No Copyright _ United States,subject:panoramic maps,,,turnersFalls.jpg
+On the Tides at Malta (Book),16,,,book1,collection,journal article,relators:cre:corporate_body:Royal Society of London|relators:pbl:corporate_body:Royal Society of London,Paged Content,1877-01-01,,,,No Copyright _ United States,subject:tides,,,
+On the Tides at Malta - page 1,17,16,1,page 1,text,journal article,,Page,,,,,,,,,tides-malta_Page_1.jpg
+On the Tides at Malta - page 2,18,16,2,page 2,text,journal article,,Page,,,,,,,,,tides-malta_Page_2.jpg
+On the Tides at Malta - page 3,19,16,3,page 3,text,journal article,,Page,,,,,,,,,tides-malta_Page_3.jpg
+On the Tides at Malta - page 4,20,16,4,page 4,text,journal article,,Page,,,,,,,,,tides-malta_Page_4.jpg
+On the Tides at Malta - page 5,21,16,5,page 5,text,journal article,,Page,,,,,,,,,tides-malta_Page_5.jpg
+On the Tides at Malta - page 6,22,16,6,page 6,text,journal article,,Page,,,,,,,,,tides-malta_Page_6.jpg
+Letter of note (Basic Image),30,,,sample1,still image,albumen prints,relators:pbl:corporate_body:fake co.,Image,1860/1930?,,,Photo number 1. Photographs are albumen prints mounted on cardboard.,In Copyright _ Educational Use Permitted,"subject:correspondence|subject:Black,Francis",,,1.jpg
+Palm Tree type (Basic Image),31,,,sample2,still image,albumen prints,relators:pbl:corporate_body:fake co.,Image,1860/1930?,,,Photo number 2. Photographs are albumen prints mounted on cardboard.,In Copyright _ Educational Use Permitted,"subject:trees|subject:Chittendon, Chester P.",,,2.jpg
+Apple Tree of note (Basic Image),32,,,sample3,still image,albumen prints,relators:pbl:corporate_body:fake co.,Image,1869-06-14,,,Photo number 3. Photographs are albumen prints mounted on cardboard.,No Copyright _ United States,"subject:illustration|subject:T'Shawn, David",,,3.jpg
+Connecticut Western News Vol. 1 No. 7,34,,,CWN-v1n7,collection,newspaper,relators:pbl:corporate_body:J.L. Pease,Publication Issue,1871-08-25,1871-08-25,"Canaan, CT",Vestigia nulla retrorsum.,No Copyright _ United States,subject:news,,english,
+Connecticut Western News Vol. 1 No. 7 - page 1,35,34,1,CWN-v1n7p1,text,newspaper,,Page,,,,,,,,,CT_08251871-01.pdf
+Connecticut Western News Vol. 1 No. 7 - page 2,36,34,2,CWN-v1n7p2,text,newspaper,,Page,,,,,,,,,CT_08251871-02.pdf
+Connecticut Western News Vol. 1 No. 7 - page 3,37,34,3,CWN-v1n7p3,text,newspaper,,Page,,,,,,,,,CT_08251871-03.pdf
+Connecticut Western News Vol. 1 No. 7 - page 4,38,34,4,CWN-v1n7p4,text,newspaper,,Page,,,,,,,,,CT_08251871-04.pdf
+Connecticut Western News Vol. 1 No. 8,39,,,CWN-v1n8,collection,newspaper,relators:pbl:corporate_body:J.L. Pease,Publication Issue,1871-09-01,1871-09-01,"Canaan, CT",Vestigia nulla retrorsum.,No Copyright _ United States,subject:news,,english,
+Connecticut Western News Vol. 1 No. 8 - page 1,40,39,1,CWN-v1n8p1,text,newspaper,,Page,,,,,,,,,CT_09011871-01.pdf
+Connecticut Western News Vol. 1 No. 8 - page 2,41,39,2,CWN-v1n8p2,text,newspaper,,Page,,,,,,,,,CT_09011871-02.pdf
+Connecticut Western News Vol. 1 No. 8 - page 3,42,39,3,CWN-v1n8p3,text,newspaper,,Page,,,,,,,,,CT_09011871-03.pdf
+Connecticut Western News Vol. 1 No. 8 - page 4,43,39,4,CWN-v1n8p4,text,newspaper,,Page,,,,,,,,,CT_09011871-04.pdf
+Connecticut Western News Vol. 2 No. 7,44,,,CWN-v2n7,collection,newspaper,relators:pbl:corporate_body:J.L. Pease,Publication Issue,1872-08-30,1872-08-30,"Canaan, CT",Vestigia nulla retrorsum.,No Copyright _ United States,subject:news,,english,
+Connecticut Western News Vol. 2 No. 7 - page 1,45,44,1,CWN-v2n7p1,text,newspaper,,Page,,,,,,,,,CT_08301872-01.pdf
+Connecticut Western News Vol. 2 No. 7 - page 2,46,44,2,CWN-v2n7p2,text,newspaper,,Page,,,,,,,,,CT_08301872-02.pdf
+Connecticut Western News Vol. 2 No. 7 - page 3,47,44,3,CWN-v2n7p3,text,newspaper,,Page,,,,,,,,,CT_08301872-03.pdf
+Connecticut Western News Vol. 2 No. 7 - page 4,48,44,4,CWN-v2n7p4,text,newspaper,,Page,,,,,,,,,CT_08301872-04.pdf
+Catalogue of the plants found in New Bedford and its vicinity and arranged according to the season of their flowering. (PDF),49,,,pdf-item01,text,book,"relators:pbl:person:Peirce, Joshua",Digital Document,1857-01-01,1857-01-01,,,No Copyright _ United States,,2,english,CatatloguePlantsNewBedford1860.pdf
+"Catalogue of fruit and ornamental trees, shrubbery, and plants, for sale at the nurseries at Linnaean Hill, Rock Creek, near Washington, D.C. (PDF)",50,,,pdf-item02,text,book,"relators:cre:person:Peirce, Joshua",Digital Document,1857-01-01,1857-01-01,,,No Copyright _ United States,subject:plants,,english,catalogueoffruit1857peir.pdf
+Nonantum Hill Nursery materials (PDF),51,,,pdf-item03,text,book,relators:cre:corporate_body:W.C. Strong (Firm)|relators:pbl:corporate_body:W.C. Strong (Firm),Digital Document,1857-01-01,1857-01-01,,,No Copyright _ United States,subject:plants,,english,CatalogTreesPlantsBrightonMA.pdf
+American Safety Razor (Video),52,,,vidSample1,moving image,advertisement,,Video,1960?,,,,In Copyright _ Educational Use Permitted,subject:razors,,english,safetyRazor.mp4
+AMF: Roadmaster Evel Knievel Bicycles (Video),53,,,vidSample2,moving image,advertisement,,Video,1970?,,,,In Copyright _ Educational Use Permitted,subject:bicycles,,english,Evel Knievel bikes.mp4
+Brim Coffee (Video),54,,,vidSample3,moving image,advertisement,,Video,1960?,,,,In Copyright _ Educational Use Permitted,subject:coffee,,english,brim.mp4
