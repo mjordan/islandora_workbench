@@ -6193,9 +6193,8 @@ def generate_contact_sheet_from_csv(config):
 
     for row in csv_data:
         if config['paged_content_from_directories']:
+            # Note: parent items (i.e. items with rows in the CSV) are processed below.
             if row[config['id_field']] in compound_items:
-                tn_filename = create_contact_sheet_thumbnail(config, 'compound')
-                output_file = 'main_contact_sheet'
                 # Get all the page files for this parent and create a new contact sheet containing them.
                 page_files_dir_path = os.path.join(config['input_dir'], row[config['id_field']])
                 page_files = os.listdir(page_files_dir_path)
@@ -6209,6 +6208,7 @@ def generate_contact_sheet_from_csv(config):
                     weight = weight.lstrip("0")
                     # Cast weight as int so we can sort it easily.
                     page_file_weights_map[int(weight)] = page_file_name
+                    page_title = row['title'] + ', page ' + weight
 
                 sorted_weights = sorted(page_file_weights_map.keys())
 
@@ -6222,7 +6222,12 @@ def generate_contact_sheet_from_csv(config):
                     contact_sheet_output_files[page_output_file]['markup'] += f'<img alt="{filename_without_extension}" src="{tn_filename}" />'
                     # Start .fields
                     contact_sheet_output_files[page_output_file]['markup'] += f'\n<div class="fields">'
-                    contact_sheet_output_files[page_output_file]['markup'] += f'\n<div class="field system"><span class="field-label">file</span>: {page_file_weights_map[page_sort_order]}</div>'
+                    contact_sheet_output_files[page_output_file]['markup'] += f'\n<div class="field system"><span class="field-label">file</span>: ' + \
+                        f'{page_file_weights_map[page_sort_order]}</div>'
+                    contact_sheet_output_files[page_output_file]['markup'] += f'\n<div class="field system"><span class="field-label">title</span>: ' + \
+                        f'{page_title}</div>'
+                    contact_sheet_output_files[page_output_file]['markup'] += f'\n<div class="field system"><span class="field-label">field_weight</span>: ' + \
+                        f'{page_sort_order}</div>'
                     # Close .fields
                     contact_sheet_output_files[page_output_file]['markup'] += f'\n<!-- .fields -->\n</div>'
                     # Close .card
@@ -6246,8 +6251,15 @@ def generate_contact_sheet_from_csv(config):
                 output_file = 'main_contact_sheet'
                 tn_filename = create_contact_sheet_thumbnail(config, row['file'])
 
+        # During 'paged_content_from_directories' parent items (i.e. items with rows in the CSV)
+        # are processed from this point on.
         csv_id = row[config['id_field']]
         title = row['title']
+
+        # Ensure that parent items get the compound icon.
+        if config['paged_content_from_directories']:
+            output_file = 'main_contact_sheet'
+            tn_filename = create_contact_sheet_thumbnail(config, 'compound')
 
         # start .card
         contact_sheet_output_files[output_file]['markup'] = '\n<div class="card">\n'
