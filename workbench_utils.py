@@ -6038,7 +6038,8 @@ def quick_delete_media(config, args):
 
 
 def create_contact_sheet_thumbnail(config, source_filename):
-    """Check if a string contains only ASCII characters.
+    """Determines the thumbnail image to use for a given filename, and copies
+       the image to the output directory.
     """
     """Parameters
         ----------
@@ -6049,7 +6050,7 @@ def create_contact_sheet_thumbnail(config, source_filename):
         Returns
         -------
         string
-            The file name of the thumbnail image to use.
+            The file name of the thumbnail image file.
     """
     generic_icons_dir = os.path.join('assets', 'contact_sheet', 'generic_icons')
 
@@ -6143,21 +6144,26 @@ def generate_contact_sheet_from_csv(config):
 
     csv_data = get_csv_data(config)
 
-    # Collect the IDs of items whose IDs are in other (child) items' "parent_id" column, a.k.a.
-    # compound items. (@todo: this only works with the "With page/child-level metadata") method
-    # of creating compound/paged items. We need to add similar logic for the "subdirectories" method).
     compound_items = list()
-    if 'parent_id' in csv_data.fieldnames:
-        csv_data_to_get_children = get_csv_data(config)
+    csv_data_to_get_children = get_csv_data(config)
+    if config['paged_content_from_directories']:
+        # Collect the IDs of top-level items for use in the "Using subdirectories" method
+        # of creating compound/paged content.
         for get_children_row in csv_data_to_get_children:
-            compound_items.append(get_children_row['parent_id'])
+            compound_items.append(get_children_row[config['id_field']])
+    else:
+        # Collect the IDs of items whose IDs are in other (child) items' "parent_id" column,
+        # a.k.a. compound items created using the "With page/child-level metadata" method.
+        if 'parent_id' in csv_data.fieldnames:
+            for get_children_row in csv_data_to_get_children:
+                compound_items.append(get_children_row['parent_id'])
 
-    deduplicated_compound_items = list(set(compound_items))
-    compound_items = deduplicated_compound_items
-    if '' in compound_items:
-        compound_items.remove('')
+        deduplicated_compound_items = list(set(compound_items))
+        compound_items = deduplicated_compound_items
+        if '' in compound_items:
+            compound_items.remove('')
 
-    # Create a dict containing all the output file details.
+    # Create a dict containing all the output file data.
     contact_sheet_output_files = dict()
     contact_sheet_output_files['main_contact_sheet'] = {}
     contact_sheet_output_files['main_contact_sheet']['path'] = os.path.join(config['contact_sheet_output_dir'], 'contact_sheet.htm')
@@ -6186,22 +6192,59 @@ def generate_contact_sheet_from_csv(config):
         contact_sheet_output_files[output_file]['file_handle'].write('<div class="cards">\n')
 
     for row in csv_data:
-        if 'parent_id' in row:
-            if row['parent_id'] == '':
+        if config['paged_content_from_directories']:
+            if row[config['id_field']] in compound_items:
+                tn_filename = create_contact_sheet_thumbnail(config, 'compound')
                 output_file = 'main_contact_sheet'
-                if row[config['id_field']] in compound_items:
-                    tn_filename = create_contact_sheet_thumbnail(config, 'compound')
-                else:
-                    tn_filename = create_contact_sheet_thumbnail(config, row['file'])
-            else:
-                output_file = row['parent_id']
-                if row[config['id_field']] in compound_items:
-                    tn_filename = create_contact_sheet_thumbnail(config, 'compound')
-                else:
-                    tn_filename = create_contact_sheet_thumbnail(config, row['file'])
+                # Get all the page files for this parent and create a new contact sheet containing them.
+                page_files_dir_path = os.path.join(config['input_dir'], row[config['id_field']])
+                page_files = os.listdir(page_files_dir_path)
+
+                # Page files need to be sorted by weight in the contact sheet.
+                page_file_weights_map = {}
+                for page_file_name in page_files:
+                    filename_without_extension = os.path.splitext(page_file_name)[0]
+                    filename_segments = filename_without_extension.split(config['paged_content_sequence_separator'])
+                    weight = filename_segments[-1]
+                    weight = weight.lstrip("0")
+                    # Cast weight as int so we can sort it easily.
+                    page_file_weights_map[int(weight)] = page_file_name
+
+                sorted_weights = sorted(page_file_weights_map.keys())
+
+                for page_sort_order in sorted_weights:
+                    page_output_file = row[config['id_field']]
+                    filename_without_extension = os.path.splitext(page_file_weights_map[page_sort_order])[0]
+                    tn_filename = create_contact_sheet_thumbnail(config, page_file_weights_map[page_sort_order])
+
+                    # Start .card.
+                    contact_sheet_output_files[page_output_file]['markup'] = '\n<div class="card">\n'
+                    contact_sheet_output_files[page_output_file]['markup'] += f'<img alt="{filename_without_extension}" src="{tn_filename}" />'
+                    # Start .fields
+                    contact_sheet_output_files[page_output_file]['markup'] += f'\n<div class="fields">'
+                    contact_sheet_output_files[page_output_file]['markup'] += f'\n<div class="field system"><span class="field-label">file</span>: {page_file_weights_map[page_sort_order]}</div>'
+                    # Close .fields
+                    contact_sheet_output_files[page_output_file]['markup'] += f'\n<!-- .fields -->\n</div>'
+                    # Close .card
+                    contact_sheet_output_files[page_output_file]['markup'] += f'\n<!-- .card -->\n</div>'
+                    contact_sheet_output_files[page_output_file]['file_handle'].write(contact_sheet_output_files[page_output_file]['markup'] + "\n")
         else:
-            output_file = 'main_contact_sheet'
-            tn_filename = create_contact_sheet_thumbnail(config, row['file'])
+            if 'parent_id' in row:
+                if row['parent_id'] == '':
+                    output_file = 'main_contact_sheet'
+                    if row[config['id_field']] in compound_items:
+                        tn_filename = create_contact_sheet_thumbnail(config, 'compound')
+                    else:
+                        tn_filename = create_contact_sheet_thumbnail(config, row['file'])
+                else:
+                    output_file = row['parent_id']
+                    if row[config['id_field']] in compound_items:
+                        tn_filename = create_contact_sheet_thumbnail(config, 'compound')
+                    else:
+                        tn_filename = create_contact_sheet_thumbnail(config, row['file'])
+            else:
+                output_file = 'main_contact_sheet'
+                tn_filename = create_contact_sheet_thumbnail(config, row['file'])
 
         csv_id = row[config['id_field']]
         title = row['title']
@@ -6216,7 +6259,7 @@ def generate_contact_sheet_from_csv(config):
             contact_sheet_output_files[output_file]['markup'] += f'<div class="field system"><span class="field-label"></span>' + \
                 f'<a alt="members" href="{row[config["id_field"]]}_contact_sheet.htm">members</a></div>'
         contact_sheet_output_files[output_file]['markup'] += f'\n<div class="field system"><span class="field-label">{config["id_field"]}</span>: {csv_id}</div>'
-        if len(row["file"]) > 0:
+        if config['paged_content_from_directories'] is False and len(row["file"]) > 0:
             contact_sheet_output_files[output_file]['markup'] += f'\n<div class="field system"><span class="field-label">file</span>: {row["file"]}</div>'
         else:
             contact_sheet_output_files[output_file]['markup'] += f'\n<div class="field system"><span class="field-label">file</span>:</div>'
