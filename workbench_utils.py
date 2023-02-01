@@ -1771,7 +1771,6 @@ def check_input(config, args):
                             sys.exit('Error: ' + message)
 
     # Check existence of fields identified in 'additional_files' config setting, and the extensions of files named in those fields.
-    # Also check for the acommpanying Media Use tid.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
         if 'additional_files' in config and len(config['additional_files']) > 0:
             additional_files_entries = get_additional_files_config(config)
@@ -1785,18 +1784,20 @@ def check_input(config, args):
                         logging.error(message)
                         sys.exit('Error: ' + message)
 
-            # Verify media use tids.
-            # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+            # Also verify media use tids. @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
             for additional_files_media_use_field, additional_files_media_use_tid in additional_files_entries.items():
                 validate_media_use_tid_in_additional_files_setting(config, additional_files_media_use_tid, additional_files_media_use_field)
 
-            if config['nodes_only'] is False and config['allow_missing_files'] is False:
+            if config['nodes_only'] is False:
+                missing_additional_files = False
                 for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
                     for additional_file_field in additional_files_fields:
                         if len(file_check_row[additional_file_field]) == 0:
                             message = 'CVS row ' + file_check_row[config['id_field']] + ' contains an empty "' + additional_file_field + '" value.'
                             logging.error(message)
-                            sys.exit('Error: ' + message)
+                            if config['allow_missing_files'] is False:
+                                missing_additional_files = True
+                                sys.exit('Error: ' + message)
                         file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
                         if file_check_row[additional_file_field].startswith('http'):
                             http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
@@ -1814,7 +1815,18 @@ def check_input(config, args):
                                 message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
                                     + file_check_row[config['id_field']] + ' not found.'
                                 logging.error(message)
-                                sys.exit('Error: ' + message)
+                                if config['allow_missing_files'] is False:
+                                    missing_additional_files = True
+                                    sys.exit('Error: ' + message)
+
+                if missing_additional_files is False:
+                    message = 'OK, files in fields configured as "additional_file_fields" are all present.'
+                    logging.info(message)
+                    print(message)
+                else:
+                    message = 'Some files in fields configured as "additional_file_fields" are missing. Please see the log for more information.'
+                    if config['allow_missing_files'] is False:
+                        sys.exit('Error ' + message)
 
                     # Validate extensions of files added using 'additional_files' here.
                     for additional_file_field in additional_files_fields:
@@ -1842,9 +1854,7 @@ def check_input(config, args):
                                     logging.error(message)
                                     sys.exit('Error: ' + message)
 
-                message = 'OK, files named in the CSV "' + additional_file_field + '" column are all present.'
-                print(message)
-                logging.info(message)
+            '''
             empty_file_values_exist = False
             if config['nodes_only'] is False and config['allow_missing_files'] is True:
                 additional_files_check_csv_data = get_csv_data(config)
@@ -1881,6 +1891,7 @@ def check_input(config, args):
                     message = 'OK, files named in the CSV ' + ', '.join(additional_file_fields_for_message) + ' column(s) are all present.'
                     print(message)
                     logging.info(message)
+            '''
 
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
