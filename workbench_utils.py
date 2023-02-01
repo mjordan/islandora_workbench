@@ -1746,16 +1746,14 @@ def check_input(config, args):
             media_type_check_csv_data = get_csv_data(config)
             for count, file_check_row in enumerate(media_type_check_csv_data, start=1):
                 filename_fields_to_check = ['file']
-                if 'additional_files' in config and len(config['additional_files']) > 0:
-                    additional_files_entries = get_additional_files_config(config)
-                    filename_fields_to_check.extend(additional_files_entries.keys())
                 for filename_field in filename_fields_to_check:
                     if len(file_check_row[filename_field]) != 0:
                         media_type = set_media_type(config, file_check_row[filename_field], filename_field, file_check_row)
                         media_bundle_response_code = ping_media_bundle(config, media_type)
                         if media_bundle_response_code == 404:
                             message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
-                                ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
+                                ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.' + \
+                                ' Please make sure your media type configuration matches your Drupal configuration.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
@@ -1772,7 +1770,7 @@ def check_input(config, args):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-    # Check existence of fields identified in 'additional_files' config setting, and the files named in those fields.
+    # Check existence of fields identified in 'additional_files' config setting, and the extensions of files named in those fields.
     # Also check for the acommpanying Media Use tid.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
         if 'additional_files' in config and len(config['additional_files']) > 0:
@@ -1818,7 +1816,31 @@ def check_input(config, args):
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
-                            # @todo: validate extensions of files added using 'additional_files' here - issue 126.
+                    # Validate extensions of files added using 'additional_files' here.
+                    for additional_file_field in additional_files_fields:
+                        if len(file_check_row[additional_file_field]) != 0:
+                            media_type = set_media_type(config, file_check_row[additional_file_field], additional_file_field, file_check_row)
+                            media_bundle_response_code = ping_media_bundle(config, media_type)
+                            if media_bundle_response_code == 404:
+                                message = 'File "' + file_check_row[additional_file_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+                                    ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.' + \
+                                    ' Please make sure your media type configuration matches your Drupal configuration.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+
+                            # Check that each file's extension is allowed for the current media type.
+                            media_type_file_field = config['media_type_file_fields'][media_type]
+                            additional_filenames = file_check_row[additional_file_field].split(config['subdelimiter'])
+                            for additional_filename in additional_filenames:
+                                extension = os.path.splitext(additional_filename)
+                                extension = extension[1].lstrip('.').lower()
+                                media_type_file_field = config['media_type_file_fields'][media_type]
+                                registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
+                                if extension not in registered_extensions[media_type_file_field]:
+                                    message = 'File "' + additional_filename + '" in CSV row ' + file_check_row[config['id_field']] + \
+                                        ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
 
                 message = 'OK, files named in the CSV "' + additional_file_field + '" column are all present.'
                 print(message)
