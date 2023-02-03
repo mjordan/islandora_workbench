@@ -9,7 +9,7 @@ FROM python:3.10.6
 #   The directory this file is in is mounted within the container at /workbench
 #   Rename example.yml to your YML file. 
 
-ADD setup.py /workbench/setup.py
+ADD . /workbench/
 WORKDIR /workbench
 
 # Works with and without this line
