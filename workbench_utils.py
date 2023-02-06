@@ -2694,7 +2694,8 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     if config['nodes_only'] is True:
         return
 
-    node_id = get_nid_from_url_alias(config, node_id)
+    if value_is_numeric(node_id) is False:
+        node_id = get_nid_from_url_alias(config, node_id)
 
     # media_type_for_oembed_check = set_media_type(config, filename, file_fieldname, node_csv_row)
     media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
