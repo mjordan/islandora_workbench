@@ -3938,10 +3938,14 @@ def prepare_term_id(config, vocab_ids, field_name, term):
                         tid = create_term(config, vocab_id.strip(), term_name.strip())
                         return tid
             else:
-                tid = create_term(config, vocab_ids.strip(), term.strip())
-                return tid
+                if isinstance(vocab_ids, str):
+                  tid = create_term(config, vocab_ids.strip(), term.strip())
+                  return tid
+                message =  f"Because The field '{field_name}' allows more than one vocabulary the term '{term}' must be namespaced. \n See  documentation here - https://mjordan.github.io/islandora_workbench_docs/fields/#using-term-names-in-multi-vocabulary-fields"
+                logging.error(message)
+                sys.exit('Error: ' + message)
 
-        # Explicitly return None if hasn't retured from one of the conditions above, e.g. if
+        # Explicitly return None if hasn't returned from one of the conditions above, e.g. if
         # the term name contains a colon and it wasn't namespaced with a valid vocabulary ID.
         return None
 
