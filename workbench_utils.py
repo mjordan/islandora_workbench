@@ -1693,7 +1693,7 @@ def check_input(config, args):
             if len(file_check_row['file']) == 0:
                 message = 'CSV row with ID ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                 if config['strict_check'] is True and config['allow_missing_files'] is False:
-                    logging.warning(message)
+                    logging.error(message)
                     sys.exit('Error: ' + message)
                 else:
                     if file_check_row[config['id_field']] not in rows_with_missing_files:
@@ -1770,7 +1770,7 @@ def check_input(config, args):
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-    # Check existence of fields identified in 'additional_files' config setting, and the extensions of files named in those fields.
+    # Check existence of fields identified in 'additional_files' config setting, and validate the extensions of files named in those fields.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
         if 'additional_files' in config and len(config['additional_files']) > 0:
             additional_files_entries = get_additional_files_config(config)
@@ -1784,7 +1784,7 @@ def check_input(config, args):
                         logging.error(message)
                         sys.exit('Error: ' + message)
 
-            # Also verify media use tids. @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+            # Verify media use tids. @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
             for additional_files_media_use_field, additional_files_media_use_tid in additional_files_entries.items():
                 validate_media_use_tid_in_additional_files_setting(config, additional_files_media_use_tid, additional_files_media_use_field)
 
@@ -1792,106 +1792,75 @@ def check_input(config, args):
                 missing_additional_files = False
                 for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
                     for additional_file_field in additional_files_fields:
-                        if len(file_check_row[additional_file_field]) == 0:
-                            message = 'CVS row ' + file_check_row[config['id_field']] + ' contains an empty "' + additional_file_field + '" value.'
-                            logging.error(message)
-                            if config['allow_missing_files'] is False:
-                                missing_additional_files = True
-                                sys.exit('Error: ' + message)
                         file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
+                        if len(file_check_row[additional_file_field]) == 0:
+                            missing_additional_files = True
+                            message = 'CVS row ' + file_check_row[config['id_field']] + ' contains an empty "' + additional_file_field + '" value.'
+                            if config['allow_missing_files'] is False:
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+                            else:
+                                logging.warning(message)
+
                         if file_check_row[additional_file_field].startswith('http'):
                             http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
                             if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
                                 message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
                                     + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
-                                logging.error(message)
-                                sys.exit('Error: ' + message)
-                        if os.path.isabs(file_check_row[additional_file_field]):
-                            file_path = file_check_row[additional_file_field]
-                        else:
-                            file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
-                        if not file_check_row[additional_file_field].startswith('http'):
-                            if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                                message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
-                                    + file_check_row[config['id_field']] + ' not found.'
-                                logging.error(message)
                                 if config['allow_missing_files'] is False:
-                                    missing_additional_files = True
+                                    logging.error(message)
                                     sys.exit('Error: ' + message)
+                                else:
+                                    logging.warning(message)
 
-                if missing_additional_files is False:
+                        if len(file_check_row[additional_file_field]) > 0:
+                            if os.path.isabs(file_check_row[additional_file_field]):
+                                file_path = file_check_row[additional_file_field]
+                            else:
+                                file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
+                            if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                                message = 'File in column "' + additional_file_field + '" in CVS row ' + file_check_row[config['id_field']] + ' not found.'
+                                logging.warning(message)
+
+                if missing_additional_files is True:
+                    message = 'Some files in fields configured as "additional_file_fields" are missing. Please see the log for more information.'
+                    print(message)
+                    if config['allow_missing_files'] is False:
+                        sys.exit('Error ' + message)
+                else:
                     message = 'OK, files in fields configured as "additional_file_fields" are all present.'
                     logging.info(message)
                     print(message)
-                else:
-                    message = 'Some files in fields configured as "additional_file_fields" are missing. Please see the log for more information.'
-                    if config['allow_missing_files'] is False:
-                        sys.exit('Error ' + message)
 
-                    # Validate extensions of files added using 'additional_files' here.
-                    for additional_file_field in additional_files_fields:
-                        if len(file_check_row[additional_file_field]) != 0:
-                            media_type = set_media_type(config, file_check_row[additional_file_field], additional_file_field, file_check_row)
-                            media_bundle_response_code = ping_media_bundle(config, media_type)
-                            if media_bundle_response_code == 404:
-                                message = 'File "' + file_check_row[additional_file_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
-                                    ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.' + \
-                                    ' Please make sure your media type configuration matches your Drupal configuration.'
+        # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+        if 'additional_files' in config and len(config['additional_files']) > 0 and config['nodes_only'] is False:
+            additional_files_check_extensions_csv_data = get_csv_data(config)
+            # Check media types for files registered in 'additional_files'.
+            for count, file_check_row in enumerate(additional_files_check_extensions_csv_data, start=1):
+                for additional_file_field in additional_files_fields:
+                    if len(file_check_row[additional_file_field].strip()) > 0:
+                        media_type = set_media_type(config, file_check_row[additional_file_field], additional_file_field, file_check_row)
+                        media_bundle_response_code = ping_media_bundle(config, media_type)
+                        if media_bundle_response_code == 404:
+                            message = 'File "' + file_check_row[additional_file_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+                                ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.' + \
+                                ' Please make sure your media type configuration matches your Drupal configuration.'
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+
+                        # Check that each file's extension is allowed for the current media type.
+                        media_type_file_field = config['media_type_file_fields'][media_type]
+                        additional_filenames = file_check_row[additional_file_field].split(config['subdelimiter'])
+                        for additional_filename in additional_filenames:
+                            extension = os.path.splitext(additional_filename)
+                            extension = extension[1].lstrip('.').lower()
+                            media_type_file_field = config['media_type_file_fields'][media_type]
+                            registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
+                            if extension not in registered_extensions[media_type_file_field]:
+                                message = 'File "' + additional_filename + '" in CSV row ' + file_check_row[config['id_field']] + \
+                                    ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
-
-                            # Check that each file's extension is allowed for the current media type.
-                            media_type_file_field = config['media_type_file_fields'][media_type]
-                            additional_filenames = file_check_row[additional_file_field].split(config['subdelimiter'])
-                            for additional_filename in additional_filenames:
-                                extension = os.path.splitext(additional_filename)
-                                extension = extension[1].lstrip('.').lower()
-                                media_type_file_field = config['media_type_file_fields'][media_type]
-                                registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
-                                if extension not in registered_extensions[media_type_file_field]:
-                                    message = 'File "' + additional_filename + '" in CSV row ' + file_check_row[config['id_field']] + \
-                                        ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
-                                    logging.error(message)
-                                    sys.exit('Error: ' + message)
-
-            '''
-            empty_file_values_exist = False
-            if config['nodes_only'] is False and config['allow_missing_files'] is True:
-                additional_files_check_csv_data = get_csv_data(config)
-                additional_file_fields_for_message = []
-                for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
-                    for additional_file_field in additional_files_fields:
-                        if len(file_check_row[additional_file_field]) == 0:
-                            empty_file_values_exist = True
-                        else:
-                            if file_check_row[additional_file_field].startswith('http'):
-                                http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
-                                if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
-                                    message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID field value ' \
-                                        + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
-                                    logging.error(message)
-                                    sys.exit('Error: ' + message)
-                            else:
-                                if os.path.isabs(file_check_row[additional_file_field]):
-                                    file_path = file_check_row[additional_file_field]
-                                else:
-                                    file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
-                                if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                                    message = 'File ' + file_path + ' identified in CSV "' + additional_file_field + '" column not found.'
-                                    logging.error(message)
-                                    sys.exit('Error: ' + message)
-                        if '"' + additional_file_field + '"' not in additional_file_fields_for_message:
-                            additional_file_fields_for_message.append('"' + additional_file_field + '"')
-                if empty_file_values_exist is True:
-                    message = 'OK, files named in the CSV ' + ', '.join(additional_file_fields_for_message) + ' column(s) are all present; the "allow_missing_files" ' + \
-                        'option is enabled and empty ' + ', '.join(additional_file_fields_for_message) + ' values exist.'
-                    print(message)
-                    logging.info(message)
-                else:
-                    message = 'OK, files named in the CSV ' + ', '.join(additional_file_fields_for_message) + ' column(s) are all present.'
-                    print(message)
-                    logging.info(message)
-            '''
 
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
