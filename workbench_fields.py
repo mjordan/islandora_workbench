@@ -993,10 +993,10 @@ class EntityReferenceField():
         subvalues = list()
         for subvalue in field_data:
             if config['export_csv_term_mode'] == 'name' and subvalue['target_type'] == 'taxonomy_term':
-                # Output term names.
+                # Output term names, with vocab IDs (aka namespaces).
                 vocab_id = get_term_vocab(config, subvalue['target_id'])
                 term_name = get_term_name(config, subvalue['target_id'])
-                if vocab_id is True and term_name is True:
+                if vocab_id is not False and term_name is not False:
                     subvalues.append(vocab_id + ':' + term_name)
             else:
                 # Output term IDs.
