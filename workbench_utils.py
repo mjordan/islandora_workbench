@@ -4996,10 +4996,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
         filename_segments = filename_without_extension.split(config['paged_content_sequence_separator'])
         weight = filename_segments[-1]
         weight = weight.lstrip("0")
-        # @todo: come up with a templated way to generate the page_identifier,
-        # and what field to POST it to.
+        # @todo: come up with a templated way to generate the page_identifier, and what field to POST it to.
         page_identifier = parent_id + '_' + filename_without_extension
-        page_title = parent_title + ', page ' + weight
+        page_title_template = string.Template(config['page_title_template'])
+        page_title = str(page_title_template.substitute({'parent_title': parent_title, 'weight': weight}))
 
         node_json = {
             'type': [

@@ -195,7 +195,8 @@ class WorkbenchConfig:
             'path_to_workbench_script': os.path.join(os.getcwd(), 'workbench'),
             'oembed_providers': self.get_oembed_media_types(),
             'contact_sheet_output_dir': 'contact_sheet_output',
-            'contact_sheet_css_path': os.path.join('assets', 'contact_sheet', 'contact-sheet.css')
+            'contact_sheet_css_path': os.path.join('assets', 'contact_sheet', 'contact-sheet.css'),
+            'page_title_template': '$parent_title, page $weight'
         }
 
     # Tests validity and existence of configuration file path.
