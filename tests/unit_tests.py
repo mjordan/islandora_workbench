@@ -552,5 +552,17 @@ class TestCleanCsvValues(unittest.TestCase):
         self.assertEqual(clean_csv_record, csv_record)
 
 
+class TestGetPageTitleFromTemplate(unittest.TestCase):
+    def test_get_page_title_from_template(self):
+        fixtures = [{'config': {'page_title_template': '$parent_title, page $weight'}, 'parent_title': 'Test parent title', 'weight': 2, 'control': 'Test parent title, page 2'},
+                    {'config': {'page_title_template': '$parent_title, part $weight'}, 'parent_title': 'Test parent title', 'weight': 10, 'control': 'Test parent title, part 10'},
+                    {'config': {'page_title_template': 'section $weight'}, 'parent_title': 'Foo', 'weight': 9, 'control': 'section 9'}
+                    ]
+
+        for fixture in fixtures:
+            page_title = workbench_utils.get_page_title_from_template(fixture['config'], fixture['parent_title'], fixture['weight'])
+            self.assertEqual(fixture['control'], page_title)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -4998,8 +4998,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
         weight = weight.lstrip("0")
         # @todo: come up with a templated way to generate the page_identifier, and what field to POST it to.
         page_identifier = parent_id + '_' + filename_without_extension
-        page_title_template = string.Template(config['page_title_template'])
-        page_title = str(page_title_template.substitute({'parent_title': parent_title, 'weight': weight}))
+        page_title = get_page_title_from_template(config, parent_title, weight)
 
         node_json = {
             'type': [
@@ -5771,6 +5770,27 @@ def get_csv_template(config, args):
     csv_file.close()
     print('CSV template saved at ' + csv_file_path + '.')
     sys.exit()
+
+
+def get_page_title_from_template(config, parent_title, weight):
+    """Generates a page title from a simple template.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        parent_title : string
+            The parent node's title.
+        weight: string
+            The weight value for the given page.
+        Returns
+        -------
+        string
+            The output of the template.
+    """
+    page_title_template = string.Template(config['page_title_template'])
+    page_title = str(page_title_template.substitute({'parent_title': parent_title, 'weight': weight}))
+    return page_title
 
 
 def serialize_field_json(config, field_definitions, field_name, field_data):
