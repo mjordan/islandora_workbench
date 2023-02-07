@@ -5069,10 +5069,12 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if media_response_status_code is False:
-                    logging.info("Media for %s not created.", page_file_path)
+                    print(f"- ERROR: Media for {page_file_path} not created. See log for more information.")
+                    logging.error("Media for %s not created. HTTP response code was %s.", page_file_path, media_response_status_code)
                     continue
                 else:
                     logging.info("Media for %s created.", page_file_path)
+                    print(f"+ Media for {page_file_path} created.")
         else:
             logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
 
