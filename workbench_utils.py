@@ -2173,8 +2173,8 @@ def clean_csv_values(row):
     """
     for field in row:
         # Replace smart/curly quotes with straight ones.
-        row[field] = row[field].replace('“', '"').replace('”', '"')
-        row[field] = row[field].replace("‘", "'").replace("’", "'")
+        row[field] = str(row[field]).replace('“', '"').replace('”', '"')
+        row[field] = str(row[field]).replace("‘", "'").replace("’", "'")
 
         # Strip leading and trailing whitespace.
         row[field] = str(row[field]).strip()
