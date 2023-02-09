@@ -4983,7 +4983,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     csvfile.close()
 
 
-def create_children_from_directory(config, parent_csv_record, parent_node_id, parent_title):
+def create_children_from_directory(config, parent_csv_record, parent_node_id):
     drupal_8 = set_drupal_8(config)
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
@@ -4994,7 +4994,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
     # split from the rest of the filename using the character defined in the
     # 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config['id_field']]
-    page_dir_path = os.path.join(config['input_dir'], parent_id)
+    page_dir_path = os.path.join(config['input_dir'], str(parent_id).strip())
     page_files = os.listdir(page_dir_path)
     page_file_return_dict = dict()
     for page_file_name in page_files:
@@ -5004,7 +5004,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
         weight = weight.lstrip("0")
         # @todo: come up with a templated way to generate the page_identifier, and what field to POST it to.
         page_identifier = parent_id + '_' + filename_without_extension
-        page_title = get_page_title_from_template(config, parent_title, weight)
+        page_title = get_page_title_from_template(config, parent_csv_record['title'], weight)
 
         node_json = {
             'type': [
@@ -5076,7 +5076,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
                     logging.info("Media for %s created.", page_file_path)
                     print(f"+ Media for {page_file_path} created.")
         else:
-            logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
+            print(f"Error: Node for page {page_identifier} not created. See log for more information.")
+            logging.error('Node for page "%s" not created, HTTP response code was %s, response body was %s', page_identifier, node_response.status_code, node_response.text)
+            logging.error('JSON request body used in previous POST to "%s" was %s.', node_endpoint, node_json)
 
         # Execute node-specific post-create scripts, if any are configured.
         if 'node_post_create' in config and len(config['node_post_create']) > 0:
