@@ -189,7 +189,7 @@ def create():
                             sys.exit(message)
 
             # Assemble Drupal field structures for entity reference fields from CSV data.
-            # Entity reference fields (taxonomy_term and node)
+            # Entity reference fields (taxonomy_term and node).
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.create(config, field_definitions, node, row, custom_field)
@@ -433,7 +433,7 @@ def update():
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
-            # Typed relation fields (currently, only taxonomy term)
+            # Typed relation fields (currently, only taxonomy term).
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
                 typed_relation_field = workbench_fields.TypedRelationField()
                 node = typed_relation_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])

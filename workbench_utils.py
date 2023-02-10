@@ -4988,11 +4988,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
 
-    # These objects will have a title (derived from filename), an ID based on the parent's
-    # id, and a config-defined Islandora model. Content type and status are inherited
-    # as is from parent. The weight assigned to the page is the last segment in the filename,
-    # split from the rest of the filename using the character defined in the
-    # 'paged_content_sequence_separator' config option.
+    # These objects will have a title (derived from filename), an ID based on the parent's id, and a config-defined
+    # Islandora model. Content type and status are inherited as is from parent, as are other required fields. The
+    # weight assigned to the page is the last segment in the filename, split from the rest of the filename using the
+    # character defined in the 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config['id_field']]
     page_dir_path = os.path.join(config['input_dir'], str(parent_id).strip())
     page_files = os.listdir(page_dir_path)
@@ -5042,6 +5041,45 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         if 'created' in parent_csv_record:
             if len(parent_csv_record['created']) > 0:
                 node_json['created'] = [{'value': parent_csv_record['created']}]
+
+        required_fields = get_required_bundle_fields(config, 'node', config['content_type'])
+        if len(required_fields) > 0:
+            field_definitions = get_field_definitions(config, 'node')
+            # Importing the workbench_fields module at the top of this module with the
+            # rest of the imports causes a circular import exception, so we do it here.
+            import workbench_fields
+
+            for requred_field in required_fields:
+                # Assemble Drupal field structures for entity reference fields from CSV data.
+                # Entity reference fields (taxonomy_term and node)
+                if field_definitions[requred_field]['field_type'] == 'entity_reference':
+                    entity_reference_field = workbench_fields.EntityReferenceField()
+                    node_json = entity_reference_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+
+                # Typed relation fields.
+                elif field_definitions[requred_field]['field_type'] == 'typed_relation':
+                    typed_relation_field = workbench_fields.TypedRelationField()
+                    node_json = typed_relation_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+
+                # Geolocation fields.
+                elif field_definitions[requred_field]['field_type'] == 'geolocation':
+                    geolocation_field = workbench_fields.GeolocationField()
+                    node_json = geolocation_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+
+                # Link fields.
+                elif field_definitions[requred_field]['field_type'] == 'link':
+                    link_field = workbench_fields.LinkField()
+                    node_json = link_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+
+                # Authority Link fields.
+                elif field_definitions[requred_field]['field_type'] == 'authority_link':
+                    link_field = workbench_fields.AuthorityLinkField()
+                    node_json = link_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+
+                # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
+                else:
+                    simple_field = workbench_fields.SimpleField()
+                    node_json = simple_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
 
         node_headers = {
             'Content-Type': 'application/json'

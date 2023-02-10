@@ -2,6 +2,10 @@
 
    Support for additional field types should be added as new classes here,
    with accompanying tests in field_tests.py and field_tests_values.py.
+
+   Note: If new field types are added to this class, corresponding logic must be
+   added to functions in other Workbench modules (e.g. workbench_utils, workbench)
+   that create or update nodes.
 """
 
 import json
