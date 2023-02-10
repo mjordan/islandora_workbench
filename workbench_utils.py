@@ -5094,7 +5094,7 @@ def get_rollback_csv_filepath(config):
         rollback_csv_filename = 'rollback.' + now_string + '.csv'
     else:
         rollback_csv_filename = 'rollback.csv'
-    return os.path.join(config['input_dir'], rollback_csv_filename)
+    return os.path.join(config['rollback_dir'] or config['input_dir'], rollback_csv_filename)
 
 
 def write_rollback_config(config, path_to_rollback_csv_file):
