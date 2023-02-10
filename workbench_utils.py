@@ -5117,12 +5117,17 @@ def write_rollback_config(config, path_to_rollback_csv_file):
 
 
 def prep_rollback_csv(config, path_to_rollback_csv_file):
-    path_to_rollback_csv_file = get_rollback_csv_filepath(config)
-    if os.path.exists(path_to_rollback_csv_file):
-        os.remove(path_to_rollback_csv_file)
-    rollback_csv_file = open(path_to_rollback_csv_file, "a+")
-    rollback_csv_file.write("node_id" + "\n")
-    rollback_csv_file.close()
+    try:
+        if os.path.exists(path_to_rollback_csv_file):
+            os.remove(path_to_rollback_csv_file)
+        rollback_csv_file = open(path_to_rollback_csv_file, "a+")
+        rollback_csv_file.write("node_id" + "\n")
+        rollback_csv_file.close()
+    except Exception as e:
+        message = "Workbench was unable save rollback CSV to " + path_to_rollback_csv_file + "."
+        logging.error(message)
+        sys.exit('Error: ' + message)
+
 
 
 def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
@@ -5330,7 +5335,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             if config['task'] == 'add_media':
                 node_csv_row['title'] = get_node_title_from_nid(config, node_csv_row['node_id'])
                 if node_csv_row['title'] is False:
-                    message = 'Cannot access node " + node_id + ", so cannot get its title for use in media filename. Using filename instead.'
+                    message = 'Cannot access node ' + node_id + ', so cannot get its title for use in media filename. Using filename instead.'
                     logging.warning(message)
                     node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
 
