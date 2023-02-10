@@ -5335,7 +5335,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             if config['task'] == 'add_media':
                 node_csv_row['title'] = get_node_title_from_nid(config, node_csv_row['node_id'])
                 if node_csv_row['title'] is False:
-                    message = 'Cannot access node ' + node_id + ', so cannot get its title for use in media filename. Using filename instead.'
+                    message = 'Cannot access node ' + str(node_id) + ', so cannot get its title for use in media filename. Using filename instead.'
                     logging.warning(message)
                     node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
 
