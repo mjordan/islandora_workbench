@@ -5129,7 +5129,6 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
         sys.exit('Error: ' + message)
 
 
-
 def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     rollback_csv_file = open(path_to_rollback_csv_file, "a+")
