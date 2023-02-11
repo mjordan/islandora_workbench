@@ -3151,7 +3151,8 @@ def remove_media_and_file(config, media_id):
 
     # See https://github.com/mjordan/islandora_workbench/issues/446 for background.
     if get_media_response.status_code == 403:
-        message = f'If the "Standalone media URL" option at {config["host"]}/admin/config/media/media-settings is unchecked, clear your Drupal cache and run Workbench again.'
+        message = f'If the "Standalone media URL" option at {config["host"]}/admin/config/media/media-settings is unchecked, clear your Drupal cache and run Workbench again.' + \
+            ' If that doesn\'t work, try adding "standalone_media_url: true" to your configuration file.'
         logging.error(message)
         sys.exit("Error: " + message)
 
@@ -5042,6 +5043,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             if len(parent_csv_record['created']) > 0:
                 node_json['created'] = [{'value': parent_csv_record['created']}]
 
+        # Add any required fields that are in the parent CSV.
         required_fields = get_required_bundle_fields(config, 'node', config['content_type'])
         if len(required_fields) > 0:
             field_definitions = get_field_definitions(config, 'node')
@@ -5049,37 +5051,41 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             # rest of the imports causes a circular import exception, so we do it here.
             import workbench_fields
 
-            for requred_field in required_fields:
+            for required_field in required_fields:
+                # THese fields are populated above.
+                if required_field in ['title', 'field_model', 'field_display_hints', 'uid', 'created']:
+                    continue
+
                 # Assemble Drupal field structures for entity reference fields from CSV data.
-                # Entity reference fields (taxonomy_term and node)
-                if field_definitions[requred_field]['field_type'] == 'entity_reference':
+                # Entity reference fields (taxonomy_term and node).
+                if field_definitions[required_field]['field_type'] == 'entity_reference':
                     entity_reference_field = workbench_fields.EntityReferenceField()
-                    node_json = entity_reference_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+                    node_json = entity_reference_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
 
                 # Typed relation fields.
-                elif field_definitions[requred_field]['field_type'] == 'typed_relation':
+                elif field_definitions[required_field]['field_type'] == 'typed_relation':
                     typed_relation_field = workbench_fields.TypedRelationField()
-                    node_json = typed_relation_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+                    node_json = typed_relation_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
 
                 # Geolocation fields.
-                elif field_definitions[requred_field]['field_type'] == 'geolocation':
+                elif field_definitions[required_field]['field_type'] == 'geolocation':
                     geolocation_field = workbench_fields.GeolocationField()
-                    node_json = geolocation_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+                    node_json = geolocation_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
 
                 # Link fields.
-                elif field_definitions[requred_field]['field_type'] == 'link':
+                elif field_definitions[required_field]['field_type'] == 'link':
                     link_field = workbench_fields.LinkField()
-                    node_json = link_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+                    node_json = link_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
 
                 # Authority Link fields.
-                elif field_definitions[requred_field]['field_type'] == 'authority_link':
+                elif field_definitions[required_field]['field_type'] == 'authority_link':
                     link_field = workbench_fields.AuthorityLinkField()
-                    node_json = link_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+                    node_json = link_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
 
                 # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
                 else:
                     simple_field = workbench_fields.SimpleField()
-                    node_json = simple_field.create(config, field_definitions, node_json, parent_csv_record, requred_field)
+                    node_json = simple_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
 
         node_headers = {
             'Content-Type': 'application/json'
@@ -5093,7 +5099,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, page_identifier, node_response.text)
 
-            node_nid = node_uri.rsplit('/', 1)[-1]
+            node_nid = get_nid_from_url_alias(config, node_uri)
             write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
             page_file_path = os.path.join(parent_id, page_file_name)
@@ -5168,7 +5174,7 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
 def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     rollback_csv_file = open(path_to_rollback_csv_file, "a+")
-    rollback_csv_file.write(node_id + "\n")
+    rollback_csv_file.write(str(node_id) + "\n")
     rollback_csv_file.close()
 
 
