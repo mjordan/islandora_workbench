@@ -168,6 +168,7 @@ class WorkbenchConfig:
             'validate_fixity_during_check': False,
             'output_csv_include_input_csv': False,
             'timestamp_rollback': False,
+            'rollback_dir': None,
             'enable_http_cache': True,
             'validate_terms_exist': True,
             'validate_parent_node_exists': True,
