@@ -22,6 +22,7 @@
 
 ## Checklist
 
+* [ ] Before opening this PR, have you opened an issue explaining what you want to to do?
 * [ ] Have you run `pycodestyle --show-source --show-pep8 --ignore=E402,W504 --max-line-length=200 yourfile.py`? 
 * [ ] Have you included same configuration and/or CSV files useful for testing this PR?
 * [ ] Have you written unit or integration tests if applicable?
