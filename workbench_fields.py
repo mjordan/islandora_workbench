@@ -801,7 +801,7 @@ class EntityReferenceField():
                     entity[field_name] = field_values[:field_definitions[field_name]['cardinality']]
                     log_field_cardinality_violation(field_name, id_field, field_definitions[field_name]['cardinality'])
                 else:
-                    entity[field_name] = str(field_values)
+                    entity[field_name] = field_values
             else:
                 entity[field_name] = [{'target_id': str(row[field_name]), 'target_type': target_type}]
         # Cardinality is 1.
