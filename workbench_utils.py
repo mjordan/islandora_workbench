@@ -3151,7 +3151,8 @@ def remove_media_and_file(config, media_id):
 
     # See https://github.com/mjordan/islandora_workbench/issues/446 for background.
     if get_media_response.status_code == 403:
-        message = f'If the "Standalone media URL" option at {config["host"]}/admin/config/media/media-settings is unchecked, clear your Drupal cache and run Workbench again.'
+        message = f'If the "Standalone media URL" option at {config["host"]}/admin/config/media/media-settings is unchecked, clear your Drupal cache and run Workbench again.' + \
+            ' If that doesn\'t work, try adding "standalone_media_url: true" to your configuration file.'
         logging.error(message)
         sys.exit("Error: " + message)
 
@@ -4983,18 +4984,17 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     csvfile.close()
 
 
-def create_children_from_directory(config, parent_csv_record, parent_node_id, parent_title):
+def create_children_from_directory(config, parent_csv_record, parent_node_id):
     drupal_8 = set_drupal_8(config)
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
 
-    # These objects will have a title (derived from filename), an ID based on the parent's
-    # id, and a config-defined Islandora model. Content type and status are inherited
-    # as is from parent. The weight assigned to the page is the last segment in the filename,
-    # split from the rest of the filename using the character defined in the
-    # 'paged_content_sequence_separator' config option.
+    # These objects will have a title (derived from filename), an ID based on the parent's id, and a config-defined
+    # Islandora model. Content type and status are inherited as is from parent, as are other required fields. The
+    # weight assigned to the page is the last segment in the filename, split from the rest of the filename using the
+    # character defined in the 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config['id_field']]
-    page_dir_path = os.path.join(config['input_dir'], parent_id)
+    page_dir_path = os.path.join(config['input_dir'], str(parent_id).strip())
     page_files = os.listdir(page_dir_path)
     page_file_return_dict = dict()
     for page_file_name in page_files:
@@ -5004,7 +5004,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
         weight = weight.lstrip("0")
         # @todo: come up with a templated way to generate the page_identifier, and what field to POST it to.
         page_identifier = parent_id + '_' + filename_without_extension
-        page_title = get_page_title_from_template(config, parent_title, weight)
+        page_title = get_page_title_from_template(config, parent_csv_record['title'], weight)
 
         node_json = {
             'type': [
@@ -5043,6 +5043,50 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             if len(parent_csv_record['created']) > 0:
                 node_json['created'] = [{'value': parent_csv_record['created']}]
 
+        # Add any required fields that are in the parent CSV.
+        required_fields = get_required_bundle_fields(config, 'node', config['content_type'])
+        if len(required_fields) > 0:
+            field_definitions = get_field_definitions(config, 'node')
+            # Importing the workbench_fields module at the top of this module with the
+            # rest of the imports causes a circular import exception, so we do it here.
+            import workbench_fields
+
+            for required_field in required_fields:
+                # THese fields are populated above.
+                if required_field in ['title', 'field_model', 'field_display_hints', 'uid', 'created']:
+                    continue
+
+                # Assemble Drupal field structures for entity reference fields from CSV data.
+                # Entity reference fields (taxonomy_term and node).
+                if field_definitions[required_field]['field_type'] == 'entity_reference':
+                    entity_reference_field = workbench_fields.EntityReferenceField()
+                    node_json = entity_reference_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
+
+                # Typed relation fields.
+                elif field_definitions[required_field]['field_type'] == 'typed_relation':
+                    typed_relation_field = workbench_fields.TypedRelationField()
+                    node_json = typed_relation_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
+
+                # Geolocation fields.
+                elif field_definitions[required_field]['field_type'] == 'geolocation':
+                    geolocation_field = workbench_fields.GeolocationField()
+                    node_json = geolocation_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
+
+                # Link fields.
+                elif field_definitions[required_field]['field_type'] == 'link':
+                    link_field = workbench_fields.LinkField()
+                    node_json = link_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
+
+                # Authority Link fields.
+                elif field_definitions[required_field]['field_type'] == 'authority_link':
+                    link_field = workbench_fields.AuthorityLinkField()
+                    node_json = link_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
+
+                # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
+                else:
+                    simple_field = workbench_fields.SimpleField()
+                    node_json = simple_field.create(config, field_definitions, node_json, parent_csv_record, required_field)
+
         node_headers = {
             'Content-Type': 'application/json'
         }
@@ -5055,7 +5099,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
             if 'output_csv' in config.keys():
                 write_to_output_csv(config, page_identifier, node_response.text)
 
-            node_nid = node_uri.rsplit('/', 1)[-1]
+            node_nid = get_nid_from_url_alias(config, node_uri)
             write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
             page_file_path = os.path.join(parent_id, page_file_name)
@@ -5076,7 +5120,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id, pa
                     logging.info("Media for %s created.", page_file_path)
                     print(f"+ Media for {page_file_path} created.")
         else:
-            logging.warning('Node for page "%s" not created, HTTP response code was %s.', page_identifier, node_response.status_code)
+            print(f"Error: Node for page {page_identifier} not created. See log for more information.")
+            logging.error('Node for page "%s" not created, HTTP response code was %s, response body was %s', page_identifier, node_response.status_code, node_response.text)
+            logging.error('JSON request body used in previous POST to "%s" was %s.', node_endpoint, node_json)
 
         # Execute node-specific post-create scripts, if any are configured.
         if 'node_post_create' in config and len(config['node_post_create']) > 0:
@@ -5132,7 +5178,7 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
 def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     rollback_csv_file = open(path_to_rollback_csv_file, "a+")
-    rollback_csv_file.write(node_id + "\n")
+    rollback_csv_file.write(str(node_id) + "\n")
     rollback_csv_file.close()
 
 
