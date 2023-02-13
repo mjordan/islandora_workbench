@@ -39,6 +39,8 @@ class WorkbenchConfig:
         for key, value in user_mods.items():
             config[key] = value
         # Modify some conditional values.
+        if 'temp_dir' not in user_mods.keys():
+            config['temp_dir'] = config['input_dir']
         if 'task' in ['add_media', 'update', 'delete', 'export_csv']:
             config['id_field'] = 'node_id'
         if 'task' == 'delete_media':
