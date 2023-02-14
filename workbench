@@ -1246,6 +1246,8 @@ workbench_config = WorkbenchConfig(args)
 
 config = workbench_config.get_config()
 
+create_temp_dir(config)
+
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 
