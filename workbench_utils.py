@@ -5692,7 +5692,7 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
         # For Google Sheets, the "extraction" is fired over in workbench.
         elif config['input_csv'].startswith('http'):
             input_csv = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
-            message = "Extracting CSV data from " + config['temp_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
+            message = "Extracting CSV data from " + config['temp_dir'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
             print(message)
             logging.info(message)
         elif config['input_csv'].endswith('xlsx'):
