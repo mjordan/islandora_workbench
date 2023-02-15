@@ -1180,6 +1180,8 @@ def check_input(config, args):
     print(message)
     logging.info(message)
 
+    create_temp_dir(config)
+
     # Perform checks on get_data_from_view tasks. Since this task doesn't use input_dir, input_csv, etc.,
     # we exit immediately after doing these checks.
     if config['task'] == 'get_data_from_view':
@@ -2650,7 +2652,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
                         logging.warning('Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
                                         config['fixity_algorithm'], file_path, node_csv_row[config['id_field']], hash_from_local, node_csv_row['checksum'])
             if is_remote and config['delete_tmp_upload'] is True:
-                containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+                containing_folder = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
                 try:
                     # E.g., on Windows, "[WinError 32] The process cannot access the file because it is being used by another process"
                     shutil.rmtree(containing_folder)
@@ -3234,11 +3236,11 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     if os.path.isabs(file_path):
         input_csv_path = file_path
     elif file_path.startswith('http') is True:
-        input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+        input_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
         if not os.path.exists(input_csv_path):
             get_csv_from_google_sheet(config)
     elif file_path.endswith('.xlsx') is True:
-        input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
+        input_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'])
         if not os.path.exists(input_csv_path):
             get_csv_from_excel(config)
     else:
@@ -3258,8 +3260,9 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         logging.error(message)
         sys.exit(message)
 
-    # 'restval' is what is used to populate superfluous fields/labels.
-    csv_writer_file_handle = open(input_csv_path + '.preprocessed', 'w+', newline='', encoding='utf-8')
+    preprocessed_csv_path = os.path.join(config['temp_dir'], os.path.basename(input_csv_path)) + '.preprocessed'
+    csv_writer_file_handle = open(preprocessed_csv_path, 'w+', newline='', encoding='utf-8')
+    # 'restval' is used to populate superfluous fields/labels.
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
 
     csv_reader_fieldnames = csv_reader.fieldnames
@@ -3363,7 +3366,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
                     sys.exit('Error: ' + message)
 
     csv_writer_file_handle.close()
-    preprocessed_csv_reader_file_handle = open(input_csv_path + '.preprocessed', 'r', encoding='utf-8')
+    preprocessed_csv_reader_file_handle = open(preprocessed_csv_path, 'r', encoding='utf-8')
     preprocessed_csv_reader = csv.DictReader(preprocessed_csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
     return preprocessed_csv_reader
 
@@ -5158,6 +5161,7 @@ def write_rollback_config(config, path_to_rollback_csv_file):
             'username': config['username'],
             'password': config['password'],
             'input_dir': config['input_dir'],
+            'standalone_media_url': config['standalone_media_url'],
             'input_csv': os.path.basename(path_to_rollback_csv_file)},
         rollback_config_file)
 
@@ -5199,7 +5203,7 @@ def get_csv_from_google_sheet(config):
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    input_csv_path = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
+    input_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
     open(input_csv_path, 'wb+').write(response.content)
 
 
@@ -5234,7 +5238,7 @@ def get_csv_from_excel(config):
                 record[headers[x]] = row[x].value
         records.append(record)
 
-    input_csv_path = os.path.join(config['input_dir'], config['excel_csv_filename'])
+    input_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'])
     csv_writer_file_handle = open(input_csv_path, 'w+', newline='', encoding='utf-8')
     csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
     csv_writer.writeheader()
@@ -5346,6 +5350,10 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             The name of the CSV column containing the filename.
         node_csv_row : OrderedDict
             The CSV row for the current item.
+        node_id: string
+            The node ID of the node being processed.
+        make_dir: bool
+            Whether or not to create a directory for the node's files.
         Returns
         -------
         string
@@ -5366,9 +5374,9 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
     if file_path_from_csv.startswith('http'):
         sections = urllib.parse.urlparse(file_path_from_csv)
         if config['task'] == 'add_media':
-            subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', 'nid_' + str(node_csv_row['node_id'])))
+            subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', 'nid_' + str(node_csv_row['node_id'])))
         else:
-            subdir = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+            subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
         if make_dir:
             Path(subdir).mkdir(parents=True, exist_ok=True)
 
@@ -5430,7 +5438,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
         if os.path.isabs(file_path_from_csv):
             file_path = file_path_from_csv
         else:
-            file_path = os.path.join(config['input_dir'], file_path_from_csv)
+            file_path = os.path.join(config['temp_dir'], file_path_from_csv)
         return file_path
 
 
@@ -5645,6 +5653,23 @@ def get_file_hash_from_local(config, file_path, algorithm):
     return hash_object.hexdigest()
 
 
+def create_temp_dir(config):
+    if os.path.exists(config['temp_dir']):
+        temp_dir_exists_message = 'already exists'
+        make_temp_dir = False
+    else:
+        temp_dir_exists_message = 'does not exist, will create it'
+        make_temp_dir = True
+
+    if config['temp_dir'] == config['input_dir']:
+        logging.info(f"Using directory defined in the 'input_dir' config setting ({config['input_dir']}) as the temporary directory ({temp_dir_exists_message}).")
+    else:
+        logging.info(f"Using directory defined in the 'temp_dir' config setting ({config['temp_dir']}) as the temporary directory ({temp_dir_exists_message}).")
+
+    if make_temp_dir is True:
+        Path(config['temp_dir']).mkdir(exist_ok=True)
+
+
 def check_csv_file_exists(config, csv_file_target, file_path=None):
     """Confirms a CSV file exists.
     """
@@ -5666,13 +5691,13 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             input_csv = config['input_csv']
         # For Google Sheets, the "extraction" is fired over in workbench.
         elif config['input_csv'].startswith('http'):
-            input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-            message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
+            input_csv = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
+            message = "Extracting CSV data from " + config['temp_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
             print(message)
             logging.info(message)
         elif config['input_csv'].endswith('xlsx'):
-            input_csv = os.path.join(config['input_dir'], config['excel_csv_filename'])
-            message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
+            input_csv = os.path.join(config['temp_dir'], config['excel_csv_filename'])
+            message = "Extracting CSV data from " + config['temp_csv'] + " to " + input_csv + '.'
             print(message)
             logging.info(message)
         else:
@@ -5902,7 +5927,12 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
 
 
 def prep_node_ids_tsv(config):
-    path_to_tsv_file = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
+    """Write to the data file the names of config files identified in config['secondary_tasks']
+       since we need a way to ensure that only tasks whose names are registered there should
+       populate their objects' 'field_member_of'. We write the parent ID->nid map to this file
+       as well, in write_to_node_ids_tsv().
+    """
+    path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
     if os.path.exists(path_to_tsv_file):
         os.remove(path_to_tsv_file)
     if len(config['secondary_tasks']) > 0:
@@ -5910,17 +5940,13 @@ def prep_node_ids_tsv(config):
     else:
         return False
 
-    # Write to the data file the names of config files identified in config['secondary_tasks']
-    # since we need a way to ensure that only tasks whose names are registered there should
-    # populate their objects' 'field_member_of'. We write the parent ID->nid map to this file
-    # as well, in write_to_node_ids_tsv().
     for secondary_config_file in config['secondary_tasks']:
         tsv_file.write(secondary_config_file + "\t" + '' + "\n")
     tsv_file.close()
 
 
 def write_to_node_ids_tsv(config, row_id, node_id):
-    path_to_tsv_file = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
+    path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
     tsv_file = open(path_to_tsv_file, "a+", encoding='utf-8')
     tsv_file.write(str(row_id) + "\t" + str(node_id) + "\n")
     tsv_file.close()
@@ -5928,7 +5954,7 @@ def write_to_node_ids_tsv(config, row_id, node_id):
 
 def read_node_ids_tsv(config):
     map = dict()
-    path_to_tsv_file = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
+    path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
     if config['secondary_tasks'] is not None:
         if not os.path.exists(path_to_tsv_file):
             message = 'Secondary task data file ' + path_to_tsv_file + ' not found.'
