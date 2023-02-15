@@ -2652,7 +2652,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
                         logging.warning('Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
                                         config['fixity_algorithm'], file_path, node_csv_row[config['id_field']], hash_from_local, node_csv_row['checksum'])
             if is_remote and config['delete_tmp_upload'] is True:
-                containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
+                containing_folder = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
                 try:
                     # E.g., on Windows, "[WinError 32] The process cannot access the file because it is being used by another process"
                     shutil.rmtree(containing_folder)
@@ -5161,6 +5161,7 @@ def write_rollback_config(config, path_to_rollback_csv_file):
             'username': config['username'],
             'password': config['password'],
             'input_dir': config['input_dir'],
+            'standalone_media_url': config['standalone_media_url'],
             'input_csv': os.path.basename(path_to_rollback_csv_file)},
         rollback_config_file)
 
