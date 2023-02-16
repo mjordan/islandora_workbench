@@ -32,6 +32,9 @@ def create():
     prep_rollback_csv(config, path_to_rollback_csv_file)
     logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
 
+    if config['log_term_creation'] is False:
+        logging.info("'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged.")
+
     if config['secondary_tasks'] is not None:
         if args.config not in config['secondary_tasks']:
             prep_node_ids_tsv(config)
@@ -353,6 +356,9 @@ def update():
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
     invalid_target_ids = []
+
+    if config['log_term_creation'] is False:
+        logging.info("'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged.")
 
     row_count = 0
     for row in csv_data:

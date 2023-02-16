@@ -3634,7 +3634,10 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
-        logging.info('Term "%s" (term ID %s) already exists in vocabulary "%s".', term_name, tid, vocab_id)
+        if (config['task'] == 'create' or config['task'] == 'update') and config['log_term_creation'] is True:
+            logging.info('Term "%s" (term ID %s) already exists in vocabulary "%s".', term_name, tid, vocab_id)
+        if config['task'] == 'create_terms':
+            logging.info('Term "%s" (term ID %s) already exists in vocabulary "%s".', term_name, tid, vocab_id)
         return tid
 
     if config['allow_adding_terms'] is False:
@@ -3677,7 +3680,10 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
     if response.status_code == 201:
         term_response_body = json.loads(response.text)
         tid = term_response_body['tid'][0]['value']
-        logging.info('Term %s ("%s") added to vocabulary "%s".', tid, term_name, vocab_id)
+        if (config['task'] == 'create' or config['task'] == 'update') and config['log_term_creation'] is True:
+            logging.info('Term %s ("%s") added to vocabulary "%s".', tid, term_name, vocab_id)
+        if config['task'] == 'create_terms':
+            logging.info('Term %s ("%s") added to vocabulary "%s".', tid, term_name, vocab_id)
         newly_created_term_name_for_matching = term_name.lower().strip()
         newly_created_terms.append({'tid': tid, 'vocab_id': vocab_id, 'name': term_name, 'name_for_matching': newly_created_term_name_for_matching})
         return tid
