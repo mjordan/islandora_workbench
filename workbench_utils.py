@@ -1015,6 +1015,40 @@ def get_entity_field_storage(config, fieldname, entity_type):
         sys.exit('Error: ' + message)
 
 
+def get_fieldname_map(config, entity_type, bundle_type, keys):
+    """Get a mapping of field machine names to labels, or labels to machine names.
+
+       Note: does not account for duplicate field labels or for multilingual configurations.
+
+        Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        entity_type : string
+            One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
+        bundle_type : string
+            The node content type, the vocabulary name, or the media type
+            (image', 'document', 'audio', 'video', 'file', etc.).
+        keys: string
+            One of 'labels' or 'names'. 'labels' returns a dictionary where the field labels are
+            the keys, 'names' returns a dictionary where the field machine names are the keys.
+        Returns
+        -------
+        dict
+            A dictionary with either field labels or machine names as the keys.
+    """
+    field_defs = get_field_definitions(config, entity_type, bundle_type)
+    map = dict()
+    for field, properties in field_defs.items():
+        if keys == 'labels':
+            map[properties['label']] = field
+
+        if keys == 'names':
+            map[field] = properties['label']
+
+    return map
+
+
 def check_input(config, args):
     """Validate the config file and input data.
     """
