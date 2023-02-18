@@ -200,7 +200,8 @@ class WorkbenchConfig:
             'oembed_providers': self.get_oembed_media_types(),
             'contact_sheet_output_dir': 'contact_sheet_output',
             'contact_sheet_css_path': os.path.join('assets', 'contact_sheet', 'contact-sheet.css'),
-            'page_title_template': '$parent_title, page $weight'
+            'page_title_template': '$parent_title, page $weight',
+            'csv_headers': 'names'
         }
 
     # Tests validity and existence of configuration file path.

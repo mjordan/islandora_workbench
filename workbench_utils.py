@@ -1015,10 +1015,10 @@ def get_entity_field_storage(config, fieldname, entity_type):
         sys.exit('Error: ' + message)
 
 
-def get_fieldname_map(config, entity_type, bundle_type, keys):
+def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
     """Get a mapping of field machine names to labels, or labels to machine names.
 
-       Note: does not account for duplicate field labels or for multilingual configurations.
+       Note: does not account for multilingual configurations.
 
         Parameters
         ----------
@@ -1034,19 +1034,55 @@ def get_fieldname_map(config, entity_type, bundle_type, keys):
             the keys, 'names' returns a dictionary where the field machine names are the keys.
         Returns
         -------
-        dict
-            A dictionary with either field labels or machine names as the keys.
+        dict|bool
+            A dictionary with either field labels or machine names as the keys. Returns False if
+            can't produce a reliable mapping, specifically if the field labels are not unique.
     """
     field_defs = get_field_definitions(config, entity_type, bundle_type)
     map = dict()
+    labels = []
     for field, properties in field_defs.items():
+        labels.append(properties['label'])
         if keys == 'labels':
             map[properties['label']] = field
 
         if keys == 'names':
             map[field] = properties['label']
 
+    if keys == 'labels':
+        duplicate_labels = [label for label, count in collections.Counter(labels).items() if count > 1]
+        if len(duplicate_labels) > 0:
+            if die is True:
+                message = f"Duplicate field labels exist ({', '. join(duplicate_labels)}). To continue, remove the \"csv_headers\" setting " + \
+                    "from your configuration file and change your CSV headers from field labels to field machine names."
+                logging.error(message)
+                sys.exit("Error: " + message)
+            else:
+                return False
+
     return map
+
+
+def replace_field_labels_with_names(config, csv_headers):
+    """Replace field labels in a list of CSV column headers with their machine name equivalents.
+
+        Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        csv_headers: list
+            A list containing the CSV headers.
+        Returns
+        -------
+        list
+            The list of CSV headers with any labels replaced with field names.
+    """
+    field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
+    for header_index in range(len(csv_headers)):
+        if csv_headers[header_index] in field_map:
+            csv_headers[header_index] = field_map.get(csv_headers[header_index])
+
+    return csv_headers
 
 
 def check_input(config, args):
@@ -1279,7 +1315,12 @@ def check_input(config, args):
 
     # Check column headers in CSV file.
     csv_data = get_csv_data(config)
-    csv_column_headers = csv_data.fieldnames
+    # WIP on #559.
+    if config['csv_headers'] == 'labels':
+        field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
+        csv_column_headers = replace_field_labels_with_names(config, csv_data.fieldnames)
+    else:
+        csv_column_headers = csv_data.fieldnames
 
     # Check whether each row contains the same number of columns as there are headers.
     row_count = 0
@@ -3299,7 +3340,13 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     # 'restval' is used to populate superfluous fields/labels.
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
 
-    csv_reader_fieldnames = csv_reader.fieldnames
+    # WIP on #559.
+    if config['csv_headers'] == 'labels':
+        field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
+        csv_reader_fieldnames = replace_field_labels_with_names(config, csv_reader.fieldnames)
+    else:
+        csv_reader_fieldnames = csv_reader.fieldnames
+
     confirmed = []
     duplicates = []
     for item in csv_reader_fieldnames:
