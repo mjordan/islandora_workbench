@@ -27,6 +27,7 @@ import edtf_validate.valid_edtf
 import shutil
 import itertools
 import http.client
+import pickle
 
 
 # Set some global variables.
@@ -1032,12 +1033,23 @@ def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
         keys: string
             One of 'labels' or 'names'. 'labels' returns a dictionary where the field labels are
             the keys, 'names' returns a dictionary where the field machine names are the keys.
+        die: bool
+            Whether or not to exit if there is a problem generating the map.
         Returns
         -------
         dict|bool
-            A dictionary with either field labels or machine names as the keys. Returns False if
-            can't produce a reliable mapping, specifically if the field labels are not unique.
+            A dictionary with either field labels or machine names as the keys.
+            Returns False if the field labels are not unique.
     """
+    # We delete the cached map in check_input() and in Workbench's create(), update(), and
+    # create_terms() functions so the cache is always fresh.
+    fieldname_map_cache_path = os.path.join(config['temp_dir'], f"{entity_type}-{bundle_type}-{keys}.fieldname_map")
+    if os.path.exists(fieldname_map_cache_path):
+        cache_file = open(fieldname_map_cache_path, 'r')
+        cache = cache_file.read()
+        cache_file.close()
+        return json.loads(cache)
+
     field_defs = get_field_definitions(config, entity_type, bundle_type)
     map = dict()
     labels = []
@@ -1060,6 +1072,10 @@ def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
             else:
                 return False
 
+    cache_file = open(fieldname_map_cache_path, 'w')
+    cache_file.write(json.dumps(map))
+    cache_file.close()
+
     return map
 
 
@@ -1077,7 +1093,12 @@ def replace_field_labels_with_names(config, csv_headers):
         list
             The list of CSV headers with any labels replaced with field names.
     """
-    field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
+    # @todo: account for other entity types.
+    if config['task'] == 'create_terms':
+        field_map = get_fieldname_map(config, 'taxonomy_term', config['vocab_id'], 'labels')
+    else:
+        field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
+
     for header_index in range(len(csv_headers)):
         if csv_headers[header_index] in field_map:
             csv_headers[header_index] = field_map.get(csv_headers[header_index])
@@ -1316,8 +1337,13 @@ def check_input(config, args):
     # Check column headers in CSV file.
     csv_data = get_csv_data(config)
     # WIP on #559.
-    if config['csv_headers'] == 'labels':
-        field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
+    if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms']:
+        if config['task'] == 'create_terms':
+            fieldname_map_cache_path = os.path.join(config['temp_dir'], f"taxonomy_term-{config['vocab_id']}-labels.fieldname_map")
+        else:
+            fieldname_map_cache_path = os.path.join(config['temp_dir'], f"node-{config['content_type']}-labels.fieldname_map")
+        if os.path.exists(fieldname_map_cache_path):
+            os.remove(fieldname_map_cache_path)
         csv_column_headers = replace_field_labels_with_names(config, csv_data.fieldnames)
     else:
         csv_column_headers = csv_data.fieldnames
@@ -3341,8 +3367,13 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
 
     # WIP on #559.
-    if config['csv_headers'] == 'labels':
-        field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
+    if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms']:
+        '''
+        if config['task'] == 'create_terms':
+            field_map = get_fieldname_map(config, 'taxonomy_term', config['vocab_id'], 'labels')
+        else:
+            field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
+        '''
         csv_reader_fieldnames = replace_field_labels_with_names(config, csv_reader.fieldnames)
     else:
         csv_reader_fieldnames = csv_reader.fieldnames

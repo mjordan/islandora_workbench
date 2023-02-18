@@ -32,6 +32,11 @@ def create():
     prep_rollback_csv(config, path_to_rollback_csv_file)
     logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
 
+    if config['csv_headers'] == 'labels':
+        fieldname_map_cache_path = os.path.join(config['temp_dir'], f"node-{config['content_type']}-labels.fieldname_map")
+        if os.path.exists(fieldname_map_cache_path):
+            os.remove(fieldname_map_cache_path)
+
     if config['log_term_creation'] is False:
         logging.info("'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged.")
 
@@ -351,6 +356,11 @@ def update():
     message = '"Update" (' + config['update_mode'] + ') task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
+
+    if config['csv_headers'] == 'labels':
+        fieldname_map_cache_path = os.path.join(config['temp_dir'], f"node-{config['content_type']}-labels.fieldname_map")
+        if os.path.exists(fieldname_map_cache_path):
+            os.remove(fieldname_map_cache_path)
 
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
@@ -1147,6 +1157,11 @@ def create_terms():
     message = '"Create terms" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
+
+    if config['csv_headers'] == 'labels':
+        fieldname_map_cache_path = os.path.join(config['temp_dir'], f"taxonomy_term-{config['vocab_id']}-labels.fieldname_map")
+        if os.path.exists(fieldname_map_cache_path):
+            os.remove(fieldname_map_cache_path)
 
     if config['progress_bar'] is True:
         csv_data_to_count = list(get_csv_data(config))
