@@ -27,7 +27,6 @@ import edtf_validate.valid_edtf
 import shutil
 import itertools
 import http.client
-import pickle
 
 
 # Set some global variables.
