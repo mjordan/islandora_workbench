@@ -6131,6 +6131,25 @@ def get_percentage(part, whole):
     return 100 * float(part) / float(whole)
 
 
+def get_config_file_identifier(config):
+    """Gets a unique identifier, per execution, of the current config file.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        Returns
+        -------
+        string
+            A string based on the config file's path, with directory (back)slashes
+            replaced with plus signs.
+    """
+    split_path = os.path.splitdrive(os.path.splitext(config['current_config_file_path'])[0])
+    path_id = re.sub(r'[/\\]', '+', split_path[1].strip('/\\'))
+
+    return path_id
+
+
 def calculate_response_time_trend(config, response_time):
     """Gets the average response time from the most recent 20 HTTP requests.
     """

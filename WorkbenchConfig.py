@@ -59,6 +59,7 @@ class WorkbenchConfig:
                     config['preprocessors'][key] = value
 
         config['host'] = config['host'].rstrip('/')
+        config['current_config_file_path'] = os.path.abspath(self.args.config)
 
         return config
 
