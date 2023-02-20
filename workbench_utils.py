@@ -4677,10 +4677,11 @@ def validate_parent_ids_precede_children(config, csv_data):
         if row[1]['parent_id'] == '':
             continue
         parent_id = row[1]['parent_id']
-        if row[1]['position'] < positions[parent_id]['position']:
-            message = f"Child item with CSV ID \"{row[0]}\" must come after its parent (CSV ID \"{row[1]['parent_id']}\") in the CSV file."
-            logging.error(message)
-            sys.exit('Error: ' + message)
+        if parent_id in positions:
+            if row[1]['position'] < positions[parent_id]['position']:
+                message = f"Child item with CSV ID \"{row[0]}\" must come after its parent (CSV ID \"{row[1]['parent_id']}\") in the CSV file."
+                logging.error(message)
+                sys.exit('Error: ' + message)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
