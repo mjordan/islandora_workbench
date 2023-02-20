@@ -5261,6 +5261,12 @@ def get_rollback_csv_filepath(config):
         rollback_csv_filename = 'rollback.' + now_string + '.csv'
     else:
         rollback_csv_filename = 'rollback.csv'
+
+    secondary_task_data = read_node_ids_tsv(config)
+    if os.path.basename(config['current_config_file_path']) in secondary_task_data:
+        config_file_id = get_config_file_identifier(config)
+        rollback_csv_filename = rollback_csv_filename + '.' + config_file_id
+
     return os.path.join(config['rollback_dir'] or config['input_dir'], rollback_csv_filename)
 
 
