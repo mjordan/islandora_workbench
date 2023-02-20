@@ -1267,8 +1267,6 @@ workbench_config = WorkbenchConfig(args)
 
 config = workbench_config.get_config()
 
-print("DEBUG ", get_config_file_identifier(config))
-
 create_temp_dir(config)
 
 for handler in logging.root.handlers[:]:

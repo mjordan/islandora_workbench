@@ -6132,7 +6132,7 @@ def get_percentage(part, whole):
 
 
 def get_config_file_identifier(config):
-    """Gets a unique identifier, per execution, of the current config file.
+    """Gets a unique identifier of the current config file. Used in names of temp files, etc.
     """
     """Parameters
         ----------
@@ -6141,13 +6141,13 @@ def get_config_file_identifier(config):
         Returns
         -------
         string
-            A string based on the config file's path, with directory (back)slashes
-            replaced with plus signs.
+            A string based on the config file's path, with directory slashes and backslashes
+            replaced with underscores.
     """
     split_path = os.path.splitdrive(os.path.splitext(config['current_config_file_path'])[0])
-    path_id = re.sub(r'[/\\]', '+', split_path[1].strip('/\\'))
+    config_file_id = re.sub(r'[/\\]', '_', split_path[1].strip('/\\'))
 
-    return path_id
+    return config_file_id
 
 
 def calculate_response_time_trend(config, response_time):
