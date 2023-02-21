@@ -5371,7 +5371,7 @@ def get_csv_from_excel(config):
 
     config_file_id = get_config_file_identifier(config)
     secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-    if os.path.basename(config['current_config_file_path']) in secondary_tasks:
+    if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
         config_file_id = get_config_file_identifier(config)
         exported_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'] + '.' + config_file_id)
     else:

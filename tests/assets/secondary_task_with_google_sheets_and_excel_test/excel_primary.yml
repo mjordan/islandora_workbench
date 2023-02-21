@@ -4,11 +4,13 @@ username: admin
 password: password
 
 nodes_only: true
-secondary_tasks: ['tests/assets/secondary_task_with_google_sheets_and_excel_test/google_sheets_secondary.yml']
+secondary_tasks: ['tests/assets/secondary_task_with_google_sheets_and_excel_test/excel_secondary.yml']
 csv_field_templates:
  - field_model: https://schema.org/DigitalDocument
  - field_resource_type: 12
 
-input_csv: https://docs.google.com/spreadsheets/d/19AxFWEFuwEoNqH8ciUo0PRAroIpNE9BuBhE5tIE6INQ/edit#gid=0
+input_dir: tests/assets/secondary_task_with_google_sheets_and_excel_test
+input_csv: secondary_task_with_excel.xlsx
+excel_worksheet: primary
 
 
