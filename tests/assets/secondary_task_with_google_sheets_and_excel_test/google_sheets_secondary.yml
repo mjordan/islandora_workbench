@@ -1,0 +1,14 @@
+task: create
+host: https://islandora.traefik.me
+username: admin
+password: password
+
+nodes_only: true
+csv_field_templates:
+ - field_model: https://schema.org/DigitalDocument
+ - field_resource_type: 12
+input_csv: https://docs.google.com/spreadsheets/d/19AxFWEFuwEoNqH8ciUo0PRAroIpNE9BuBhE5tIE6INQ/edit
+google_sheets_gid: 637387343
+
+
+

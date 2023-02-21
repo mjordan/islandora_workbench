@@ -41,7 +41,7 @@ def create():
         logging.info("'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged.")
 
     if config['secondary_tasks'] is not None:
-        if args.config not in config['secondary_tasks']:
+        if os.path.abspath(args.config) not in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
             prep_node_ids_tsv(config)
 
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
@@ -115,7 +115,7 @@ def create():
         # Therefore, only tasks whose names are registered there should populate
         # their objects' 'field_member_of'.
         secondary_task_data = read_node_ids_tsv(config)
-        if args.config in secondary_task_data:
+        if os.path.abspath(args.config) in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
             if len(secondary_task_data) > 0:
                 if 'field_member_of' in row and 'parent_id' in row and row['parent_id'] in secondary_task_data.keys():
                     row['field_member_of'] = secondary_task_data[row['parent_id']]
@@ -268,7 +268,7 @@ def create():
             node_ids[id_field] = node_nid
 
             if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
-                if args.config not in config['secondary_tasks']:
+                if args.config not in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
                     write_to_node_ids_tsv(config, id_field, node_id)
 
         if config['progress_bar'] is True:
@@ -1269,6 +1269,16 @@ config = workbench_config.get_config()
 
 create_temp_dir(config)
 
+if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
+    secondary_tasks = []
+    for secondary_config_file in config['secondary_tasks']:
+        secondary_tasks.append(os.path.abspath(secondary_config_file))
+    secondary_tasks_registry_string = json.dumps(secondary_tasks)
+    os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"] = secondary_tasks_registry_string
+    # We can't use the temp_dir to cache this list since the secondary tasks may not use
+    # the same temp_dir as the primary task.
+    os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"] = os.path.abspath(config['temp_dir'])
+
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 
@@ -1393,7 +1403,7 @@ try:
             cmd = [config['path_to_python'], config['path_to_workbench_script'], "--config", secondary_config_file]
             output = subprocess.run(cmd)
 
-        map_file_path = os.path.join(config['input_dir'], config['secondary_tasks_data_file'])
+        map_file_path = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
         if os.path.exists(map_file_path):
             os.remove(map_file_path)
 
@@ -1408,6 +1418,10 @@ try:
                 logging.error(f"Shutdown script {command} failed with exit code {str(return_code)}.")
 
     logging.info(f"Islandora Workbench successfully completed.")
+
+    os.environ.pop("ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR")
+    os.environ.pop("ISLANDORA_WORKBENCH_SECONDARY_TASKS")
+
 
 except KeyboardInterrupt:
     print('Exiting before entire CSV processed. See log for more info.')

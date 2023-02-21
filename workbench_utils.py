@@ -2118,7 +2118,7 @@ def check_input(config, args):
     if config['secondary_tasks'] is None:
         sys.exit(0)
     else:
-        for secondary_config_file in config['secondary_tasks']:
+        for secondary_config_file in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
             print("")
             print('Running --check using secondary configuration file "' + secondary_config_file + '"')
             if os.name == 'nt':
@@ -3336,11 +3336,11 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     if os.path.isabs(file_path):
         input_csv_path = file_path
     elif file_path.startswith('http') is True:
-        input_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
+        input_csv_path = get_extracted_csv_file_path(config)
         if not os.path.exists(input_csv_path):
             get_csv_from_google_sheet(config)
     elif file_path.endswith('.xlsx') is True:
-        input_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'])
+        input_csv_path = get_extracted_csv_file_path(config)
         if not os.path.exists(input_csv_path):
             get_csv_from_excel(config)
     else:
@@ -5262,8 +5262,8 @@ def get_rollback_csv_filepath(config):
     else:
         rollback_csv_filename = 'rollback.csv'
 
-    secondary_task_data = read_node_ids_tsv(config)
-    if os.path.basename(config['current_config_file_path']) in secondary_task_data:
+    secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
+    if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
         config_file_id = get_config_file_identifier(config)
         rollback_csv_filename = rollback_csv_filename + '.' + config_file_id
 
@@ -5322,13 +5322,20 @@ def get_csv_from_google_sheet(config):
         sys.exit('Error: ' + message)
 
     # Sheets that aren't publicly readable return a 302 and then a 200 with a bunch of HTML for humans to look at.
-    if response.content.strip().startswith(b'<!DOCTYPE'):
+    if response.content.strip().startswith(b'<!doctype html'):
         message = 'The Google spreadsheet at ' + config['input_csv'] + ' is not accessible.\nPlease check its "Share" settings.'
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    input_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
-    open(input_csv_path, 'wb+').write(response.content)
+    config_file_id = get_config_file_identifier(config)
+    secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
+    if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
+        config_file_id = get_config_file_identifier(config)
+        exported_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'] + '.' + config_file_id)
+    else:
+        exported_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
+
+    open(exported_csv_path, 'wb+').write(response.content)
 
 
 def get_csv_from_excel(config):
@@ -5362,14 +5369,50 @@ def get_csv_from_excel(config):
                 record[headers[x]] = row[x].value
         records.append(record)
 
-    input_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'])
-    csv_writer_file_handle = open(input_csv_path, 'w+', newline='', encoding='utf-8')
+    config_file_id = get_config_file_identifier(config)
+    secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
+    if os.path.basename(config['current_config_file_path']) in secondary_tasks:
+        config_file_id = get_config_file_identifier(config)
+        exported_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'] + '.' + config_file_id)
+    else:
+        exported_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'])
+
+    csv_writer_file_handle = open(exported_csv_path, 'w+', newline='', encoding='utf-8')
     csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
     csv_writer.writeheader()
     for record in records:
         if (config['id_field'] in record or 'node_id' in record) and record[config['id_field']] is not None:
             csv_writer.writerow(record)
     csv_writer_file_handle.close()
+
+
+def get_extracted_csv_file_path(config):
+    """For secondary tasks were input is either a Google Sheet or an Excel file,
+       get the path to the extracted CSV.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        Returns
+        -------
+        string|bool
+            A file path with the current config file's unique ID appended to it.
+            False if config['input_csv'] is not a Google Sheet or Excel file.
+    """
+    if config['input_csv'].startswith('http'):
+        exported_csv_filename = config['google_sheets_csv_filename']
+    elif config['input_csv'].endswith('xlsx'):
+        exported_csv_filename = config['excel_csv_filename']
+    else:
+        return False
+
+    secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
+    if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
+        config_file_id = get_config_file_identifier(config)
+        exported_csv_filename = exported_csv_filename + '.' + config_file_id
+
+    return os.path.join(config['temp_dir'], exported_csv_filename)
 
 
 def get_extension_from_mimetype(mimetype):
@@ -5569,7 +5612,6 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
 def get_node_media_ids(config, node_id, media_use_tids=[]):
     """Gets a list of media IDs for a node.
     """
-
     """Parameters
         ----------
         config : dict
@@ -5815,13 +5857,13 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             input_csv = config['input_csv']
         # For Google Sheets, the "extraction" is fired over in workbench.
         elif config['input_csv'].startswith('http'):
-            input_csv = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
-            message = "Extracting CSV data from " + config['temp_dir'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
+            input_csv = get_extracted_csv_file_path(config)
+            message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
             print(message)
             logging.info(message)
         elif config['input_csv'].endswith('xlsx'):
-            input_csv = os.path.join(config['temp_dir'], config['excel_csv_filename'])
-            message = "Extracting CSV data from " + config['temp_csv'] + " to " + input_csv + '.'
+            input_csv = get_extracted_csv_file_path(config)
+            message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
             print(message)
             logging.info(message)
         else:
@@ -5837,21 +5879,9 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             logging.error(message)
             sys.exit('Error: ' + message)
     if csv_file_target == 'taxonomy_fields':
+        # For Google Sheets and Excel, the "extraction" is fired in workbench.
         if os.path.isabs(file_path):
             input_csv = file_path
-            '''
-            # For Google Sheets, the "extraction" is fired over in workbench.
-            elif config['input_csv'].startswith('http'):
-                input_csv = os.path.join(config['input_dir'], config['google_sheets_csv_filename'])
-                message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
-                print(message)
-                logging.info(message)
-            elif config['input_csv'].endswith('xlsx'):
-                input_csv = os.path.join(config['input_dir'], config['excel_csv_filename'])
-                message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
-                print(message)
-                logging.info(message)
-            '''
         else:
             input_csv = os.path.join(config['input_dir'], file_path)
 
@@ -6056,7 +6086,7 @@ def prep_node_ids_tsv(config):
        populate their objects' 'field_member_of'. We write the parent ID->nid map to this file
        as well, in write_to_node_ids_tsv().
     """
-    path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
+    path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
     if os.path.exists(path_to_tsv_file):
         os.remove(path_to_tsv_file)
     if len(config['secondary_tasks']) > 0:
@@ -6070,7 +6100,7 @@ def prep_node_ids_tsv(config):
 
 
 def write_to_node_ids_tsv(config, row_id, node_id):
-    path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
+    path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
     tsv_file = open(path_to_tsv_file, "a+", encoding='utf-8')
     tsv_file.write(str(row_id) + "\t" + str(node_id) + "\n")
     tsv_file.close()
@@ -6078,7 +6108,7 @@ def write_to_node_ids_tsv(config, row_id, node_id):
 
 def read_node_ids_tsv(config):
     map = dict()
-    path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
+    path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
     if config['secondary_tasks'] is not None:
         if not os.path.exists(path_to_tsv_file):
             message = 'Secondary task data file ' + path_to_tsv_file + ' not found.'
