@@ -5264,10 +5264,11 @@ def get_rollback_csv_filepath(config):
     else:
         rollback_csv_filename = 'rollback.csv'
 
-    secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-    if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
-        config_file_id = get_config_file_identifier(config)
-        rollback_csv_filename = rollback_csv_filename + '.' + config_file_id
+    if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
+        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
+        if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
+            config_file_id = get_config_file_identifier(config)
+            rollback_csv_filename = rollback_csv_filename + '.' + config_file_id
 
     return os.path.join(config['rollback_dir'] or config['input_dir'], rollback_csv_filename)
 
@@ -5329,11 +5330,14 @@ def get_csv_from_google_sheet(config):
         logging.error(message)
         sys.exit('Error: ' + message)
 
-    config_file_id = get_config_file_identifier(config)
-    secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-    if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
+    if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
+        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
         config_file_id = get_config_file_identifier(config)
-        exported_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'] + '.' + config_file_id)
+        if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
+            config_file_id = get_config_file_identifier(config)
+            exported_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'] + '.' + config_file_id)
+        else:
+            exported_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
     else:
         exported_csv_path = os.path.join(config['temp_dir'], config['google_sheets_csv_filename'])
 
@@ -5371,11 +5375,14 @@ def get_csv_from_excel(config):
                 record[headers[x]] = row[x].value
         records.append(record)
 
-    config_file_id = get_config_file_identifier(config)
-    secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-    if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
+    if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
+        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
         config_file_id = get_config_file_identifier(config)
-        exported_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'] + '.' + config_file_id)
+        if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
+            config_file_id = get_config_file_identifier(config)
+            exported_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'] + '.' + config_file_id)
+        else:
+            exported_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'])
     else:
         exported_csv_path = os.path.join(config['temp_dir'], config['excel_csv_filename'])
 
@@ -5409,10 +5416,11 @@ def get_extracted_csv_file_path(config):
     else:
         return False
 
-    secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-    if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
-        config_file_id = get_config_file_identifier(config)
-        exported_csv_filename = exported_csv_filename + '.' + config_file_id
+    if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
+        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
+        if os.path.abspath(config['current_config_file_path']) in secondary_tasks:
+            config_file_id = get_config_file_identifier(config)
+            exported_csv_filename = exported_csv_filename + '.' + config_file_id
 
     return os.path.join(config['temp_dir'], exported_csv_filename)
 

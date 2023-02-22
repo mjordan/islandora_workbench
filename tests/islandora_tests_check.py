@@ -23,7 +23,11 @@ import workbench_utils
 class TestCreateCheck(unittest.TestCase):
 
     def setUp(self):
-        cmd = ["./workbench", "--config", "create.yml", "--check"]
+
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'check_test', 'create.yml')
+
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -37,7 +41,11 @@ class TestCheckFromGoogleSpreadsheetCheck(unittest.TestCase):
     """
 
     def setUp(self):
-        cmd = ["./workbench", "--config", "google_spreadsheet.yml", "--check"]
+
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'check_test', 'google_sheet.yml')
+
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -50,7 +58,10 @@ class TestCheckFromGoogleSpreadsheetCheck(unittest.TestCase):
 class TestUpdateCheck(unittest.TestCase):
 
     def setUp(self):
-        cmd = ["./workbench", "--config", "update.yml", "--check"]
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'check_test', 'update.yml')
+
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -62,7 +73,10 @@ class TestUpdateCheck(unittest.TestCase):
 class TestDeleteCheck(unittest.TestCase):
 
     def setUp(self):
-        cmd = ["./workbench", "--config", "delete.yml", "--check"]
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'check_test', 'delete.yml')
+
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -74,7 +88,10 @@ class TestDeleteCheck(unittest.TestCase):
 class TestAddMediaCheck(unittest.TestCase):
 
     def setUp(self):
-        cmd = ["./workbench", "--config", "add_media.yml", "--check"]
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'check_test', 'add_media.yml')
+
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
