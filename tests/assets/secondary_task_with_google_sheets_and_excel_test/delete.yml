@@ -2,4 +2,4 @@ task: delete
 host: "http://localhost:8000"
 username: admin
 password: islandora
-input_csv: /tmp/workbenchsecondarytaskwithgooglesheetstestnids.txt
+input_csv: /tmp/workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt

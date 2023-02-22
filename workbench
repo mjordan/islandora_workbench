@@ -518,8 +518,9 @@ def delete():
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
             if config['progress_bar'] is False:
-                print("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
-            logging.warning("Node " + row['node_id'] + " not found or not " + "accessible, skipping delete.")
+                message = f"Node {row['node_id']} not found or not accessible, skipping delete."
+                print(message)
+            logging.warning(message)
             continue
 
         # Delete the node's media first.
@@ -1419,8 +1420,10 @@ try:
 
     logging.info(f"Islandora Workbench successfully completed.")
 
-    os.environ.pop("ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR")
-    os.environ.pop("ISLANDORA_WORKBENCH_SECONDARY_TASKS")
+    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
+        os.environ.pop('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR')
+    if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
+        os.environ.pop('ISLANDORA_WORKBENCH_SECONDARY_TASKS')
 
 
 except KeyboardInterrupt:

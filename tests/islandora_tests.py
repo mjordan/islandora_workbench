@@ -418,6 +418,12 @@ class TestSecondaryTask(unittest.TestCase):
         self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt')
         self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt.preprocessed')
 
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
+
     def test_secondary_task(self):
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
@@ -502,10 +508,16 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
         self.create_cmd = ["./workbench", "--config", create_config_file_path]
 
         self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetstestnids.txt')
-        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetstestnids.txt.preprocessed')
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt')
+        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt.preprocessed')
 
-    def test_secondary_task(self):
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
+
+    def test_secondary_task_with_google_sheet(self):
         self.nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -541,31 +553,112 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
                 self.assertEqual(int(node_json['field_member_of'][0]['target_id']), int(parent_nid))
             if node_json['field_local_identifier'][0]['value'] == 'GSC-04':
                 self.assertEqual(int(node_json['field_member_of'][0]['target_id']), int(parent_nid))
-            else:
-                self.assertEqual(node_json['field_member_of'], [])
 
     def tearDown(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'delete.yml')
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
         delete_output = subprocess.check_output(delete_cmd)
         delete_output = delete_output.decode().strip()
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'metadata.csv.preprocessed')
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-        secondary_preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'secondary.csv.preprocessed')
-        if os.path.exists(secondary_preprocessed_csv_path):
-            os.remove(secondary_preprocessed_csv_path)
-
-        map_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'id_to_node_map.tsv')
+        map_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'id_to_node_map.tsv')
         if os.path.exists(map_file_path):
             os.remove(map_file_path)
 
-        rollback_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'rollback.csv')
+        rollback_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'rollback.csv')
         if os.path.exists(rollback_file_path):
             os.remove(rollback_file_path)
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
+
+
+class TestSecondaryTaskWithExcel(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'excel_primary.yml')
+
+        yaml = YAML()
+        with open(create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config['host']
+
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+
+        self.temp_dir = tempfile.gettempdir()
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt')
+        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt.preprocessed')
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
+
+    def test_secondary_task_with_excel(self):
+        self.nids = list()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        # Write a file to the system's temp directory containing the node IDs of the
+        # nodes created during this test so they can be deleted in tearDown().
+        create_lines = create_output.splitlines()
+        with open(self.nid_file, "a") as fh:
+            fh.write("node_id\n")
+            for line in create_lines:
+                if 'created at' in line:
+                    nid = line.rsplit('/', 1)[-1]
+                    nid = nid.strip('.')
+                    self.nids.append(nid)
+                    fh.write(nid + "\n")
+
+        self.assertEqual(len(self.nids), 8)
+
+        for nid in self.nids:
+            node_url = self.islandora_host + '/node/' + nid + '?_format=json'
+            response = requests.get(node_url)
+            node_json = json.loads(response.text)
+            # Get the node ID of the parent node.
+            if node_json['field_local_identifier'][0]['value'] == 'STTP-02':
+                parent_nid = node_json['nid'][0]['value']
+                break
+
+        for nid in self.nids:
+            node_url = self.islandora_host + '/node/' + nid + '?_format=json'
+            response = requests.get(node_url)
+            node_json = json.loads(response.text)
+            if node_json['field_local_identifier'][0]['value'] == 'STTC-01':
+                self.assertEqual(int(node_json['field_member_of'][0]['target_id']), int(parent_nid))
+            if node_json['field_local_identifier'][0]['value'] == 'STTC-02':
+                self.assertEqual(int(node_json['field_member_of'][0]['target_id']), int(parent_nid))
+
+    def tearDown(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'delete.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        delete_output = subprocess.check_output(delete_cmd)
+        delete_output = delete_output.decode().strip()
+        delete_lines = delete_output.splitlines()
+        os.remove(self.nid_file)
+
+        map_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'id_to_node_map.tsv')
+        if os.path.exists(map_file_path):
+            os.remove(map_file_path)
+
+        rollback_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'rollback.csv')
+        if os.path.exists(rollback_file_path):
+            os.remove(rollback_file_path)
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
 
         if os.path.exists(self.nid_file_preprocessed):
             os.remove(self.nid_file_preprocessed)

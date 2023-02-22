@@ -1,13 +1,10 @@
 task: create
-host: https://islandora.traefik.me
+host: http://localhost:8000
 username: admin
-password: password
-
+password: islandora
 nodes_only: true
 csv_field_templates:
  - field_model: https://schema.org/DigitalDocument
- - field_resource_type: 12
-
 id_field: field_local_identifier
 input_dir: tests/assets/secondary_task_with_google_sheets_and_excel_test
 input_csv: secondary_task_with_excel.xlsx
