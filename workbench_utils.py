@@ -6096,7 +6096,10 @@ def prep_node_ids_tsv(config):
        populate their objects' 'field_member_of'. We write the parent ID->nid map to this file
        as well, in write_to_node_ids_tsv().
     """
-    path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
+        path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+    else:
+        path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
     if os.path.exists(path_to_tsv_file):
         os.remove(path_to_tsv_file)
     if len(config['secondary_tasks']) > 0:
@@ -6110,7 +6113,10 @@ def prep_node_ids_tsv(config):
 
 
 def write_to_node_ids_tsv(config, row_id, node_id):
-    path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
+        path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+    else:
+        path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
     tsv_file = open(path_to_tsv_file, "a+", encoding='utf-8')
     tsv_file.write(str(row_id) + "\t" + str(node_id) + "\n")
     tsv_file.close()
@@ -6118,7 +6124,10 @@ def write_to_node_ids_tsv(config, row_id, node_id):
 
 def read_node_ids_tsv(config):
     map = dict()
-    path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
+        path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+    else:
+        path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
     if config['secondary_tasks'] is not None:
         if not os.path.exists(path_to_tsv_file):
             message = 'Secondary task data file ' + path_to_tsv_file + ' not found.'
