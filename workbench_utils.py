@@ -2278,6 +2278,8 @@ def clean_csv_values(row):
         row[field] = str(row[field]).replace('“', '"').replace('”', '"')
         row[field] = str(row[field]).replace("‘", "'").replace("’", "'")
 
+        # Remove multiple spaces within string.
+        row[field] = re.sub(' +', ' ', str(row[field]))
         # Strip leading and trailing whitespace.
         row[field] = str(row[field]).strip()
     return row
