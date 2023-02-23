@@ -183,8 +183,7 @@ def create():
             if 'preprocessors' in config and len(config['preprocessors']) > 0:
                 for field, command in config['preprocessors'].items():
                     if field in csv_column_headers:
-                        output, return_code = preprocess_field_data(
-                            config['subdelimiter'], row[field], command)
+                        output, return_code = preprocess_field_data(config['subdelimiter'], row[field], command)
                         if return_code == 0:
                             preprocessor_input = copy.deepcopy(row[field])
                             row[field] = output.decode().strip()

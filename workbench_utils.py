@@ -3392,8 +3392,8 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         sys.exit(message)
     csv_reader_fieldnames = [x for x in csv_reader_fieldnames if x not in config['ignore_csv_columns']]
 
+    # CSV field templates and CSV value templates only apply to node CSV files, not vocabulary CSV files.
     tasks = ['create', 'update']
-    # CSV field templates only apply to node CSV files, not vocabulary CSV files.
     if config['task'] in tasks and csv_file_target == 'node_fields' and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
         # If the config file contains CSV field templates, append them to the CSV data.
         # Make a copy of the column headers so we can skip adding templates to the new CSV
@@ -3432,6 +3432,10 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
             if not list(row.values())[0].startswith('#'):
                 try:
                     unique_identifiers.append(row[config['id_field']])
+
+                    if 'csv_value_templates' in config and len(config['csv_value_templates']) > 0:
+                        row = apply_csv_value_templates(config, row)
+
                     row = clean_csv_values(row)
                     csv_writer.writerow(row)
                 except (ValueError):
@@ -6038,6 +6042,39 @@ def get_page_title_from_template(config, parent_title, weight):
     page_title_template = string.Template(config['page_title_template'])
     page_title = str(page_title_template.substitute({'parent_title': parent_title, 'weight': weight}))
     return page_title
+
+
+def apply_csv_value_templates(config, row):
+    """Applies a simple template to a CSV value.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        row: OrderedDict
+            A CSV row.
+        Returns
+        -------
+        string
+            The row with CSV value templates applied.
+    """
+    templates = dict()
+    for template in config['csv_value_templates']:
+        for field_name, value_template in template.items():
+            templates[field_name] = value_template
+
+    for field in row:
+        if field in templates:
+            incoming_subvalues = row[field].split(config['subdelimiter'])
+            outgoing_subvalues = []
+            for subvalue in incoming_subvalues:
+                if len(subvalue) > 0:
+                    csv_value_template = string.Template(templates[field])
+                    subvalue = str(csv_value_template.substitute({'csv_value': subvalue}))
+                    outgoing_subvalues.append(subvalue)
+            templated_string = config['subdelimiter'].join(outgoing_subvalues)
+            row[field] = templated_string
+    return row
 
 
 def serialize_field_json(config, field_definitions, field_name, field_data):
