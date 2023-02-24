@@ -2270,18 +2270,34 @@ def validate_language_code(langcode):
         return False
 
 
-def clean_csv_values(row):
+def clean_csv_values(config, row):
     """Performs basic string cleanup on CSV values.
     """
+    """Parameters
+        ----------
+        config : dict
+            The configuration object defined by set_config_defaults().
+        row : OrderedDict
+            A CSV row.
+        Returns
+        -------
+        preprocessed_csv_reader
+            The CSV DictReader object.
+    """
     for field in row:
-        # Replace smart/curly quotes with straight ones.
-        row[field] = str(row[field]).replace('“', '"').replace('”', '"')
-        row[field] = str(row[field]).replace("‘", "'").replace("’", "'")
+        if 'smart_quotes' not in config['clean_csv_values_skip']:
+            # Replace smart/curly quotes with straight ones.
+            row[field] = str(row[field]).replace('“', '"').replace('”', '"')
+            row[field] = str(row[field]).replace("‘", "'").replace("’", "'")
 
-        # Remove multiple spaces within string.
-        row[field] = re.sub(' +', ' ', str(row[field]))
-        # Strip leading and trailing whitespace.
-        row[field] = str(row[field]).strip()
+        if 'inside_spaces' not in config['clean_csv_values_skip']:
+            # Remove multiple spaces within string.
+            row[field] = re.sub(' +', ' ', str(row[field]))
+
+        if 'outside_spaces' not in config['clean_csv_values_skip']:
+            # Strip leading and trailing whitespace, including newlines.
+            row[field] = str(row[field]).strip()
+
     return row
 
 

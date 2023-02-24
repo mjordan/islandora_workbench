@@ -533,6 +533,8 @@ class TestValueIsNumeric(unittest.TestCase):
 
 class TestCleanCsvValues(unittest.TestCase):
     def test_clean_csv_values(self):
+        config = {'clean_csv_values_skip': []}
+
         csv_record = collections.OrderedDict()
         csv_record['one'] = ' blsidlw  '
         csv_record['two'] = 'hheo "s7s9w9"'
@@ -550,7 +552,42 @@ class TestCleanCsvValues(unittest.TestCase):
         clean_csv_record['five'] = 'new lines'
         clean_csv_record['six'] = 'a b c d e'
 
-        csv_record = workbench_utils.clean_csv_values(csv_record)
+        csv_record = workbench_utils.clean_csv_values(config, csv_record)
+        self.assertEqual(clean_csv_record, csv_record)
+
+    def test_clean_csv_values_skip_smart_quotes(self):
+        config = {'clean_csv_values_skip': ['smart_quotes']}
+
+        csv_record = collections.OrderedDict()
+        csv_record['smq1'] = "b‘bbxbbb’"
+
+        clean_csv_record = collections.OrderedDict()
+        clean_csv_record['smq1'] = "b‘bbxbbb’"
+
+        csv_record = workbench_utils.clean_csv_values(config, csv_record)
+        self.assertEqual(clean_csv_record, csv_record)
+
+    def test_clean_csv_values_skip_spaces(self):
+        config = {'clean_csv_values_skip': ['inside_spaces', 'outside_spaces']}
+
+        csv_record = collections.OrderedDict()
+        csv_record['one'] = ' blsidlw  '
+        csv_record['two'] = 'hheo "s7s9w9"'
+        csv_record['three'] = "b‘bbbbb’"
+        csv_record['four'] = 'لدولي, العاشر []ليونيكود '
+        newline = "\n"
+        csv_record['five'] = f"{newline}new lines{newline}"
+        csv_record['six'] = 'a  b c    d  e'
+
+        clean_csv_record = collections.OrderedDict()
+        clean_csv_record['one'] = ' blsidlw  '
+        clean_csv_record['two'] = 'hheo "s7s9w9"'
+        clean_csv_record['three'] = "b'bbbbb'"
+        clean_csv_record['four'] = 'لدولي, العاشر []ليونيكود '
+        clean_csv_record['five'] = f"{newline}new lines{newline}"
+        clean_csv_record['six'] = 'a  b c    d  e'
+
+        csv_record = workbench_utils.clean_csv_values(config, csv_record)
         self.assertEqual(clean_csv_record, csv_record)
 
 
