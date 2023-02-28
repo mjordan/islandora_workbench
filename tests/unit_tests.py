@@ -603,5 +603,32 @@ class TestGetPageTitleFromTemplate(unittest.TestCase):
             self.assertEqual(fixture['control'], page_title)
 
 
+class TestDeduplicateFieldValues(unittest.TestCase):
+    def test_strings(self):
+        fixtures = [{'input': ['one', 'two', 'two', 'three'], 'control': ['one', 'two', 'three']},
+                    {'input': ['one', 'two', 'two', 'three', 'three'], 'control': ['one', 'two', 'three']},
+                    ]
+
+        for fixture in fixtures:
+            unique_values = workbench_utils.deduplicate_field_values(fixture['input'])
+            self.assertEqual(fixture['control'], unique_values)
+
+    def test_dictionaries(self):
+        fixtures = [{'input': [{'foo': 'bar'}, {'1': 2}, {'1': 2}, {'three': 'four'}],
+                     'control': [{'foo': 'bar'}, {'1': 2}, {'three': 'four'}]},
+                    {'input': [{'foo': 'bar', 'up': 'down'}, {'1': 2}, {'three': 'four'}, {'1': 2}],
+                     'control': [{'foo': 'bar', 'up': 'down'}, {'1': 2}, {'three': 'four'}]},
+                    {'input': [{'foo': {'up': 'down'}}, {'1': 2}, {'three': 'four'}, {'1': 2}],
+                     'control': [{'foo': {'up': 'down'}}, {'1': 2}, {'three': 'four'}]},
+                    {'input': [{'target_type': 'node', 'target_id': 1000, 'target_uuid': 'a5f348bc-ee11-4055-bc9c-599b4da65819', 'url': '/node/1000'},
+                               {'target_id': 1000, 'target_type': 'node', 'url': '/node/1000', 'target_uuid': 'a5f348bc-ee11-4055-bc9c-599b4da65819'}],
+                     'control': [{'target_id': 1000, 'target_type': 'node', 'target_uuid': 'a5f348bc-ee11-4055-bc9c-599b4da65819', 'url': '/node/1000'}]}
+                    ]
+
+        for fixture in fixtures:
+            unique_values = workbench_utils.deduplicate_field_values(fixture['input'])
+            self.assertEqual(fixture['control'], unique_values)
+
+
 if __name__ == '__main__':
     unittest.main()

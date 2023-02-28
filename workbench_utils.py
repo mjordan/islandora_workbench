@@ -2320,6 +2320,28 @@ def truncate_csv_value(field_name, record_id, field_config, value):
     return value
 
 
+def deduplicate_field_values(values):
+    """Removes duplicate entries from 'values' while retaining
+       the order of the unique members.
+    """
+    """Parameters
+        ----------
+        values : list
+            List containing value(s) to dedupe. Members could be strings
+            from CSV or dictionairies.
+        Returns
+        -------
+        list
+            A list of unique field values.
+    """
+    deduped_list = []
+    for member in values:
+        if member not in deduped_list:
+            deduped_list.append(member)
+
+    return deduped_list
+
+
 def get_node_field_values(config, nid):
     """Get a node's field data so we can use it during PATCH updates,
        which replace a field's values.

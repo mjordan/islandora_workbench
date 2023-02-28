@@ -10,7 +10,6 @@
 
 import json
 import copy
-from iteration_utilities import unique_everseen
 from workbench_utils import *
 
 
@@ -198,7 +197,7 @@ class SimpleField():
             list
                 A list of unique field values.
         """
-        return list(unique_everseen(values))
+        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'.
@@ -437,7 +436,7 @@ class GeolocationField():
             list
                 A list of unique field values.
         """
-        return list(unique_everseen(values))
+        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'.
@@ -655,7 +654,7 @@ class LinkField():
             list
                 A list of unique field values.
         """
-        return list(unique_everseen(values))
+        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'.
@@ -941,7 +940,7 @@ class EntityReferenceField():
             list
                 A list of unique field values.
         """
-        return list(unique_everseen(values))
+        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'.
@@ -1214,7 +1213,7 @@ class TypedRelationField():
             list
                 A list of unique field values.
         """
-        return list(unique_everseen(values))
+        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'.
@@ -1441,7 +1440,7 @@ class AuthorityLinkField():
             list
                 A list of unique field values.
         """
-        return list(unique_everseen(values))
+        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'.
@@ -1662,7 +1661,7 @@ class MediaTrackField():
             list
                 A list of unique field values.
         """
-        return list(unique_everseen(values))
+        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'.
