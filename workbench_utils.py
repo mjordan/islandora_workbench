@@ -370,25 +370,6 @@ def check_drupal_core_version(config):
         print(message)
 
 
-def set_drupal_8(config):
-    """Used for integration tests only, in which case it will either be True or False.
-    """
-    if config['drupal_8'] is not None:
-        return config['drupal_8']
-
-    drupal_8 = False
-    drupal_core_version_string = get_drupal_core_version(config)
-    if drupal_core_version_string is not False:
-        drupal_core_version = convert_semver_to_number(drupal_core_version_string)
-    else:
-        message = "Workbench cannot determine Drupal's version number."
-        logging.error(message)
-        sys.exit('Error: ' + message)
-    if drupal_core_version < tuple([8, 6]):
-        drupal_8 = True
-    return drupal_8
-
-
 def check_integration_module_version(config):
     version = get_integration_module_version(config)
 
@@ -3063,112 +3044,6 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         return file_result
 
 
-def create_islandora_media(config, filename, file_fieldname, node_uri, node_csv_row, media_use_tid=None):
-    """node_csv_row is an OrderedDict, e.g.
-       OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
-
-       Returns the HTTP status code from the attempt to create the media, or False if
-       it doesn't have sufficient information to create the media.
-    """
-    if config['nodes_only'] is True:
-        return
-
-    is_remote = False
-
-    filename = filename.strip()
-    if filename.startswith('http'):
-        remote_file_http_reponse = ping_remote_file(config, filename)
-        if remote_file_http_reponse != 200:
-            return False
-        file_path = download_remote_file(config, filename, file_fieldname, node_csv_row)
-        if file_path is False:
-            return False
-        filename = file_path.split("/")[-1]
-        is_remote = True
-    elif os.path.isabs(filename):
-        file_path = filename
-    else:
-        file_path = os.path.join(config['input_dir'], filename)
-
-    mimetype = mimetypes.guess_type(file_path)
-    media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
-    media_bundle_response_code = ping_media_bundle(config, media_type)
-    if media_bundle_response_code == 404:
-        message = 'File "' + filename + '" identified in CSV row ' + file_fieldname + \
-            ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.'
-        logging.error(message)
-        return False
-
-    if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
-        media_use_tid_value = node_csv_row['media_use_tid']
-    else:
-        media_use_tid_value = config['media_use_tid']
-
-    if media_use_tid is not None:
-        media_use_tid_value = media_use_tid
-
-    media_use_tids = []
-    media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
-    for media_use_term in media_use_terms:
-        if value_is_numeric(media_use_term):
-            media_use_tids.append(media_use_term)
-        if not value_is_numeric(media_use_term) and media_use_term.strip().startswith('http'):
-            media_use_tids.append(get_term_id_from_uri(config, media_use_term))
-        if not value_is_numeric(media_use_term) and not media_use_term.strip().startswith('http'):
-            media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip()))
-
-    media_endpoint_path = '/media/' + media_type + '/' + str(media_use_tids[0])
-    media_endpoint = node_uri + media_endpoint_path
-    location = config['drupal_filesystem'] + os.path.basename(filename)
-    media_headers = {
-        'Content-Type': mimetype[0],
-        'Content-Location': location
-    }
-    binary_data = open(file_path, 'rb')
-    media_response = issue_request(config, 'PUT', media_endpoint, media_headers, '', binary_data)
-
-    # Execute media-specific post-create scripts, if any are configured.
-    if 'media_post_create' in config and len(config['media_post_create']) > 0:
-        for command in config['media_post_create']:
-            post_task_output, post_task_return_code = execute_entity_post_task_script(command, config['config_file_path'], media_response.status_code, media_response.text)
-            if post_task_return_code == 0:
-                logging.info("Post media create script " + command + " executed successfully.")
-            else:
-                logging.error("Post media create script " + command + " failed.")
-
-    if is_remote and config['delete_tmp_upload'] is True:
-        containing_folder = os.path.join(config['input_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
-        shutil.rmtree(containing_folder)
-
-    if media_response.status_code == 201:
-        if 'location' in media_response.headers:
-            # A 201 response provides a 'location' header, but a '204' response does not.
-            media_uri = media_response.headers['location']
-            logging.info("Media (%s) created at %s, linked to node %s.", media_type, media_uri, node_uri)
-            media_id = media_uri.rsplit('/', 1)[-1]
-            patch_media_fields(config, media_id, media_type, node_csv_row)
-
-            if media_type == 'image':
-                patch_image_alt_text(config, media_id, node_csv_row)
-
-            if len(media_use_tids) > 1:
-                patch_media_use_terms(config, media_id, media_type, media_use_tids)
-    elif media_response.status_code == 204:
-        if len(media_use_tids) > 1:
-            patch_media_use_terms(config, media_id, media_type, media_use_tids)
-        logging.warning(
-            "Media created and linked to node %s, but its URI is not available since its creation returned an HTTP status code of %s",
-            node_uri,
-            media_response.status_code)
-        logging.warning("Media linked to node %s base fields not updated.", node_uri)
-    else:
-        logging.error('Media not created, PUT request to "%s" returned an HTTP status code of "%s".', media_endpoint, media_response.status_code)
-
-    binary_data.close()
-
-    return media_response.status_code
-
-
 def patch_media_fields(config, media_id, media_type, node_csv_row):
     """Patch the media entity with base fields from the parent node.
     """
@@ -5150,8 +5025,6 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
 
 
 def create_children_from_directory(config, parent_csv_record, parent_node_id):
-    drupal_8 = set_drupal_8(config)
-
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
 
     # These objects will have a title (derived from filename), an ID based on the parent's id, and a config-defined
@@ -5271,10 +5144,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = page_title
             fake_csv_record['file'] = page_file_path
-            if drupal_8 is True:
-                media_response_status_code = create_islandora_media(config, page_file_path, 'file', node_uri, fake_csv_record)
-            else:
-                media_response_status_code = create_media(config, page_file_path, 'file', node_nid, fake_csv_record)
+            media_response_status_code = create_media(config, page_file_path, 'file', node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
                 if media_response_status_code is False:
