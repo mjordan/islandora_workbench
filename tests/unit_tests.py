@@ -446,6 +446,7 @@ class TestGetCsvFromExcel(unittest.TestCase):
     """
     def setUp(self):
         self.config = {'input_dir': 'tests/assets/excel_test',
+                       'temp_dir': 'tests/assets/excel_test',
                        'input_csv': 'test_excel_file.xlsx',
                        'excel_worksheet': 'Sheet1',
                        'excel_csv_filename': 'excel_csv.csv',
