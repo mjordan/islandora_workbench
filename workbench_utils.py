@@ -56,7 +56,7 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
        Parameters
        ----------
        config : dict
-           The configuration object defined by set_config_defaults().
+           The configuration settings defined by workbench_config.get_config().
        filepath: string
            The value of the CSV 'file' column.
         file_fieldname: string
@@ -109,7 +109,7 @@ def get_oembed_url_media_type(config, filepath):
        Parameters
        ----------
        config : dict
-           The configuration object defined by set_config_defaults().
+           The configuration settings defined by workbench_config.get_config().
        filepath: string
            The value of the CSV 'file' column.
        Returns
@@ -336,7 +336,7 @@ def get_drupal_core_version(config):
         Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         Returns
         -------
         string|False
@@ -396,7 +396,7 @@ def get_integration_module_version(config):
         Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         Returns
         -------
         string|False
@@ -534,7 +534,7 @@ def ping_view_endpoint(config, view_url):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         view_url
             The View's REST export path.
         Returns
@@ -557,7 +557,7 @@ def ping_entity_reference_view_endpoint(config, fieldname, hander_settings):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         fieldname: string
             The name of the Drupal field.
         handler_settings : dict
@@ -625,7 +625,7 @@ def get_nid_from_url_alias(config, url_alias):
         Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         url_alias : string
             The full URL alias (or canonical URL), including http://, etc.
         Returns
@@ -653,7 +653,7 @@ def get_mid_from_media_url_alias(config, url_alias):
         Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         url_alias : string
             The full URL alias (or canonical URL), including http://, etc.
         Returns
@@ -689,7 +689,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
         Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         entity_type : string
             One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
         bundle_type : string
@@ -945,7 +945,7 @@ def get_required_bundle_fields(config, entity_type, bundle_type):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         entity_type : string
             One of 'node', 'media', or 'taxonomy_term'.
         bundle_type : string
@@ -1004,7 +1004,7 @@ def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
         Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         entity_type : string
             One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
         bundle_type : string
@@ -1065,7 +1065,7 @@ def replace_field_labels_with_names(config, csv_headers):
         Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         csv_headers: list
             A list containing the CSV headers.
         Returns
@@ -2119,7 +2119,7 @@ def get_registered_media_extensions(config, media_bundle, field_name_filter=None
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         bundle_type : string
             The (node) content type, the vocabulary name, or the media type (image',
             'document', 'audio', 'video', 'file', etc.).
@@ -2257,7 +2257,7 @@ def clean_csv_values(config, row):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         row : OrderedDict
             A CSV row.
         Returns
@@ -2677,7 +2677,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
            Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             filename : string
                 The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
             file_fieldname: string
@@ -2796,7 +2796,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
            Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             filename : string
                 The value of the CSV 'file' field for the current node.
             file_fieldname: string
@@ -3235,7 +3235,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         csv_file_target: string
             Either 'node_fields' or 'taxonomy_fields'.
         file_path: string
@@ -3410,7 +3410,7 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
     """Parameters
     ----------
     config : dict
-        The configuration object defined by set_config_defaults().
+        The configuration settings defined by workbench_config.get_config().
     vocab_id: string
         The vocabulary ID to use in the query to find the term.
     field_name: string
@@ -3611,7 +3611,7 @@ def get_all_representations_of_term(config, vocab_id=None, name=None, term_id=No
     """Parameters
     ----------
     config : dict
-        The configuration object defined by set_config_defaults().
+        The configuration settings defined by workbench_config.get_config().
     vocab_id: string
         The vocabulary ID to use in the query to find the term. Required if 'name' is the other arguments.
     name: string
@@ -3648,7 +3648,7 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         vocab_id: string
             The vocabulary ID.
         term_name: string
@@ -3731,7 +3731,7 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         vocab_id: string
             The vocabulary ID.
         term_name: string
@@ -3921,7 +3921,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
     """Parameters
     ----------
     config : dict
-        The configuration object defined by set_config_defaults().
+        The configuration settings defined by workbench_config.get_config().
     vocab_ids: list|boolean
         The vocabulary IDs associated with the field handling code calling this function.
     field_name: string
@@ -4665,7 +4665,7 @@ def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         vocabulary_id : string
             The ID of the vocabulary to validate.
         vocab_csv_file_path: string
@@ -5314,7 +5314,7 @@ def get_extracted_csv_file_path(config):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         Returns
         -------
         string|bool
@@ -5389,7 +5389,7 @@ def check_file_exists(config, filename):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         filename: string
             The filename.
         Returns
@@ -5434,7 +5434,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         file_fieldname: string
             The name of the CSV column containing the filename.
         node_csv_row : OrderedDict
@@ -5537,7 +5537,7 @@ def get_node_media_ids(config, node_id, media_use_tids=[]):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         node_id : string
             The ID of the node to delete media from.
         media_use_tids : list
@@ -5604,7 +5604,7 @@ def download_file_from_drupal(config, node_id):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         node_id : string
             The ID of the node to delete media from.
         Returns
@@ -5688,7 +5688,7 @@ def get_file_hash_from_drupal(config, file_uuid, algorithm):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         file_uuid : string
             The file's UUID.
         algorithm : string
@@ -5714,7 +5714,7 @@ def get_file_hash_from_local(config, file_path, algorithm):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         file_path : string
             The file's path.
         algorithm : string
@@ -5764,7 +5764,7 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         csv_file_target: string
             Either 'node_fields' or 'taxonomy_fields'.
         file_path: string
@@ -5937,7 +5937,7 @@ def get_page_title_from_template(config, parent_title, weight):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         parent_title : string
             The parent node's title.
         weight: string
@@ -5958,7 +5958,7 @@ def apply_csv_value_templates(config, row):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         row: OrderedDict
             A CSV row.
         Returns
@@ -5991,7 +5991,7 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         field_definitions : dict
             The field definitions object defined by get_field_definitions().
         field_name : string
@@ -6111,7 +6111,7 @@ def get_entity_reference_view_endpoints(config):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         Returns
         -------
         dict
@@ -6138,7 +6138,7 @@ def get_config_file_identifier(config):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         Returns
         -------
         string
@@ -6157,7 +6157,7 @@ def calculate_response_time_trend(config, response_time):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         response_time : Response time of current request, in seconds.
             The string to test.
         Returns
@@ -6293,7 +6293,7 @@ def create_contact_sheet_thumbnail(config, source_filename):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
         source_filename: string
             The value of the CSV row's "file" column, or the reserved value "compound".
         Returns
@@ -6376,7 +6376,7 @@ def generate_contact_sheet_from_csv(config):
     """Parameters
         ----------
         config : dict
-            The configuration object defined by set_config_defaults().
+            The configuration settings defined by workbench_config.get_config().
     """
     css_file_path = config['contact_sheet_css_path']
     css_file_name = os.path.basename(css_file_path)

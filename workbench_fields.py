@@ -27,7 +27,7 @@ class SimpleField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -89,7 +89,7 @@ class SimpleField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -205,7 +205,7 @@ class SimpleField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -248,7 +248,7 @@ class SimpleField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -292,7 +292,7 @@ class GeolocationField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -346,7 +346,7 @@ class GeolocationField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -444,7 +444,7 @@ class GeolocationField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -471,7 +471,7 @@ class GeolocationField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -511,7 +511,7 @@ class LinkField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -562,7 +562,7 @@ class LinkField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -662,7 +662,7 @@ class LinkField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -689,7 +689,7 @@ class LinkField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -732,7 +732,7 @@ class EntityReferenceField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -821,7 +821,7 @@ class EntityReferenceField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -948,7 +948,7 @@ class EntityReferenceField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -978,7 +978,7 @@ class EntityReferenceField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -1030,7 +1030,7 @@ class TypedRelationField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -1102,7 +1102,7 @@ class TypedRelationField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -1221,7 +1221,7 @@ class TypedRelationField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -1251,7 +1251,7 @@ class TypedRelationField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -1297,7 +1297,7 @@ class AuthorityLinkField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -1348,7 +1348,7 @@ class AuthorityLinkField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -1448,7 +1448,7 @@ class AuthorityLinkField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -1475,7 +1475,7 @@ class AuthorityLinkField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -1518,7 +1518,7 @@ class MediaTrackField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -1569,7 +1569,7 @@ class MediaTrackField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             entity : dict
@@ -1669,7 +1669,7 @@ class MediaTrackField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
@@ -1696,7 +1696,7 @@ class MediaTrackField():
         """Parameters
            ----------
             config : dict
-                The configuration object defined by set_config_defaults().
+                The configuration settings defined by workbench_config.get_config().
             field_definitions : dict
                 The field definitions object defined by get_field_definitions().
             field_name : string
