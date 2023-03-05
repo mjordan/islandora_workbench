@@ -3305,18 +3305,19 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         sys.exit(message)
     csv_reader_fieldnames = [x for x in csv_reader_fieldnames if x not in config['ignore_csv_columns']]
 
-    # CSV field templates and CSV value templates only apply to node CSV files, not vocabulary CSV files.
+    # CSV field templates and CSV value templates currently apply only to node CSV files, not vocabulary CSV files.
     tasks = ['create', 'update']
-    if config['task'] in tasks and csv_file_target == 'node_fields' and 'csv_field_templates' in config and len(config['csv_field_templates']) > 0:
+    if config['task'] in tasks and csv_file_target == 'node_fields':
         # If the config file contains CSV field templates, append them to the CSV data.
         # Make a copy of the column headers so we can skip adding templates to the new CSV
         # if they're present in the source CSV. We don't want fields in the source CSV to be
         # stomped on by templates.
         csv_reader_fieldnames_orig = copy.copy(csv_reader_fieldnames)
-        for template in config['csv_field_templates']:
-            for field_name, field_value in template.items():
-                if field_name not in csv_reader_fieldnames_orig:
-                    csv_reader_fieldnames.append(field_name)
+        if 'csv_field_templates' in config:
+            for template in config['csv_field_templates']:
+                for field_name, field_value in template.items():
+                    if field_name not in csv_reader_fieldnames_orig:
+                        csv_reader_fieldnames.append(field_name)
         csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_reader_fieldnames, delimiter=config['delimiter'])
         csv_writer.writeheader()
         row_num = 0
@@ -3336,10 +3337,11 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
                     if column_to_ignore in row:
                         del row[column_to_ignore]
 
-            for template in config['csv_field_templates']:
-                for field_name, field_value in template.items():
-                    if field_name not in csv_reader_fieldnames_orig:
-                        row[field_name] = field_value
+            if 'csv_field_templates' in config:
+                for template in config['csv_field_templates']:
+                    for field_name, field_value in template.items():
+                        if field_name not in csv_reader_fieldnames_orig:
+                            row[field_name] = field_value
 
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith('#'):
