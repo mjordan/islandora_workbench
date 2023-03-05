@@ -1461,7 +1461,7 @@ def check_input(config, args):
                             '" in the View "' + field_definitions[csv_column_header]['handler_settings']['view']['view_name'] + \
                             '" required to validate values for field "' + csv_column_header + '". Please check your Drupal Views configuration.' + \
                             ' See the "Entity Reference Views fields" section of ' + \
-                            'https://mjordan.github.io/islandora_workbench_docs/fields/#csv-fields-that-contain-drupal-field-data for more info.'
+                            'https://mjordan.github.io/islandora_workbench_docs/fields/#entity-reference-views-fields for more info.'
                         logging.error(log_message)
                         sys.exit('Error: ' + console_message)
                 else:
