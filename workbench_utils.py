@@ -1469,7 +1469,7 @@ def check_input(config, args):
                     print('Warning: ' + message)
                     logging.warning(message +
                                     ' See the "Entity Reference Views fields" section of ' +
-                                    'https://mjordan.github.io/islandora_workbench_docs/fields/#csv-fields-that-contain-drupal-field-data for more info.')
+                                    'https://mjordan.github.io/islandora_workbench_docs/fields/#entity-reference-views-fields for more info.')
 
             if len(get_additional_files_config(config)) > 0:
                 if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
