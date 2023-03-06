@@ -1465,8 +1465,8 @@ def check_input(config, args):
                         logging.error(log_message)
                         sys.exit('Error: ' + console_message)
                 else:
-                    message = f'"require_entity_reference_views" is set to "false" in your configuration file. Workbench will not validate values in your CSV file\'s "{csv_column_header}" column.'
-                    print(message)
+                    message = f'Workbench will not validate values in your CSV file\'s "{csv_column_header}" column because your "require_entity_reference_views" configuration setting is "false".'
+                    print('Warning: ' + message)
                     logging.warning(message +
                                     ' See the "Entity Reference Views fields" section of ' +
                                     'https://mjordan.github.io/islandora_workbench_docs/fields/#csv-fields-that-contain-drupal-field-data for more info.')
