@@ -842,10 +842,26 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
             else:
                 field_definitions[fieldname]['target_type'] = None
+            if 'authority_sources' in field_config['settings']:
+                field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
+            else:
+                field_definitions[fieldname]['authority_sources'] = None
             if 'allowed_values' in field_storage['settings']:
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
+
+        field_definitions['name'] = {
+            'entity_type': 'media',
+            'required': True,
+            'label': 'Name',
+            'field_type': 'string',
+            'cardinality': 1,
+            'max_length': 255,
+            'target_type': None,
+            'handler': None,
+            'handler_settings': None
+        }
 
     if entity_type == 'paragraph':
         fields = get_entity_fields(config, entity_type, bundle_type)
@@ -1344,8 +1360,7 @@ def check_input(config, args):
                 "than there are headers (" + str(len(csv_column_headers)) + ")."
             logging.error(message)
             sys.exit('Error: ' + message)
-        # Note: this message is also generated in get_csv_data() since CSV Writer thows an exception if the row has
-        # form fields than headers.
+        # Note: this message is also generated in get_csv_data() since CSV Writer thows an exception if the row has form fields than headers.
         if len(csv_column_headers) < field_count:
             message = "Row " + str(row_count) + " (ID " + row[config['id_field']] + ") of the CSV file has more columns (" +  \
                 str(field_count) + ") than there are headers (" + str(len(csv_column_headers)) + ")."
@@ -1447,6 +1462,9 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit('Error: ' + message)
 
+        # WIP on #572: We also need to validate media column headers that contain type and fieldnames,
+        # e.g. media:video:field_display_mode_for_viewer.
+
         # Check for the View that is necessary for entity reference fields configured
         # as "Views: Filter by an entity reference View" (issue 452).
         for csv_column_header in csv_column_headers:
@@ -1500,6 +1518,8 @@ def check_input(config, args):
         message = 'OK, required Drupal fields are present in the CSV file.'
         print(message)
         logging.info(message)
+
+        # WIP on #572: Need to check that any fields required by media:[type] represented in the CSV are present.
 
         # Validate dates in 'created' field, if present.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -2252,7 +2272,8 @@ def validate_language_code(langcode):
 
 
 def clean_csv_values(config, row):
-    """Performs basic string cleanup on CSV values.
+    """Performs basic string cleanup on CSV values. Applies to entier value,
+       not each subdivided value.
     """
     """Parameters
         ----------
@@ -2275,9 +2296,16 @@ def clean_csv_values(config, row):
             # Remove multiple spaces within string.
             row[field] = re.sub(' +', ' ', str(row[field]))
 
+        # Any outside .strip()s should come after 'outside_spaces', so they are removed first.
+        # Assumes that spaces/newlines are the most likely extraneous leading and trailing
+        # characters in CSV values.
         if 'outside_spaces' not in config['clean_csv_values_skip']:
             # Strip leading and trailing whitespace, including newlines.
             row[field] = str(row[field]).strip()
+
+        if 'outside_subdelimiters' not in config['clean_csv_values_skip']:
+            # Strip leading and trailing subdelimters.
+            row[field] = str(row[field]).strip(config['subdelimiter'])
 
     return row
 
@@ -2672,6 +2700,25 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
     return result, cmd.returncode
 
 
+def filter_invalid_media_fields(config, csv_row, media_type):
+    """Remove values from csv_row that aren't valid and log the removal.
+           Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            csv_row: OrderedDict
+                E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+            media_type: string
+                The media type name.
+            Returns
+            -------
+            OrderedDict
+                The csv_row with fields containing invalid values removed.
+    """
+    # Fow now, just return the csv_row.
+    return csv_row
+
+
 def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
            Parameters
@@ -2823,6 +2870,11 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     # media_type_for_oembed_check = set_media_type(config, filename, file_fieldname, node_csv_row)
     media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
 
+    # WIP on #572: Get all the fields in node_csv_row that are namespaced 'media:[type]' that correspond
+    # to the current media type, and validate the values in them in filter_invalid_media_files().The resulting
+    # dictionary will be used below to add those fields to the media.
+    node_csv_row = filter_invalid_media_fields(config, node_csv_row, media_type)
+
     if media_type in get_oembed_media_types(config):
         # file_result must be an integer.
         file_result = -1
@@ -2957,6 +3009,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 media_json['field_edited_text'].append({'value': extracted_text_file.read()})
             else:
                 logging.error("Extracted text file %s not found.", filename)
+
+        # WIP on #572: Add fields to media JSON coming in from the 'create' input CSV, namespaced with
+        # 'media:[type]', where [type] is the value of media_type.
 
         # Create media_track files here, since they should exist before we create the parent media.
         media_types_with_track_files = config['media_track_file_fields'].keys()
@@ -3280,7 +3335,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     # 'restval' is used to populate superfluous fields/labels.
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
 
-    # WIP on #559.
+    # Unfinished (e.g. still need to apply this to creating taxonomies) WIP on #559.
     if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms']:
         '''
         if config['task'] == 'create_terms':
@@ -5600,9 +5655,8 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
 
 def download_file_from_drupal(config, node_id):
-    '''WIP on https://github.com/mjordan/islandora_workbench/issues/492.
+    '''Download a media file from Drupal.
     '''
-
     """Parameters
         ----------
         config : dict

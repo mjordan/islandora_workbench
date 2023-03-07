@@ -534,7 +534,7 @@ class TestValueIsNumeric(unittest.TestCase):
 
 class TestCleanCsvValues(unittest.TestCase):
     def test_clean_csv_values(self):
-        config = {'clean_csv_values_skip': []}
+        config = {'subdelimiter': '|', 'clean_csv_values_skip': []}
 
         csv_record = collections.OrderedDict()
         csv_record['one'] = ' blsidlw  '
@@ -557,7 +557,7 @@ class TestCleanCsvValues(unittest.TestCase):
         self.assertEqual(clean_csv_record, csv_record)
 
     def test_clean_csv_values_skip_smart_quotes(self):
-        config = {'clean_csv_values_skip': ['smart_quotes']}
+        config = {'subdelimiter': '|', 'clean_csv_values_skip': ['smart_quotes']}
 
         csv_record = collections.OrderedDict()
         csv_record['smq1'] = "b‘bbxbbb’"
@@ -569,7 +569,7 @@ class TestCleanCsvValues(unittest.TestCase):
         self.assertEqual(clean_csv_record, csv_record)
 
     def test_clean_csv_values_skip_spaces(self):
-        config = {'clean_csv_values_skip': ['inside_spaces', 'outside_spaces']}
+        config = {'subdelimiter': '|', 'clean_csv_values_skip': ['inside_spaces', 'outside_spaces']}
 
         csv_record = collections.OrderedDict()
         csv_record['one'] = ' blsidlw  '
@@ -587,6 +587,53 @@ class TestCleanCsvValues(unittest.TestCase):
         clean_csv_record['four'] = 'لدولي, العاشر []ليونيكود '
         clean_csv_record['five'] = f"{newline}new lines{newline}"
         clean_csv_record['six'] = 'a  b c    d  e'
+
+        csv_record = workbench_utils.clean_csv_values(config, csv_record)
+        self.assertEqual(clean_csv_record, csv_record)
+
+    def test_clean_csv_values_subdelimiters(self):
+        # Most common case, using the default subdelimiter.
+        config = {'subdelimiter': '|', 'clean_csv_values_skip': []}
+
+        csv_record = collections.OrderedDict()
+        csv_record['one'] = ' |blsidlw  '
+        csv_record['two'] = 'something|'
+        csv_record['three'] = 'something||'
+
+        clean_csv_record = collections.OrderedDict()
+        clean_csv_record['one'] = 'blsidlw'
+        clean_csv_record['two'] = 'something'
+        clean_csv_record['three'] = 'something'
+
+        csv_record = workbench_utils.clean_csv_values(config, csv_record)
+        self.assertEqual(clean_csv_record, csv_record)
+
+        # Non-| dubdelimiter.
+        config = {'subdelimiter': '%%', 'clean_csv_values_skip': []}
+
+        csv_record = collections.OrderedDict()
+        csv_record['one'] = ' %%blsidlw  '
+        csv_record['two'] = 'something%%'
+
+        clean_csv_record = collections.OrderedDict()
+        clean_csv_record['one'] = 'blsidlw'
+        clean_csv_record['two'] = 'something'
+
+        csv_record = workbench_utils.clean_csv_values(config, csv_record)
+        self.assertEqual(clean_csv_record, csv_record)
+
+        # Skipping the outside whitespace and subdelimiter.
+        config = {'subdelimiter': '|', 'clean_csv_values_skip': ['outside_spaces', 'outside_subdelimiters']}
+
+        csv_record = collections.OrderedDict()
+        csv_record['one'] = ' |blsidlw'
+        csv_record['two'] = 'something|'
+        csv_record['three'] = 'something||'
+
+        clean_csv_record = collections.OrderedDict()
+        clean_csv_record['one'] = ' |blsidlw'
+        clean_csv_record['two'] = 'something|'
+        clean_csv_record['three'] = 'something||'
 
         csv_record = workbench_utils.clean_csv_values(config, csv_record)
         self.assertEqual(clean_csv_record, csv_record)
