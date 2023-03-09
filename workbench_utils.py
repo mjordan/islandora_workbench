@@ -1869,9 +1869,12 @@ def check_input(config, args):
 
                         # Check that each file's extension is allowed for the current media type. 'file' is the only
                         # CSV field to check here. Files added using the 'additional_files' setting are checked below.
-                        media_type_file_field = config['media_type_file_fields'][media_type]
-                        extension = os.path.splitext(file_check_row['file'])[1]
-                        extension = extension.lstrip('.').lower()
+                        if file_check_row['file'].startswith('http'):
+                            extension = get_remote_file_extension(config, file_check_row['file'])
+                            extension = extension.lstrip('.')
+                        else:
+                            extension = os.path.splitext(file_check_row['file'])[1]
+                            extension = extension.lstrip('.').lower()
                         media_type_file_field = config['media_type_file_fields'][media_type]
                         registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                         if extension not in registered_extensions[media_type_file_field]:
@@ -1959,12 +1962,16 @@ def check_input(config, args):
                             sys.exit('Error: ' + message)
 
                         # Check that each file's extension is allowed for the current media type.
-                        media_type_file_field = config['media_type_file_fields'][media_type]
                         additional_filenames = file_check_row[additional_file_field].split(config['subdelimiter'])
+                        media_type_file_field = config['media_type_file_fields'][media_type]
                         for additional_filename in additional_filenames:
-                            extension = os.path.splitext(additional_filename)
-                            extension = extension[1].lstrip('.').lower()
-                            media_type_file_field = config['media_type_file_fields'][media_type]
+                            if additional_filename.startswith('http'):
+                                extension = get_remote_file_extension(config, additional_filename)
+                                extension = extension.lstrip('.')
+                            else:
+                                extension = os.path.splitext(additional_filename)
+                                extension = extension[1].lstrip('.').lower()
+
                             registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                             if extension not in registered_extensions[media_type_file_field]:
                                 message = 'File "' + additional_filename + '" in CSV row ' + file_check_row[config['id_field']] + \
@@ -5577,19 +5584,8 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             downloaded_file_path = os.path.join(subdir, filename)
 
         if extension == '':
-            try:
-                head_response = requests.head(file_path_from_csv, allow_redirects=True, verify=config['secure_ssl_only'])
-                mimetype = head_response.headers['content-type']
-                # In case servers return stuff beside the MIME type in Content-Type header.
-                # Assumes they use ; to separate stuff and that what we're looking for is
-                # in the first position.
-                if ';' in mimetype:
-                    mimetype_parts = mimetype.split(';')
-                    mimetype = mimetype_parts[0].strip()
-            except KeyError:
-                mimetype = 'application/octet-stream'
+            extension_with_dot = get_remote_file_extension(config, file_path_from_csv)
 
-            extension_with_dot = get_extension_from_mimetype(mimetype)
             downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
 
             # Check to see if a file with this path already exists; if so, insert an
@@ -5671,6 +5667,34 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     f.close()
 
     return downloaded_file_path
+
+
+def get_remote_file_extension(config, file_url):
+    """For remote files that have no extension, such as http://acme.com/islandora/object/some:pid/datastream/OBJ/download,
+       assign an extension, with a leading dot.
+    """
+    # If the file has an extension, just return it.
+    extension = os.path.splitext(file_url)[1]
+    extension = extension.lstrip('.').lower()
+    if len(extension) > 0:
+        return extension + '.' + extension
+
+    # If it doesn't have an extension, assign one based on its MIME type.
+    try:
+        head_response = requests.head(file_url, allow_redirects=True, verify=config['secure_ssl_only'])
+        mimetype = head_response.headers['content-type']
+        # In case servers return stuff beside the MIME type in Content-Type header.
+        # Assumes they use ; to separate stuff and that what we're looking for is
+        # in the first position.
+        if ';' in mimetype:
+            mimetype_parts = mimetype.split(';')
+            mimetype = mimetype_parts[0].strip()
+    except KeyError:
+        mimetype = 'application/octet-stream'
+
+    extension_with_dot = get_extension_from_mimetype(mimetype)
+
+    return extension_with_dot
 
 
 def download_file_from_drupal(config, node_id):
