@@ -1969,8 +1969,18 @@ def check_input(config, args):
                                 extension = get_remote_file_extension(config, additional_filename)
                                 extension = extension.lstrip('.')
                             else:
-                                extension = os.path.splitext(additional_filename)
-                                extension = extension[1].lstrip('.').lower()
+                                additional_file_not_found_message = f'File "{additional_filename}" in column "{additional_file_field}" in CVS row "' + \
+                                    file_check_row[config['id_field']] + '" not found.'
+                                if config['strict_check'] is True and config['allow_missing_files'] is False:
+                                    logging.error(additional_file_not_found_message)
+                                    sys.exit('Error: ' + additional_file_not_found_message)
+
+                                if check_file_exists(config, additional_filename):
+                                    extension = os.path.splitext(additional_filename)
+                                    extension = extension[1].lstrip('.').lower()
+                                else:
+                                    logging.warning(additional_file_not_found_message)
+                                    continue
 
                             registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                             if extension not in registered_extensions[media_type_file_field]:
@@ -5505,8 +5515,11 @@ def check_file_exists(config, filename):
         else:
             file_path = os.path.join(config['input_dir'], filename)
 
-        if os.path.exists(file_path) and os.path.isfile(file_path):
+        if os.path.isfile(file_path):
             return True
+
+    # Fall back to False if existence of file can't be determined.
+    return False
 
 
 def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=None, make_dir=True):
