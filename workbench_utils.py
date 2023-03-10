@@ -1446,10 +1446,13 @@ def check_input(config, args):
             langcode_was_present = True
 
         # We .remove() CSV column headers that use the 'media:video:field_foo' media track convention.
+        print("DEBUG media_track_file_fields", config['media_track_file_fields'])
         media_track_headers = list()
         for column_header in csv_column_headers:
             if column_header.startswith('media:'):
-                media_track_headers.append(column_header)
+                media_track_header_parts = column_header.split(':')
+                if media_track_header_parts[1] in config['media_track_file_fields'].keys() and media_track_header_parts[2] == config['media_track_file_fields'][media_track_header_parts[1]]:
+                    media_track_headers.append(column_header)
         for media_track_header in media_track_headers:
             if media_track_header in csv_column_headers:
                 csv_column_headers.remove(media_track_header)
@@ -1462,8 +1465,11 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit('Error: ' + message)
 
-        # WIP on #572: We also need to validate media column headers that contain type and fieldnames,
-        # e.g. media:video:field_display_mode_for_viewer.
+        # WIP on #572: We also need to validate media column headers that contain mewdsia type and fieldnames,
+        # e.g. media:video:field_display_mode_for_viewer. They should be all fields that begin with 'media:'
+        # remaining in the CSV headers, since at this point we have removed the media track fields.
+
+        print("DEBUG remaining media field columns", csv_column_headers)
 
         # Check for the View that is necessary for entity reference fields configured
         # as "Views: Filter by an entity reference View" (issue 452).
