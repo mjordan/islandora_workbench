@@ -1843,7 +1843,7 @@ def check_input(config, args):
         # check_input() (to work with strict_check: false) in addition to at place of check (to work wit strict_check: true).
         if len(rows_with_missing_files) > 0:
             if config['allow_missing_files'] is True:
-                message = 'OK, missing or empty CSV "file" column values detected, but the "allow_missing_files" configuration option is enabled.'
+                message = 'OK, missing or empty CSV "file" column values detected, but the "allow_missing_files" configuration setting is enabled.'
                 print(message + " See the log for more information.")
                 logging.info(message + " See log entries above for more information.")
         else:
@@ -1878,8 +1878,8 @@ def check_input(config, args):
                         media_type_file_field = config['media_type_file_fields'][media_type]
                         registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                         if extension not in registered_extensions[media_type_file_field]:
-                            message = 'File "' + file_check_row[filename_field] + '" in CSV row ' + file_check_row[config['id_field']] + \
-                                ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
+                            message = 'File "' + file_check_row[filename_field] + '" in CSV row "' + file_check_row[config['id_field']] + \
+                                '" does not have an extension (' + str(extension) + ') allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
@@ -1925,15 +1925,15 @@ def check_input(config, args):
                                     sys.exit('Error: ' + message)
                                 else:
                                     logging.warning(message)
-
-                        if len(file_check_row[additional_file_field]) > 0:
-                            if os.path.isabs(file_check_row[additional_file_field]):
-                                file_path = file_check_row[additional_file_field]
-                            else:
-                                file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
-                            if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                                message = 'File in column "' + additional_file_field + '" in CVS row ' + file_check_row[config['id_field']] + ' not found.'
-                                logging.warning(message)
+                        else:
+                            if len(file_check_row[additional_file_field]) > 0:
+                                if os.path.isabs(file_check_row[additional_file_field]):
+                                    file_path = file_check_row[additional_file_field]
+                                else:
+                                    file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
+                                if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                                    message = 'File "' + file_path + '" in column "' + additional_file_field + '" in CVS row ' + file_check_row[config['id_field']] + ' not found.'
+                                    logging.warning(message)
 
                 if missing_additional_files is True:
                     message = 'Some files in fields configured as "additional_file_fields" are missing. Please see the log for more information.'
@@ -1984,8 +1984,8 @@ def check_input(config, args):
 
                             registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                             if extension not in registered_extensions[media_type_file_field]:
-                                message = 'File "' + additional_filename + '" in CSV row ' + file_check_row[config['id_field']] + \
-                                    ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
+                                message = 'File "' + additional_filename + '" in the "' + additional_file_field + '" field of row "' + file_check_row[config['id_field']] + \
+                                    '" does not have an extension (' + str(extension) + ') allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -5435,6 +5435,7 @@ def get_extension_from_mimetype(mimetype):
     # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
     # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
     map = {'image/jpeg': '.jpg',
+           'image/jpg': '.jpg',
            'image/jp2': '.jp2',
            'image/png': '.png',
            'audio/mpeg': '.mp3',
@@ -5692,10 +5693,19 @@ def get_remote_file_extension(config, file_url):
     if len(extension) > 0:
         return extension + '.' + extension
 
-    # If it doesn't have an extension, assign one based on its MIME type.
+    # If it doesn't have an extension, assign one based on its MIME type. Request's docs at
+    # https://requests.readthedocs.io/en/latest/user/quickstart/#response-headers say that
+    # headers can be accessed regardless of capitalization, but that's not the case (ha).
     try:
         head_response = requests.head(file_url, allow_redirects=True, verify=config['secure_ssl_only'])
-        mimetype = head_response.headers['content-type']
+        mimetype = head_response.headers['Content-Type']
+        if mimetype is None:
+            mimetype = head_response.headers['content-type']
+            if mimetype is None:
+                message = f'Cannot reliably get MIME type of file "{file_url}" from remote server.'
+                logging.error(message)
+                sys.exit("Error: " + message)
+
         # In case servers return stuff beside the MIME type in Content-Type header.
         # Assumes they use ; to separate stuff and that what we're looking for is
         # in the first position.
