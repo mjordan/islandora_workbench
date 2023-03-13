@@ -139,10 +139,10 @@ class i7ImportUtilities:
         query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
         if self.config['collection']:
             collection = self.config['collection']
-            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
+            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/{collection}"'
         if self.config['content_model']:
             model = self.config['content_model']
-            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
+            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info\:fedora/{model}"'
         if self.config['solr_filters']:
             for filter in self.config['solr_filters']:
                 for key, value in filter.items():
