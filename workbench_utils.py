@@ -27,7 +27,7 @@ import edtf_validate.valid_edtf
 import shutil
 import itertools
 import http.client
-
+import sqlite3
 
 # Set some global variables.
 yaml = YAML()
@@ -6680,3 +6680,68 @@ def generate_contact_sheet_from_csv(config):
         contact_sheet_output_files[output_file]['file_handle'].close()
 
     shutil.copyfile(os.path.join(css_file_path), os.path.join(config['contact_sheet_output_dir'], css_file_name))
+
+
+def sqlite_manager(config, operation='select', table_name=None, query=None, values=()):
+    """Perform operations on an SQLite database.
+    """
+    """
+    Params
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        operation: string
+            One of 'create_database', 'create_database', 'insert', 'select', 'update', 'delete'.
+        query
+            The parameterized query, expressed as a tuple, e.g.,
+            "SELECT foo from bar where foo = ?", ('baz')
+        values: tuple
+            The positional values to interpolate into the query.
+    Return
+        bool|list|sqlite3.Cursor object
+            True if the ceratedb or removedb operation was successful, False if an
+            operation could not be completed, a list of sqlite3.Row objects for select
+            and update queries, and an sqlite3.Cursor object for insert queries.
+    """
+    db_path = os.path.join(config['temp_dir'], config['sqlite_db_path'])
+
+    # Only create the database if the database file does not exist.
+    if operation == 'create_database':
+        if os.path.isfile(db_path):
+            return False
+        else:
+            con = sqlite3.connect(db_path)
+            return True
+    elif operation == 'create_database':
+        if os.path.isfile(db_path):
+            os.remove(db_path)
+            return True
+    elif operation == 'create_table':
+        con = sqlite3.connect(db_path)
+        # Only create the table if it doesn't exist.
+        cur = con.cursor()
+        args = (table_name,)
+        tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", args).fetchall()
+        if tables == []:
+            cur = con.cursor()
+            res = cur.execute(query)
+            con.close()
+            return res
+        else:
+            con.close()
+            return False
+    elif operation == 'select':
+        con = sqlite3.connect(db_path)
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        res = cur.execute(query, values).fetchall()
+        con.close()
+        return res
+    else:
+        # 'insert', 'update', 'delete' queries.
+        con = sqlite3.connect(db_path)
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        res = cur.execute(query, values)
+        con.commit()
+        con.close()
+        return res
