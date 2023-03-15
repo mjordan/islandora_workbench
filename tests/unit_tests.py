@@ -475,10 +475,10 @@ class TestGetCsvFromExcel(unittest.TestCase):
 class TestSqliteManager(unittest.TestCase):
     def setUp(self):
         self.config = {'temp_dir': tempfile.gettempdir(),
-                       'sqlite_db_path': 'workbench_unit_tests.db'
+                       'sqlite_db_filename': 'workbench_unit_tests.db'
                        }
 
-        self.db_file_path = os.path.join(self.config['temp_dir'], self.config['sqlite_db_path'])
+        self.db_file_path = os.path.join(self.config['temp_dir'], self.config['sqlite_db_filename'])
 
         workbench_utils.sqlite_manager(self.config, operation='create_database')
         workbench_utils.sqlite_manager(self.config, operation='create_table', table_name='names', query='CREATE TABLE names (name TEXT, location TEXT)')

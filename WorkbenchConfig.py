@@ -168,7 +168,7 @@ class WorkbenchConfig:
             'list_missing_drupal_fields': False,
             'secondary_tasks': None,
             'secondary_tasks_data_file': 'id_to_node_map.tsv',
-            'sqlite_db_path': 'workbench_temp_data.db',
+            'sqlite_db_filename': 'workbench_temp_data.db',
             'fixity_algorithm': None,
             'validate_fixity_during_check': False,
             'output_csv_include_input_csv': False,

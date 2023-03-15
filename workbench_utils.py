@@ -6708,7 +6708,7 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
             operation could not be completed, a list of sqlite3.Row objects for select
             and update queries, and an sqlite3.Cursor object for insert queries.
     """
-    db_path = os.path.join(config['temp_dir'], config['sqlite_db_path'])
+    db_path = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
 
     # Only create the database if the database file does not exist.
     if operation == 'create_database':
