@@ -27,7 +27,7 @@ import edtf_validate.valid_edtf
 import shutil
 import itertools
 import http.client
-
+import sqlite3
 
 # Set some global variables.
 yaml = YAML()
@@ -1849,7 +1849,7 @@ def check_input(config, args):
         # check_input() (to work with strict_check: false) in addition to at place of check (to work wit strict_check: true).
         if len(rows_with_missing_files) > 0:
             if config['allow_missing_files'] is True:
-                message = 'OK, missing or empty CSV "file" column values detected, but the "allow_missing_files" configuration option is enabled.'
+                message = 'OK, missing or empty CSV "file" column values detected, but the "allow_missing_files" configuration setting is enabled.'
                 print(message + " See the log for more information.")
                 logging.info(message + " See log entries above for more information.")
         else:
@@ -1875,14 +1875,17 @@ def check_input(config, args):
 
                         # Check that each file's extension is allowed for the current media type. 'file' is the only
                         # CSV field to check here. Files added using the 'additional_files' setting are checked below.
-                        media_type_file_field = config['media_type_file_fields'][media_type]
-                        extension = os.path.splitext(file_check_row['file'])[1]
-                        extension = extension.lstrip('.').lower()
+                        if file_check_row['file'].startswith('http'):
+                            extension = get_remote_file_extension(config, file_check_row['file'])
+                            extension = extension.lstrip('.')
+                        else:
+                            extension = os.path.splitext(file_check_row['file'])[1]
+                            extension = extension.lstrip('.').lower()
                         media_type_file_field = config['media_type_file_fields'][media_type]
                         registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                         if extension not in registered_extensions[media_type_file_field]:
-                            message = 'File "' + file_check_row[filename_field] + '" in CSV row ' + file_check_row[config['id_field']] + \
-                                ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
+                            message = 'File "' + file_check_row[filename_field] + '" in CSV row "' + file_check_row[config['id_field']] + \
+                                '" does not have an extension (' + str(extension) + ') allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
@@ -1928,15 +1931,15 @@ def check_input(config, args):
                                     sys.exit('Error: ' + message)
                                 else:
                                     logging.warning(message)
-
-                        if len(file_check_row[additional_file_field]) > 0:
-                            if os.path.isabs(file_check_row[additional_file_field]):
-                                file_path = file_check_row[additional_file_field]
-                            else:
-                                file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
-                            if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                                message = 'File in column "' + additional_file_field + '" in CVS row ' + file_check_row[config['id_field']] + ' not found.'
-                                logging.warning(message)
+                        else:
+                            if len(file_check_row[additional_file_field]) > 0:
+                                if os.path.isabs(file_check_row[additional_file_field]):
+                                    file_path = file_check_row[additional_file_field]
+                                else:
+                                    file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
+                                if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                                    message = 'File "' + file_path + '" in column "' + additional_file_field + '" in CVS row ' + file_check_row[config['id_field']] + ' not found.'
+                                    logging.warning(message)
 
                 if missing_additional_files is True:
                     message = 'Some files in fields configured as "additional_file_fields" are missing. Please see the log for more information.'
@@ -1965,16 +1968,30 @@ def check_input(config, args):
                             sys.exit('Error: ' + message)
 
                         # Check that each file's extension is allowed for the current media type.
-                        media_type_file_field = config['media_type_file_fields'][media_type]
                         additional_filenames = file_check_row[additional_file_field].split(config['subdelimiter'])
+                        media_type_file_field = config['media_type_file_fields'][media_type]
                         for additional_filename in additional_filenames:
-                            extension = os.path.splitext(additional_filename)
-                            extension = extension[1].lstrip('.').lower()
-                            media_type_file_field = config['media_type_file_fields'][media_type]
+                            if additional_filename.startswith('http'):
+                                extension = get_remote_file_extension(config, additional_filename)
+                                extension = extension.lstrip('.')
+                            else:
+                                additional_file_not_found_message = f'File "{additional_filename}" in column "{additional_file_field}" in CVS row "' + \
+                                    file_check_row[config['id_field']] + '" not found.'
+                                if config['strict_check'] is True and config['allow_missing_files'] is False:
+                                    logging.error(additional_file_not_found_message)
+                                    sys.exit('Error: ' + additional_file_not_found_message)
+
+                                if check_file_exists(config, additional_filename):
+                                    extension = os.path.splitext(additional_filename)
+                                    extension = extension[1].lstrip('.').lower()
+                                else:
+                                    logging.warning(additional_file_not_found_message)
+                                    continue
+
                             registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                             if extension not in registered_extensions[media_type_file_field]:
-                                message = 'File "' + additional_filename + '" in CSV row ' + file_check_row[config['id_field']] + \
-                                    ' does not have an extension allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
+                                message = 'File "' + additional_filename + '" in the "' + additional_file_field + '" field of row "' + file_check_row[config['id_field']] + \
+                                    '" does not have an extension (' + str(extension) + ') allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -5424,6 +5441,7 @@ def get_extension_from_mimetype(mimetype):
     # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
     # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
     map = {'image/jpeg': '.jpg',
+           'image/jpg': '.jpg',
            'image/jp2': '.jp2',
            'image/png': '.png',
            'audio/mpeg': '.mp3',
@@ -5504,8 +5522,11 @@ def check_file_exists(config, filename):
         else:
             file_path = os.path.join(config['input_dir'], filename)
 
-        if os.path.exists(file_path) and os.path.isfile(file_path):
+        if os.path.isfile(file_path):
             return True
+
+    # Fall back to False if existence of file can't be determined.
+    return False
 
 
 def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=None, make_dir=True):
@@ -5583,19 +5604,8 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             downloaded_file_path = os.path.join(subdir, filename)
 
         if extension == '':
-            try:
-                head_response = requests.head(file_path_from_csv, allow_redirects=True, verify=config['secure_ssl_only'])
-                mimetype = head_response.headers['content-type']
-                # In case servers return stuff beside the MIME type in Content-Type header.
-                # Assumes they use ; to separate stuff and that what we're looking for is
-                # in the first position.
-                if ';' in mimetype:
-                    mimetype_parts = mimetype.split(';')
-                    mimetype = mimetype_parts[0].strip()
-            except KeyError:
-                mimetype = 'application/octet-stream'
+            extension_with_dot = get_remote_file_extension(config, file_path_from_csv)
 
-            extension_with_dot = get_extension_from_mimetype(mimetype)
             downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
 
             # Check to see if a file with this path already exists; if so, insert an
@@ -5677,6 +5687,43 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     f.close()
 
     return downloaded_file_path
+
+
+def get_remote_file_extension(config, file_url):
+    """For remote files that have no extension, such as http://acme.com/islandora/object/some:pid/datastream/OBJ/download,
+       assign an extension, with a leading dot.
+    """
+    # If the file has an extension, just return it.
+    extension = os.path.splitext(file_url)[1]
+    extension = extension.lstrip('.').lower()
+    if len(extension) > 0:
+        return extension + '.' + extension
+
+    # If it doesn't have an extension, assign one based on its MIME type. Request's docs at
+    # https://requests.readthedocs.io/en/latest/user/quickstart/#response-headers say that
+    # headers can be accessed regardless of capitalization, but that's not the case (ha).
+    try:
+        head_response = requests.head(file_url, allow_redirects=True, verify=config['secure_ssl_only'])
+        mimetype = head_response.headers['Content-Type']
+        if mimetype is None:
+            mimetype = head_response.headers['content-type']
+            if mimetype is None:
+                message = f'Cannot reliably get MIME type of file "{file_url}" from remote server.'
+                logging.error(message)
+                sys.exit("Error: " + message)
+
+        # In case servers return stuff beside the MIME type in Content-Type header.
+        # Assumes they use ; to separate stuff and that what we're looking for is
+        # in the first position.
+        if ';' in mimetype:
+            mimetype_parts = mimetype.split(';')
+            mimetype = mimetype_parts[0].strip()
+    except KeyError:
+        mimetype = 'application/octet-stream'
+
+    extension_with_dot = get_extension_from_mimetype(mimetype)
+
+    return extension_with_dot
 
 
 def download_file_from_drupal(config, node_id):
@@ -6639,3 +6686,68 @@ def generate_contact_sheet_from_csv(config):
         contact_sheet_output_files[output_file]['file_handle'].close()
 
     shutil.copyfile(os.path.join(css_file_path), os.path.join(config['contact_sheet_output_dir'], css_file_name))
+
+
+def sqlite_manager(config, operation='select', table_name=None, query=None, values=()):
+    """Perform operations on an SQLite database.
+    """
+    """
+    Params
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        operation: string
+            One of 'create_database', 'create_database', 'insert', 'select', 'update', 'delete'.
+        query
+            The parameterized query, expressed as a tuple, e.g.,
+            "SELECT foo from bar where foo = ?", ('baz')
+        values: tuple
+            The positional values to interpolate into the query.
+    Return
+        bool|list|sqlite3.Cursor object
+            True if the ceratedb or removedb operation was successful, False if an
+            operation could not be completed, a list of sqlite3.Row objects for select
+            and update queries, and an sqlite3.Cursor object for insert queries.
+    """
+    db_path = os.path.join(config['temp_dir'], config['sqlite_db_path'])
+
+    # Only create the database if the database file does not exist.
+    if operation == 'create_database':
+        if os.path.isfile(db_path):
+            return False
+        else:
+            con = sqlite3.connect(db_path)
+            return True
+    elif operation == 'create_database':
+        if os.path.isfile(db_path):
+            os.remove(db_path)
+            return True
+    elif operation == 'create_table':
+        con = sqlite3.connect(db_path)
+        # Only create the table if it doesn't exist.
+        cur = con.cursor()
+        args = (table_name,)
+        tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", args).fetchall()
+        if tables == []:
+            cur = con.cursor()
+            res = cur.execute(query)
+            con.close()
+            return res
+        else:
+            con.close()
+            return False
+    elif operation == 'select':
+        con = sqlite3.connect(db_path)
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        res = cur.execute(query, values).fetchall()
+        con.close()
+        return res
+    else:
+        # 'insert', 'update', 'delete' queries.
+        con = sqlite3.connect(db_path)
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        res = cur.execute(query, values)
+        con.commit()
+        con.close()
+        return res

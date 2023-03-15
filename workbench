@@ -313,8 +313,8 @@ def create():
                         file_exists = check_file_exists(config, filename)
                         if file_exists is False:
                             if config['progress_bar'] is False:
-                                print("- WARNING: File '{file}' from additional_media CSV field '{field}' for {uri} does not exist.".format(file=filename, field=additional_file_field, uri=node_uri))
-                            logging.warning("File '%s' from additional_media CSV field '%s' for %s does not exist.", filename, node_uri, additional_file_field)
+                                print("- Media for file '{file}' named in field '{field}' of CSV row '{id}' not created. See log for more information.".format(file=filename, field=additional_file_field, id=row[config['id_field']]))
+                            logging.warning('File "%s" from additional_file field "%s" for CSV row "%s" does not exist, cannot create media.', filename, additional_file_field, row[config['id_field']])
                             continue
 
                         media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
