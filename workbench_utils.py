@@ -1446,7 +1446,6 @@ def check_input(config, args):
             langcode_was_present = True
 
         # We .remove() CSV column headers that use the 'media:video:field_foo' media track convention.
-        print("DEBUG media_track_file_fields", config['media_track_file_fields'])
         media_track_headers = list()
         for column_header in csv_column_headers:
             if column_header.startswith('media:'):
@@ -1464,12 +1463,6 @@ def check_input(config, args):
                 message = f'"{media_track_header}" is not a valide media track CSV header.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
-
-        # WIP on #572: We also need to validate media column headers that contain mewdsia type and fieldnames,
-        # e.g. media:video:field_display_mode_for_viewer. They should be all fields that begin with 'media:'
-        # remaining in the CSV headers, since at this point we have removed the media track fields.
-
-        print("DEBUG remaining media field columns", csv_column_headers)
 
         # Check for the View that is necessary for entity reference fields configured
         # as "Views: Filter by an entity reference View" (issue 452).
@@ -1528,8 +1521,6 @@ def check_input(config, args):
         validate_required_fields_have_values_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         validate_required_fields_have_values(config, required_drupal_fields_node, validate_required_fields_have_values_csv_data)
-
-        # WIP on #572: Need to check that any fields required by media:[type] represented in the CSV are present.
 
         # Validate dates in 'created' field, if present.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -1890,7 +1881,7 @@ def check_input(config, args):
                             sys.exit('Error: ' + message)
 
     # Check existence of fields identified in 'additional_files' config setting, and validate the extensions of files named in those fields.
-    if (config['task'] == 'create' or config['task'] == 'add_media') and config['paged_content_from_directories'] is False:
+    if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
         if 'additional_files' in config and len(config['additional_files']) > 0:
             additional_files_entries = get_additional_files_config(config)
             additional_files_check_csv_data = get_csv_data(config)
@@ -1904,52 +1895,49 @@ def check_input(config, args):
                         sys.exit('Error: ' + message)
 
             # Verify media use tids. @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
-            for additional_files_media_use_field, additional_files_media_use_tid in additional_files_entries.items():
-                validate_media_use_tid_in_additional_files_setting(config, additional_files_media_use_tid, additional_files_media_use_field)
-
             if config['nodes_only'] is False:
-                missing_additional_files = False
-                for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
-                    for additional_file_field in additional_files_fields:
-                        file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
-                        if len(file_check_row[additional_file_field]) == 0:
-                            missing_additional_files = True
-                            message = 'CVS row ' + file_check_row[config['id_field']] + ' contains an empty "' + additional_file_field + '" value.'
+                for additional_files_media_use_field, additional_files_media_use_tid in additional_files_entries.items():
+                    validate_media_use_tid_in_additional_files_setting(config, additional_files_media_use_tid, additional_files_media_use_field)
+
+            missing_additional_files = False
+            for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
+                for additional_file_field in additional_files_fields:
+                    file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
+                    if len(file_check_row[additional_file_field]) == 0:
+                        missing_additional_files = True
+                        message = 'CVS row ' + file_check_row[config['id_field']] + ' contains an empty "' + additional_file_field + '" value.'
+                        if config['allow_missing_files'] is False:
+                            logging.error(message)
+                            sys.exit('Error: ' + message)
+                        else:
+                            logging.warning(message)
+
+                    if file_check_row[additional_file_field].startswith('http'):
+                        http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
+                        if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
+                            message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
+                                + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
                             if config['allow_missing_files'] is False:
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
                             else:
                                 logging.warning(message)
+                    else:
+                        if len(file_check_row[additional_file_field]) > 0:
+                            if check_file_exists(config, file_check_row[additional_file_field]) is False:
+                                message = 'File "' + file_check_row[additional_file_field] + '" in column "' + additional_file_field + '" in CVS row ' + \
+                                    file_check_row[config['id_field']] + ' not found.'
+                                logging.warning(message)
 
-                        if file_check_row[additional_file_field].startswith('http'):
-                            http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
-                            if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
-                                message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
-                                    + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
-                                if config['allow_missing_files'] is False:
-                                    logging.error(message)
-                                    sys.exit('Error: ' + message)
-                                else:
-                                    logging.warning(message)
-                        else:
-                            if len(file_check_row[additional_file_field]) > 0:
-                                if os.path.isabs(file_check_row[additional_file_field]):
-                                    file_path = file_check_row[additional_file_field]
-                                else:
-                                    file_path = os.path.join(config['input_dir'], file_check_row[additional_file_field])
-                                if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                                    message = 'File "' + file_path + '" in column "' + additional_file_field + '" in CVS row ' + file_check_row[config['id_field']] + ' not found.'
-                                    logging.warning(message)
-
-                if missing_additional_files is True:
-                    message = 'Some files in fields configured as "additional_file_fields" are missing. Please see the log for more information.'
-                    print(message)
-                    if config['allow_missing_files'] is False:
-                        sys.exit('Error ' + message)
-                else:
-                    message = 'OK, files in fields configured as "additional_file_fields" are all present.'
-                    logging.info(message)
-                    print(message)
+            if missing_additional_files is True:
+                message = 'Some files in fields configured as "additional_file_fields" are missing. Please see the log for more information.'
+                print(message)
+                if config['allow_missing_files'] is False:
+                    sys.exit('Error ' + message)
+            else:
+                message = 'OK, files in fields configured as "additional_file_fields" are all present.'
+                logging.info(message)
+                print(message)
 
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         if 'additional_files' in config and len(config['additional_files']) > 0 and config['nodes_only'] is False:
@@ -1975,16 +1963,12 @@ def check_input(config, args):
                                 extension = get_remote_file_extension(config, additional_filename)
                                 extension = extension.lstrip('.')
                             else:
-                                additional_file_not_found_message = f'File "{additional_filename}" in column "{additional_file_field}" in CVS row "' + \
-                                    file_check_row[config['id_field']] + '" not found.'
-                                if config['strict_check'] is True and config['allow_missing_files'] is False:
-                                    logging.error(additional_file_not_found_message)
-                                    sys.exit('Error: ' + additional_file_not_found_message)
-
                                 if check_file_exists(config, additional_filename):
                                     extension = os.path.splitext(additional_filename)
                                     extension = extension[1].lstrip('.').lower()
                                 else:
+                                    additional_file_not_found_message = f'File "{additional_filename}" in column "{additional_file_field}" in CVS row "' + \
+                                        file_check_row[config['id_field']] + '" not found.'
                                     logging.warning(additional_file_not_found_message)
                                     continue
 
@@ -2727,25 +2711,6 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
     return result, cmd.returncode
 
 
-def filter_invalid_media_fields(config, csv_row, media_type):
-    """Remove values from csv_row that aren't valid and log the removal.
-           Parameters
-           ----------
-            config : dict
-                The configuration settings defined by workbench_config.get_config().
-            csv_row: OrderedDict
-                E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
-            media_type: string
-                The media type name.
-            Returns
-            -------
-            OrderedDict
-                The csv_row with fields containing invalid values removed.
-    """
-    # Fow now, just return the csv_row.
-    return csv_row
-
-
 def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
            Parameters
@@ -2897,11 +2862,6 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     # media_type_for_oembed_check = set_media_type(config, filename, file_fieldname, node_csv_row)
     media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
 
-    # WIP on #572: Get all the fields in node_csv_row that are namespaced 'media:[type]' that correspond
-    # to the current media type, and validate the values in them in filter_invalid_media_files().The resulting
-    # dictionary will be used below to add those fields to the media.
-    node_csv_row = filter_invalid_media_fields(config, node_csv_row, media_type)
-
     if media_type in get_oembed_media_types(config):
         # file_result must be an integer.
         file_result = -1
@@ -3030,15 +2990,14 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
 
         # extracted_text media must have their field_edited_text field populated for full text indexing.
         if media_type == 'extracted_text':
-            if os.path.exists(filename):
+            if check_file_exists(config, filename):
                 media_json['field_edited_text'] = list()
+                if os.path.isabs(filename) is False:
+                    filename = os.path.join(config['input_dir'], filename)
                 extracted_text_file = open(filename, 'r', -1, 'utf-8')
                 media_json['field_edited_text'].append({'value': extracted_text_file.read()})
             else:
                 logging.error("Extracted text file %s not found.", filename)
-
-        # WIP on #572: Add fields to media JSON coming in from the 'create' input CSV, namespaced with
-        # 'media:[type]', where [type] is the value of media_type.
 
         # Create media_track files here, since they should exist before we create the parent media.
         media_types_with_track_files = config['media_track_file_fields'].keys()
@@ -5491,7 +5450,7 @@ def check_file_exists(config, filename):
         config : dict
             The configuration settings defined by workbench_config.get_config().
         filename: string
-            The filename.
+            The filename or path.
         Returns
         -------
         boolean
@@ -5526,6 +5485,7 @@ def check_file_exists(config, filename):
             return True
 
     # Fall back to False if existence of file can't be determined.
+    logging.warning(f"Can't determine if file {filename} exists, assuming it doesn't.")
     return False
 
 
