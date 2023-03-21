@@ -2829,7 +2829,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
         return False
 
 
-def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_use_tid=None):
+def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_tid=None):
     """Creates a media in Drupal.
 
            Parameters
@@ -2842,8 +2842,10 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 The name of the CSV column containing the filename.
             node_id: string
                 The ID of the node to attach the media to. This is False if file creation failed.
-            node_csv_row: OrderedDict
+            csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
+                Could be either a CSV row describing nodes (e.g. during 'create' tasks) or describing
+                media (e.g. during 'add_media' tasks).
             media_use_tid : int|str
                 A valid term ID (or a subdelimited list of IDs) from the Islandora Media Use vocabulary.
             Returns
@@ -2856,26 +2858,30 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
     if config['nodes_only'] is True:
         return
 
+    # Importing the workbench_fields module at the top of this module with the
+    # rest of the imports causes a circular import exception, so we do it here.
+    import workbench_fields
+
     if value_is_numeric(node_id) is False:
         node_id = get_nid_from_url_alias(config, node_id)
 
     # media_type_for_oembed_check = set_media_type(config, filename, file_fieldname, node_csv_row)
-    media_type = set_media_type(config, filename, file_fieldname, node_csv_row)
+    media_type = set_media_type(config, filename, file_fieldname, csv_row)
 
     if media_type in get_oembed_media_types(config):
         # file_result must be an integer.
         file_result = -1
     else:
-        file_result = create_file(config, filename, file_fieldname, node_csv_row, node_id)
+        file_result = create_file(config, filename, file_fieldname, csv_row, node_id)
 
     if filename.startswith('http'):
         if file_result is False:
             return False
-        filename = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id, False)
+        filename = get_preprocessed_file_path(config, file_fieldname, csv_row, node_id, False)
 
     if isinstance(file_result, int):
-        if 'media_use_tid' in node_csv_row and len(node_csv_row['media_use_tid']) > 0:
-            media_use_tid_value = node_csv_row['media_use_tid']
+        if 'media_use_tid' in csv_row and len(csv_row['media_use_tid']) > 0:
+            media_use_tid_value = csv_row['media_use_tid']
         else:
             media_use_tid_value = config['media_use_tid']
 
@@ -2901,8 +2907,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
 
         media_field = config['media_type_file_fields'][media_type]
         if media_type in get_oembed_media_types(config):
-            if 'title' in node_csv_row:
-                media_name = node_csv_row['title']
+            if 'title' in csv_row:
+                # WIP on #572: 'title' applies to node CSVs, for media, it should be 'name'.
+                media_name = csv_row['title']
             else:
                 media_name = get_node_title_from_nid(config, node_id)
                 if not media_name:
@@ -2913,8 +2920,9 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             media_name = os.path.basename(filename)
 
         if config['use_node_title_for_media']:
-            if 'title' in node_csv_row:
-                media_name = node_csv_row['title']
+            if 'title' in csv_row:
+                # WIP on #572: 'title' applies to node CSVs, for media, it should be 'name'.
+                media_name = csv_row['title']
             else:
                 media_name = get_node_title_from_nid(config, node_id)
                 if not media_name:
@@ -2924,7 +2932,7 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         if config['use_nid_in_media_title']:
             media_name = f"{node_id}-Original File"
         if config['field_for_media_title']:
-            media_name = node_csv_row[config['field_for_media_title']].replace(':', '_')
+            media_name = csv_row[config['field_for_media_title']].replace(':', '_')
 
         # Create a media from an oEmbed URL.
         if media_type in get_oembed_media_types(config):
@@ -2981,8 +2989,8 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
         # Populate some media type-specific fields on the media. @todo: We need a generalized way of
         # determining which media fields are required, e.g. checking the media type configuration.
         if media_field == 'field_media_image':
-            if 'image_alt_text' in node_csv_row and len(node_csv_row['image_alt_text']) > 0:
-                alt_text = clean_image_alt_text(node_csv_row['image_alt_text'])
+            if 'image_alt_text' in csv_row and len(csv_row['image_alt_text']) > 0:
+                alt_text = clean_image_alt_text(csv_row['image_alt_text'])
                 media_json[media_field][0]['alt'] = alt_text
             else:
                 alt_text = clean_image_alt_text(media_name)
@@ -2999,19 +3007,23 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
+        # @todo WIP on #572: if this is an `add_media` task, add fields in CSV to media_json, being careful to
+        # not stomp on existing fields.
+
         # Create media_track files here, since they should exist before we create the parent media.
+        # @todo WIP on #572: if there are track file fields in the add_media CSV, create them here, as below for track file field in node CSV.
         media_types_with_track_files = config['media_track_file_fields'].keys()
         valid_media_track_fields = list()
         if media_type in media_types_with_track_files:
             # Check for fields in node_csv_row that have names like 'media:video:field_track' and validate their contents.
             # Note: Does not validate the fields' configuration (--check does that).
-            node_csv_field_names = list(node_csv_row.keys())
+            node_csv_field_names = list(csv_row.keys())
             if len(node_csv_field_names):
                 media_track_fields = [x for x in node_csv_field_names if x.startswith('media:' + media_type)]
                 # Should be just one field per media type.
                 if len(media_track_fields) and media_type in config['media_track_file_fields']:
                     for media_track_field in media_track_fields:
-                        if validate_media_track_value(node_csv_row[media_track_field]) is True:
+                        if validate_media_track_value(csv_row[media_track_field]) is True:
                             valid_media_track_fields.append(media_track_field)
 
             # Create the media track file(s) for each entry in valid_potential_media_track_fields (there could be multiple track entries).
@@ -3019,10 +3031,10 @@ def create_media(config, filename, file_fieldname, node_id, node_csv_row, media_
                 media_track_field_data = []
                 # Should be just one field per media type.
                 fully_qualified_media_track_field_name = valid_media_track_fields[0]
-                media_track_entries = split_media_track_string(config, node_csv_row[fully_qualified_media_track_field_name])
+                media_track_entries = split_media_track_string(config, csv_row[fully_qualified_media_track_field_name])
                 for media_track_entry in media_track_entries:
                     media_track_field_name_parts = fully_qualified_media_track_field_name.split(':')
-                    create_track_file_result = create_file(config, media_track_entry['file_path'], media_track_field_name_parts[2], node_csv_row, node_id)
+                    create_track_file_result = create_file(config, media_track_entry['file_path'], media_track_field_name_parts[2], csv_row, node_id)
                     if create_track_file_result is not False and isinstance(create_track_file_result, int):
                         # /entity/file/663?_format=json will return JSON containing the file's 'uri'.
                         track_file_info_response = issue_request(config, 'GET', f"/entity/file/{create_track_file_result}?_format=json")
