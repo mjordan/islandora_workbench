@@ -42,7 +42,7 @@ def create():
 
     if config['secondary_tasks'] is not None:
         if os.path.abspath(args.config) not in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
-            prep_node_ids_tsv(config)
+            prep_parent_node_ids_map(config)
 
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     node_ids = dict()
@@ -109,22 +109,21 @@ def create():
         if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
             row['field_member_of'] = node_ids[row['parent_id']]
 
-        # For children whose parent node was created in the 'primary' job.
-        # The secondary task data file contains the names of the YAML config
-        # files registered in the primary task's 'secondary_tasks' config option.
-        # Therefore, only tasks whose names are registered there should populate
-        # their objects' 'field_member_of'.
-        secondary_task_data = read_node_ids_tsv(config)
-
+        # For children whose parent node was created in the primary task. The ISLANDORA_WORKBENCH_SECONDARY_TASKS
+        # environment variable (set by the primary task) contains the names of the config files registered in the
+        # primary task's 'secondary_tasks' config option. If the name of the currently running task is in that list
+        # (i.e., it's a secondary task), populate its CSV 'field_member_of' with node IDs from the primary task using
+        # parent IDs from its 'parent_id' field as the key.
+        secondary_task_data = read_parent_node_ids_map(config)
         if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
             if os.path.abspath(args.config) in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
                 if len(secondary_task_data) > 0:
                     if 'field_member_of' in row and 'parent_id' in row and row['parent_id'] in secondary_task_data.keys():
                         row['field_member_of'] = secondary_task_data[row['parent_id']]
                     else:
-                        # If there is no parent ID/nid pair in the secondary_task_data mapping,
-                        # either because it wasn't in the primary CSV or it failed to be created
-                        # in the primary task, skip creating the current secondary node and move on.
+                        # If there is no parent ID/nid pair in the secondary_task_data mapping, either because it wasn't
+                        # in the primary CSV or it failed to be created in the primary task, skip creating the current
+                        # secondary node and move on.
                         logging.warning('Node for row with ID %s in secondary task CSV not created because its parent was not present or not created in the primary task.', id_field)
                         continue
 
@@ -263,14 +262,15 @@ def create():
                 else:
                     logging.error("Post node create script " + command + " failed.")
 
-        # Map ID from CSV of newly created node to its node ID so we can use it for linking child nodes, etc.
+        # For primary tasks, map the ID from CSV of newly created node to its node ID so
+        # we can use it for linking child nodes, media, etc.
         if node_response.status_code == 201:
             node_nid = node_uri.rsplit('/', 1)[-1]
             node_ids[id_field] = node_nid
-
             if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
+                # Only populate the CSV ID->node ID map for items created in the primary task.
                 if args.config not in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
-                    write_to_node_ids_tsv(config, id_field, node_id)
+                    write_to_parent_node_ids_map(config, id_field, node_id)
 
         if config['progress_bar'] is True:
             row_count += 1
@@ -1380,16 +1380,12 @@ try:
 
     if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
         for secondary_config_file in config['secondary_tasks']:
-            message = 'Executing secondary task using configuration file "' + secondary_config_file + '"'
+            message = 'Executing secondary task using configuration file ' + secondary_config_file + '.'
             print('')
             print(message)
             logging.info(message)
             cmd = [config['path_to_python'], config['path_to_workbench_script'], "--config", secondary_config_file]
             output = subprocess.run(cmd)
-
-        map_file_path = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
-        if os.path.exists(map_file_path):
-            os.remove(map_file_path)
 
     # Execute shutdown scripts, if any are configured.
     if config['check'] is False and 'shutdown' in config and len(config['shutdown']) > 0:

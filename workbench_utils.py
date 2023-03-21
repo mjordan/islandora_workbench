@@ -6123,58 +6123,55 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     return csv_field_data
 
 
-def prep_node_ids_tsv(config):
-    """Write to the data file the names of config files identified in config['secondary_tasks']
-       since we need a way to ensure that only tasks whose names are registered there should
-       populate their objects' 'field_member_of'. We write the parent ID->nid map to this file
-       as well, in write_to_node_ids_tsv().
+def prep_parent_node_ids_map(config):
+    """Create a database table where we maintain the CSV ID->nid map in write_to_parent_node_ids_map().
+       Used in secondary tasks to create parent/child references.
     """
     if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
     else:
-        path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
-    if os.path.exists(path_to_tsv_file):
-        os.remove(path_to_tsv_file)
-    if len(config['secondary_tasks']) > 0:
-        tsv_file = open(path_to_tsv_file, "a+", encoding='utf-8')
+        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
+    if 'secondary_tasks' in config and len(config['secondary_tasks']) > 0:
+        table = "csv_row_id_to_parent_node_id_map"
+        create_table_sql = "CREATE TABLE csv_row_id_to_parent_node_id_map (csv_row_id TEXT, node_id TEXT)"
+        sqlite_manager(config, operation='create_table', table_name=table, query=create_table_sql, db_file_path=path_to_db)
     else:
         return False
 
-    for secondary_config_file in config['secondary_tasks']:
-        tsv_file.write(secondary_config_file + "\t" + '' + "\n")
-    tsv_file.close()
 
-
-def write_to_node_ids_tsv(config, row_id, node_id):
+def write_to_parent_node_ids_map(config, row_id, node_id):
+    """Inserts an entry into the SQLite table tracking the CSV->node ID mappings
+       used in secondary tasks to create parent/child references.
+    """
     if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
     else:
-        path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
-    tsv_file = open(path_to_tsv_file, "a+", encoding='utf-8')
-    tsv_file.write(str(row_id) + "\t" + str(node_id) + "\n")
-    tsv_file.close()
+        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
+
+    sqlite_manager(config, operation='insert', query="INSERT INTO csv_row_id_to_parent_node_id_map VALUES (?, ?)", values=(str(row_id), str(node_id)), db_file_path=path_to_db)
 
 
-def read_node_ids_tsv(config):
+def read_parent_node_ids_map(config):
+    """Gets all of the CSV ID->node ID mappings used in secondary tasks to create parent/child references.
+    """
     map = dict()
     if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_tsv_file = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['secondary_tasks_data_file'])
+        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
     else:
-        path_to_tsv_file = os.path.join(config['temp_dir'], config['secondary_tasks_data_file'])
+        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
     if config['secondary_tasks'] is not None:
-        if not os.path.exists(path_to_tsv_file):
-            message = 'Secondary task data file ' + path_to_tsv_file + ' not found.'
+        if not os.path.exists(path_to_db):
+            message = f'Secondary task database "{path_to_db}" not found.'
             print('Error: ' + message)
             logging.error(message)
             return map
             sys.exit()
 
-    if os.path.exists(path_to_tsv_file):
-        map_file = open(path_to_tsv_file, "r")
-        entries = map_file.read().splitlines()
-        for entry in entries:
-            parts = entry.split("\t")
-            map[parts[0]] = parts[1]
+    if os.path.exists(path_to_db):
+        res = sqlite_manager(config, operation='select', query="SELECT * FROM csv_row_id_to_parent_node_id_map")
+        map = dict()
+        for row in res:
+            map[row['csv_row_id']] = row['node_id']
 
     return map
 
@@ -6648,52 +6645,72 @@ def generate_contact_sheet_from_csv(config):
     shutil.copyfile(os.path.join(css_file_path), os.path.join(config['contact_sheet_output_dir'], css_file_name))
 
 
-def sqlite_manager(config, operation='select', table_name=None, query=None, values=()):
+def sqlite_manager(config, operation='select', table_name=None, query=None, values=(), db_file_path=None):
     """Perform operations on an SQLite database.
     """
     """
     Params
-        config : dict
+        config: dict
             The configuration settings defined by workbench_config.get_config().
         operation: string
-            One of 'create_database', 'create_database', 'insert', 'select', 'update', 'delete'.
-        query
-            The parameterized query, expressed as a tuple, e.g.,
-            "SELECT foo from bar where foo = ?", ('baz')
+            One of 'create_database', 'remove_database', 'create_table, 'insert', 'select', 'update', 'delete'.
+            'create_table, 'insert', 'select', 'update', and 'delete' operations need to be passed a
+            query to execute.
+        table_name: string
+            The name of the table to create. Used only in 'create_table' queries.
+        query: string
+            The parameterized query, expressed as a tuple, e.g., "SELECT foo from bar where foo = ?".
+            'create_table, 'insert', 'select', 'update', and 'delete' operations need to be passed a
+            query to execute.
         values: tuple
-            The positional values to interpolate into the query.
+            The positional values to interpolate into the query, e.g., "('baz')".
+        db_file_path: string
+            The relativre or absolute path to the database file.
     Return
         bool|list|sqlite3.Cursor object
-            True if the ceratedb or removedb operation was successful, False if an
-            operation could not be completed, a list of sqlite3.Row objects for select
-            and update queries, and an sqlite3.Cursor object for insert queries.
+            True if the 'create_database' or 'remove_database' operation was successful, False if an
+            operation could not be completed, a list of sqlite3.Row objects for 'select' and 'update'
+            queries, or an sqlite3.Cursor object for 'insert' and 'delete' queries.
     """
-    db_path = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
+    if db_file_path is None:
+        db_file_name = config['sqlite_db_filename']
+    else:
+        db_file_name = db_file_path
 
-    # Only create the database if the database file does not exist.
+    if os.path.isabs(db_file_name):
+        db_path = db_file_name
+    else:
+        db_path = os.path.join(config['temp_dir'], db_file_name)
+
+    # Only create the database if the database file does not exist. Note: Sqlite3 creates the db file
+    # automatically in its .connect method, so you only need to use this operation if you want to
+    # create the db prior to creating a table. No need to use it the first time you create a table.
     if operation == 'create_database':
         if os.path.isfile(db_path):
             return False
         else:
-            con = sqlite3.connect(db_path)
+            sqlite3.connect(db_path)
+            logging.info(f'SQLite database "{db_path}" created.')
             return True
-    elif operation == 'create_database':
+    elif operation == 'remove_database':
         if os.path.isfile(db_path):
             os.remove(db_path)
+            logging.info(f'SQLite database "{db_path}" deleted.')
             return True
     elif operation == 'create_table':
         con = sqlite3.connect(db_path)
-        # Only create the table if it doesn't exist.
         cur = con.cursor()
         args = (table_name,)
         tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", args).fetchall()
+        # Only create the table if it doesn't exist.
         if tables == []:
-            cur = con.cursor()
+            # cur = con.cursor()
             res = cur.execute(query)
             con.close()
             return res
         else:
             con.close()
+            logging.warning(f'SQLite database "{db_path}" already contains a table named "{table_name}".')
             return False
     elif operation == 'select':
         con = sqlite3.connect(db_path)
