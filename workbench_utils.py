@@ -29,6 +29,9 @@ import itertools
 import http.client
 import sqlite3
 
+from rich.traceback import install
+install()
+
 # Set some global variables.
 yaml = YAML()
 
@@ -1089,7 +1092,7 @@ def replace_field_labels_with_names(config, csv_headers):
         list
             The list of CSV headers with any labels replaced with field names.
     """
-    # @todo: account for other entity types.
+    # @todo: account for other entity types. @todo #572 add media (where do we get media type from?).
     if config['task'] == 'create_terms':
         field_map = get_fieldname_map(config, 'taxonomy_term', config['vocab_id'], 'labels')
     else:
@@ -1104,11 +1107,19 @@ def replace_field_labels_with_names(config, csv_headers):
 
 def check_input(config, args):
     """Validate the config file and input data.
+
+        Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        args: ArgumentParser
+            Command-line arguments from argparse.parse_args().
+        Returns
+        -------
+        None
+            Exits if an error is encountered.
     """
-    logging.info(
-        'Starting configuration check for "%s" task using config file %s.',
-        config['task'],
-        args.config)
+    logging.info('Starting configuration check for "%s" task using config file %s.', config['task'], args.config)
 
     ping_islandora(config, print_message=False)
     check_integration_module_version(config)
@@ -3007,8 +3018,90 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
-        # @todo WIP on #572: if this is an `add_media` task, add fields in CSV to media_json, being careful to
-        # not stomp on existing fields.
+        # WIP on #572: if this is an `add_media` task, add fields in CSV to media_json, being careful to
+        # not stomp on existing fields. Block below is copied from create() and needs to be modified to
+        # suit creation of custom fields in add_media tasks.
+        '''
+        if config['task'] == 'add_media':
+            field_definitions = get_field_definitions(config, 'media')
+
+            # Add custom (non-required) CSV fields.
+            entity_fields = get_entity_fields(config, 'node', config['content_type'])
+            # Only add config['id_field'] to required_fields if it is not a node field.
+            required_fields = ['file', 'title']
+            if config['id_field'] not in entity_fields:
+                required_fields.append(config['id_field'])
+            custom_fields = list(set(csv_column_headers) - set(required_fields))
+            additional_files_entries = get_additional_files_config(config)
+            for custom_field in custom_fields:
+                # Skip processing field if empty.
+                if len(row[custom_field].strip()) == 0:
+                    continue
+
+                if len(additional_files_entries) > 0:
+                    if custom_field in additional_files_entries.keys():
+                        continue
+
+                # This field can exist in the CSV to create parent/child
+                # relationships and is not a Drupal field.
+                if custom_field == 'parent_id':
+                    continue
+
+                # 'langcode' is a core Drupal field, but is not considered a "base field".
+                if custom_field == 'langcode':
+                    continue
+
+                # 'image_alt_text' is a reserved CSV field.
+                if custom_field == 'image_alt_text':
+                    continue
+
+                # 'url_alias' is a reserved CSV field.
+                if custom_field == 'url_alias':
+                    continue
+
+                # 'media_use_tid' is a reserved CSV field.
+                if custom_field == 'media_use_tid':
+                    continue
+
+                # 'checksum' is a reserved CSV field.
+                if custom_field == 'checksum':
+                    continue
+
+                # We skip CSV columns whose headers use the 'media:video:field_foo' media track convention.
+                if custom_field.startswith('media:'):
+                    continue
+
+                # Assemble Drupal field structures for entity reference fields from CSV data.
+                # Entity reference fields (taxonomy_term and node).
+                if field_definitions[custom_field]['field_type'] == 'entity_reference':
+                    entity_reference_field = workbench_fields.EntityReferenceField()
+                    node = entity_reference_field.create(config, field_definitions, node, row, custom_field)
+
+                # Typed relation fields.
+                elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                    typed_relation_field = workbench_fields.TypedRelationField()
+                    node = typed_relation_field.create(config, field_definitions, node, row, custom_field)
+
+                # Geolocation fields.
+                elif field_definitions[custom_field]['field_type'] == 'geolocation':
+                    geolocation_field = workbench_fields.GeolocationField()
+                    node = geolocation_field.create(config, field_definitions, node, row, custom_field)
+
+                # Link fields.
+                elif field_definitions[custom_field]['field_type'] == 'link':
+                    link_field = workbench_fields.LinkField()
+                    node = link_field.create(config, field_definitions, node, row, custom_field)
+
+                # Authority Link fields.
+                elif field_definitions[custom_field]['field_type'] == 'authority_link':
+                    link_field = workbench_fields.AuthorityLinkField()
+                    node = link_field.create(config, field_definitions, node, row, custom_field)
+
+                # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
+                else:
+                    simple_field = workbench_fields.SimpleField()
+                    node = simple_field.create(config, field_definitions, node, row, custom_field)
+        '''
 
         # Create media_track files here, since they should exist before we create the parent media.
         # @todo WIP on #572: if there are track file fields in the add_media CSV, create them here, as below for track file field in node CSV.
@@ -6182,6 +6275,10 @@ def read_parent_node_ids_map(config):
     if os.path.exists(path_to_db):
         res = sqlite_manager(config, operation='select', query="SELECT * FROM csv_row_id_to_parent_node_id_map")
         map = dict()
+        # Note: since we don't enforce uniquness of CSV IDs across tasks, it is possible that a given
+        # CSV ID can exist multiple times in the map table. In practice this shouldn't be a problem,
+        # since by iterating over them and adding them to the 'map' dictionary, the newest usage of
+        # the CSV ID will end up being the one used.
         for row in res:
             map[row['csv_row_id']] = row['node_id']
 
