@@ -3391,6 +3391,10 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         preprocessed_csv_reader
             The CSV DictReader object.
     """
+    # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/443.
+    if config['task'] == 'update':
+        config['id_field'] = 'node_id'
+
     if csv_file_target == 'node_fields':
         file_path = config['input_csv']
 

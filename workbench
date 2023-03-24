@@ -15,7 +15,6 @@ import collections
 import subprocess
 import requests_cache
 from progress_bar import InitBar
-from rich.progress import track
 from workbench_utils import *
 import workbench_fields
 from WorkbenchConfig import WorkbenchConfig
@@ -406,7 +405,7 @@ def update():
         for custom_field in custom_fields:
             node_has_all_fields = True
             # If node doesn't have the field, log that fact and skip updating the field.
-            if custom_field not in json.loads(node_ping_result):
+            if custom_field not in json.loads(node_ping_result) and custom_field != 'url_alias':
                 message = f'Node {row["node_id"]} does not have a "{custom_field}" field, skipping update.'
                 print(f'ERROR: ' + message)
                 logging.warning(message)
