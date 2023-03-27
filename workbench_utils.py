@@ -1126,7 +1126,7 @@ def check_input(config, args):
 
     rows_with_missing_files = list()
 
-    base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created']
+    base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created', 'published']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
     # but it doesn't show up in any field configs.
     reserved_fields = ['file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode']

@@ -67,7 +67,7 @@ def create():
 
         id_field = row[config['id_field']]
 
-        # Add required fields.
+        # Add required fields. 'status' ("published") can be overridden in CSV, below.
         node = {
             'type': [
                 {'target_id': config['content_type'],
@@ -102,6 +102,13 @@ def create():
             # Reset it to empty so it doesn't throw a key error in the code
             # in the "Assemble Drupal field structures..." section below.
             row['langcode'] = ''
+
+        if 'published' in csv_column_headers:
+            if len(row['published']) > 0:
+                node['status'] = [{'value': row['published']}]
+            # Reset it to empty so it doesn't throw a key error in the code
+            # in the "Assemble Drupal field structures..." section below.
+            row['published'] = ''
 
         # If a node with an ID that matches the current item's 'parent_id'
         # value has just been created, make the item a child of the node.
@@ -399,13 +406,18 @@ def update():
             if len(row['created']) > 0:
                 node['created'] = [{'value': row['created']}]
 
+        if 'published' in csv_column_headers:
+            if len(row['published']) > 0:
+                node['status'] = [{'value': row['published']}]
+
         # Add custom (non-required) fields.
         required_fields = ['node_id']
         custom_fields = list(set(csv_column_headers) - set(required_fields))
         for custom_field in custom_fields:
             node_has_all_fields = True
             # If node doesn't have the field, log that fact and skip updating the field.
-            if custom_field not in json.loads(node_ping_result) and custom_field != 'url_alias':
+            reserved_fields = ['published', 'url_alias']
+            if custom_field not in json.loads(node_ping_result) and custom_field not in reserved_fields:
                 message = f'Node {row["node_id"]} does not have a "{custom_field}" field, skipping update.'
                 print(f'ERROR: ' + message)
                 logging.warning(message)
@@ -434,6 +446,10 @@ def update():
 
             # 'created' is a base field.
             if custom_field == 'created':
+                continue
+
+            # 'published' is a reserved CSV field.
+            if custom_field == 'published':
                 continue
 
             # 'uid' is a base field.
