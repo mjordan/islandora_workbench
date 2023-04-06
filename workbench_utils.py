@@ -952,7 +952,7 @@ def get_entity_fields(config, entity_type, bundle_type):
                 fields.append(fieldname)
     else:
         message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
-        logging.error(message)
+        logging.error(message + " HTTP response code was " + str(bundle_type_response.status_code) + '.')
         sys.exit('Error: ' + message)
 
     return fields
