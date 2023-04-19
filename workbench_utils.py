@@ -1986,7 +1986,7 @@ def check_input(config, args):
                             registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                             if extension not in registered_extensions[media_type_file_field]:
                                 message = 'File "' + additional_filename + '" in the "' + additional_file_field + '" field of row "' + file_check_row[config['id_field']] + \
-                                    '" does not have an extension (' + str(extension) + ') allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
+                                    '" has an extension (' + str(extension) + ') that is allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -5529,6 +5529,7 @@ def get_extension_from_mimetype(config, mimetype):
            'image/tiff': '.tif',
            'audio/mpeg': '.mp3',
            'text/plain': '.txt',
+           'application/xml': '.xml',
            'application/octet-stream': '.bin'
            }
     if 'mimetype_extensions' in config and len(config['mimetype_extensions']) > 0:
