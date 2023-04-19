@@ -203,7 +203,9 @@ class WorkbenchConfig:
             'contact_sheet_css_path': os.path.join('assets', 'contact_sheet', 'contact-sheet.css'),
             'page_title_template': '$parent_title, page $weight',
             'csv_headers': 'names',
-            'clean_csv_values_skip': []
+            'clean_csv_values_skip': [],
+            # WIP on #593.
+            'mimetypes_to_extensions': []
         }
 
     # Tests validity and existence of configuration file path.

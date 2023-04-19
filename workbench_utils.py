@@ -1887,11 +1887,11 @@ def check_input(config, args):
                         registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
                         if extension not in registered_extensions[media_type_file_field]:
                             message = 'File "' + file_check_row[filename_field] + '" in CSV row "' + file_check_row[config['id_field']] + \
-                                '" does not have an extension (' + str(extension) + ') allowed in the "' + media_type_file_field + '" field of the (' + media_type + ') media type.'
+                                '" has an extension (' + str(extension) + ') that is not allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
 
-    # Check existence of fields identified in 'additional_files' config setting, and validate the extensions of files named in those fields.
+    # Check existence of fields identified in 'additional_files' config setting.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
         if 'additional_files' in config and len(config['additional_files']) > 0:
             additional_files_entries = get_additional_files_config(config)
@@ -3513,7 +3513,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
                     sys.exit(message)
         repeats = set(([x for x in unique_identifiers if unique_identifiers.count(x) > 1]))
         if len(repeats) > 0:
-            message = "Duplicate identifiers in column " + config['id_field'] + " found: " + str(repeats)
+            message = "Duplicate identifiers in column " + config['id_field'] + " found: " + ','.join(repeats) + "."
             logging.error(message)
             sys.exit("Error: " + message)
     else:
@@ -5504,22 +5504,43 @@ def get_extracted_csv_file_path(config):
     return os.path.join(config['temp_dir'], exported_csv_filename)
 
 
-def get_extension_from_mimetype(mimetype):
-    # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
-    # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
-    # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
+def get_extension_from_mimetype(config, mimetype):
+    """For a given MIME type, return the corresponding file extension. mimetypes.add_type()
+       is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg'). Maybe related to
+        https://bugs.python.org/issue4963? In the meantime, provide our own MIMETYPE to extension
+        mapping for common types, then let mimetypes guess at others.
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        mimetype: string
+            The MIME type to get the corresponding extension for.
+        Returns
+        -------
+        string|bool
+            The extension, with a leading '.', or None if no extension can be determined.
+    """
     map = {'image/jpeg': '.jpg',
            'image/jpg': '.jpg',
            'image/jp2': '.jp2',
            'image/png': '.png',
+           'image/tif': '.tif',
+           'image/tiff': '.tif',
            'audio/mpeg': '.mp3',
            'text/plain': '.txt',
            'application/octet-stream': '.bin'
            }
+    if 'mimetype_extensions' in config and len(config['mimetype_extensions']) > 0:
+        for mtype, ext in config['mimetype_extensions'].items():
+            map[mtype] = ext
+
     if mimetype in map:
         return map[mimetype]
     else:
         return mimetypes.guess_extension(mimetype)
+
+    return None
 
 
 def get_deduped_file_path(path):
@@ -5790,7 +5811,13 @@ def get_remote_file_extension(config, file_url):
     except KeyError:
         mimetype = 'application/octet-stream'
 
-    extension_with_dot = get_extension_from_mimetype(mimetype)
+    extension_with_dot = get_extension_from_mimetype(config, mimetype)
+
+    if extension_with_dot is None:
+        message = f'Workbench does not recognize the MIME type "{mimetype}" received from the remote server for the file "{file_url}". '
+        message = message + 'You can assign an extension to this MIME type using the "mimetype_extensions" config setting.'
+        logging.error(message)
+        sys.exit('Error: ' + message)
 
     return extension_with_dot
 
