@@ -582,7 +582,7 @@ def add_media():
             print("Node " + row['node_id'] + " not found or not accessible, skipping adding media.")
             continue
 
-        allowed_media_response_codes = [201, 204]
+        allowed_media_response_codes = [201, 204]  # 201 means media created, 204 means media already exists.
 
         node_json_url = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
         node_uri = config['host'] + '/node/' + str(row['node_id'])
@@ -594,7 +594,7 @@ def add_media():
             # Get media use TID from config within create_media().
             media_use_tid_value = None
 
-        if node_response.status_code == 200:
+        if node_response.status_code == 200:  # Node exists.
             if 'additional_files' not in config:
                 if config['allow_missing_files'] is False:
                     if not check_file_exists(config, row['file']):
@@ -673,8 +673,58 @@ def add_media():
 
 
 def update_media():
-    """Placeholder function. See https://github.com/mjordan/islandora_workbench/issues/76 for more info.
+    """Update media from media IDs in the input CSV. For now, only the media use tid can be updated.
+    We assume two columns are present in the CSV: media_id and media_use_tid.   
     """
+    message = '"Update media" task started using config file ' + args.config + '.'
+    print(message)
+    logging.info(message)
+
+    csv_data = get_csv_data(config)  # Get CSV data as a list of dictionaries
+    print(csv_data)
+
+    row_count = 0
+    for row in csv_data:
+        if not value_is_numeric(row['media_id']):
+            row['media_id'] = get_mid_from_media_url_alias(config, row['media_id'])
+        if not ping_media_bundle(config, row['media_id']):
+            print("Media " + row['media_id'] + " not found or not accessible, skipping adding media.")
+            continue
+
+        allowed_media_response_codes = [200] # 200 = OK
+
+        media_json_url = config['host'] + '/media/' + str(row['media_id']) + '?_format=json'
+        media_uri = config['host'] + '/media/' + str(row['media_id'])
+        media_response = issue_request(config, 'HEAD', media_json_url) # HEAD request to check if media exists
+        # Now make a GET request to get the media's media type (e.g. image, video, etc.)
+        media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
+        print("Media type: " + media_type)
+
+        if 'media_use_tid' in row:
+            media_use_tids = row['media_use_tid']
+        else:
+            # If no media use tid is provided, use the default value from the config file.
+            media_use_tids = config['media_use_tid']
+        
+        media_use_tids = media_use_tids.split(config['subdelimiter'])
+
+        if media_response.status_code == 200:  # Media exists
+            if config['progress_bar'] is False:
+                print("Updating media " + row['media_id'] + " at " + media_uri + "...")
+            logging.info("Updating media %s at %s", row['media_id'], media_uri)
+            patch_media_use_terms(config, row['media_id'], media_type, media_use_tids)
+            print("done.")
+        else:
+            if config['progress_bar'] is False:
+                print("ERROR: Node at " + node_uri + " does not exist or is not accessible.")
+            logging.error("Node at %s does not exist or is not accessible (HTTP response code %s)", node_uri, node_response.status_code)
+
+        if config['progress_bar'] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
+
+
 
 
 def delete_media():
@@ -1392,6 +1442,8 @@ try:
         get_data_from_view()
     if config['task'] == 'create_terms':
         create_terms()
+    if config['task'] == 'update_media':
+        update_media()
 
     if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
         for secondary_config_file in config['secondary_tasks']:
