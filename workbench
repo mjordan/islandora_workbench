@@ -692,7 +692,7 @@ def update_media():
         if not value_is_numeric(row['media_use_tid']):
             row['media_use_tid'] = get_term_id_from_uri(config, row['media_use_tid'])
         if not ping_term(config, row['media_use_tid']):
-            print("Term " + row['media_use_tid'] + " not found or not accessible, skipping adding media.")
+            print("Term " + row['media_use_tid'] + " not found or not accessible, skipping updating media.")
             continue
 
         allowed_media_response_codes = [200] # 200 = OK
