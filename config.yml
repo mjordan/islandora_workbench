@@ -6,3 +6,4 @@ input_csv: update_media.csv
 # media_use_tid is optional, it defaults to "Original file".
 media_use_tid: 18
 standalone_media_url: true
+progress_bar: true

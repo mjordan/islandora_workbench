@@ -680,8 +680,7 @@ def update_media():
     print(message)
     logging.info(message)
 
-    csv_data = get_csv_data(config)  # Get CSV data as a list of dictionaries
-    print(csv_data)
+    csv_data = get_csv_data(config)
 
     row_count = 0
     for row in csv_data:
@@ -689,6 +688,11 @@ def update_media():
             row['media_id'] = get_mid_from_media_url_alias(config, row['media_id'])
         if not ping_media_bundle(config, row['media_id']):
             print("Media " + row['media_id'] + " not found or not accessible, skipping adding media.")
+            continue
+        if not value_is_numeric(row['media_use_tid']):
+            row['media_use_tid'] = get_term_id_from_uri(config, row['media_use_tid'])
+        if not ping_term(config, row['media_use_tid']):
+            print("Term " + row['media_use_tid'] + " not found or not accessible, skipping adding media.")
             continue
 
         allowed_media_response_codes = [200] # 200 = OK
@@ -698,33 +702,27 @@ def update_media():
         media_response = issue_request(config, 'HEAD', media_json_url) # HEAD request to check if media exists
         # Now make a GET request to get the media's media type (e.g. image, video, etc.)
         media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
-        print("Media type: " + media_type)
 
         if 'media_use_tid' in row:
-            media_use_tids = row['media_use_tid']
+            media_use_tids = row['media_use_tid'].split(config['subdelimiter'])
         else:
             # If no media use tid is provided, use the default value from the config file.
-            media_use_tids = config['media_use_tid']
-        
-        media_use_tids = media_use_tids.split(config['subdelimiter'])
+            media_use_tids = config['media_use_tid'].split(config['subdelimiter'])
 
         if media_response.status_code == 200:  # Media exists
             if config['progress_bar'] is False:
                 print("Updating media " + row['media_id'] + " at " + media_uri + "...")
             logging.info("Updating media %s at %s", row['media_id'], media_uri)
             patch_media_use_terms(config, row['media_id'], media_type, media_use_tids)
-            print("done.")
         else:
             if config['progress_bar'] is False:
-                print("ERROR: Node at " + node_uri + " does not exist or is not accessible.")
-            logging.error("Node at %s does not exist or is not accessible (HTTP response code %s)", node_uri, node_response.status_code)
+                print("ERROR: Media at " + media_uri + " does not exist or is not accessible.")
+            logging.error("Media at %s does not exist or is not accessible (HTTP response code %s)", media_uri, media_response.status_code)
 
         if config['progress_bar'] is True:
             row_count += 1
             row_position = get_percentage(row_count, num_csv_records)
             pbar(row_position)
-
-
 
 
 def delete_media():

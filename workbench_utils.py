@@ -647,6 +647,7 @@ def get_nid_from_url_alias(config, url_alias):
         node = json.loads(response.text)
         return node['nid'][0]['value']
 
+
 def get_mid_from_media_url_alias(config, url_alias):
     """Gets a media ID from a media URL alias. This function also works
        with canonical URLs, e.g. http://localhost:8000/media/1234.
@@ -3220,8 +3221,6 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
 def patch_media_use_terms(config, media_id, media_type, media_use_tids):
     """Patch the media entity's field_media_use.
     """
-    media_type = "image"
-    media_use_tids = ['18']
     media_json = {
         'bundle': [
             {'target_id': media_type}
@@ -3238,9 +3237,7 @@ def patch_media_use_terms(config, media_id, media_type, media_use_tids):
     else:
         endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
     headers = {'Content-Type': 'application/json'}
-    print(endpoint, headers, media_json)
     response = issue_request(config, 'PATCH', endpoint, headers, media_json)
-    print(response.text)
     if response.status_code == 200:
         logging.info("Media %s Islandora Media Use terms updated.", endpoint)
     else:
