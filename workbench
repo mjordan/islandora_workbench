@@ -685,10 +685,7 @@ def update_media() -> None:
     row_count = 0
     for row in csv_data:
         if not value_is_numeric(row['media_id']):  # If media_id is not numeric, assume it's a media URL alias
-            row['media_id'] = get_mid_from_media_url_alias(config, row['media_id'])
-        if ping_media_bundle(config, row['media_id']) == 404:  # Check if the media exists by pinging it
-            print("Media " + row['media_id'] + " not found or not accessible, skipping adding media.")
-            continue
+            row['media_id'] = str(get_mid_from_media_url_alias(config, row['media_id']))
         if not value_is_numeric(row['media_use_tid']):  # If media_use_tid is not numeric, assume it's a media use term URL alias
             row['media_use_tid'] = str(get_term_id_from_uri(config, row['media_use_tid'])) 
         if not ping_term(config, row['media_use_tid']):  # Check if the media use term exists by pinging it
@@ -699,17 +696,18 @@ def update_media() -> None:
 
         media_json_url = config['host'] + '/media/' + str(row['media_id']) + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
         media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
-        media_response = issue_request(config, 'HEAD', media_json_url)  # HEAD request to check if media exists
-        # Now make a GET request to get the media's media type (e.g. image, video, etc.)
-        media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
-
-        if 'media_use_tid' in row:
-            media_use_tids = row['media_use_tid'].split(config['subdelimiter'])
-        else:
-            # If no media use tid is provided, use the default value from the config file.
-            media_use_tids = config['media_use_tid'].split(config['subdelimiter'])
+        media_response = issue_request(config, 'HEAD', media_json_url)  # Perform a HEAD request to check if media exists
 
         if media_response.status_code == 200:  # Media exists
+            # Now make a GET request to get the media's media type (e.g. image, video, etc.)
+            media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
+
+            if 'media_use_tid' in row:
+                media_use_tids = row['media_use_tid'].split(config['subdelimiter'])
+            else:
+                # If no media use tid is provided, use the default value from the config file.
+                media_use_tids = config['media_use_tid'].split(config['subdelimiter'])
+
             if config['progress_bar'] is False:
                 print("Updating media " + row['media_id'] + " at " + media_uri + "...")
             logging.info("Updating media %s at %s", row['media_id'], media_uri)

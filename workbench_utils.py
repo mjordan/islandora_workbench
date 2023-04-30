@@ -1145,7 +1145,8 @@ def check_input(config, args):
         'create_from_files',
         'create_terms',
         'export_csv',
-        'get_data_from_view'
+        'get_data_from_view',
+        'update_media'
     ]
     joiner = ', '
     if config['task'] not in tasks:
@@ -1211,6 +1212,18 @@ def check_input(config, args):
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' + joiner.join(add_media_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+    if config['task'] == 'update_media':
+        update_media_required_options = [
+            'task',
+            'host',
+            'username',
+            'password',
+            'input_csv']
+        for update_media_required_option in update_media_required_options:
+            if update_media_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(update_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
@@ -1786,6 +1799,11 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
         if 'file' not in csv_column_headers:
             message = 'For "add_media" tasks, your CSV file must contain a "file" column.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+    if config['task'] == 'update_media':
+        if 'media_id' not in csv_column_headers:
+            message = 'For "update_media" tasks, your CSV file must contain a "media_id" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
