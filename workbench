@@ -672,7 +672,7 @@ def add_media():
             pbar(row_position)
 
 
-def update_media():
+def update_media() -> None:
     """Update media from media IDs in the input CSV. For now, only the media use tid can be updated.
     We assume two columns are present in the CSV: media_id and media_use_tid.   
     """
@@ -684,22 +684,22 @@ def update_media():
 
     row_count = 0
     for row in csv_data:
-        if not value_is_numeric(row['media_id']):
+        if not value_is_numeric(row['media_id']):  # If media_id is not numeric, assume it's a media URL alias
             row['media_id'] = get_mid_from_media_url_alias(config, row['media_id'])
-        if not ping_media_bundle(config, row['media_id']):
+        if ping_media_bundle(config, row['media_id']) == 404:  # Check if the media exists by pinging it
             print("Media " + row['media_id'] + " not found or not accessible, skipping adding media.")
             continue
-        if not value_is_numeric(row['media_use_tid']):
-            row['media_use_tid'] = get_term_id_from_uri(config, row['media_use_tid'])
-        if not ping_term(config, row['media_use_tid']):
+        if not value_is_numeric(row['media_use_tid']):  # If media_use_tid is not numeric, assume it's a media use term URL alias
+            row['media_use_tid'] = str(get_term_id_from_uri(config, row['media_use_tid'])) 
+        if not ping_term(config, row['media_use_tid']):  # Check if the media use term exists by pinging it
             print("Term " + row['media_use_tid'] + " not found or not accessible, skipping updating media.")
             continue
 
         allowed_media_response_codes = [200] # 200 = OK
 
-        media_json_url = config['host'] + '/media/' + str(row['media_id']) + '?_format=json'
-        media_uri = config['host'] + '/media/' + str(row['media_id'])
-        media_response = issue_request(config, 'HEAD', media_json_url) # HEAD request to check if media exists
+        media_json_url = config['host'] + '/media/' + str(row['media_id']) + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
+        media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
+        media_response = issue_request(config, 'HEAD', media_json_url)  # HEAD request to check if media exists
         # Now make a GET request to get the media's media type (e.g. image, video, etc.)
         media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
 
@@ -713,7 +713,7 @@ def update_media():
             if config['progress_bar'] is False:
                 print("Updating media " + row['media_id'] + " at " + media_uri + "...")
             logging.info("Updating media %s at %s", row['media_id'], media_uri)
-            patch_media_use_terms(config, row['media_id'], media_type, media_use_tids)
+            patch_media_use_terms(config, row['media_id'], media_type, media_use_tids)  # This call will update the media use term for the media
         else:
             if config['progress_bar'] is False:
                 print("ERROR: Media at " + media_uri + " does not exist or is not accessible.")
