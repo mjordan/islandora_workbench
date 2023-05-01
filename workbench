@@ -684,12 +684,16 @@ def update_media() -> None:
 
     row_count = 0
     for row in csv_data:
+        invalidEntries = False
         if not value_is_numeric(row['media_id']):  # If media_id is not numeric, assume it's a media URL alias and convert it to a numerical media ID
             numerical_media_id = get_mid_from_media_url_alias(config, row['media_id'])  # Note that this function returns False if the media URL alias does not exist
             if numerical_media_id is False:  # If media URL alias does not exist, skip updating media
                 print("Media URL alias " + row['media_id'] + " not found or not accessible, skipping updating media.")
                 logging.error("Media URL alias %s not found or not accessible, skipping updating media.", row['media_id'])
                 row_count += 1
+                if config['progress_bar'] is True:
+                        row_position = get_percentage(row_count, num_csv_records)
+                        pbar(row_position)
                 continue      
             else:
                 row['media_id'] = str(numerical_media_id)  # Otherwise, the ID is valid, so just convert it to a string          
@@ -698,26 +702,40 @@ def update_media() -> None:
                 print("Media ID " + row['media_id'] + " not found or not accessible, skipping updating media.")
                 logging.error("Media ID %s not found or not accessible, skipping updating media.", row['media_id'])
                 row_count += 1
+                if config['progress_bar'] is True:
+                        row_position = get_percentage(row_count, num_csv_records)
+                        pbar(row_position)
                 continue
 
         if row['media_use_tid'] == '' or row['media_use_tid'] is False:  # If media_use_tid for this row is unspecified, use the default media use tid
-            row['media_use_tid'] = str(config['media_use_tid'])
+            row['media_use_tid'] = str(config['media_use_tid']).split(config['subdelimiter'])
         else:
-            if not value_is_numeric(row['media_use_tid']):  # If media_use_tid is not numeric, assume it's a media use term URL alias
-                numerical_media_use_tid = get_term_id_from_uri(config, row['media_use_tid'])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
+            row['media_use_tid'] = row['media_use_tid'].split(config['subdelimiter'])  # If media_use_tid is specified, split it into a list
+        
+        for i in range(len(row['media_use_tid'])):  # Iterate through the list of media_use_tid values and process each tid
+            if not value_is_numeric(row['media_use_tid'][i]):
+                numerical_media_use_tid = get_term_id_from_uri(config, row['media_use_tid'][i])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
                 if numerical_media_use_tid is False:  # If media use term URL alias does not exist, skip updating media
-                    print("Media use term URL alias " + row['media_use_tid'] + " not found or not accessible, skipping updating media.")
-                    logging.error("Media use term URL alias %s not found or not accessible, skipping updating media.", row['media_use_tid'])
-                    row_count += 1
-                    continue
+                    print("Media use term URL alias " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
+                    logging.error("Media use term URL alias %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
+                    invalidEntries = True
+                    break
                 else:
-                    row['media_use_tid'] = str(numerical_media_use_tid)
-            else:
-                if not ping_term(config, row['media_use_tid']):  # Check if the media use term exists by pinging it
-                    print("Term " + row['media_use_tid'] + " not found or not accessible, skipping updating media.")
-                    logging.error("Term %s not found or not accessible, skipping updating media.", row['media_use_tid'])
-                    row_count += 1
-                    continue
+                    row['media_use_tid'][i] = str(numerical_media_use_tid)
+
+            else:  # User has specified a numeric media use tid
+                if not ping_term(config, row['media_use_tid'][i]):  # Check if the media use term exists by pinging it
+                    print("Term " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
+                    logging.error("Term %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
+                    invalidEntries = True
+                    break
+        
+        if invalidEntries:
+            row_count += 1
+            if config['progress_bar'] is True:
+                row_position = get_percentage(row_count, num_csv_records)
+                pbar(row_position)
+            continue
         
         # By this point we have a valid media ID and media use tid, so we can update the media
 
@@ -728,14 +746,11 @@ def update_media() -> None:
         # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
         media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
 
-        media_use_tids = row['media_use_tid'].split(config['subdelimiter'])
-
         if config['progress_bar'] is False:
             print("Updating media " + row['media_id'] + " at " + media_uri + "...")
         logging.info("Updating media %s at %s", row['media_id'], media_uri)
-        patch_media_use_terms(config, row['media_id'], media_type, media_use_tids)  # This call will update the media use term for the media
+        patch_media_use_terms(config, row['media_id'], media_type, row['media_use_tid'])  # This call will update the media use term for the media
         
-
         if config['progress_bar'] is True:
             row_count += 1
             row_position = get_percentage(row_count, num_csv_records)

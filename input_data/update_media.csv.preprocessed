@@ -1,2 +1,4 @@
 media_id,media_use_tid
-1,900
+1,http://pcdm.org/use#IntermediateFile|http://pcdm.org/use#ServiceFile
+2,http://pcdm.org/use#IntermediateFile|http://pcdm.org/use#ServiceFile
+3,http://pcdm.org/use#IntermediateFile|http://pcdm.org/use#ServiceFile|900
