@@ -706,7 +706,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
         entity_type : string
             One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
         bundle_type : string
-            None for nodes (the content type can optionally be gotten from config),
+            None for nodes (the content type can optionally be gotten from cofnig),
             the vocabulary name, or the media type (image', 'document', 'audio',
             'video', 'file', etc.).
         Returns
