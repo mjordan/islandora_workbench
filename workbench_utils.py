@@ -599,6 +599,16 @@ def ping_media_bundle(config, bundle_name):
     return response.status_code
 
 
+def ping_media(config, media_id):
+    """Ping the Media to see if it exists. Return the status code,
+       a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
+       is not enabled on the target Drupal.
+    """
+    url = config['host'] + '/media/' + media_id + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    return response.status_code
+
+
 def ping_remote_file(config, url):
     """Logging, exiting, etc. happens in caller, except on requests error.
     """

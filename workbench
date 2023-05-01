@@ -684,38 +684,57 @@ def update_media() -> None:
 
     row_count = 0
     for row in csv_data:
-        if not value_is_numeric(row['media_id']):  # If media_id is not numeric, assume it's a media URL alias
-            row['media_id'] = str(get_mid_from_media_url_alias(config, row['media_id']))
-        if not value_is_numeric(row['media_use_tid']):  # If media_use_tid is not numeric, assume it's a media use term URL alias
-            row['media_use_tid'] = str(get_term_id_from_uri(config, row['media_use_tid'])) 
-        if not ping_term(config, row['media_use_tid']):  # Check if the media use term exists by pinging it
-            print("Term " + row['media_use_tid'] + " not found or not accessible, skipping updating media.")
-            continue
-
-        allowed_media_response_codes = [200] # 200 = OK
-
-        media_json_url = config['host'] + '/media/' + str(row['media_id']) + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
-        media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
-        media_response = issue_request(config, 'HEAD', media_json_url)  # Perform a HEAD request to check if media exists
-
-        if media_response.status_code == 200:  # Media exists
-            # Now make a GET request to get the media's media type (e.g. image, video, etc.)
-            media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
-
-            if 'media_use_tid' in row:
-                media_use_tids = row['media_use_tid'].split(config['subdelimiter'])
+        if not value_is_numeric(row['media_id']):  # If media_id is not numeric, assume it's a media URL alias and convert it to a numerical media ID
+            numerical_media_id = get_mid_from_media_url_alias(config, row['media_id'])  # Note that this function returns False if the media URL alias does not exist
+            if numerical_media_id is False:  # If media URL alias does not exist, skip updating media
+                print("Media URL alias " + row['media_id'] + " not found or not accessible, skipping updating media.")
+                logging.error("Media URL alias %s not found or not accessible, skipping updating media.", row['media_id'])
+                row_count += 1
+                continue      
             else:
-                # If no media use tid is provided, use the default value from the config file.
-                media_use_tids = config['media_use_tid'].split(config['subdelimiter'])
+                row['media_id'] = str(numerical_media_id)  # Otherwise, the ID is valid, so just convert it to a string          
+        else:  # The ID is numeric and in string format, but we must still make sure it exists by making a GET request to it
+            if ping_media(config, row['media_id']) != 200:
+                print("Media ID " + row['media_id'] + " not found or not accessible, skipping updating media.")
+                logging.error("Media ID %s not found or not accessible, skipping updating media.", row['media_id'])
+                row_count += 1
+                continue
 
-            if config['progress_bar'] is False:
-                print("Updating media " + row['media_id'] + " at " + media_uri + "...")
-            logging.info("Updating media %s at %s", row['media_id'], media_uri)
-            patch_media_use_terms(config, row['media_id'], media_type, media_use_tids)  # This call will update the media use term for the media
+        if row['media_use_tid'] == '' or row['media_use_tid'] is False:  # If media_use_tid for this row is unspecified, use the default media use tid
+            row['media_use_tid'] = str(config['media_use_tid'])
         else:
-            if config['progress_bar'] is False:
-                print("ERROR: Media at " + media_uri + " does not exist or is not accessible.")
-            logging.error("Media at %s does not exist or is not accessible (HTTP response code %s)", media_uri, media_response.status_code)
+            if not value_is_numeric(row['media_use_tid']):  # If media_use_tid is not numeric, assume it's a media use term URL alias
+                numerical_media_use_tid = get_term_id_from_uri(config, row['media_use_tid'])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
+                if numerical_media_use_tid is False:  # If media use term URL alias does not exist, skip updating media
+                    print("Media use term URL alias " + row['media_use_tid'] + " not found or not accessible, skipping updating media.")
+                    logging.error("Media use term URL alias %s not found or not accessible, skipping updating media.", row['media_use_tid'])
+                    row_count += 1
+                    continue
+                else:
+                    row['media_use_tid'] = str(numerical_media_use_tid)
+            else:
+                if not ping_term(config, row['media_use_tid']):  # Check if the media use term exists by pinging it
+                    print("Term " + row['media_use_tid'] + " not found or not accessible, skipping updating media.")
+                    logging.error("Term %s not found or not accessible, skipping updating media.", row['media_use_tid'])
+                    row_count += 1
+                    continue
+        
+        # By this point we have a valid media ID and media use tid, so we can update the media
+
+        media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
+        media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
+
+        # Now make a GET request to get the media's media type (e.g. image, video, etc.)
+        # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
+        media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
+
+        media_use_tids = row['media_use_tid'].split(config['subdelimiter'])
+
+        if config['progress_bar'] is False:
+            print("Updating media " + row['media_id'] + " at " + media_uri + "...")
+        logging.info("Updating media %s at %s", row['media_id'], media_uri)
+        patch_media_use_terms(config, row['media_id'], media_type, media_use_tids)  # This call will update the media use term for the media
+        
 
         if config['progress_bar'] is True:
             row_count += 1
