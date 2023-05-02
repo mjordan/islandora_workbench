@@ -676,6 +676,7 @@ def update_media() -> None:
     """Update media from media IDs in the input CSV. For now, only the media use tid can be updated.
     We assume two columns are present in the CSV: media_id and media_use_tid.   
     """
+    
     message = '"Update media" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
@@ -706,41 +707,91 @@ def update_media() -> None:
                         row_position = get_percentage(row_count, num_csv_records)
                         pbar(row_position)
                 continue
+        
+        if 'media_use_tid' in row:  # If media_use_tid is specified in the CSV
+            if row['media_use_tid'] == '' or row['media_use_tid'] is False:  # If media_use_tid for this row is unspecified, use the default media use tid
+                row['media_use_tid'] = str(config['media_use_tid']).split(config['subdelimiter'])
+            else:
+                row['media_use_tid'] = row['media_use_tid'].split(config['subdelimiter'])  # If media_use_tid is specified, split it into a list
+            
+            for i in range(len(row['media_use_tid'])):  # Iterate through the list of media_use_tid values and process each tid
+                if not value_is_numeric(row['media_use_tid'][i]):
+                    numerical_media_use_tid = get_term_id_from_uri(config, row['media_use_tid'][i])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
+                    if numerical_media_use_tid is False:  # If media use term URL alias does not exist, skip updating media
+                        print("Media use term URL alias " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
+                        logging.error("Media use term URL alias %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
+                        invalidEntries = True
+                        break
+                    else:
+                        row['media_use_tid'][i] = str(numerical_media_use_tid)
 
-        if row['media_use_tid'] == '' or row['media_use_tid'] is False:  # If media_use_tid for this row is unspecified, use the default media use tid
-            row['media_use_tid'] = str(config['media_use_tid']).split(config['subdelimiter'])
+                else:  # User has specified a numeric media use tid
+                    if not ping_term(config, row['media_use_tid'][i]):  # Check if the media use term exists by pinging it
+                        print("Term " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
+                        logging.error("Term %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
+                        invalidEntries = True
+                        break
+            
+            if invalidEntries:
+                row_count += 1
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
         else:
-            row['media_use_tid'] = row['media_use_tid'].split(config['subdelimiter'])  # If media_use_tid is specified, split it into a list
+            row['media_use_tid'] = None
         
-        for i in range(len(row['media_use_tid'])):  # Iterate through the list of media_use_tid values and process each tid
-            if not value_is_numeric(row['media_use_tid'][i]):
-                numerical_media_use_tid = get_term_id_from_uri(config, row['media_use_tid'][i])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
-                if numerical_media_use_tid is False:  # If media use term URL alias does not exist, skip updating media
-                    print("Media use term URL alias " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
-                    logging.error("Media use term URL alias %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
-                    invalidEntries = True
-                    break
-                else:
-                    row['media_use_tid'][i] = str(numerical_media_use_tid)
+        # TODO: Add updating file support
+        # This is done as follows:
+        # 1. Delete the existing file [DONE]
+        # 2. Create the new file
+        # 3. Update the media to use the new file
 
-            else:  # User has specified a numeric media use tid
-                if not ping_term(config, row['media_use_tid'][i]):  # Check if the media use term exists by pinging it
-                    print("Term " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
-                    logging.error("Term %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
-                    invalidEntries = True
-                    break
+        if 'file' in row:  # If file is specified in the CSV
+            if row['file'] == '' or row['file'] is False:  # If file for this row is unspecified, leave the file as is
+                row['file'] = None
+            else:
+                # TODO: URL file
+
+                row['file'] = row['file']
+                # Now we delete the existing file
+                media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
+                
+                if config['standalone_media_url'] is True:
+                    media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
+                else:
+                    media_json_url = media_uri + '/edit?_format=json'  # Something like localhost:8000/media/1234/edit?_format=json
+
+                get_media_response = issue_request(config, 'GET', media_json_url)
+                get_media_response_body = json.loads(get_media_response.text)
+                for file_field_name in file_fields:
+                    if file_field_name in get_media_response_body:
+                        try:
+                            row['file'] = get_media_response_body[file_field_name][0]['target_id']
+                        except Exception as e:
+                            logging.error("Unable to get file ID for media %s (reason: %s); proceeding to delete media without file.", row['media_id'], e)
+                            row['file'] = None
+                        break
+            if row['file'] is not None:  # If the file ID is not None, we can delete the file
+                file_endpoint = config['host'] + '/entity/file/' + str(row['file']) + '?_format=json'
+                file_response = issue_request(config, 'DELETE', file_endpoint)
+                if file_response.status_code == 204:
+                    logging.info("File %s (from media %s) deleted.", row['file'], row['media_id'])
+                else:
+                    logging.error("File %s (from media %s) not deleted (HTTP response code %s).", row['file'], row['media_id'], file_response.status_code)
+                
+                # TODO: Now we create the new file
+                create_media(config, row['file'], 'file', None, row, )
+                
+            
         
-        if invalidEntries:
-            row_count += 1
-            if config['progress_bar'] is True:
-                row_position = get_percentage(row_count, num_csv_records)
-                pbar(row_position)
-            continue
-        
-        # By this point we have a valid media ID and media use tid, so we can update the media
+        # By this point we have a valid media ID and media use tid (if applicable), so we can update the media
 
         media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
-        media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
+        if config['standalone_media_url'] is True:
+            media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
+        else:
+            media_json_url = media_uri + '/edit?_format=json'  # Something like localhost:8000/media/1234/edit?_format=json
 
         # Now make a GET request to get the media's media type (e.g. image, video, etc.)
         # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
@@ -749,7 +800,7 @@ def update_media() -> None:
         if config['progress_bar'] is False:
             print("Updating media " + row['media_id'] + " at " + media_uri + "...")
         logging.info("Updating media %s at %s", row['media_id'], media_uri)
-        patch_media_use_terms(config, row['media_id'], media_type, row['media_use_tid'])  # This call will update the media use term for the media
+        patch_media_fields_new(config, row['media_id'], media_type, row, row['media_use_tid'])  # This call will update the media's fields and media use tid (if applicable)
         
         if config['progress_bar'] is True:
             row_count += 1

@@ -3217,6 +3217,40 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
     if file_result is None:
         return file_result
 
+def patch_media_fields_new(config, media_id, media_type, node_csv_row, media_use_tids=None):
+    """Patch the media entity with base fields from the parent node.
+    """
+    if media_use_tids is not None:
+        patch_media_use_terms(config, media_id, media_type, media_use_tids)
+
+    media_json = {
+        'bundle': [
+            {'target_id': media_type}
+        ]
+    }
+    media_field_definitions = get_field_definitions(config, 'media', media_type)
+    for field_name, field_value in node_csv_row.items():
+        # Check if field_name corresponds to a plain-text field.
+        if field_name in media_field_definitions:
+            if 'string' in media_field_definitions[field_name]['field_type']:
+                media_json[field_name] = [{'value': field_value}]
+
+    if config['standalone_media_url'] is True:
+            endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    else:
+        endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
+
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    response = issue_request(config, 'PATCH', endpoint, headers, media_json)
+
+    if response.status_code == 200:
+            logging.info("Media %s fields updated to match parent node's.", endpoint)
+    else:
+        logging.warning("Media %s fields not updated to match parent node's.", endpoint)
+
 
 def patch_media_fields(config, media_id, media_type, node_csv_row):
     """Patch the media entity with base fields from the parent node.
@@ -3270,6 +3304,26 @@ def patch_media_use_terms(config, media_id, media_type, media_use_tids):
         logging.info("Media %s Islandora Media Use terms updated.", endpoint)
     else:
         logging.warning("Media %s Islandora Media Use terms not updated.", endpoint)
+
+
+def get_media_use_terms(config, media_id):
+    """Get the media entity's field_media_use.
+    """
+    if config['standalone_media_url'] is True:
+        endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    else:
+        endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
+    headers = {'Content-Type': 'application/json'}
+    response = issue_request(config, 'GET', endpoint, headers)
+    if response.status_code == 200:
+        media_json = json.loads(response.text)
+        media_use_tids = []
+        for media_use_term in media_json['field_media_use']:
+            media_use_tids.append(media_use_term['target_id'])
+        return media_use_tids
+    else:
+        logging.warning("Media %s Islandora Media Use terms not retrieved.", endpoint)
+        return None
 
 
 def clean_image_alt_text(input_string):

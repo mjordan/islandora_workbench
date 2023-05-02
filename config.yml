@@ -4,7 +4,6 @@ username: admin
 password: password
 input_csv: update_media.csv
 # Below is optional
-media_use_tid: 18
 standalone_media_url: true
 progress_bar: false
 subdelimiter: "|"
