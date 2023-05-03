@@ -3266,12 +3266,9 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
     if file_result is None:
         return file_result
 
-def patch_media_fields_new(config, media_id, media_type, node_csv_row, media_use_tids=None):
+def patch_plain_text_fields(config, media_id, media_type, node_csv_row):
     """Patch the media entity with base fields from the parent node.
     """
-    if media_use_tids is not None:
-        patch_media_use_terms(config, media_id, media_type, media_use_tids)
-
     media_json = {
         'bundle': [
             {'target_id': media_type}
@@ -3296,9 +3293,9 @@ def patch_media_fields_new(config, media_id, media_type, node_csv_row, media_use
     response = issue_request(config, 'PATCH', endpoint, headers, media_json)
 
     if response.status_code == 200:
-            logging.info("Media %s fields updated to match parent node's.", endpoint)
+            logging.info("Media %s fields updated to match those in CSV", endpoint)
     else:
-        logging.warning("Media %s fields not updated to match parent node's.", endpoint)
+        logging.warning("Media %s fields were unable to be updated to match those in CSV", endpoint)
 
 
 def patch_media_fields(config, media_id, media_type, node_csv_row):
