@@ -124,6 +124,7 @@ def get_oembed_url_media_type(config, filepath):
     for oembed_provider in config['oembed_providers']:
         for mtype, provider_urls in oembed_provider.items():
             for provider_url in provider_urls:
+                print(filepath)
                 if filepath.startswith(provider_url):
                     return mtype
 
@@ -2750,6 +2751,54 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
     return result, cmd.returncode
 
 
+# def upload_local_file(config, filename, media_type):
+#     """Uploads a file to Drupal.
+#     """
+#     file_path = os.path.join(config['input_dir'], filename)
+#     if media_type in config['media_type_file_fields']:
+#         media_file_field = config['media_type_file_fields'][media_type]
+#     else:
+#         logging.error('File not created for CSV row "%s": media type "%s" not recognized.', media_csv_row[config['media_id']], media_type)
+#         return False
+    
+#     # Requests/urllib3 requires filenames used in Content-Disposition headers to be encoded as latin-1.
+#     # Since it is impossible to reliably convert to latin-1 without knowing the source encoding of the filename
+#     # (which may or may not have originated on the machine running Workbench, so sys.stdout.encoding isn't reliable),
+#     # the best we can do for now is to use unidecode to replace non-ASCII characters in filenames with their ASCII
+#     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
+#     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
+#     # of both requirements.
+#     ascii_only = is_ascii(filename)
+#     if ascii_only is False:
+#         original_filename = copy.copy(filename)
+#         filename = unidecode(filename)
+#         logging.warning("Filename '" + original_filename + "' contains non-ASCII characters, normalized to '" + filename + "'.")
+
+#     file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field + '?_format=json'
+#     file_headers = {
+#         'Content-Type': 'application/octet-stream',
+#         'Content-Disposition': 'file; filename="' + filename + '"'
+#     }
+
+#     binary_data = open(file_path, 'rb')
+
+#     try:
+#         file_response = issue_request(config, 'POST', file_endpoint_path, file_headers, '', binary_data)
+#         if file_response.status_code == 201:
+#             file_json = json.loads(file_response.text)
+#             file_id = file_json['fid'][0]['value']
+#             return file_id
+#         else:
+#             logging.error('File not created for "' + file_path + '", POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
+#                         file_endpoint_path, file_response.status_code, file_response.content)
+#             return False
+#     except requests.exceptions.RequestException as e:
+#         logging.error(e)
+#         return False
+    
+#     # TODO: Handle checksums, temporary files, etc. as in create_file    
+
+
 def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
            Parameters
@@ -3319,7 +3368,7 @@ def get_media_use_terms(config, media_id):
         media_json = json.loads(response.text)
         media_use_tids = []
         for media_use_term in media_json['field_media_use']:
-            media_use_tids.append(media_use_term['target_id'])
+            media_use_tids.append(str(media_use_term['target_id']))
         return media_use_tids
     else:
         logging.warning("Media %s Islandora Media Use terms not retrieved.", endpoint)
@@ -5740,6 +5789,8 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
         sections = urllib.parse.urlparse(file_path_from_csv)
         if config['task'] == 'add_media':
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', 'nid_' + str(node_csv_row['node_id'])))
+        elif config['task'] == 'update_media':
+            subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['media_id']]))
         else:
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
         if make_dir:
