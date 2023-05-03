@@ -672,8 +672,9 @@ def add_media():
             pbar(row_position)
 
 
-def update_media_new() -> None:
+def update_media() -> None:
     """Update media from media IDs in the input CSV."""
+
     message = '"Update media" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
@@ -682,38 +683,13 @@ def update_media_new() -> None:
 
     row_count = 0
     for row in csv_data:
-        if 'media_id' not in row:  # If media ID column is missing, this is a fatal error
-            logging.fatal('Media ID column missing in CSV file.')
-            sys.exit('Error: Media ID column missing in CSV file.')
-        if not row['media_id']:  # If media ID is missing, skip this row
-            logging.error('Media ID missing in row # ' + str(row_count) + '. Skipping row.')
+        media_id = extract_media_id(config, row)
+        if media_id is None:
             row_count += 1
             if config['progress_bar'] is True:
                 row_position = get_percentage(row_count, num_csv_records)
                 pbar(row_position)
-            continue
-
-        if not value_is_numeric(row['media_id']):  # If media ID is not numeric, assume it is a media URL alias
-            media_id = get_mid_from_media_url_alias(config, row['media_id'])  # Note that this function returns False if the media URL alias does not exist
-            if media_id is False:  # If media URL alias does not exist, skip this row
-                logging.error('Media URL alias ' + row['media_id'] + ' does not exist. Skipping row # ' + str(row_count) + '.')
-                row_count += 1
-                if config['progress_bar'] is True:
-                    row_position = get_percentage(row_count, num_csv_records)
-                    pbar(row_position)
-                continue
-            else:
-                media_id = str(media_id)
-        else:  # If media ID is numeric, use it as is, if it is a valid media ID
-            if ping_media(config, row['media_id']) != 200:  # If media ID does not exist, skip this row
-                logging.error('Media ID ' + row['media_id'] + ' not found or not accessible. Skipping row # ' + str(row_count) + '.')
-                row_count += 1
-                if config['progress_bar'] is True:
-                        row_position = get_percentage(row_count, num_csv_records)
-                        pbar(row_position)
-                continue
-            else:
-                media_id = row['media_id']  # If media ID exists, use it as is (since this is a string)
+            continue 
     
         # At this point, the media ID is valid and stored in the media_id variable
         # Now, the user may want to update one or more of the following
@@ -724,27 +700,13 @@ def update_media_new() -> None:
         # Update media file
         if 'file' in row and row['file']:
             # We need to first get the parent node ID of this media
-            # Either the user has specified this in the CSV under the node_id column, or we need to get it from the media ID through a GET request
-            # If we go down the GET request route, then we need to inspect the returned JSON's field_media_of field to get the parent node ID
-            if 'node_id' in row and row['node_id']:
-                node_id = row['node_id']
-            else:
-                # Make a GET request to get the parent of the media
-                if config['standalone_media_url'] is True:
-                    media_json_url = config['host'] + '/media/' + str(row['media_id']) + '?_format=json'
-                else:
-                    media_json_url = config['host'] + '/media/' + str(row['media_id']) + '/edit?_format=json'
-                
-                get_media_response = issue_request(config, 'GET', media_json_url)
-                get_media_response_body = json.loads(get_media_response.text)
-                if not get_media_response_body['field_media_of']:
-                    logging.error('Media ID ' + media_id + ' is not attached to any node. Skipping row # ' + str(row_count) + '.')
-                    row_count += 1
-                    if config['progress_bar'] is True:
-                        row_position = get_percentage(row_count, num_csv_records)
-                        pbar(row_position)
-                    continue
-                node_id = get_media_response_body['field_media_of'][0]['target_id']
+            node_id = get_media_parent_node_id(config, media_id, row)
+            if node_id is None:
+                row_count += 1
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
             
             # At this point we have the node ID of the parent node of the media
             # We use this with the create_file function to create the media file
@@ -766,54 +728,10 @@ def update_media_new() -> None:
             # Now that we have the file URL, we can update the media
             # We need to make a PATCH request to /entity/media/<media_id>?_format=json
             # But first, delete the old file
-            if config['standalone_media_url'] is True:
-                media_json_url = config['host'] + '/media/' + str(media_id) + '?_format=json'
-            else:
-                media_json_url = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
-
-            for file_field_name in file_fields:
-                if file_field_name in get_media_response_body:
-                    try:
-                        file_to_delete = str(get_media_response_body[file_field_name][0]['target_id'])
-                    except Exception as e:
-                        logging.error("Unable to get file ID for media %s (reason: %s). Assuming there was no file and attempting to add new file.", row['media_id'], e)
-                        file_to_delete = None
-                    break
-            if file_to_delete is not None:
-                # Now we delete the file
-                file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
-                file_response = issue_request(config, 'DELETE', file_endpoint)
-                if file_response.status_code == 204:
-                    logging.info("File %s (from media %s) deleted.", file_to_delete, row['media_id'])
-                else:
-                    logging.error("File %s (from media %s) not deleted (HTTP response code %s). Assuming there was no file and attempting to add new file.", file_to_delete, row['media_id'], file_response.status_code)
+            delete_media_file(config, media_id)
 
             # Now make a patch request to the file_field_name to update the file
-            # We'll need the type of the media, which we can get from a GET request
-            # Now make a GET request to get the media's media type (e.g. image, video, etc.)
-            # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
-            media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
-            media_field = config['media_type_file_fields'][media_type]
-            media_json = {
-                media_field: [
-                    {
-                        'target_id': file_id,
-                        'target_type': 'file',
-                    }
-                ],
-                'bundle': [
-                    {
-                        'target_id': media_type,
-                        'target_type': 'media_type',
-                    }
-                ]
-            }
-
-            headers = {
-                'Content-Type': 'application/json'
-            }
-
-            media_response = issue_request(config, 'PATCH', media_json_url, headers, media_json)
+            attach_file_to_media(config, media_id, file_id)
 
 
         # Update media use tid
@@ -860,176 +778,162 @@ def update_media_new() -> None:
             media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
 
             patch_media_use_terms(config, media_id, media_type, media_use_tids)  # This call will update the media's media use tids
-            
-            row_count += 1
-            if config['progress_bar'] is True:
-                row_position = get_percentage(row_count, num_csv_records)
-                pbar(row_position)
 
         # Lastly, update any plain-text fields
         patch_plain_text_fields(config, media_id, media_type, row)
-
-            
-
-
-
-    
-
-
-            
-
-            
-
-                
-
-
-def update_media() -> None:
-    """Update media from media IDs in the input CSV. For now, only the media use tid can be updated.
-    We assume two columns are present in the CSV: media_id and media_use_tid.   
-    """
-    message = '"Update media" task started using config file ' + args.config + '.'
-    print(message)
-    logging.info(message)
-
-    csv_data = get_csv_data(config)
-
-    row_count = 0
-    for row in csv_data:
-        invalidEntries = False
-        if not value_is_numeric(row['media_id']):  # If media_id is not numeric, assume it's a media URL alias and convert it to a numerical media ID
-            numerical_media_id = get_mid_from_media_url_alias(config, row['media_id'])  # Note that this function returns False if the media URL alias does not exist
-            if numerical_media_id is False:  # If media URL alias does not exist, skip updating media
-                print("Media URL alias " + row['media_id'] + " not found or not accessible, skipping updating media.")
-                logging.error("Media URL alias %s not found or not accessible, skipping updating media.", row['media_id'])
-                row_count += 1
-                if config['progress_bar'] is True:
-                        row_position = get_percentage(row_count, num_csv_records)
-                        pbar(row_position)
-                continue      
-            else:
-                row['media_id'] = str(numerical_media_id)  # Otherwise, the ID is valid, so just convert it to a string          
-        else:  # The ID is numeric and in string format, but we must still make sure it exists by making a GET request to it
-            if ping_media(config, row['media_id']) != 200:
-                print("Media ID " + row['media_id'] + " not found or not accessible, skipping updating media.")
-                logging.error("Media ID %s not found or not accessible, skipping updating media.", row['media_id'])
-                row_count += 1
-                if config['progress_bar'] is True:
-                        row_position = get_percentage(row_count, num_csv_records)
-                        pbar(row_position)
-                continue
         
-        if 'media_use_tid' in row:  # If media_use_tid is specified in the CSV
-            if row['media_use_tid'] == '' or row['media_use_tid'] is False:  # If media_use_tid for this row is unspecified, use the default media use tid
-                row['media_use_tid'] = str(config['media_use_tid']).split(config['subdelimiter'])
-            else:
-                row['media_use_tid'] = row['media_use_tid'].split(config['subdelimiter'])  # If media_use_tid is specified, split it into a list
-            
-            for i in range(len(row['media_use_tid'])):  # Iterate through the list of media_use_tid values and process each tid
-                if not value_is_numeric(row['media_use_tid'][i]):
-                    numerical_media_use_tid = get_term_id_from_uri(config, row['media_use_tid'][i])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
-                    if numerical_media_use_tid is False:  # If media use term URL alias does not exist, skip updating media
-                        print("Media use term URL alias " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
-                        logging.error("Media use term URL alias %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
-                        invalidEntries = True
-                        break
-                    else:
-                        row['media_use_tid'][i] = str(numerical_media_use_tid)
-
-                else:  # User has specified a numeric media use tid
-                    if not ping_term(config, row['media_use_tid'][i]):  # Check if the media use term exists by pinging it
-                        print("Term " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
-                        logging.error("Term %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
-                        invalidEntries = True
-                        break
-            
-            if invalidEntries:
-                row_count += 1
-                if config['progress_bar'] is True:
-                    row_position = get_percentage(row_count, num_csv_records)
-                    pbar(row_position)
-                continue
-        # else:
-        #     row['media_use_tid'] = None
-        
-        # TODO: Add updating file support
-        # This is done as follows:
-        # 1. Delete the existing file [DONE]
-        # 2. Create the new file
-        # 3. Update the media to use the new file
-
-        if 'file' in row:  # If file is specified in the CSV
-            if row['file'] == '' or row['file'] is False:  # If file for this row is unspecified, leave the file as is
-                filename = None
-            else:
-                # Get the parent node of this media
-                if 'node_id' in row:  # If node_id is specified in the CSV
-                    if row['node_id'] == '' or row['node_id'] is False:  # If node_id for this row is unspecified, skip updating media
-                        # Make a GET request to get the parent of the media
-                        if config['standalone_media_url'] is True:
-                            media_json_url = config['host'] + '/media/' + str(row['media_id']) + '?_format=json'
-                        else:
-                            media_json_url = config['host'] + '/media/' + str(row['media_id']) + '/edit?_format=json'
-                        get_media_response = issue_request(config, 'GET', media_json_url)
-                        get_media_response_body = json.loads(get_media_response.text)
-
-                filename = row['file']  # If file is specified, use it
-
-                # Prepare to delete the existing file
-                media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
-                
-                if config['standalone_media_url'] is True:
-                    media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
-                else:
-                    media_json_url = media_uri + '/edit?_format=json'  # Something like localhost:8000/media/1234/edit?_format=json
-
-                # First get the file ID from the media
-                get_media_response = issue_request(config, 'GET', media_json_url)
-                get_media_response_body = json.loads(get_media_response.text)
-                for file_field_name in file_fields:
-                    if file_field_name in get_media_response_body:
-                        try:
-                            file_to_delete = str(get_media_response_body[file_field_name][0]['target_id'])
-                        except Exception as e:
-                            logging.error("Unable to get file ID for media %s (reason: %s). Assuming there was no file and attempting to add new file.", row['media_id'], e)
-                            file_to_delete = None
-                        break
-                if file_to_delete is not None:
-                    # Now we delete the file
-                    file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
-                    file_response = issue_request(config, 'DELETE', file_endpoint)
-                    if file_response.status_code == 204:
-                        logging.info("File %s (from media %s) deleted.", file_to_delete, row['media_id'])
-                    else:
-                        logging.error("File %s (from media %s) not deleted (HTTP response code %s). Assuming there was no file and attempting to add new file.", file_to_delete, row['media_id'], file_response.status_code)
-                # Now we create the new file
-                print(create_file(config, filename, 'file', row, None))
-                # media_type = set_media_type(config, filename, 'file', row)
-                # file_id = upload_local_file(config, filename, media_type)
-                # print(file_id)
-                # And finally we update the media to use the new file
-
-        
-        # By this point we have a valid media ID and media use tid (if applicable), so we can update the media
-
-        media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
-        if config['standalone_media_url'] is True:
-            media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
-        else:
-            media_json_url = media_uri + '/edit?_format=json'  # Something like localhost:8000/media/1234/edit?_format=json
-
-        # Now make a GET request to get the media's media type (e.g. image, video, etc.)
-        # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
-        media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
-
-        if config['progress_bar'] is False:
-            print("Updating media " + row['media_id'] + " at " + media_uri + "...")
-        logging.info("Updating media %s at %s", row['media_id'], media_uri)
-        patch_media_fields_new(config, row['media_id'], media_type, row, row['media_use_tid'])  # This call will update the media's fields and media use tid (if applicable)
-        
-        if config['progress_bar'] is True:
-            row_count += 1
+        row_count += 1
+        if config['progress_bar'] is True:             
             row_position = get_percentage(row_count, num_csv_records)
             pbar(row_position)
+
+# def update_media() -> None:
+#     """Update media from media IDs in the input CSV. For now, only the media use tid can be updated.
+#     We assume two columns are present in the CSV: media_id and media_use_tid.   
+#     """
+#     message = '"Update media" task started using config file ' + args.config + '.'
+#     print(message)
+#     logging.info(message)
+
+#     csv_data = get_csv_data(config)
+
+#     row_count = 0
+#     for row in csv_data:
+#         invalidEntries = False
+#         if not value_is_numeric(row['media_id']):  # If media_id is not numeric, assume it's a media URL alias and convert it to a numerical media ID
+#             numerical_media_id = get_mid_from_media_url_alias(config, row['media_id'])  # Note that this function returns False if the media URL alias does not exist
+#             if numerical_media_id is False:  # If media URL alias does not exist, skip updating media
+#                 print("Media URL alias " + row['media_id'] + " not found or not accessible, skipping updating media.")
+#                 logging.error("Media URL alias %s not found or not accessible, skipping updating media.", row['media_id'])
+#                 row_count += 1
+#                 if config['progress_bar'] is True:
+#                         row_position = get_percentage(row_count, num_csv_records)
+#                         pbar(row_position)
+#                 continue      
+#             else:
+#                 row['media_id'] = str(numerical_media_id)  # Otherwise, the ID is valid, so just convert it to a string          
+#         else:  # The ID is numeric and in string format, but we must still make sure it exists by making a GET request to it
+#             if ping_media(config, row['media_id']) != 200:
+#                 print("Media ID " + row['media_id'] + " not found or not accessible, skipping updating media.")
+#                 logging.error("Media ID %s not found or not accessible, skipping updating media.", row['media_id'])
+#                 row_count += 1
+#                 if config['progress_bar'] is True:
+#                         row_position = get_percentage(row_count, num_csv_records)
+#                         pbar(row_position)
+#                 continue
+        
+#         if 'media_use_tid' in row:  # If media_use_tid is specified in the CSV
+#             if row['media_use_tid'] == '' or row['media_use_tid'] is False:  # If media_use_tid for this row is unspecified, use the default media use tid
+#                 row['media_use_tid'] = str(config['media_use_tid']).split(config['subdelimiter'])
+#             else:
+#                 row['media_use_tid'] = row['media_use_tid'].split(config['subdelimiter'])  # If media_use_tid is specified, split it into a list
+            
+#             for i in range(len(row['media_use_tid'])):  # Iterate through the list of media_use_tid values and process each tid
+#                 if not value_is_numeric(row['media_use_tid'][i]):
+#                     numerical_media_use_tid = get_term_id_from_uri(config, row['media_use_tid'][i])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
+#                     if numerical_media_use_tid is False:  # If media use term URL alias does not exist, skip updating media
+#                         print("Media use term URL alias " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
+#                         logging.error("Media use term URL alias %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
+#                         invalidEntries = True
+#                         break
+#                     else:
+#                         row['media_use_tid'][i] = str(numerical_media_use_tid)
+
+#                 else:  # User has specified a numeric media use tid
+#                     if not ping_term(config, row['media_use_tid'][i]):  # Check if the media use term exists by pinging it
+#                         print("Term " + row['media_use_tid'][i] + " not found or not accessible, skipping updating media.")
+#                         logging.error("Term %s not found or not accessible, skipping updating media.", row['media_use_tid'][i])
+#                         invalidEntries = True
+#                         break
+            
+#             if invalidEntries:
+#                 row_count += 1
+#                 if config['progress_bar'] is True:
+#                     row_position = get_percentage(row_count, num_csv_records)
+#                     pbar(row_position)
+#                 continue
+#         # else:
+#         #     row['media_use_tid'] = None
+        
+#         # TODO: Add updating file support
+#         # This is done as follows:
+#         # 1. Delete the existing file [DONE]
+#         # 2. Create the new file
+#         # 3. Update the media to use the new file
+
+#         if 'file' in row:  # If file is specified in the CSV
+#             if row['file'] == '' or row['file'] is False:  # If file for this row is unspecified, leave the file as is
+#                 filename = None
+#             else:
+#                 # Get the parent node of this media
+#                 if 'node_id' in row:  # If node_id is specified in the CSV
+#                     if row['node_id'] == '' or row['node_id'] is False:  # If node_id for this row is unspecified, skip updating media
+#                         # Make a GET request to get the parent of the media
+#                         if config['standalone_media_url'] is True:
+#                             media_json_url = config['host'] + '/media/' + str(row['media_id']) + '?_format=json'
+#                         else:
+#                             media_json_url = config['host'] + '/media/' + str(row['media_id']) + '/edit?_format=json'
+#                         get_media_response = issue_request(config, 'GET', media_json_url)
+#                         get_media_response_body = json.loads(get_media_response.text)
+
+#                 filename = row['file']  # If file is specified, use it
+
+#                 # Prepare to delete the existing file
+#                 media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
+                
+#                 if config['standalone_media_url'] is True:
+#                     media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
+#                 else:
+#                     media_json_url = media_uri + '/edit?_format=json'  # Something like localhost:8000/media/1234/edit?_format=json
+
+#                 # First get the file ID from the media
+#                 get_media_response = issue_request(config, 'GET', media_json_url)
+#                 get_media_response_body = json.loads(get_media_response.text)
+#                 for file_field_name in file_fields:
+#                     if file_field_name in get_media_response_body:
+#                         try:
+#                             file_to_delete = str(get_media_response_body[file_field_name][0]['target_id'])
+#                         except Exception as e:
+#                             logging.error("Unable to get file ID for media %s (reason: %s). Assuming there was no file and attempting to add new file.", row['media_id'], e)
+#                             file_to_delete = None
+#                         break
+#                 if file_to_delete is not None:
+#                     # Now we delete the file
+#                     file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
+#                     file_response = issue_request(config, 'DELETE', file_endpoint)
+#                     if file_response.status_code == 204:
+#                         logging.info("File %s (from media %s) deleted.", file_to_delete, row['media_id'])
+#                     else:
+#                         logging.error("File %s (from media %s) not deleted (HTTP response code %s). Assuming there was no file and attempting to add new file.", file_to_delete, row['media_id'], file_response.status_code)
+#                 # Now we create the new file
+#                 print(create_file(config, filename, 'file', row, None))
+#                 # media_type = set_media_type(config, filename, 'file', row)
+#                 # file_id = upload_local_file(config, filename, media_type)
+#                 # print(file_id)
+#                 # And finally we update the media to use the new file
+
+        
+#         # By this point we have a valid media ID and media use tid (if applicable), so we can update the media
+
+#         media_uri = config['host'] + '/media/' + str(row['media_id'])  # Something like localhost:8000/media/1234
+#         if config['standalone_media_url'] is True:
+#             media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
+#         else:
+#             media_json_url = media_uri + '/edit?_format=json'  # Something like localhost:8000/media/1234/edit?_format=json
+
+#         # Now make a GET request to get the media's media type (e.g. image, video, etc.)
+#         # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
+#         media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
+
+#         if config['progress_bar'] is False:
+#             print("Updating media " + row['media_id'] + " at " + media_uri + "...")
+#         logging.info("Updating media %s at %s", row['media_id'], media_uri)
+#         patch_media_fields_new(config, row['media_id'], media_type, row, row['media_use_tid'])  # This call will update the media's fields and media use tid (if applicable)
+        
+#         if config['progress_bar'] is True:
+#             row_count += 1
+#             row_position = get_percentage(row_count, num_csv_records)
+#             pbar(row_position)
 
 
 def delete_media():
@@ -1748,7 +1652,7 @@ try:
     if config['task'] == 'create_terms':
         create_terms()
     if config['task'] == 'update_media':
-        update_media_new()
+        update_media()
 
     if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
         for secondary_config_file in config['secondary_tasks']:

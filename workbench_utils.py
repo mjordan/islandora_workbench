@@ -124,7 +124,6 @@ def get_oembed_url_media_type(config, filepath):
     for oembed_provider in config['oembed_providers']:
         for mtype, provider_urls in oembed_provider.items():
             for provider_url in provider_urls:
-                print(filepath)
                 if filepath.startswith(provider_url):
                     return mtype
 
@@ -3266,25 +3265,31 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
     if file_result is None:
         return file_result
 
-def patch_plain_text_fields(config, media_id, media_type, node_csv_row):
-    """Patch the media entity with base fields from the parent node.
+def patch_plain_text_fields(config, media_id: str, media_type: str, media_csv_row):
+    """Patch the media entity's plain-text fields with new values specified in the CSV row.
+
+    Parameters:
+    config (dict): The global configuration object.
+    media_id (str): The media entity's ID.
+    media_type (str): The media entity's type (e.g., 'image').
+    node_csv_row (dict): The CSV row containing the media entity's field names and values.
     """
     media_json = {
         'bundle': [
             {'target_id': media_type}
         ]
     }
-    media_field_definitions = get_field_definitions(config, 'media', media_type)
-    for field_name, field_value in node_csv_row.items():
+    media_field_definitions = get_field_definitions(config, 'media', media_type)  # This will return a dict of field definitions keyed by field name.
+    for field_name, field_value in media_csv_row.items():  # Iterate through the CSV row's field names and values and find the fields that are plain-text.
         # Check if field_name corresponds to a plain-text field.
         if field_name in media_field_definitions:
-            if 'string' in media_field_definitions[field_name]['field_type']:
+            if 'string' in media_field_definitions[field_name]['field_type']:  # In Drupal 8, plain-text fields contain the 'string' in their type. 
                 media_json[field_name] = [{'value': field_value}]
 
     if config['standalone_media_url'] is True:
-            endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+            endpoint = config['host'] + '/media/' + media_id + '?_format=json'
     else:
-        endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
+        endpoint = config['host'] + '/media/' + media_id + '/edit?_format=json'
 
     headers = {
         'Content-Type': 'application/json'
@@ -3300,6 +3305,7 @@ def patch_plain_text_fields(config, media_id, media_type, node_csv_row):
 
 def patch_media_fields(config, media_id, media_type, node_csv_row):
     """Patch the media entity with base fields from the parent node.
+    NOTE: This function is deprecated with the introduction of the patch_plain_text_fields and patch_media_use_terms functions.
     """
     media_json = {
         'bundle': [
@@ -3326,8 +3332,42 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
             logging.warning("Media %s fields not updated to match parent node's.", endpoint)
 
 
+def get_media_type(config, media_id: str) -> str:
+    """Get the media type's ID.
+
+    Parameters:
+    config (dict): The global configuration object.
+    media_id (str): A valid media ID.
+
+    Returns:
+    str: The media type of the media entity (e.g., 'image'), None if it could not be found. 
+    """
+    media_uri = config['host'] + '/media/' + media_id  # Something like localhost:8000/media/1234
+    if config['standalone_media_url'] is True:
+                media_json_url = media_uri + '?_format=json'  # Something like localhost:8000/media/1234?_format=json
+    else:
+        media_json_url = media_uri + '/edit?_format=json'  # Something like localhost:8000/media/1234/edit?_format=json
+
+     # Now make a GET request to get the media's media type (e.g. image, video, etc.)
+    # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
+    try:
+        return issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
+    except Exception as e:
+        logging.error("Unable to get media type for media ID %s. Reason %s", media_id, e)
+        return None
+
+
 def patch_media_use_terms(config, media_id, media_type, media_use_tids):
     """Patch the media entity's field_media_use.
+
+    Parameters:
+    config (dict): The global configuration object.
+    media_id (int): The media entity's ID.
+    media_type (str): The media entity's type (e.g., 'image').
+    media_use_tids (list of ints): A list of taxonomy term IDs to patch to the media entity's field_media_use.
+
+    Returns:
+    A dictionary containing the response from the PATCH request or None if the request failed.
     """
     media_json = {
         'bundle': [
@@ -3348,8 +3388,166 @@ def patch_media_use_terms(config, media_id, media_type, media_use_tids):
     response = issue_request(config, 'PATCH', endpoint, headers, media_json)
     if response.status_code == 200:
         logging.info("Media %s Islandora Media Use terms updated.", endpoint)
+        return response
     else:
         logging.warning("Media %s Islandora Media Use terms not updated.", endpoint)
+        return None
+
+
+def get_media_parent_node_id(config, media_id: str, media_csv_row):
+    """Get the parent node ID of the media entity.
+    
+    Parameters:
+    config (dict): The global configuration object.
+    media_id (int): The media entity's ID.
+    media_csv_row (dict): The CSV row containing the media entity's field names and values.
+
+    Returns:
+    The parent node's ID (str) if it corresponds to a valid node, None otherwise. 
+    """
+    # Either the user has specified this in the CSV under the node_id column, or we need to get it from the media ID through a GET request
+    # If we go down the GET request route, then we need to inspect the returned JSON's field_media_of field to get the parent node ID
+    if 'node_id' in media_csv_row and media_csv_row['node_id']:  # The user has specified the parent node ID in the CSV
+        return media_csv_row['node_id']
+    else:
+        # Make a GET request to get the parent of the media
+        if config['standalone_media_url'] is True:
+            media_json_url = config['host'] + '/media/' + str(media_csv_row['media_id']) + '?_format=json'
+        else:
+            media_json_url = config['host'] + '/media/' + str(media_csv_row['media_id']) + '/edit?_format=json'
+        
+        get_media_response = issue_request(config, 'GET', media_json_url)
+        get_media_response_body = json.loads(get_media_response.text)
+        if not get_media_response_body['field_media_of']:
+            logging.error('Media ID ' + media_id + ' is not attached to any node, which is a requirement for updating files.')
+            return None
+        return get_media_response_body['field_media_of'][0]['target_id']
+
+
+def extract_media_id(config, media_csv_row):
+    """Extract the media entity's ID from the CSV row.
+
+    Parameters:
+    config (dict): The global configuration object.
+    media_csv_row (dict): The CSV row containing the media entity's field names and values.
+
+    Returns:
+    media_id (str) if it corresponds to a valid media entity, otherwise None.
+    """
+    if 'media_id' not in media_csv_row:  # Media ID column is missing
+            logging.error('Media ID column missing in CSV file.')
+            return None
+    
+    if not media_csv_row['media_id']:  # Media ID column is present but empty
+        logging.error('Media ID column is empty in CSV file.')
+        return None
+
+    if not value_is_numeric(media_csv_row['media_id']):  # If media ID is not numeric, assume it is a media URL alias
+        media_id = get_mid_from_media_url_alias(config, media_csv_row['media_id'])  # Note that this function returns False if the media URL alias does not exist
+        if media_id is False:  # Media URL alias does not exist
+            logging.error('Media URL alias %s does not exist.', media_csv_row['media_id'])
+            return None
+        else:
+            media_id = str(media_id)
+
+    else:  # If media ID is numeric, use it as is, if it is a valid media ID
+        if ping_media(config, media_csv_row['media_id']) != 200:  # Invalid media ID
+            logging.error('Media ID %s does not exist.', media_csv_row['media_id'])
+            return None
+        else:
+            media_id = media_csv_row['media_id']  # If media ID exists, use it as is (since this is a string)
+    
+    return media_id
+
+
+def delete_media_file(config, media_id: str) -> bool:
+    """Delete file attached to the media entity.
+
+    Parameters:
+    config (dict): The global configuration object.
+    media_id (str): A valid media entity ID.
+
+    Returns:
+    True if the file was successfully deleted, False otherwise.
+    """
+    # We first make a GET request for the media entity
+    if config['standalone_media_url'] is True:
+        media_json_url = config['host'] + '/media/' + media_id + '?_format=json'
+    else:
+        media_json_url = config['host'] + '/media/' + media_id + '/edit?_format=json'
+    get_media_response = issue_request(config, 'GET', media_json_url)
+    get_media_response_body = json.loads(get_media_response.text)
+
+    # We then inspect the JSON response to get the file ID
+    for file_field_name in file_fields:
+        if file_field_name in get_media_response_body:
+            try:
+                file_to_delete = str(get_media_response_body[file_field_name][0]['target_id'])
+            except Exception as e:
+                logging.warning("Unable to get file ID for media %s (reason: %s). Assuming there was no file and attempting to add new file.", media_id, e)
+                return False
+            break
+    if file_to_delete is not None:
+        # Now we delete the file
+        file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
+        file_response = issue_request(config, 'DELETE', file_endpoint)
+        if file_response.status_code == 204:
+            logging.info("File %s (from media %s) deleted.", file_to_delete, media_id)
+            return True
+        else:
+            logging.error("File %s (from media %s) not deleted (HTTP response code %s). Assuming there was no file and attempting to add new file.", file_to_delete, media_id, file_response.status_code)
+            return False
+
+
+def attach_file_to_media(config, media_id: str, file_id: str) -> bool:
+    """Attach an uploaded file to a media entity.
+
+    Parameters:
+    config (dict): The global configuration object.
+    media_id (str): A valid media entity ID corresponding to a media with a parent node. 
+    file_id (str): A valid file entity ID.
+
+    Returns:
+    True if the file was successfully attached, False otherwise.
+    """
+    # Now make a patch request to the file_field_name to update the file
+    # We'll need the type of the media, which we can get from a GET request
+    # Now make a GET request to get the media's media type (e.g. image, video, etc.)
+    # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
+    if config['standalone_media_url'] is True:
+        media_json_url = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    else:
+        media_json_url = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
+
+    media_type = issue_request(config, 'GET', media_json_url).links['describes']['type'].split('/')[0]
+    media_field = config['media_type_file_fields'][media_type]
+    media_json = {
+        media_field: [
+            {
+                'target_id': file_id,
+                'target_type': 'file',
+            }
+        ],
+        'bundle': [
+            {
+                'target_id': media_type,
+                'target_type': 'media_type',
+            }
+        ]
+    }
+
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    media_response = issue_request(config, 'PATCH', media_json_url, headers, media_json)
+    if media_response.status_code == 200:
+        logging.info("File %s attached to media %s.", file_id, media_id)
+        return True
+    else:
+        logging.error("File %s not attached to media %s (HTTP response code %s).", file_id, media_id, media_response.status_code)
+        return False
+
 
 
 def get_media_use_terms(config, media_id):
