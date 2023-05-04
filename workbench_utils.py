@@ -1150,18 +1150,18 @@ def check_input(config, args):
         'update',
         'delete',
         'add_media',
+        'update_media',
         'delete_media',
         'delete_media_by_node',
         'create_from_files',
         'create_terms',
         'export_csv',
-        'get_data_from_view',
-        'update_media'
+        'get_data_from_view'
     ]
     joiner = ', '
     if config['task'] not in tasks:
         message = '"task" in your configuration file must be one of "create", "update", "delete", ' + \
-            '"add_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", or "get_data_from_view".'
+            '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", or "get_data_from_view".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -1828,10 +1828,12 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
 
     # Check for existence of files listed in the 'file' column.
-    if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
+    if (config['task'] == 'create' or config['task'] == 'add_media' or config['task'] == 'update_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
         # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
         if config['task'] == 'add_media':
             config['id_field'] = 'node_id'
+        if config['task'] == 'update_media':
+            config['id_field'] = 'media_id'
         file_check_csv_data = get_csv_data(config)
         for count, file_check_row in enumerate(file_check_csv_data, start=1):
             file_check_row['file'] = file_check_row['file'].strip()
