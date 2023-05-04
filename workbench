@@ -704,6 +704,7 @@ def update_media() -> None:
             The parent node's ID (str) if it corresponds to a valid node, otherwise None. 
         """
         if not get_media_response_body['field_media_of']:  # If the media entity is not attached to any node
+            logging.error("Media ID %s is not attached to any node, which is a requirement for updating media files.", media_id)
             return None
         return get_media_response_body['field_media_of'][0]['target_id']  # Return the first node ID in the list of nodes the media entity is attached to
 
@@ -885,6 +886,10 @@ def update_media() -> None:
         get_media_response = issue_request(config, 'GET', media_json_url)
         get_media_response_body = json.loads(get_media_response.text)
 
+        # From this we can get the media type, which we'll need as well
+        media_type = get_media_type(media_id, get_media_response)
+        
+
         # Update media file
         if 'file' in row and row['file']:
             # We need to first get the parent node ID of this media.
@@ -895,7 +900,6 @@ def update_media() -> None:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue
-            
             # At this point we have the node ID of the parent node of the media.
             # We use this with the create_file function to create the media file on the server.
             file_id = create_file(config, row['file'], 'file', row, node_id)
