@@ -16,7 +16,9 @@ class TestSimpleField(unittest.TestCase):
     def setUp(self):
         self.config = {
             'subdelimiter': '|',
-            'id_field': 'id'
+            'id_field': 'id',
+            'text_output_id': 'basic_html',
+            'field_text_output_ids': {'field_foo': 'restricted_html', 'field_bar': 'basic_html'}
         }
 
     def test_create_with_simple_field(self):
@@ -36,6 +38,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
+                'formatted_text': False
             }
         }
 
@@ -88,6 +91,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
+                'formatted_text': False
             }
         }
 
@@ -139,6 +143,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
+                'formatted_text': False
             }
         }
 
@@ -206,6 +211,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'title': {
                 'cardinality': 1,
+                'formatted_text': False
             }
         }
 
@@ -246,6 +252,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'title': {
                 'cardinality': 1,
+                'formatted_text': False
             }
         }
 
@@ -290,6 +297,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
+                'formatted_text': False
             }
         }
 
@@ -335,6 +343,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
+                'formatted_text': False
             }
         }
 
@@ -382,6 +391,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 1,
+                'formatted_text': False
             }
         }
 
@@ -430,6 +440,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
+                'formatted_text': False
             }
         }
 
@@ -476,6 +487,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
+                'formatted_text': False
             }
         }
 
@@ -507,6 +519,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
+                'formatted_text': False
             }
         }
 
@@ -608,6 +621,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': -1,
+                'formatted_text': False
             }
         }
 
@@ -656,6 +670,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
+                'formatted_text': False
             }
         }
 
@@ -702,6 +717,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
+                'formatted_text': False
             }
         }
 
@@ -751,6 +767,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 2,
+                'formatted_text': False
             }
         }
 
@@ -799,6 +816,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
+                'formatted_text': False
             }
         }
 
@@ -849,6 +867,7 @@ class TestSimpleField(unittest.TestCase):
         self.field_definitions = {
             'field_foo': {
                 'cardinality': 3,
+                'formatted_text': False
             }
         }
 

@@ -19,6 +19,10 @@ class SimpleField():
        fields. All functions return a "entity" dictionary that is passed to Requests' "json"
        parameter.
 
+       Note that text fields that are "formatted" (i.e., use text formats/output filters)
+       require a 'format' key in their JSON in addition to the 'value' key. Otherwise, markup
+       or other text filters won't be applied when rendered.
+
        Note: this class assumes that the entity has the field identified in 'field_name'.
        Callers should pre-emptively confirm that. For an example, see code near the top
        of workbench.update().
@@ -44,6 +48,11 @@ class SimpleField():
         if row[field_name] is None:
             return entity
 
+        if field_name in config['field_text_output_ids']:
+            text_format = config['field_text_output_ids'][field_name]
+        else:
+            text_format = config['text_output_id']
+
         id_field = row[config['id_field']]
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -54,11 +63,18 @@ class SimpleField():
                 subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
                     subvalue = truncate_csv_value(field_name, id_field, field_definitions[field_name], subvalue)
-                    field_values.append({'value': subvalue})
+                    if field_definitions[field_name]['formatted_text'] is True:
+                        field_values.append({'value': subvalue, 'format': text_format})
+                    else:
+                        field_values.append({'value': subvalue})
                 entity[field_name] = field_values
             else:
                 row[field_name] = truncate_csv_value(field_name, id_field, field_definitions[field_name], row[field_name])
-                entity[field_name] = [{'value': row[field_name]}]
+                if field_definitions[field_name]['formatted_text'] is True:
+                    entity[field_name] = [{'value': row[field_name], 'format': text_format}]
+                else:
+                    entity[field_name] = [{'value': row[field_name]}]
+
         # Cardinality has a limit, including 1.
         else:
             if config['subdelimiter'] in row[field_name]:
@@ -71,12 +87,18 @@ class SimpleField():
                 subvalues = subvalues[:field_definitions[field_name]['cardinality']]
                 for subvalue in subvalues:
                     subvalue = truncate_csv_value(field_name, id_field, field_definitions[field_name], subvalue)
-                    field_values.append({'value': subvalue})
+                    if field_definitions[field_name]['formatted_text'] is True:
+                        field_values.append({'value': subvalue, 'format': text_format})
+                    else:
+                        field_values.append({'value': subvalue})
                 field_values = self.dedupe_values(field_values)
                 entity[field_name] = field_values
             else:
                 row[field_name] = truncate_csv_value(field_name, id_field, field_definitions[field_name], row[field_name])
-                entity[field_name] = [{'value': row[field_name]}]
+                if field_definitions[field_name]['formatted_text'] is True:
+                    entity[field_name] = [{'value': row[field_name], 'format': text_format}]
+                else:
+                    entity[field_name] = [{'value': row[field_name]}]
 
         return entity
 
@@ -112,6 +134,11 @@ class SimpleField():
         if row[field_name] is None:
             return entity
 
+        if field_name in config['field_text_output_ids']:
+            text_format = config['field_text_output_ids'][field_name]
+        else:
+            text_format = config['text_output_id']
+
         # Cardinality has a limit.
         if field_definitions[field_name]['cardinality'] > 0:
             if config['update_mode'] == 'append':
@@ -120,7 +147,10 @@ class SimpleField():
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], subvalue)
-                        entity[field_name].append({'value': subvalue})
+                        if field_definitions[field_name]['formatted_text'] is True:
+                            entity[field_name].append({'value': subvalue, 'format': text_format})
+                        else:
+                            entity[field_name].append({'value': subvalue})
                     entity[field_name] = self.dedupe_values(entity[field_name])
                     if len(entity[field_name]) > int(field_definitions[field_name]['cardinality']):
                         log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
@@ -128,7 +158,10 @@ class SimpleField():
                 else:
                     row[field_name] = self.remove_invalid_values(config, field_definitions, field_name, row[field_name])
                     row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
-                    entity[field_name].append({'value': row[field_name]})
+                    if field_definitions[field_name]['formatted_text'] is True:
+                        entity[field_name].append({'value': row[field_name], 'format': text_format})
+                    else:
+                        entity[field_name].append({'value': row[field_name]})
                     entity[field_name] = self.dedupe_values(entity[field_name])
                     if len(entity[field_name]) > int(field_definitions[field_name]['cardinality']):
                         log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
@@ -145,12 +178,18 @@ class SimpleField():
                         subvalues = subvalues[:field_definitions[field_name]['cardinality']]
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], subvalue)
-                        field_values.append({'value': subvalue})
+                        if field_definitions[field_name]['formatted_text'] is True:
+                            field_values.append({'value': subvalue, 'format': text_format})
+                        else:
+                            field_values.append({'value': subvalue})
                     field_values = self.dedupe_values(field_values)
                     entity[field_name] = field_values
                 else:
                     row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
-                    entity[field_name] = [{'value': row[field_name]}]
+                    if field_definitions[field_name]['formatted_text'] is True:
+                        entity[field_name] = [{'value': row[field_name], 'format': text_format}]
+                    else:
+                        entity[field_name] = [{'value': row[field_name]}]
 
         # Cardinatlity is unlimited.
         else:
@@ -161,7 +200,10 @@ class SimpleField():
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], subvalue)
-                        field_values.append({'value': subvalue})
+                        if field_definitions[field_name]['formatted_text'] is True:
+                            field_values.append({'value': subvalue, 'format': text_format})
+                        else:
+                            field_values.append({'value': subvalue})
                     entity[field_name] = entity_field_values + field_values
                     entity[field_name] = self.dedupe_values(entity[field_name])
                 else:
@@ -175,12 +217,18 @@ class SimpleField():
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], subvalue)
-                        field_values.append({'value': subvalue})
+                        if field_definitions[field_name]['formatted_text'] is True:
+                            field_values.append({'value': subvalue, 'format': text_format})
+                        else:
+                            field_values.append({'value': subvalue})
                     entity[field_name] = field_values
                     entity[field_name] = self.dedupe_values(entity[field_name])
                 else:
                     row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
-                    entity[field_name] = [{'value': row[field_name]}]
+                    if field_definitions[field_name]['formatted_text'] is True:
+                        entity[field_name] = [{'value': row[field_name], 'format': text_format}]
+                    else:
+                        entity[field_name] = [{'value': row[field_name]}]
 
         return entity
 
