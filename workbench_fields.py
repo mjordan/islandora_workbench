@@ -208,7 +208,10 @@ class SimpleField():
                     entity[field_name] = self.dedupe_values(entity[field_name])
                 else:
                     row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
-                    entity[field_name] = entity_field_values + [{'value': row[field_name]}]
+                    if field_definitions[field_name]['formatted_text'] is True:
+                        entity[field_name] = entity_field_values + [{'value': row[field_name], 'format': text_format}]
+                    else:
+                        entity[field_name] = entity_field_values + [{'value': row[field_name]}]
                     entity[field_name] = self.dedupe_values(entity[field_name])
             if config['update_mode'] == 'replace':
                 if config['subdelimiter'] in row[field_name]:

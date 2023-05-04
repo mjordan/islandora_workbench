@@ -906,6 +906,900 @@ class TestSimpleField(unittest.TestCase):
         self.assertEqual(output, [{'value': 'First string'}, {'value': 'Second string'}, {'value': 'Third string'}])
 
 
+class TestSimpleFieldFormatted(unittest.TestCase):
+
+    def setUp(self):
+        self.config = {
+            'subdelimiter': '|',
+            'id_field': 'id',
+            'text_output_id': 'basic_html',
+            'field_text_output_ids': {'field_foo': 'restricted_html', 'field_bar': 'basic_html'}
+        }
+
+    def test_create_with_simple_field(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
+        # Create a node with a simple field of cardinality 1, no subdelimiters.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'formatted_text': True
+            }
+        }
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "simple_001"
+        csv_record['field_foo'] = "Field foo value"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo value", 'format': 'restricted_html'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a simple field of cardinality 1, with subdelimiters.
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['id'] = "simple_002"
+            csv_record['field_foo'] = "Field foo value|Extraneous value"
+            node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "Field foo value", 'format': 'restricted_html'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'simple_002 would exceed maximum number of allowed values \(1\)')
+
+        # Create a node with a simple field of cardinality unlimited, no subdelimiters.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'formatted_text': True
+            }
+        }
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "simple_003"
+        csv_record['field_foo'] = "First value"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "First value", 'format': 'restricted_html'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a simple field of cardinality unlimited, with subdelimiters.
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "simple_004"
+        csv_record['field_foo'] = "First value|Second value|First value"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "First value", 'format': 'restricted_html'},
+                {'value': "Second value", 'format': 'restricted_html'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a simple field of cardinality limited, no subdelimiters.
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+                'formatted_text': True
+            }
+        }
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['id'] = "simple_005"
+        csv_record['field_foo'] = "First value"
+        node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "First value", 'format': 'restricted_html'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a simple field of cardinality limited, with subdelimiters.
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['id'] = "simple_006"
+            csv_record['field_foo'] = "First 006 value|First 006 value|Second 006 value|Third 006 value"
+            # csv_record['field_foo'] = "First 006 value|Second 006 value|Third 006 value"
+            self.node = field.create(self.config, self.field_definitions, existing_node, csv_record, "field_foo")
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "First 006 value", 'format': 'restricted_html'},
+                    {'value': "Second 006 value", 'format': 'restricted_html'}
+                ]
+            }
+            self.assertDictEqual(self.node, expected_node)
+            self.assertRegex(str(message.output), r'simple_006 would exceed maximum number of allowed values \(2\)')
+
+    def test_simple_field_title_update_replace(self):
+        # Update the node title, first with an 'update_mode' of replace.
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Old title - replace."}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+
+        self.field_definitions = {
+            'title': {
+                'cardinality': 1,
+                'formatted_text': False
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['title'] = "New title - replace."
+        csv_record['node_id'] = 1
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "title", existing_node["title"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "New title - replace."}
+            ],
+            'status': [
+                {'value': 1}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_title_update_append(self):
+        # Update the node title, first with an update_mode of 'append'.
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Old title - append."}
+            ],
+            'status': [
+                {'value': 1, 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'title': {
+                'cardinality': 1,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['title'] = "New title - append."
+            csv_record['node_id'] = 1
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "title", existing_node["title"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Old title - append."}
+                ],
+                'status': [
+                    {'value': 1, 'format': 'restricted_html'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 1 would exceed maximum number of allowed values \(1\)')
+
+    def test_simple_field_update_replace_cardinality_1_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['field_foo'] = "Field foo new value"
+        csv_record['node_id'] = 1
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo new value", 'format': 'restricted_html'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_update_append_cardinality_1_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['field_foo'] = "Field foo new value"
+            csv_record['node_id'] = 1
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "Field foo original value", 'format': 'restricted_html'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 1 would exceed maximum number of allowed values \(1\)')
+
+    def test_simple_field_update_replace_cardinality_1_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 1,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['field_foo'] = "Field foo new value|Second foo new value"
+            csv_record['node_id'] = 2
+            node_field_values = [{'value': "Field foo original value"}]
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", node_field_values)
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "Field foo new value", 'format': 'restricted_html'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 2 would exceed maximum number of allowed values \(1\)')
+
+    def test_simple_field_update_replace_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 3
+        csv_record['field_foo'] = "New value"
+        self.config['update_mode'] = 'replace'
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "New value", 'format': 'restricted_html'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_update_replace_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 4
+        csv_record['field_foo'] = "New value 1|New value 2|New value 2"
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "New value 1", 'format': 'restricted_html'},
+                {'value': "New value 2", 'format': 'restricted_html'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_update_append_cardinality_unlimited_no_subdelims(self):
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'}
+            ]
+        }
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 5
+        csv_record['field_foo'] = "New value"
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'},
+                {'value': "New value", 'format': 'restricted_html'}
+
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'}
+            ]
+        }
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 55
+        csv_record['field_foo'] = "New value"
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'},
+                {'value': "New value", 'format': 'restricted_html'}
+
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_update_append_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': -1,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 6
+        csv_record['field_foo'] = "New value 1|New value 2|New value 1"
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value", 'format': 'restricted_html'},
+                {'value': "New value 1", 'format': 'restricted_html'},
+                {'value': "New value 2", 'format': 'restricted_html'}
+
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_update_replace_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value"}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 7
+        csv_record['field_foo'] = "New value"
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "New value", 'format': 'restricted_html'}
+            ]
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_update_append_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value 1", 'format': 'restricted_html'},
+                {'value': "Field foo original value 2", 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 8
+            csv_record['field_foo'] = "New value 3"
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "Field foo original value 1", 'format': 'restricted_html'},
+                    {'value': "Field foo original value 2", 'format': 'restricted_html'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 8 would exceed maximum number of allowed values \(2\)')
+
+    def test_simple_field_update_replace_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value 1"},
+                {'value': "Field foo original value 2"}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 2,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'replace'
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 9
+            csv_record['field_foo'] = "First node 9 value|Second node 9 value|Third node 9 value"
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "First node 9 value", 'format': 'restricted_html'},
+                    {'value': "Second node 9 value", 'format': 'restricted_html'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 9 would exceed maximum number of allowed values \(2\)')
+
+    def test_simple_field_update_append_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value 1", 'format': 'restricted_html'}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 3,
+                'formatted_text': True
+            }
+        }
+
+        self.config['update_mode'] = 'append'
+
+        with self.assertLogs() as message:
+            field = workbench_fields.SimpleField()
+            csv_record = collections.OrderedDict()
+            csv_record['node_id'] = 10
+            csv_record['field_foo'] = "First node 10 value|First node 10 value|Second node 10 value|Third node 10 value"
+            node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+            expected_node = {
+                'type': [
+                    {'target_id': 'islandora_object', 'target_type': 'node_type'}
+                ],
+                'title': [
+                    {'value': "Test node"}
+                ],
+                'status': [
+                    {'value': 1}
+                ],
+                'field_foo': [
+                    {'value': "Field foo original value 1", 'format': 'restricted_html'},
+                    {'value': "First node 10 value", 'format': 'restricted_html'},
+                    {'value': "Second node 10 value", 'format': 'restricted_html'}
+                ]
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(str(message.output), r'record 10 would exceed maximum number of allowed values \(3\)')
+
+    def test_simple_field_update_delete(self):
+        existing_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': [
+                {'value': "Field foo original value 1"},
+                {'value': "Field foo original value 2"}
+            ]
+        }
+
+        self.field_definitions = {
+            'field_foo': {
+                'cardinality': 3,
+                'formatted_text': False
+            }
+        }
+
+        self.config['update_mode'] = 'delete'
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record['node_id'] = 11
+        csv_record['field_foo'] = "First node 11 value|Second node 11 value"
+        node = field.update(self.config, self.field_definitions, existing_node, csv_record, "field_foo", existing_node["field_foo"])
+        expected_node = {
+            'type': [
+                {'target_id': 'islandora_object', 'target_type': 'node_type'}
+            ],
+            'title': [
+                {'value': "Test node"}
+            ],
+            'status': [
+                {'value': 1}
+            ],
+            'field_foo': []
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_simple_field_dudupe_values(self):
+        # First, split values from CSV.
+        input = ['first value', 'first value', 'second value', 'second value', 'third value']
+        field = workbench_fields.SimpleField()
+        output = field.dedupe_values(input)
+        self.assertEqual(output, ['first value', 'second value', 'third value'])
+
+        # Then fully formed dictionaries.
+        input = [{'value': 'First string'}, {'value': 'Second string'}, {'value': 'First string'}, {'value': 'Second string'}, {'value': 'Third string'}]
+        field = workbench_fields.SimpleField()
+        output = field.dedupe_values(input)
+        self.assertEqual(output, [{'value': 'First string'}, {'value': 'Second string'}, {'value': 'Third string'}])
+
+
 class TestGeolocationField(unittest.TestCase):
 
     def setUp(self):
@@ -5379,6 +6273,7 @@ class TestMediaTrackField(unittest.TestCase):
         self.assertEqual(output, expected)
 
     '''
+
 
 if __name__ == '__main__':
     unittest.main()
