@@ -75,7 +75,6 @@ class WorkbenchConfig:
         # 'media_file_fields' has been replaced with 'media_fields' and 'media_type_file_fields'.
         # This is aliasing code that can be removed at some point in the future.
         if 'media_file_fields' in loaded:
-            print("DEBUG media_file_fields", media_file_fields)
             media_fields = self.get_media_fields()
             for media_field in loaded['media_file_fields']:
                 for media_type, media_field in media_field.items():
