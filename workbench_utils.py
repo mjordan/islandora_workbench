@@ -2843,6 +2843,10 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
         filename = file_path.split("/")[-1]
         is_remote = True
     elif os.path.isabs(filename):
+        # Validate that the file exists
+        if not os.path.isfile(filename):
+            logging.error('File not created for CSV row "%s": file "%s" does not exist.', node_csv_row[config['id_field']], filename)
+            return False
         file_path = filename
     else:
         file_path = os.path.join(config['input_dir'], filename)

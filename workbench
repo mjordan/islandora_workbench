@@ -703,8 +703,9 @@ def update_media() -> None:
         Returns:
             The parent node's ID (str) if it corresponds to a valid node, otherwise None. 
         """
-        if media_csv_row['node_id']:  # If the CSV row contains a node ID
-            return media_csv_row['node_id']
+        if 'node_id' in media_csv_row:  # If the CSV row contains a node ID
+            if media_csv_row['node_id']:  # If the CSV row contains a node ID
+                return media_csv_row['node_id']
         if not get_media_response_body['field_media_of']:  # If the media entity is not attached to any node
             logging.error("Media ID %s is not attached to any node, which is a requirement for updating media files.", media_id)
             return None
@@ -857,6 +858,9 @@ def update_media() -> None:
     logging.info(message)
 
     csv_data = get_csv_data(config)
+
+    if config['id_field'] not in csv_data.fieldnames:
+        config['id_field'] = 'media_id'
 
     row_count = 0
     for row in csv_data:
