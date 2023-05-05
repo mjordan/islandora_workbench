@@ -765,6 +765,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
+            if field_config['field_type'].startswith('text'):
+                field_definitions[fieldname]['formatted_text'] = True
+            else:
+                field_definitions[fieldname]['formatted_text'] = False
 
         # title's configuration is not returned by Drupal so we construct it here. Note: if you add a new key to
         # 'field_definitions', also add it to title's entry here. Also add it for 'title' in the other entity types, below.
@@ -819,6 +823,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
+            if field_config['field_type'].startswith('text'):
+                field_definitions[fieldname]['formatted_text'] = True
+            else:
+                field_definitions[fieldname]['formatted_text'] = False
 
         field_definitions['term_name'] = {
             'entity_type': 'taxonomy_term',
@@ -863,6 +871,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
+            if field_config['field_type'].startswith('text'):
+                field_definitions[fieldname]['formatted_text'] = True
+            else:
+                field_definitions[fieldname]['formatted_text'] = False
 
         field_definitions['name'] = {
             'entity_type': 'media',
@@ -923,6 +935,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
+            if field_config['field_type'].startswith('text'):
+                field_definitions[fieldname]['formatted_text'] = True
+            else:
+                field_definitions[fieldname]['formatted_text'] = False
 
     return field_definitions
 
