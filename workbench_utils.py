@@ -599,6 +599,16 @@ def ping_media_bundle(config, bundle_name):
     return response.status_code
 
 
+def ping_media(config, media_id):
+    """Ping the Media to see if it exists. Return the status code,
+       a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
+       is not enabled on the target Drupal.
+    """
+    url = config['host'] + '/media/' + media_id + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    return response.status_code
+
+
 def ping_remote_file(config, url):
     """Logging, exiting, etc. happens in caller, except on requests error.
     """
@@ -696,7 +706,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
         entity_type : string
             One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
         bundle_type : string
-            None for nodes (the content type can optionally be gotten from config),
+            None for nodes (the content type can optionally be gotten from cofnig),
             the vocabulary name, or the media type (image', 'document', 'audio',
             'video', 'file', etc.).
         Returns
@@ -1140,6 +1150,7 @@ def check_input(config, args):
         'update',
         'delete',
         'add_media',
+        'update_media',
         'delete_media',
         'delete_media_by_node',
         'create_from_files',
@@ -1150,7 +1161,7 @@ def check_input(config, args):
     joiner = ', '
     if config['task'] not in tasks:
         message = '"task" in your configuration file must be one of "create", "update", "delete", ' + \
-            '"add_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", or "get_data_from_view".'
+            '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", or "get_data_from_view".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -1211,6 +1222,18 @@ def check_input(config, args):
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' + joiner.join(add_media_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
+    if config['task'] == 'update_media':
+        update_media_required_options = [
+            'task',
+            'host',
+            'username',
+            'password',
+            'input_csv']
+        for update_media_required_option in update_media_required_options:
+            if update_media_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(update_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
@@ -1788,6 +1811,11 @@ def check_input(config, args):
             message = 'For "add_media" tasks, your CSV file must contain a "file" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
+    if config['task'] == 'update_media':
+        if 'media_id' not in csv_column_headers:
+            message = 'For "update_media" tasks, your CSV file must contain a "media_id" column.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
         if 'media_id' not in csv_column_headers:
             message = 'For "delete_media" tasks, your CSV file must contain a "media_id" column.'
@@ -1800,10 +1828,12 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
 
     # Check for existence of files listed in the 'file' column.
-    if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
+    if (config['task'] == 'create' or config['task'] == 'add_media' or config['task'] == 'update_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
         # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
         if config['task'] == 'add_media':
             config['id_field'] = 'node_id'
+        if config['task'] == 'update_media':
+            config['id_field'] = 'media_id'
         file_check_csv_data = get_csv_data(config)
         for count, file_check_row in enumerate(file_check_csv_data, start=1):
             file_check_row['file'] = file_check_row['file'].strip()
@@ -2722,6 +2752,54 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
     return result, cmd.returncode
 
 
+# def upload_local_file(config, filename, media_type):
+#     """Uploads a file to Drupal.
+#     """
+#     file_path = os.path.join(config['input_dir'], filename)
+#     if media_type in config['media_type_file_fields']:
+#         media_file_field = config['media_type_file_fields'][media_type]
+#     else:
+#         logging.error('File not created for CSV row "%s": media type "%s" not recognized.', media_csv_row[config['media_id']], media_type)
+#         return False
+    
+#     # Requests/urllib3 requires filenames used in Content-Disposition headers to be encoded as latin-1.
+#     # Since it is impossible to reliably convert to latin-1 without knowing the source encoding of the filename
+#     # (which may or may not have originated on the machine running Workbench, so sys.stdout.encoding isn't reliable),
+#     # the best we can do for now is to use unidecode to replace non-ASCII characters in filenames with their ASCII
+#     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
+#     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
+#     # of both requirements.
+#     ascii_only = is_ascii(filename)
+#     if ascii_only is False:
+#         original_filename = copy.copy(filename)
+#         filename = unidecode(filename)
+#         logging.warning("Filename '" + original_filename + "' contains non-ASCII characters, normalized to '" + filename + "'.")
+
+#     file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field + '?_format=json'
+#     file_headers = {
+#         'Content-Type': 'application/octet-stream',
+#         'Content-Disposition': 'file; filename="' + filename + '"'
+#     }
+
+#     binary_data = open(file_path, 'rb')
+
+#     try:
+#         file_response = issue_request(config, 'POST', file_endpoint_path, file_headers, '', binary_data)
+#         if file_response.status_code == 201:
+#             file_json = json.loads(file_response.text)
+#             file_id = file_json['fid'][0]['value']
+#             return file_id
+#         else:
+#             logging.error('File not created for "' + file_path + '", POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
+#                         file_endpoint_path, file_response.status_code, file_response.content)
+#             return False
+#     except requests.exceptions.RequestException as e:
+#         logging.error(e)
+#         return False
+    
+#     # TODO: Handle checksums, temporary files, etc. as in create_file    
+
+
 def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     """Creates a file in Drupal, which is then referenced by the accompanying media.
            Parameters
@@ -2765,6 +2843,10 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
         filename = file_path.split("/")[-1]
         is_remote = True
     elif os.path.isabs(filename):
+        # Validate that the file exists
+        if not os.path.isfile(filename):
+            logging.error('File not created for CSV row "%s": file "%s" does not exist.', node_csv_row[config['id_field']], filename)
+            return False
         file_path = filename
     else:
         file_path = os.path.join(config['input_dir'], filename)
@@ -3216,32 +3298,6 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
             logging.info("Media %s fields updated to match parent node's.", endpoint)
         else:
             logging.warning("Media %s fields not updated to match parent node's.", endpoint)
-
-
-def patch_media_use_terms(config, media_id, media_type, media_use_tids):
-    """Patch the media entity's field_media_use.
-    """
-    media_json = {
-        'bundle': [
-            {'target_id': media_type}
-        ]
-    }
-
-    media_use_tids_json = []
-    for media_use_tid in media_use_tids:
-        media_use_tids_json.append({'target_id': media_use_tid, 'target_type': 'taxonomy_term'})
-
-    media_json['field_media_use'] = media_use_tids_json
-    if config['standalone_media_url'] is True:
-        endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
-    else:
-        endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
-    headers = {'Content-Type': 'application/json'}
-    response = issue_request(config, 'PATCH', endpoint, headers, media_json)
-    if response.status_code == 200:
-        logging.info("Media %s Islandora Media Use terms updated.", endpoint)
-    else:
-        logging.warning("Media %s Islandora Media Use terms not updated.", endpoint)
 
 
 def clean_image_alt_text(input_string):
@@ -5656,8 +5712,10 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
         sections = urllib.parse.urlparse(file_path_from_csv)
-        if config['task'] == 'add_media':
+        if config['task'] == 'add_media':        
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', str(node_csv_row['node_id'])))
+        elif config['task'] == 'update_media':
+            subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row['media_id']))
         else:
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row[config['id_field']]))
         if make_dir:
