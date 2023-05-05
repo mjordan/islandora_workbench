@@ -48,10 +48,10 @@ class SimpleField():
         if row[field_name] is None:
             return entity
 
-        if field_name in config['field_text_output_ids']:
-            text_format = config['field_text_output_ids'][field_name]
+        if field_name in config['field_text_format_ids']:
+            text_format = config['field_text_format_ids'][field_name]
         else:
-            text_format = config['text_output_id']
+            text_format = config['text_format_id']
 
         id_field = row[config['id_field']]
         # Cardinality is unlimited.
@@ -134,10 +134,10 @@ class SimpleField():
         if row[field_name] is None:
             return entity
 
-        if field_name in config['field_text_output_ids']:
-            text_format = config['field_text_output_ids'][field_name]
+        if field_name in config['field_text_format_ids']:
+            text_format = config['field_text_format_ids'][field_name]
         else:
-            text_format = config['text_output_id']
+            text_format = config['text_format_id']
 
         # Cardinality has a limit.
         if field_definitions[field_name]['cardinality'] > 0:

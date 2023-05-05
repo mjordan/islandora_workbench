@@ -60,7 +60,7 @@ class WorkbenchConfig:
 
         config['host'] = config['host'].rstrip('/')
         config['current_config_file_path'] = os.path.abspath(self.args.config)
-        config['field_text_output_ids'] = self.get_field_level_text_output_formats()
+        config['field_text_format_ids'] = self.get_field_level_text_output_formats()
 
         return config
 
@@ -115,15 +115,15 @@ class WorkbenchConfig:
     def get_media_track_file_fields(self):
         return {'audio': 'field_track', 'video': 'field_track'}
 
-    # Gets the field->text output format mapping dict from the opional 'field_text_output_ids'
+    # Gets the field->text output format mapping dict from the opional 'field_text_format_ids'
     # config setting. If the setting is absent, returns an empty dict.
     def get_field_level_text_output_formats(self):
         user_config = self.get_user_config()
         field_text_output_map = {}
-        if 'field_text_output_ids' in user_config:
-            for map_entry in user_config['field_text_output_ids']:
-                for fieldname, text_output_id in map_entry.items():
-                    field_text_output_map[fieldname] = text_output_id
+        if 'field_text_format_ids' in user_config:
+            for map_entry in user_config['field_text_format_ids']:
+                for fieldname, text_format_id in map_entry.items():
+                    field_text_output_map[fieldname] = text_format_id
         return field_text_output_map
 
     # Returns the standard allowed oEmbed provider URLs for a given media type. These
@@ -217,7 +217,7 @@ class WorkbenchConfig:
             'page_title_template': '$parent_title, page $weight',
             'csv_headers': 'names',
             'clean_csv_values_skip': [],
-            'text_output_id': 'basic_html'
+            'text_format_id': 'basic_html'
         }
 
     # Tests validity and existence of configuration file path.
