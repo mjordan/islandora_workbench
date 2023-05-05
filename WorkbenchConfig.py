@@ -2,7 +2,7 @@
 """
 
 import logging
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, YAMLError
 import os
 import sys
 from getpass import getpass
@@ -60,6 +60,7 @@ class WorkbenchConfig:
 
         config['host'] = config['host'].rstrip('/')
         config['current_config_file_path'] = os.path.abspath(self.args.config)
+        config['field_text_output_ids'] = self.get_field_level_text_output_formats()
 
         return config
 
@@ -69,8 +70,10 @@ class WorkbenchConfig:
         with open(self.args.config, 'r') as stream:
             try:
                 loaded = yaml.load(stream)
-            except yaml.YAMLError as exc:
+            except YAMLError as exc:
                 print(exc)
+        # 'media_file_fields' has been replaced with 'media_fields' and 'media_type_file_fields'.
+        # This is aliasing code that can be removed at some point in the future.
         if 'media_file_fields' in loaded:
             media_fields = self.get_media_fields()
             for media_field in loaded['media_file_fields']:
@@ -111,6 +114,17 @@ class WorkbenchConfig:
     # Returns standard field name for media track files for given media type.
     def get_media_track_file_fields(self):
         return {'audio': 'field_track', 'video': 'field_track'}
+
+    # Gets the field->text output format mapping dict from the opional 'field_text_output_ids'
+    # config setting. If the setting is absent, returns an empty dict.
+    def get_field_level_text_output_formats(self):
+        user_config = self.get_user_config()
+        field_text_output_map = {}
+        if 'field_text_output_ids' in user_config:
+            for map_entry in user_config['field_text_output_ids']:
+                for fieldname, text_output_id in map_entry.items():
+                    field_text_output_map[fieldname] = text_output_id
+        return field_text_output_map
 
     # Returns the standard allowed oEmbed provider URLs for a given media type. These
     # are used to identify URLs in the 'file' CSV column as being remote media.
@@ -167,7 +181,6 @@ class WorkbenchConfig:
             'delete_tmp_upload': False,
             'list_missing_drupal_fields': False,
             'secondary_tasks': None,
-            # 'secondary_tasks_data_file': 'id_to_node_map.tsv',
             'sqlite_db_filename': 'workbench_temp_data.db',
             'fixity_algorithm': None,
             'validate_fixity_during_check': False,
@@ -204,8 +217,7 @@ class WorkbenchConfig:
             'page_title_template': '$parent_title, page $weight',
             'csv_headers': 'names',
             'clean_csv_values_skip': [],
-            # WIP on #593.
-            'mimetypes_to_extensions': []
+            'text_output_id': 'basic_html'
         }
 
     # Tests validity and existence of configuration file path.
