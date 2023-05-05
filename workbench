@@ -732,6 +732,8 @@ def update_media() -> None:
             if field_name in media_field_definitions:  # If the field name is a valid field name for the media entity's type
                 if 'string' in media_field_definitions[field_name]['field_type']:  # If field_name corresponds to a plain-text field. In Drupal 8, plain-text fields contain 'string' in their type. 
                     media_json[field_name] = [{'value': field_value}]
+            else:
+                logging.warning("Field %s is not a valid plain-text field for media %s. This may be intended (e.g. media_id), but if not, please check the spelling of this field name.", field_name, media_type)
         return media_json
     
     def extract_media_id(config: dict, media_csv_row: dict) -> Optional[str]:
@@ -910,6 +912,7 @@ def update_media() -> None:
             # We use this with the create_file function to create the media file on the server.
             file_id = create_file(config, row['file'], 'file', row, node_id)
             if file_id is False or file_id is None:  # If the file ID is invalid, skip this row.
+                logging.error('Failed to create file for media ID ' + media_id + '. Skipping this row.')
                 row_count += 1
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
