@@ -755,7 +755,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
-            if 'module' in field_storage and field_storage['module'] == 'text':
+            if field_config['field_type'].startswith('text'):
                 field_definitions[fieldname]['formatted_text'] = True
             else:
                 field_definitions[fieldname]['formatted_text'] = False
@@ -813,7 +813,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
-            if 'module' in field_storage and field_storage['module'] == 'text':
+            if field_config['field_type'].startswith('text'):
                 field_definitions[fieldname]['formatted_text'] = True
             else:
                 field_definitions[fieldname]['formatted_text'] = False
@@ -861,7 +861,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
-            if 'module' in field_storage and field_storage['module'] == 'text':
+            if field_config['field_type'].startswith('text'):
                 field_definitions[fieldname]['formatted_text'] = True
             else:
                 field_definitions[fieldname]['formatted_text'] = False
@@ -925,7 +925,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
                 field_definitions[fieldname]['allowed_values'] = None
-            if 'module' in field_storage and field_storage['module'] == 'text':
+            if field_config['field_type'].startswith('text'):
                 field_definitions[fieldname]['formatted_text'] = True
             else:
                 field_definitions[fieldname]['formatted_text'] = False
