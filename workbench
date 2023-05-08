@@ -830,6 +830,41 @@ def update_media() -> None:
             ]
         }
     
+    def attach_track_files_to_media(config: dict, media_type: str, track_label_list: str, track_type_list: str, track_language_list: str, file_id_list: str) -> dict:
+        """ Return the JSON object for a PATCH request required to attach the track files and their information to a media entity.
+        
+        Parameters:
+            - config (dict): The global configuration object.
+            - media_type (str): The media entity's type (e.g., 'image').
+            - track_label_list (list[str]): A list of track labels.
+            - track_type_list (list[str]): A list of track types.
+            - track_language_list (list[str]): A list of track languages.
+            - file_id_list (list[str]): A list of file IDs.
+
+        Returns:
+            The JSON request for a PATCH request required to attach the track files and their information to a media entity.
+        """
+        # We use list comprehension to create the JSON object that contains the track files and their information.
+        return {
+            config['media_track_file_fields'][media_type]: [
+                {
+                    'target_id': file_id_list[i],
+                    'label': track_label_list[i],
+                    'kind': track_type_list[i],
+                    'srclang': track_language_list[i],
+                    'target_type': 'file',
+                }
+                for i in range(len(file_id_list))
+            ],
+            'bundle': [
+                {
+                    'target_id': media_type,
+                    'target_type': 'media_type',
+                }
+            ]
+        }
+
+    
     def patch_media_use_terms(media_type: str, media_use_tids: list[str]) -> dict:
         """Patch the media entity's field_media_use.
 
@@ -875,7 +910,6 @@ def update_media() -> None:
                 {'value': status}
             ]
         }
-    
     # ========================================================= Main Logic =========================================================
 
     message = '"Update media" task started using config file ' + args.config + '.'
@@ -900,12 +934,14 @@ def update_media() -> None:
         # At this point, the media ID is valid and stored in the media_id variable.
         # Now, the user may want to update one or more of the following
         # - Media File
+        # - Track File
         # - Media Use TID
         # - Published status
         # - Plain text fields pertaining to the media.
 
         # We'll store the JSON PATCH requests for each of these in separate variables, then combine them all into one PATCH request to increase efficiency.
         update_file_json = {}
+        update_track_file_json = {}
         update_media_use_tid_json = {}
         update_status_json = {}
         update_plain_text_fields_json = {}
@@ -918,7 +954,7 @@ def update_media() -> None:
 
         get_media_response = issue_request(config, 'GET', media_json_url)
         get_media_response_body = json.loads(get_media_response.text)
-        print(get_media_response_body)
+        # print(get_media_response_body)
 
         # From this we can get the media type, which we'll need as well
         media_type = get_media_type(media_id, get_media_response)
@@ -950,6 +986,49 @@ def update_media() -> None:
 
             # Now we'll get the JSON for the PATCH request to the file_field_name to update the file.
             update_file_json = attach_file_to_media(config, file_id, get_media_response)
+        
+        # Update track file
+        invalid_track_file = False
+        if config['media_track_file_fields'][media_type] in row and row[config['media_track_file_fields'][media_type]]:
+            # Get the node id of the parent node of the media, which is required for uploading the file. 
+            node_id = get_media_parent_node_id(get_media_response_body, row)
+            if node_id is None:  # If the node ID is invalid, skip this row.
+                row_count += 1
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
+
+            # There may be multiple track files specified, separated by a delimeter. Add the information for each of these to a list.
+            track_files = row[config['media_track_file_fields'][media_type]].split(config['subdelimiter'])
+            # Now make four lists, one for each of the four fields in the track file field corresponding to every track file.
+            track_label_list = []
+            track_type_list = []
+            track_language_list = []
+            track_file_id_list = []
+            # Loop over every track file and add the information to the lists.
+            for track_file in track_files:
+                track_label, track_type, track_language, track_filepath = track_file.split(':')
+                track_label_list.append(track_label)
+                track_type_list.append(track_type)
+                track_language_list.append(track_language)        
+                # From the track file path, we can upload the file to the server and get the file ID.
+                file_id = create_file(config, track_filepath, config['media_track_file_fields'][media_type], row, node_id)
+                if not file_id:
+                    logging.error('Failed to create file for media ID ' + media_id + '. Skipping this row.')
+                    invalid_track_file = True
+                    break
+                track_file_id_list.append(file_id)
+            if invalid_track_file:
+                row_count += 1
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
+            
+            # Now we'll get the JSON for the PATCH request to the track_file_field_name to update the track files.
+            update_track_file_json = attach_track_files_to_media(config, media_type, track_label_list, track_type_list, track_language_list, track_file_id_list)
+
 
         # Update media use tid
         invalid_media_use_tid = False
@@ -1015,6 +1094,7 @@ def update_media() -> None:
         # Construct the final JSON object.
         update_media_json = {}
         update_media_json.update(update_file_json)
+        update_media_json.update(update_track_file_json)
         update_media_json.update(update_media_use_tid_json)
         update_media_json.update(update_status_json)
         update_media_json.update(update_plain_text_fields_json)
