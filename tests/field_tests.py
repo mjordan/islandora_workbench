@@ -17,8 +17,8 @@ class TestSimpleField(unittest.TestCase):
         self.config = {
             'subdelimiter': '|',
             'id_field': 'id',
-            'text_output_id': 'basic_html',
-            'field_text_output_ids': {'field_foo': 'restricted_html', 'field_bar': 'basic_html'}
+            'text_format_id': 'basic_html',
+            'field_text_format_ids': {'field_foo': 'restricted_html', 'field_bar': 'basic_html'}
         }
 
     def test_create_with_simple_field(self):
@@ -912,8 +912,8 @@ class TestSimpleFieldFormatted(unittest.TestCase):
         self.config = {
             'subdelimiter': '|',
             'id_field': 'id',
-            'text_output_id': 'basic_html',
-            'field_text_output_ids': {'field_foo': 'restricted_html', 'field_bar': 'basic_html'}
+            'text_format_id': 'basic_html',
+            'field_text_format_ids': {'field_foo': 'restricted_html', 'field_bar': 'basic_html'}
         }
 
     def test_create_with_simple_field(self):
@@ -5476,7 +5476,7 @@ class TestTypedRelationField(unittest.TestCase):
             {'rel_type': 'relators:bbb', 'target_id': '1501', 'target_type': 'taxonomy_term'},
             {'rel_type': 'relators:ccc', 'target_id': '1521', 'target_type': 'taxonomy_term'},
             {'rel_type': 'relators:bbb', 'target_id': '1501', 'target_type': 'taxonomy_term'},
-            {'rel_type': 'relators:ccc', 'target_id': '1521', 'target_type': 'taxonomy_term'}
+                {'rel_type': 'relators:ccc', 'target_id': '1521', 'target_type': 'taxonomy_term'}
         ]
         field = workbench_fields.LinkField()
         output = field.dedupe_values(input)
