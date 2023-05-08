@@ -1679,9 +1679,9 @@ def check_input(config, args):
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
 
-        validate_link_values_csv_data = get_csv_data(config)
+        validate_link_uri_values_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
-        validate_link_fields(config, field_definitions, validate_link_values_csv_data)
+        validate_link_fields(config, field_definitions, validate_link_uri_values_csv_data)
 
         validate_authority_link_values_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -1717,9 +1717,9 @@ def check_input(config, args):
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
 
-        validate_link_values_csv_data = get_csv_data(config)
+        validate_link_uri_values_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
-        validate_link_fields(config, field_definitions, validate_link_values_csv_data)
+        validate_link_fields(config, field_definitions, validate_link_uri_values_csv_data)
 
         validate_authority_link_values_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -4414,8 +4414,14 @@ def validate_link_fields(config, field_definitions, csv_data):
                     delimited_field_values = row[field_name].split(config['subdelimiter'])
                     for field_value in delimited_field_values:
                         if len(field_value.strip()):
-                            if not validate_link_value(field_value.strip()):
+                            if not validate_link_uri_value(field_value.strip()):
                                 message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + ' (' + field_value + ') is not a valid link field value.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+
+                            if not validate_link_field_lengths(field_value.strip()):
+                                message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + ' (' + field_value + ')' + \
+                                          ' has either a URL that exceeds the allowed length of 2048 characters or link text that exceeds the allowed length of 255 characters.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
 
@@ -4577,7 +4583,7 @@ def validate_latlong_value(latlong):
         return False
 
 
-def validate_link_value(link_value):
+def validate_link_uri_value(link_value):
     """Validates that the value in 'link_value' starts with either 'http://' or 'https://'
        and optionally contains the url/label delimiter '%%'.
     """
@@ -4595,6 +4601,30 @@ def validate_link_value(link_value):
         return True
     else:
         return False
+
+
+def validate_link_field_lengths(link_value):
+    """Validates that the URI and link text in 'link_value' do not exceed the maximum allowed lengths
+       (255 chars for the link text, 2048 characters for the URI).
+    """
+    """Parameters
+        ----------
+        link_value : string
+            The URL.
+        Returns
+        -------
+        boolean
+            True if it does, False if not.
+    """
+    parts = link_value.split('%%')
+    if len(parts[0]) > 2048:
+        return False
+
+    if len(parts) > 1:
+        if len(parts[1]) > 255:
+            return False
+
+    return True
 
 
 def validate_authority_link_value(authority_link_value, authority_sources):

@@ -261,19 +261,51 @@ class TestValidateLatlongValue(unittest.TestCase):
             self.assertFalse(res)
 
 
-class TestValidateLinkValue(unittest.TestCase):
+class TestValidateLinkUriValue(unittest.TestCase):
 
     def test_validate_good_link_values(self):
         values = ['http://foo.com', 'https://foo1.com%%Foo Hardware']
         for value in values:
-            res = workbench_utils.validate_link_value(value)
+            res = workbench_utils.validate_link_uri_value(value)
             self.assertTrue(res)
 
     def test_validate_bad_link_values(self):
         values = ['foo.com', 'http:/foo.com', 'file://server/folder/data.xml', 'mailto:someone@example.com']
         for value in values:
-            res = workbench_utils.validate_link_value(value)
+            res = workbench_utils.validate_link_uri_value(value)
             self.assertFalse(res)
+
+
+class TestValidateLinkFieldLengths(unittest.TestCase):
+
+    def test_validate_link_parts_lengths(self):
+        url = 'x' * 2048
+        res = workbench_utils.validate_link_field_lengths(url)
+        self.assertTrue(res)
+
+        url = 'x' * 2049
+        res = workbench_utils.validate_link_field_lengths(url)
+        self.assertFalse(res)
+
+        url = 'x' * 2048
+        value = url + '%%Foo Barbers'
+        res = workbench_utils.validate_link_field_lengths(value)
+        self.assertTrue(res)
+
+        url = 'x' * 2049
+        value = url + '%%Foo Barbers'
+        res = workbench_utils.validate_link_field_lengths(value)
+        self.assertFalse(res)
+
+        link_text = 'x' * 255
+        value = 'http://foo.com%%' + link_text
+        res = workbench_utils.validate_link_field_lengths(value)
+        self.assertTrue(res)
+
+        link_text = 'x' * 256
+        value = 'http://foo.com%%' + link_text
+        res = workbench_utils.validate_link_field_lengths(value)
+        self.assertFalse(res)
 
 
 class TestValidateAuthorityLinkValue(unittest.TestCase):

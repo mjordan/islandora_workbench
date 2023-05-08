@@ -727,10 +727,16 @@ class LinkField():
         """
         valid_values = list()
         for subvalue in values:
-            if validate_link_value(subvalue) is True:
+            if validate_link_uri_value(subvalue) is True:
                 valid_values.append(subvalue)
             else:
                 message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Link field value.'
+                logging.warning(message)
+            if validate_link_field_lengths(subvalue) is True:
+                valid_values.append(subvalue)
+            else:
+                message = 'Value "' + subvalue + '" in field "' + field_name + '" has either a URL that exceeds the allowed length of ' + \
+                          '2048 characters or link text that exceeds the allowed length of 255 characters.'
                 logging.warning(message)
         return valid_values
 
@@ -1014,7 +1020,7 @@ class EntityReferenceField():
         '''
         valid_values = list()
         for subvalue in values:
-            if validate_link_value(subvalue) is True:
+            if validate_link_uri_value(subvalue) is True:
                 valid_values.append(subvalue)
             else:
                 message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Entity Reference field value.'
@@ -1287,7 +1293,7 @@ class TypedRelationField():
         '''
         valid_values = list()
         for subvalue in values:
-            if validate_link_value(subvalue) is True:
+            if validate_link_uri_value(subvalue) is True:
                 valid_values.append(subvalue)
             else:
                 message = 'Value "' + subvalue + '" in field "' + field_name + '" is not a valid Typed Relation field value.'
