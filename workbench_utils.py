@@ -1817,6 +1817,15 @@ def check_input(config, args):
 
     # Check for existence of files listed in the 'file' column.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
+        if 'media_types_override' in config:
+            for media_type_override in config['media_types_override']:
+                for media_type, media_type_details in media_type_override.items():
+                    if media_type not in config['media_type_file_fields']:
+                        message = 'Custom media types defined in the "media_types_override" configuration setting must be accompanied by a ' + \
+                                  'corresponding entry in the "media_type_file_fields" setting.'
+                        logging.error(message)
+                        sys.exit('Error: ' + message)
+
         # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
         if config['task'] == 'add_media':
             config['id_field'] = 'node_id'
