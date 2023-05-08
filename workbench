@@ -801,7 +801,7 @@ def update_media() -> None:
                 return False
     
     def attach_file_to_media(config: dict, file_id: str, get_media_response: requests.Response) -> bool:
-        """Return the JSON request for a PATCH request required to attach the file to the media entity.
+        """Return the JSON object for a PATCH request required to attach the file to the media entity.
 
         Parameters:
             - config (dict): The global configuration object.
@@ -830,7 +830,7 @@ def update_media() -> None:
             ]
         }
     
-    def patch_media_use_terms(media_type: str, media_use_tids: list[str]):
+    def patch_media_use_terms(media_type: str, media_use_tids: list[str]) -> dict:
         """Patch the media entity's field_media_use.
 
         Parameters:
@@ -852,6 +852,29 @@ def update_media() -> None:
 
         media_json['field_media_use'] = media_use_tids_json
         return media_json
+
+    def patch_media_status(media_type: str, status: bool) -> dict:
+        """Return the JSON object for a PATCH request required to patch the media entity's "Published" status.
+        
+        Parameters:
+            - media_type: The media entity's type (e.g., 'image').
+            - status: True if the media entity should be published, False otherwise.
+        
+        Returns:
+            The JSON request for a PATCH request required to patch the media entity's "Published" status, or None if the status is not a boolean.
+        """
+        if not isinstance(status, bool):
+            return None
+        
+        return {    
+            'bundle': [
+                {'target_id': media_type}
+            ],
+            
+            'status': [
+                {'value': status}
+            ]
+        }
     
     # ========================================================= Main Logic =========================================================
 
@@ -878,11 +901,13 @@ def update_media() -> None:
         # Now, the user may want to update one or more of the following
         # - Media File
         # - Media Use TID
+        # - Published status
         # - Plain text fields pertaining to the media.
 
         # We'll store the JSON PATCH requests for each of these in separate variables, then combine them all into one PATCH request to increase efficiency.
         update_file_json = {}
         update_media_use_tid_json = {}
+        update_status_json = {}
         update_plain_text_fields_json = {}
 
         # We'll need the GET response for this media on multiple occasions. 
@@ -893,6 +918,7 @@ def update_media() -> None:
 
         get_media_response = issue_request(config, 'GET', media_json_url)
         get_media_response_body = json.loads(get_media_response.text)
+        print(get_media_response_body)
 
         # From this we can get the media type, which we'll need as well
         media_type = get_media_type(media_id, get_media_response)
@@ -967,6 +993,20 @@ def update_media() -> None:
 
             update_media_use_tid_json = patch_media_use_terms(media_type, media_use_tids)  # This call will update the media's media use tids
 
+        # Update media status
+        if 'status' in row and row['status'] != '':
+            if row['status'] == '1' or row['status'].lower() == 'true':
+                update_status_json = patch_media_status(media_type, True)
+            elif row['status'] == '0' or row['status'].lower() == 'false':
+                update_status_json = patch_media_status(media_type, False)
+            else:
+                logging.error('Invalid value for status in row ' + str(row_count) + '. Skipping this row.')
+                row_count += 1
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
+
         # Lastly, update any plain-text fields
         update_plain_text_fields_json = patch_plain_text_fields(config, media_type, row)
 
@@ -976,6 +1016,7 @@ def update_media() -> None:
         update_media_json = {}
         update_media_json.update(update_file_json)
         update_media_json.update(update_media_use_tid_json)
+        update_media_json.update(update_status_json)
         update_media_json.update(update_plain_text_fields_json)
 
         # Make the PATCH request

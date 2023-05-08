@@ -2,3 +2,6 @@ __pycache__
 *.log
 Islandora_Workbench.egg-info/
 dist/
+*.csv
+*.jpg
+*.preprocessed
