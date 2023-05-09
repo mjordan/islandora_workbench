@@ -722,11 +722,7 @@ def update_media() -> None:
         Returns:
             - The JSON request (dict) to be sent to the media entity's PATCH endpoint.
         """
-        media_json = {
-            'bundle': [
-                {'target_id': media_type}
-            ]
-        }
+        media_json = {}
         media_field_definitions = get_field_definitions(config, 'media', media_type)  # This will return a dict of field definitions keyed by field name.
         for field_name, field_value in media_csv_row.items():  # Iterate through the CSV row's field names and values and find the fields that are plain-text.
             if field_name in media_field_definitions:  # If the field name is a valid field name for the media entity's type
@@ -791,7 +787,11 @@ def update_media() -> None:
                 break
         if file_to_delete is not None:
             # Now we delete the file
-            file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
+            if config['standalone_media_url'] is True:
+                file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
+            else:
+                file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '/edit?_format=json'
+
             file_response = issue_request(config, 'DELETE', file_endpoint)
             if file_response.status_code == 204:
                 logging.info("File %s (from media %s) deleted.", file_to_delete, media_id)
@@ -800,32 +800,60 @@ def update_media() -> None:
                 logging.error("File %s (from media %s) not deleted (HTTP response code %s). Assuming there was no file and attempting to add new file.", file_to_delete, media_id, file_response.status_code)
                 return False
     
-    def attach_file_to_media(config: dict, file_id: str, get_media_response: requests.Response) -> bool:
+    def delete_media_track_files(config: dict, media_id: str, media_type: str, get_media_response_body: dict) -> bool:
+        """Delete the track file file attached to the media entity.
+        
+        Parameters:
+            - config (dict): The global configuration object.
+            - media_id (str): A valid media entity ID.
+            - get_media_response_body (dict): The response body from a GET request to the media entity's endpoint.
+        
+        Returns:
+            True if the track file was successfully deleted, False otherwise.
+        """
+         # Inspect the JSON response to get the file ID
+        if config['media_track_file_fields'][media_type] in get_media_response_body:
+            for track_file in get_media_response_body[config['media_track_file_fields'][media_type]]:
+                try:
+                    file_to_delete = str(track_file['target_id'])
+                    print(file_to_delete)
+                except Exception as e:
+                    logging.warning("Unable to get track file ID for media %s (reason: %s). Proceeding while assuming this track file deosn't exist.", media_id, e)
+                    continue
+                if config['standalone_media_url'] is True:
+                    file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
+                else:
+                    file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '/edit?_format=json'
+                file_response = issue_request(config, 'DELETE', file_endpoint)
+                if file_response.status_code == 204:
+                    logging.info("Track File %s (from media %s) deleted.", file_to_delete, media_id)
+                else:
+                    logging.error("Track File %s (from media %s) not deleted (HTTP response code %s).", file_to_delete, media_id, file_response.status_code)
+                    return False
+            return True
+        else:
+            logging.warning("Unable to get track file ID for media %s. Proceeding while assuming this track file deosn't exist.", media_id)
+            return False
+
+    
+    def attach_file_to_media(config: dict, media_type: str, file_id: str) -> bool:
         """Return the JSON object for a PATCH request required to attach the file to the media entity.
 
         Parameters:
             - config (dict): The global configuration object.
+            - media_type (str): The media entity's type (e.g., 'image').
             - file_id (str): A valid file entity ID.
-            - get_media_response (dict): The response body from a GET request to the media entity's endpoint.
 
         Returns:
             The JSON request for a PATCH request required to attach the file to the media entity.
         """
-        # We'll need the type of the media, which we can get from the passed GET request body
-        # Note that the format of the response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
-        media_type = get_media_response.links['describes']['type'].split('/')[0]
+
         media_field = config['media_type_file_fields'][media_type]  # Get the name of the field that corresponds to the media type (e.g. 'field_media_image' for media type 'image')
         return {
             media_field: [
                 {
                     'target_id': file_id,
                     'target_type': 'file',
-                }
-            ],
-            'bundle': [
-                {
-                    'target_id': media_type,
-                    'target_type': 'media_type',
                 }
             ]
         }
@@ -855,57 +883,38 @@ def update_media() -> None:
                     'target_type': 'file',
                 }
                 for i in range(len(file_id_list))
-            ],
-            'bundle': [
-                {
-                    'target_id': media_type,
-                    'target_type': 'media_type',
-                }
             ]
         }
-
     
-    def patch_media_use_terms(media_type: str, media_use_tids: list[str]) -> dict:
+    def patch_media_use_terms(media_use_tids: list[str]) -> dict:
         """Patch the media entity's field_media_use.
 
         Parameters:
-            - media_type: The media entity's type (e.g., 'image').
             - media_use_tids: A list of taxonomy term IDs to patch to the media entity's field_media_use.
 
         Returns:
             The JSON request for a PATCH request required to patch the media entity's media use terms.
         """
-        media_json = {
-            'bundle': [
-                {'target_id': media_type}
+        return {
+            'field_media_use': [
+                {
+                    'target_id': media_use_tid,
+                    'target_type': 'taxonomy_term'
+                }
+                for media_use_tid in media_use_tids
             ]
         }
 
-        media_use_tids_json = []
-        for media_use_tid in media_use_tids:
-            media_use_tids_json.append({'target_id': media_use_tid, 'target_type': 'taxonomy_term'})
-
-        media_json['field_media_use'] = media_use_tids_json
-        return media_json
-
-    def patch_media_status(media_type: str, status: bool) -> dict:
+    def patch_media_status(status: bool) -> dict:
         """Return the JSON object for a PATCH request required to patch the media entity's "Published" status.
         
         Parameters:
-            - media_type: The media entity's type (e.g., 'image').
             - status: True if the media entity should be published, False otherwise.
         
         Returns:
             The JSON request for a PATCH request required to patch the media entity's "Published" status, or None if the status is not a boolean.
-        """
-        if not isinstance(status, bool):
-            return None
-        
-        return {    
-            'bundle': [
-                {'target_id': media_type}
-            ],
-            
+        """        
+        return {            
             'status': [
                 {'value': status}
             ]
@@ -939,13 +948,6 @@ def update_media() -> None:
         # - Published status
         # - Plain text fields pertaining to the media.
 
-        # We'll store the JSON PATCH requests for each of these in separate variables, then combine them all into one PATCH request to increase efficiency.
-        update_file_json = {}
-        update_track_file_json = {}
-        update_media_use_tid_json = {}
-        update_status_json = {}
-        update_plain_text_fields_json = {}
-
         # We'll need the GET response for this media on multiple occasions. 
         if config['standalone_media_url'] is True:
             media_json_url = config['host'] + '/media/' + media_id + '?_format=json'
@@ -954,10 +956,19 @@ def update_media() -> None:
 
         get_media_response = issue_request(config, 'GET', media_json_url)
         get_media_response_body = json.loads(get_media_response.text)
-        # print(get_media_response_body)
+        print(get_media_response_body)
 
         # From this we can get the media type, which we'll need as well
         media_type = get_media_type(media_id, get_media_response)
+        if media_type is None:  # If the media type is invalid, skip this row.
+            row_count += 1
+            if config['progress_bar'] is True:
+                row_position = get_percentage(row_count, num_csv_records)
+                pbar(row_position)
+            continue
+
+        # We'll store the JSON for the patch request in this dictionary (which will grow as we add more fields to update).
+        patch_request_json = {'bundle': [{'target_id': media_type}]}
         
 
         # Update media file
@@ -985,11 +996,11 @@ def update_media() -> None:
             delete_media_file(config, media_id, get_media_response_body)
 
             # Now we'll get the JSON for the PATCH request to the file_field_name to update the file.
-            update_file_json = attach_file_to_media(config, file_id, get_media_response)
+            patch_request_json.update(attach_file_to_media(config, media_type, file_id))
         
         # Update track file
         invalid_track_file = False
-        if config['media_track_file_fields'][media_type] in row and row[config['media_track_file_fields'][media_type]]:
+        if media_type in config['media_track_file_fields'] and config['media_track_file_fields'][media_type] in row and row[config['media_track_file_fields'][media_type]]:
             # Get the node id of the parent node of the media, which is required for uploading the file. 
             node_id = get_media_parent_node_id(get_media_response_body, row)
             if node_id is None:  # If the node ID is invalid, skip this row.
@@ -1001,33 +1012,33 @@ def update_media() -> None:
 
             # There may be multiple track files specified, separated by a delimeter. Add the information for each of these to a list.
             track_files = row[config['media_track_file_fields'][media_type]].split(config['subdelimiter'])
-            # Now make four lists, one for each of the four fields in the track file field corresponding to every track file.
-            track_label_list = []
-            track_type_list = []
-            track_language_list = []
-            track_file_id_list = []
+            # Now make a dictionary with four lists, one for each of the four fields in the track file field corresponding to every track file.
+            track_files_info = {'track_labels': [], 'track_types': [], 'track_languages': [], 'track_file_ids': []}
             # Loop over every track file and add the information to the lists.
             for track_file in track_files:
                 track_label, track_type, track_language, track_filepath = track_file.split(':')
-                track_label_list.append(track_label)
-                track_type_list.append(track_type)
-                track_language_list.append(track_language)        
+                track_files_info['track_labels'].append(track_label)
+                track_files_info['track_types'].append(track_type)
+                track_files_info['track_languages'].append(track_language)        
                 # From the track file path, we can upload the file to the server and get the file ID.
                 file_id = create_file(config, track_filepath, config['media_track_file_fields'][media_type], row, node_id)
                 if not file_id:
                     logging.error('Failed to create file for media ID ' + media_id + '. Skipping this row.')
                     invalid_track_file = True
                     break
-                track_file_id_list.append(file_id)
+                track_files_info['track_file_ids'].append(file_id)
             if invalid_track_file:
                 row_count += 1
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue
+
+            # Delete the old track files which were attached to this media from the server.
+            delete_media_track_files(config, media_id, media_type, get_media_response_body)
             
             # Now we'll get the JSON for the PATCH request to the track_file_field_name to update the track files.
-            update_track_file_json = attach_track_files_to_media(config, media_type, track_label_list, track_type_list, track_language_list, track_file_id_list)
+            patch_request_json.update(attach_track_files_to_media(config, media_type, track_files_info['track_labels'], track_files_info['track_types'], track_files_info['track_languages'], track_files_info['track_file_ids']))
 
 
         # Update media use tid
@@ -1062,22 +1073,14 @@ def update_media() -> None:
                 continue
         
             # By this point we have a valid media ID and media use tid, so we can update the media use tid
-            media_type = get_media_type(media_id, get_media_response)
-            if media_type is None:
-                row_count += 1
-                if config['progress_bar'] is True:
-                    row_position = get_percentage(row_count, num_csv_records)
-                    pbar(row_position)
-                continue
-
-            update_media_use_tid_json = patch_media_use_terms(media_type, media_use_tids)  # This call will update the media's media use tids
+            patch_request_json.update(patch_media_use_terms(media_type, media_use_tids))  # This call returns a dict with the JSON for the PATCH request to update the media use tid
 
         # Update media status
         if 'status' in row and row['status'] != '':
             if row['status'] == '1' or row['status'].lower() == 'true':
-                update_status_json = patch_media_status(media_type, True)
+                patch_request_json.update(patch_media_status(True))
             elif row['status'] == '0' or row['status'].lower() == 'false':
-                update_status_json = patch_media_status(media_type, False)
+                patch_request_json.update(patch_media_status(False))
             else:
                 logging.error('Invalid value for status in row ' + str(row_count) + '. Skipping this row.')
                 row_count += 1
@@ -1086,18 +1089,8 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
-        # Lastly, update any plain-text fields
-        update_plain_text_fields_json = patch_plain_text_fields(config, media_type, row)
-
-        # Now we have all the JSON we need to update the media
-        # We need to make a PATCH request.
-        # Construct the final JSON object.
-        update_media_json = {}
-        update_media_json.update(update_file_json)
-        update_media_json.update(update_track_file_json)
-        update_media_json.update(update_media_use_tid_json)
-        update_media_json.update(update_status_json)
-        update_media_json.update(update_plain_text_fields_json)
+        # Update plain text fields
+        patch_request_json.update(patch_plain_text_fields(config, media_type, row))
 
         # Make the PATCH request
         if config['standalone_media_url'] is True:
@@ -1106,7 +1099,7 @@ def update_media() -> None:
             update_media_url = config['host'] + '/media/' + media_id + '/edit?_format=json'
         
         headers = {'Content-Type': 'application/json'}
-        response = issue_request(config, 'PATCH', update_media_url, headers, update_media_json)
+        response = issue_request(config, 'PATCH', update_media_url, headers, patch_request_json)
         if response.status_code != 200:
             logging.error('Error updating media ID ' + media_id + '. Skipping row # ' + str(row_count) + '.')
         
