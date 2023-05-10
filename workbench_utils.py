@@ -706,7 +706,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
         entity_type : string
             One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
         bundle_type : string
-            None for nodes (the content type can optionally be gotten from cofnig),
+            None for nodes (the content type can optionally be gotten from config),
             the vocabulary name, or the media type (image', 'document', 'audio',
             'video', 'file', etc.).
         Returns
@@ -2777,7 +2777,7 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
 #     else:
 #         logging.error('File not created for CSV row "%s": media type "%s" not recognized.', media_csv_row[config['media_id']], media_type)
 #         return False
-    
+
 #     # Requests/urllib3 requires filenames used in Content-Disposition headers to be encoded as latin-1.
 #     # Since it is impossible to reliably convert to latin-1 without knowing the source encoding of the filename
 #     # (which may or may not have originated on the machine running Workbench, so sys.stdout.encoding isn't reliable),
@@ -2812,8 +2812,8 @@ def execute_entity_post_task_script(path_to_script, path_to_config_file, http_re
 #     except requests.exceptions.RequestException as e:
 #         logging.error(e)
 #         return False
-    
-#     # TODO: Handle checksums, temporary files, etc. as in create_file    
+
+#     # TODO: Handle checksums, temporary files, etc. as in create_file
 
 
 def create_file(config, filename, file_fieldname, node_csv_row, node_id):
@@ -5728,7 +5728,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
         sections = urllib.parse.urlparse(file_path_from_csv)
-        if config['task'] == 'add_media':        
+        if config['task'] == 'add_media':
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', str(node_csv_row['node_id'])))
         elif config['task'] == 'update_media':
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', node_csv_row['media_id']))
