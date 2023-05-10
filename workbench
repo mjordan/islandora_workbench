@@ -925,6 +925,8 @@ def update_media() -> None:
         }
     # ========================================================= Main Logic =========================================================
 
+    # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
+
     message = '"Update media" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
@@ -999,15 +1001,6 @@ def update_media() -> None:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue            
-            
-            # Delete the old file which was attached to this media from the server.
-            if not delete_media_file(config, media_id, get_media_response_body):
-                row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
-                if config['progress_bar'] is True:
-                    row_position = get_percentage(row_count, num_csv_records)
-                    pbar(row_position)
-                continue
 
             # Now we'll get the JSON for the PATCH request to the file_field_name to update the file.
             try:
@@ -1062,15 +1055,6 @@ def update_media() -> None:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue
-
-            # Delete the old track files which were attached to this media from the server.
-            if not delete_media_track_files(config, media_id, media_type, get_media_response_body):
-                row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
-                if config['progress_bar'] is True:
-                    row_position = get_percentage(row_count, num_csv_records)
-                    pbar(row_position)
-                continue
             
             # Now we'll get the JSON for the PATCH request to the track_file_field_name to update the track files.
             try:
@@ -1094,7 +1078,7 @@ def update_media() -> None:
 
             for i in range(len(media_use_tids)):  # Iterate through the list of media_use_tid values and process each tid.
                 if not value_is_numeric(media_use_tids[i]):
-                    tid = get_term_id_from_uri(config, row['media_use_tid'][i])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
+                    tid = get_term_id_from_uri(config, media_use_tids[i])  # Note that this call checks if the term exists by pinging it and returns False if it doesn't
                     if tid is False:  # If media use term URL alias does not exist, skip updating media
                         logging.error("Media use term URL alias %s not found or not accessible, skipping updating media.", media_use_tids[i])
                         invalid_media_use_tid = True
@@ -1136,6 +1120,30 @@ def update_media() -> None:
 
         # Update plain text fields
         patch_request_json.update(patch_plain_text_fields(config, media_type, row))
+
+        # Before the patch requests, let's delete the existing media/track files if the user wants to replace them.
+        
+        # Delete the old media file
+        if 'file' in row and row['file'] != '':
+            # Delete the old file which was attached to this media from the server.
+            if not delete_media_file(config, media_id, get_media_response_body):
+                row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
+        
+        # Delete the old track files
+        if media_type in config['media_track_file_fields'] and config['media_track_file_fields'][media_type] in row and row[config['media_track_file_fields'][media_type]] != '':
+            # Delete the old track files which were attached to this media from the server.
+                if not delete_media_track_files(config, media_id, media_type, get_media_response_body):
+                    row_count += 1
+                    print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                    if config['progress_bar'] is True:
+                        row_position = get_percentage(row_count, num_csv_records)
+                        pbar(row_position)
+                    continue
 
         # Make the PATCH request
         if config['standalone_media_url'] is True:
