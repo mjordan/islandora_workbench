@@ -697,14 +697,16 @@ def update_media() -> None:
         """Get the parent node ID of the media entity.
         
         Parameters:
-            - get_media_response_body (dict): The response body from a GET request to the media entity's endpoint.
-            - media_csv_row (dict): The CSV row containing the media entity's field names and values.
+            - get_media_response_body: The response body from a GET request to the media entity's endpoint.
+            - media_csv_row: The CSV row containing the media entity's field names and values.
 
         Returns:
-            The parent node's ID (str) if it corresponds to a valid node, otherwise None. 
+            The parent node's ID if it corresponds to a valid node, otherwise None. 
+        
+        NOTE: If node_id is specified in the CSV row, that value will be returned. Otherwise, the first node ID in the list of nodes the media entity is attached to will be returned.
         """
-        if 'node_id' in media_csv_row:  # If the CSV row contains a node ID
-            if media_csv_row['node_id']:  # If the CSV row contains a node ID
+        if 'node_id' in media_csv_row:  # If the CSV row contains a node ID, it takes precedence
+            if media_csv_row['node_id']:  # If the CSV row is not blank
                 return media_csv_row['node_id']
         if not get_media_response_body['field_media_of']:  # If the media entity is not attached to any node
             logging.error("Media ID %s is not attached to any node, which is a requirement for updating media files.", media_id)
@@ -712,7 +714,7 @@ def update_media() -> None:
         return get_media_response_body['field_media_of'][0]['target_id']  # Return the first node ID in the list of nodes the media entity is attached to
 
     def patch_plain_text_fields(config: dict, media_type: str, media_csv_row: dict) -> dict:
-        """Patch the media entity's plain-text fields with new values specified in the CSV row.
+        """Create the JSON request to be sent to the media entity's PATCH endpoint for updating plain-text fields.
 
         Parameters:
             - config (dict): The global configuration object.
@@ -727,7 +729,8 @@ def update_media() -> None:
         for field_name, field_value in media_csv_row.items():  # Iterate through the CSV row's field names and values and find the fields that are plain-text.
             if field_name in media_field_definitions:  # If the field name is a valid field name for the media entity's type
                 if 'string' in media_field_definitions[field_name]['field_type']:  # If field_name corresponds to a plain-text field. In Drupal 8, plain-text fields contain 'string' in their type. 
-                    media_json[field_name] = [{'value': field_value}]
+                    if field_value != '':  # If the field value is not empty
+                        media_json[field_name] = [{'value': field_value}]
             else:
                 logging.warning("Field %s is not a valid plain-text field for media %s. This may be intended (e.g. media_id), but if not, please check the spelling of this field name.", field_name, media_type)
         return media_json
@@ -736,18 +739,18 @@ def update_media() -> None:
         """Extract the media entity's ID from the CSV row.
 
         Parameters:
-            - config (dict): The global configuration object.
-            - media_csv_row (dict): The CSV row containing the media entity's field names and values.
+            - config: The global configuration object.
+            - media_csv_row: The CSV row containing the media entity's field names and values.
 
         Returns:
-            media_id (str) if it corresponds to a valid media entity, otherwise None.
+            - The media entity's ID if it could be extracted from the CSV row and is valid, otherwise None.
         """
         if 'media_id' not in media_csv_row:  # Media ID column is missing
             logging.error('Media ID column missing in CSV file.')
             return None
         
         if not media_csv_row['media_id']:  # Media ID column is present but empty
-            logging.error('Media ID column is empty in CSV file.')
+            logging.error('Row with empty media_id column detected in CSV file.')
             return None
 
         if not value_is_numeric(media_csv_row['media_id']):  # If media ID is not numeric, assume it is a media URL alias
@@ -769,12 +772,12 @@ def update_media() -> None:
         """Delete file attached to the media entity.
 
         Parameters:
-            - config (dict): The global configuration object.
-            - media_id (str): A valid media entity ID.
-            - get_media_response_body (dict): The response body from a GET request to the media entity's endpoint.
+            - config: The global configuration object.
+            - media_id: A valid media entity ID.
+            - get_media_response_body: The response body from a GET request to the media entity's endpoint.
 
         Returns:
-            True if the file was successfully deleted, False otherwise.
+            True if the file was successfully deleted or if there was no file attached to this media, False otherwise.
         """
         # Inspect the JSON response to get the file ID
         for file_field_name in file_fields:
@@ -783,9 +786,10 @@ def update_media() -> None:
                     file_to_delete = str(get_media_response_body[file_field_name][0]['target_id'])
                 except Exception as e:
                     logging.warning("Unable to get file ID for media %s (reason: %s). Assuming there was no file attached to this media in the first place.", media_id, e)
-                    return False
+                    return True
                 break
-        if file_to_delete is not None:
+
+        if file_to_delete:
             # Now we delete the file
             if config['standalone_media_url'] is True:
                 file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
@@ -804,26 +808,28 @@ def update_media() -> None:
         """Delete the track file file attached to the media entity.
         
         Parameters:
-            - config (dict): The global configuration object.
-            - media_id (str): A valid media entity ID.
-            - get_media_response_body (dict): The response body from a GET request to the media entity's endpoint.
+            - config: The global configuration object.
+            - media_id: A valid media entity ID.
+            - media_type: The media entity's type.
+            - get_media_response_body: The response body from a GET request to the media entity's endpoint.
         
         Returns:
-            True if the track file was successfully deleted, False otherwise.
+            True if the track file was successfully deleted or if there were no track files in the first place, False otherwise.
         """
          # Inspect the JSON response to get the file ID
         if config['media_track_file_fields'][media_type] in get_media_response_body:
             for track_file in get_media_response_body[config['media_track_file_fields'][media_type]]:
                 try:
                     file_to_delete = str(track_file['target_id'])
-                    print(file_to_delete)
-                except Exception as e:
-                    logging.warning("Unable to get track file ID for media %s (reason: %s). Proceeding while assuming this track file deosn't exist.", media_id, e)
-                    continue
+                except Exception as e:  # There is a track file attached to this media, but we can't get its ID
+                    logging.warning("Unable to get track file ID for a track file attached to media ID %s (reason: %s).", media_id, e)
+                    return False
+                
                 if config['standalone_media_url'] is True:
                     file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '?_format=json'
                 else:
                     file_endpoint = config['host'] + '/entity/file/' + file_to_delete + '/edit?_format=json'
+
                 file_response = issue_request(config, 'DELETE', file_endpoint)
                 if file_response.status_code == 204:
                     logging.info("Track File %s (from media %s) deleted.", file_to_delete, media_id)
@@ -832,22 +838,20 @@ def update_media() -> None:
                     return False
             return True
         else:
-            logging.warning("Unable to get track file ID for media %s. Proceeding while assuming this track file deosn't exist.", media_id)
-            return False
+            logging.warning("Unable to find track files for media ID %s. Proceeding and assuming there were no track files to begin with.", media_id)
+            return True
 
-    
     def attach_file_to_media(config: dict, media_type: str, file_id: str) -> bool:
         """Return the JSON object for a PATCH request required to attach the file to the media entity.
 
         Parameters:
-            - config (dict): The global configuration object.
-            - media_type (str): The media entity's type (e.g., 'image').
-            - file_id (str): A valid file entity ID.
+            - config: The global configuration object.
+            - media_type: The media entity's type (e.g., 'image').
+            - file_id: A valid file entity ID.
 
         Returns:
             The JSON request for a PATCH request required to attach the file to the media entity.
         """
-
         media_field = config['media_type_file_fields'][media_type]  # Get the name of the field that corresponds to the media type (e.g. 'field_media_image' for media type 'image')
         return {
             media_field: [
@@ -862,12 +866,12 @@ def update_media() -> None:
         """ Return the JSON object for a PATCH request required to attach the track files and their information to a media entity.
         
         Parameters:
-            - config (dict): The global configuration object.
-            - media_type (str): The media entity's type (e.g., 'image').
-            - track_label_list (list[str]): A list of track labels.
-            - track_type_list (list[str]): A list of track types.
-            - track_language_list (list[str]): A list of track languages.
-            - file_id_list (list[str]): A list of file IDs.
+            - config: The global configuration object.
+            - media_type: The media entity's type (e.g., 'image').
+            - track_label_list: A list of track labels.
+            - track_type_list: A list of track types.
+            - track_language_list: A list of track languages.
+            - file_id_list: A list of file IDs.
 
         Returns:
             The JSON request for a PATCH request required to attach the track files and their information to a media entity.
@@ -887,7 +891,7 @@ def update_media() -> None:
         }
     
     def patch_media_use_terms(media_use_tids: list[str]) -> dict:
-        """Patch the media entity's field_media_use.
+        """Return the JSON object for a PATCH request required to patch the media entity's media use terms.
 
         Parameters:
             - media_use_tids: A list of taxonomy term IDs to patch to the media entity's field_media_use.
@@ -927,7 +931,7 @@ def update_media() -> None:
 
     csv_data = get_csv_data(config)
 
-    if config['id_field'] not in csv_data.fieldnames:
+    if config['id_field'] not in csv_data.fieldnames:  # If the CSV file does not contain the ID field, we use the media ID field by default
         config['id_field'] = 'media_id'
 
     row_count = 0
@@ -935,12 +939,14 @@ def update_media() -> None:
         media_id = extract_media_id(config, row)  # Extract the media ID from the CSV row
         if media_id is None:  # If the media ID is invalid, skip this row
             row_count += 1
+            print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
             if config['progress_bar'] is True:
                 row_position = get_percentage(row_count, num_csv_records)
                 pbar(row_position)
             continue 
     
         # At this point, the media ID is valid and stored in the media_id variable.
+
         # Now, the user may want to update one or more of the following
         # - Media File
         # - Track File
@@ -956,12 +962,12 @@ def update_media() -> None:
 
         get_media_response = issue_request(config, 'GET', media_json_url)
         get_media_response_body = json.loads(get_media_response.text)
-        print(get_media_response_body)
 
         # From this we can get the media type, which we'll need as well
         media_type = get_media_type(media_id, get_media_response)
         if media_type is None:  # If the media type is invalid, skip this row.
             row_count += 1
+            print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
             if config['progress_bar'] is True:
                 row_position = get_percentage(row_count, num_csv_records)
                 pbar(row_position)
@@ -970,41 +976,59 @@ def update_media() -> None:
         # We'll store the JSON for the patch request in this dictionary (which will grow as we add more fields to update).
         patch_request_json = {'bundle': [{'target_id': media_type}]}
         
-
         # Update media file
-        if 'file' in row and row['file']:
+        if 'file' in row and row['file'] != '':
             # We need to first get the parent node ID of this media.
             node_id = get_media_parent_node_id(get_media_response_body, row)
             if node_id is None:  # If the node ID is invalid, skip this row.
                 row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue
+
             # At this point we have the node ID of the parent node of the media.
             # We use this with the create_file function to create the media file on the server.
             file_id = create_file(config, row['file'], 'file', row, node_id)
             if file_id is False or file_id is None:  # If the file ID is invalid, skip this row.
                 logging.error('Failed to create file for media ID ' + media_id + '. Skipping this row.')
                 row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue            
             
             # Delete the old file which was attached to this media from the server.
-            delete_media_file(config, media_id, get_media_response_body)
+            if not delete_media_file(config, media_id, get_media_response_body):
+                row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
 
             # Now we'll get the JSON for the PATCH request to the file_field_name to update the file.
-            patch_request_json.update(attach_file_to_media(config, media_type, file_id))
-        
+            try:
+                patch_request_json.update(attach_file_to_media(config, media_type, file_id))
+            except KeyError:
+                logging.error("The media type " + media_type + " is not supported.")
+                row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
+
         # Update track file
         invalid_track_file = False
-        if media_type in config['media_track_file_fields'] and config['media_track_file_fields'][media_type] in row and row[config['media_track_file_fields'][media_type]]:
+        if media_type in config['media_track_file_fields'] and config['media_track_file_fields'][media_type] in row and row[config['media_track_file_fields'][media_type]] != '':
             # Get the node id of the parent node of the media, which is required for uploading the file. 
             node_id = get_media_parent_node_id(get_media_response_body, row)
             if node_id is None:  # If the node ID is invalid, skip this row.
                 row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1033,22 +1057,37 @@ def update_media() -> None:
                 track_files_info['track_file_ids'].append(file_id)
             if invalid_track_file:
                 row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue
 
             # Delete the old track files which were attached to this media from the server.
-            delete_media_track_files(config, media_id, media_type, get_media_response_body)
+            if not delete_media_track_files(config, media_id, media_type, get_media_response_body):
+                row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
             
             # Now we'll get the JSON for the PATCH request to the track_file_field_name to update the track files.
-            patch_request_json.update(attach_track_files_to_media(config, media_type, track_files_info['track_labels'], track_files_info['track_types'], track_files_info['track_languages'], track_files_info['track_file_ids']))
-
+            try:
+                patch_request_json.update(attach_track_files_to_media(config, media_type, track_files_info['track_labels'], track_files_info['track_types'], track_files_info['track_languages'], track_files_info['track_file_ids']))
+            except KeyError:
+                logging.error("The media type " + media_type + " is not set to have a track file field.")
+                row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                if config['progress_bar'] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    pbar(row_position)
+                continue
 
         # Update media use tid
         invalid_media_use_tid = False
         if 'media_use_tid' in row:
-            if row['media_use_tid']:  # User expects us to update media use tid to the one provided in the CSV.
+            if row['media_use_tid'] != '':  # User expects us to update media use tid to the one provided in the CSV.
                 media_use_tids = row['media_use_tid'].split(config['subdelimiter'])
             else:  # User expects us to update media use tid to the default media use tid.
                 media_use_tids = str(config['media_use_tid']).split(config['subdelimiter'])
@@ -1071,6 +1110,7 @@ def update_media() -> None:
             
             if invalid_media_use_tid:
                 row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1088,6 +1128,7 @@ def update_media() -> None:
             else:
                 logging.error('Invalid value for status in row ' + str(row_count) + '. Skipping this row.')
                 row_count += 1
+                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1105,7 +1146,8 @@ def update_media() -> None:
         headers = {'Content-Type': 'application/json'}
         response = issue_request(config, 'PATCH', update_media_url, headers, patch_request_json)
         if response.status_code != 200:
-            logging.error('Error updating media ID ' + media_id + '. Skipping row # ' + str(row_count) + '.')
+            logging.error('Error updating media ' + media_id + '. Response code: ' + str(response.status_code) + '. Response body: ' + response.text)
+            print("There are errors for CSV row " + str(row_count + 1) + ". Please check the log for more details.")
         
         row_count += 1
         if config['progress_bar'] is True:             
