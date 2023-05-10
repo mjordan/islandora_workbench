@@ -1117,7 +1117,7 @@ def update_media() -> None:
                 continue
         
             # By this point we have a valid media ID and media use tid, so we can update the media use tid
-            patch_request_json.update(patch_media_use_terms(media_type, media_use_tids))  # This call returns a dict with the JSON for the PATCH request to update the media use tid
+            patch_request_json.update(patch_media_use_terms(media_use_tids))  # This call returns a dict with the JSON for the PATCH request to update the media use tid
 
         # Update media status
         if 'status' in row and row['status'] != '':
@@ -1126,7 +1126,7 @@ def update_media() -> None:
             elif row['status'] == '0' or row['status'].lower() == 'false':
                 patch_request_json.update(patch_media_status(False))
             else:
-                logging.error('Invalid value for status in row ' + str(row_count) + '. Skipping this row.')
+                logging.error('Invalid value for published status.')
                 row_count += 1
                 print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
                 if config['progress_bar'] is True:
