@@ -1016,6 +1016,10 @@ def update_media() -> None:
             track_files_info = {'track_labels': [], 'track_types': [], 'track_languages': [], 'track_file_ids': []}
             # Loop over every track file and add the information to the lists.
             for track_file in track_files:
+                if not validate_media_track_value(track_file):
+                    logging.error('Invalid track file value for media ID ' + media_id + '. Skipping this row.')
+                    invalid_track_file = True
+                    break
                 track_label, track_type, track_language, track_filepath = track_file.split(':')
                 track_files_info['track_labels'].append(track_label)
                 track_files_info['track_types'].append(track_type)
