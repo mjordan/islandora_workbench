@@ -584,15 +584,18 @@ class LinkField():
         if field_definitions[field_name]['cardinality'] == -1:
             if config['subdelimiter'] in row[field_name]:
                 subvalues = split_link_string(config, row[field_name])
+                subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                 subvalues = self.dedupe_values(subvalues)
                 entity[field_name] = subvalues
             else:
                 field_value = split_link_string(config, row[field_name])
+                field_value = self.remove_invalid_values(config, field_definitions, field_name, field_value)
                 entity[field_name] = field_value
         # Cardinality has a limit, including 1.
         else:
             if config['subdelimiter'] in row[field_name]:
                 subvalues = split_link_string(config, row[field_name])
+                subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                 subvalues = self.dedupe_values(subvalues)
                 if len(subvalues) > int(field_definitions[field_name]['cardinality']):
                     subvalues = subvalues[:field_definitions[field_name]['cardinality']]
@@ -600,6 +603,7 @@ class LinkField():
                 entity[field_name] = subvalues
             else:
                 field_value = split_link_string(config, row[field_name])
+                field_value = self.remove_invalid_values(config, field_definitions, field_name, field_value)
                 entity[field_name] = field_value
 
         return entity
