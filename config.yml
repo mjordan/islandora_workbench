@@ -1,9 +1,0 @@
-task: update_media
-host: "https://islandora.traefik.me/"
-username: admin
-password: password
-input_csv: update_media.csv
-# Below is optional
-standalone_media_url: true
-progress_bar: false
-subdelimiter: "|"
