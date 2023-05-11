@@ -1096,6 +1096,15 @@ def get_data_from_view():
                     row['file'] = downloaded_file_name
 
                 writer.writerow(row)
+
+                # Execute node-specific post-export scripts, if any are configured.
+                if 'node_post_export' in config and len(config['node_post_export']) > 0:
+                    for command in config['node_post_export']:
+                        post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, response.status_code, json.dumps(node))
+                        if post_task_return_code == 0:
+                            logging.info("Post node export script " + command + " executed successfully.")
+                        else:
+                            logging.error("Post node export script " + command + " failed.")
         else:
             message = f"Node {node['nid'][0]['value']} not written to output CVS because its content type (" + \
                 f"{node['type'][0]['target_id']} does not match the \"content_type\" configuration setting."
@@ -1103,7 +1112,7 @@ def get_data_from_view():
             logging.warning(message)
             continue
 
-    # Loop through the remaining pages, until we encounter an empty page.
+    # Loop through the remaining pages of the View output, until we encounter an empty page.
     while len(nodes) > 0:
         page += 1
         url = view_url + str(page) + '&' + view_parameters
@@ -1139,6 +1148,15 @@ def get_data_from_view():
                         row['file'] = downloaded_file_name
 
                     writer.writerow(row)
+
+                    # Execute node-specific post-export scripts, if any are configured.
+                    if 'node_post_export' in config and len(config['node_post_export']) > 0:
+                        for command in config['node_post_export']:
+                            post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, response.status_code, json.dumps(node))
+                            if post_task_return_code == 0:
+                                logging.info("Post node export script " + command + " executed successfully.")
+                            else:
+                                logging.error("Post node export script " + command + " failed.")
                 else:
                     message = f"Node {node['nid'][0]['value']} not written to output CVS because its content type (" + \
                         f"{node['type'][0]['target_id']} does not match the \"content_type\" configuration setting."
