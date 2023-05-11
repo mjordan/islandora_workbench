@@ -604,8 +604,11 @@ def ping_media(config, media_id):
        a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
        is not enabled on the target Drupal.
     """
-    url = config['host'] + '/media/' + media_id + '?_format=json'
-    response = issue_request(config, 'GET', url)
+    if config['standalone_media_url'] is True:
+        media_json_url = config['host'] + '/media/' + media_id + '?_format=json'
+    else:
+        media_json_url = config['host'] + '/media/' + media_id + '/edit?_format=json'
+    response = issue_request(config, 'GET', media_json_url)
     return response.status_code
 
 
