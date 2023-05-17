@@ -1847,98 +1847,100 @@ def check_input(config, args):
             sys.exit('Error: ' + message)
 
     # Check for existence of files listed in the 'file' column.
-    if (config['task'] == 'create' or config['task'] == 'add_media' or config['task'] == 'update_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
-        # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
-        if config['task'] == 'add_media':
-            config['id_field'] = 'node_id'
-        if config['task'] == 'update_media':
-            config['id_field'] = 'media_id'
-        file_check_csv_data = get_csv_data(config)
-        for count, file_check_row in enumerate(file_check_csv_data, start=1):
-            file_check_row['file'] = file_check_row['file'].strip()
-            # Check for empty 'file' values.
-            if len(file_check_row['file']) == 0:
-                message = 'CSV row with ID ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
-                if config['strict_check'] is True and config['allow_missing_files'] is False:
-                    logging.error(message)
-                    sys.exit('Error: ' + message)
-                else:
-                    if file_check_row[config['id_field']] not in rows_with_missing_files:
-                        rows_with_missing_files.append(file_check_row[config['id_field']])
-                        logging.warning(message)
-            # Check for URLs.
-            elif file_check_row['file'].startswith('http'):
-                http_response_code = ping_remote_file(config, file_check_row['file'])
-                if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
-                    message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID "' \
-                        + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+    if config['task'] == 'create' or config['task'] == 'add_media' or config['task'] == 'update_media' and 'file' in csv_column_headers:
+        if config['nodes_only'] is False and config['paged_content_from_directories'] is False:
+            # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
+            if config['task'] == 'add_media':
+                config['id_field'] = 'node_id'
+            if config['task'] == 'update_media':
+                config['id_field'] = 'media_id'
+            file_check_csv_data = get_csv_data(config)
+            # It is not a requirement that the 'file' column be present in the CSV file if the task is update_media.
+            for count, file_check_row in enumerate(file_check_csv_data, start=1):
+                file_check_row['file'] = file_check_row['file'].strip()
+                # Check for empty 'file' values.
+                if len(file_check_row['file']) == 0:
+                    message = 'CSV row with ID ' + file_check_row[config['id_field']] + ' contains an empty "file" value.'
                     if config['strict_check'] is True and config['allow_missing_files'] is False:
                         logging.error(message)
                         sys.exit('Error: ' + message)
                     else:
                         if file_check_row[config['id_field']] not in rows_with_missing_files:
                             rows_with_missing_files.append(file_check_row[config['id_field']])
-                            logging.error(message)
-            # Check for files that cannot be found.
-            else:
-                if os.path.isabs(file_check_row['file']):
-                    file_path = file_check_row['file']
-                else:
-                    file_path = os.path.join(config['input_dir'], file_check_row['file'])
-                if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                    message = 'File "' + file_path + '" identified in CSV "file" column for record with ID field value "' \
-                        + file_check_row[config['id_field']] + '" not found.'
-                    if config['strict_check'] is True:
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
-                    else:
-                        if file_check_row[config['id_field']] not in rows_with_missing_files:
-                            rows_with_missing_files.append(file_check_row[config['id_field']])
-                            logging.error(message)
-
-        # @todo for issue 268: All accumulator variables like 'rows_with_missing_files' should be checked at end of
-        # check_input() (to work with strict_check: false) in addition to at place of check (to work wit strict_check: true).
-        if len(rows_with_missing_files) > 0:
-            if config['allow_missing_files'] is True:
-                message = 'OK, missing or empty CSV "file" column values detected, but the "allow_missing_files" configuration setting is enabled.'
-                print(message + " See the log for more information.")
-                logging.info(message + " See log entries above for more information.")
-        else:
-            message = 'OK, files named in the CSV "file" column are all present.'
-            print(message)
-            logging.info(message)
-
-        # Verify that all media bundles/types exist.
-        if config['nodes_only'] is False:
-            media_type_check_csv_data = get_csv_data(config)
-            for count, file_check_row in enumerate(media_type_check_csv_data, start=1):
-                filename_fields_to_check = ['file']
-                for filename_field in filename_fields_to_check:
-                    if len(file_check_row[filename_field]) != 0:
-                        media_type = set_media_type(config, file_check_row[filename_field], filename_field, file_check_row)
-                        media_bundle_response_code = ping_media_bundle(config, media_type)
-                        if media_bundle_response_code == 404:
-                            message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
-                                ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.' + \
-                                ' Please make sure your media type configuration matches your Drupal configuration.'
+                            logging.warning(message)
+                # Check for URLs.
+                elif file_check_row['file'].startswith('http'):
+                    http_response_code = ping_remote_file(config, file_check_row['file'])
+                    if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
+                        message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID "' \
+                            + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
+                        if config['strict_check'] is True and config['allow_missing_files'] is False:
                             logging.error(message)
                             sys.exit('Error: ' + message)
-
-                        # Check that each file's extension is allowed for the current media type. 'file' is the only
-                        # CSV field to check here. Files added using the 'additional_files' setting are checked below.
-                        if file_check_row['file'].startswith('http'):
-                            extension = get_remote_file_extension(config, file_check_row['file'])
-                            extension = extension.lstrip('.')
                         else:
-                            extension = os.path.splitext(file_check_row['file'])[1]
-                            extension = extension.lstrip('.').lower()
-                        media_type_file_field = config['media_type_file_fields'][media_type]
-                        registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
-                        if extension not in registered_extensions[media_type_file_field]:
-                            message = 'File "' + file_check_row[filename_field] + '" in CSV row "' + file_check_row[config['id_field']] + \
-                                '" has an extension (' + str(extension) + ') that is not allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
+                            if file_check_row[config['id_field']] not in rows_with_missing_files:
+                                rows_with_missing_files.append(file_check_row[config['id_field']])
+                                logging.error(message)
+                # Check for files that cannot be found.
+                else:
+                    if os.path.isabs(file_check_row['file']):
+                        file_path = file_check_row['file']
+                    else:
+                        file_path = os.path.join(config['input_dir'], file_check_row['file'])
+                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                        message = 'File "' + file_path + '" identified in CSV "file" column for record with ID field value "' \
+                            + file_check_row[config['id_field']] + '" not found.'
+                        if config['strict_check'] is True:
                             logging.error(message)
                             sys.exit('Error: ' + message)
+                        else:
+                            if file_check_row[config['id_field']] not in rows_with_missing_files:
+                                rows_with_missing_files.append(file_check_row[config['id_field']])
+                                logging.error(message)
+
+            # @todo for issue 268: All accumulator variables like 'rows_with_missing_files' should be checked at end of
+            # check_input() (to work with strict_check: false) in addition to at place of check (to work wit strict_check: true).
+            if len(rows_with_missing_files) > 0:
+                if config['allow_missing_files'] is True:
+                    message = 'OK, missing or empty CSV "file" column values detected, but the "allow_missing_files" configuration setting is enabled.'
+                    print(message + " See the log for more information.")
+                    logging.info(message + " See log entries above for more information.")
+            else:
+                message = 'OK, files named in the CSV "file" column are all present.'
+                print(message)
+                logging.info(message)
+
+            # Verify that all media bundles/types exist.
+            if config['nodes_only'] is False:
+                media_type_check_csv_data = get_csv_data(config)
+                for count, file_check_row in enumerate(media_type_check_csv_data, start=1):
+                    filename_fields_to_check = ['file']
+                    for filename_field in filename_fields_to_check:
+                        if len(file_check_row[filename_field]) != 0:
+                            media_type = set_media_type(config, file_check_row[filename_field], filename_field, file_check_row)
+                            media_bundle_response_code = ping_media_bundle(config, media_type)
+                            if media_bundle_response_code == 404:
+                                message = 'File "' + file_check_row[filename_field] + '" identified in CSV row ' + file_check_row[config['id_field']] + \
+                                    ' will create a media of type (' + media_type + '), but that media type is not configured in the destination Drupal.' + \
+                                    ' Please make sure your media type configuration matches your Drupal configuration.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
+
+                            # Check that each file's extension is allowed for the current media type. 'file' is the only
+                            # CSV field to check here. Files added using the 'additional_files' setting are checked below.
+                            if file_check_row['file'].startswith('http'):
+                                extension = get_remote_file_extension(config, file_check_row['file'])
+                                extension = extension.lstrip('.')
+                            else:
+                                extension = os.path.splitext(file_check_row['file'])[1]
+                                extension = extension.lstrip('.').lower()
+                            media_type_file_field = config['media_type_file_fields'][media_type]
+                            registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
+                            if extension not in registered_extensions[media_type_file_field]:
+                                message = 'File "' + file_check_row[filename_field] + '" in CSV row "' + file_check_row[config['id_field']] + \
+                                    '" has an extension (' + str(extension) + ') that is not allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
+                                logging.error(message)
+                                sys.exit('Error: ' + message)
 
     # Check existence of fields identified in 'additional_files' config setting.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
