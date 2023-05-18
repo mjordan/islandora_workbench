@@ -733,9 +733,10 @@ def update_media() -> None:
                     if field_value != '':  # If the field value is not empty
                         media_json[field_name] = [{'value': field_value}]
             else:
-                logging.warning("Field %s is not a valid plain-text field for media %s. This may be intended (e.g. media_id), but if not, please check the spelling of this field name.",
-                                field_name,
-                                media_type)
+                if field_name != 'media_id' and field_name != 'media_use_tid':  # Don't log a warning for media_id or media_use_tid, since they definitely exist.
+                    logging.warning("Field %s is not a valid plain-text field for media %s. This may be intended, but if not, please check the spelling of this field name.",
+                                    field_name,
+                                    media_type)
         return media_json
 
     def extract_media_id(config: dict, media_csv_row: dict) -> Optional[str]:
