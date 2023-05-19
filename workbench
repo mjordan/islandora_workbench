@@ -847,7 +847,7 @@ def update_media() -> None:
             logging.warning("Unable to find track files for media ID %s. Proceeding and assuming there were no track files to begin with.", media_id)
             return True
 
-    def attach_file_to_media(config: dict, media_type: str, file_id: str) -> bool:
+    def attach_file_to_media(config: dict, media_type: str, file_id: str) -> dict:
         """Return the JSON object for a PATCH request required to attach the file to the media entity.
 
         Parameters:
