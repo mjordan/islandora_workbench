@@ -757,7 +757,7 @@ class LinkField():
 
         subvalues = list()
         for subvalue in field_data:
-            if 'title' in subvalue and subvalue['title'] is not None:
+            if 'title' in subvalue and subvalue['title'] is not None and subvalue['title'] != '':
                 subvalues.append(subvalue['uri'] + '%%' + subvalue['title'])
             else:
                 subvalues.append(subvalue['uri'])
