@@ -612,6 +612,40 @@ def ping_media(config, media_id):
     return response.status_code
 
 
+def extract_media_id(config: dict, media_csv_row: dict):
+    """Extract the media entity's ID from the CSV row.
+
+    Parameters:
+        - config: The global configuration object.
+        - media_csv_row: The CSV row containing the media entity's field names and values.
+
+    Returns:
+        - The media entity's ID if it could be extracted from the CSV row and is valid, otherwise None.
+    """
+    if 'media_id' not in media_csv_row:  # Media ID column is missing
+        logging.error('Media ID column missing in CSV file.')
+        return None
+
+    if not media_csv_row['media_id']:  # Media ID column is present but empty
+        logging.error('Row with empty media_id column detected in CSV file.')
+        return None
+
+    if not value_is_numeric(media_csv_row['media_id']):  # If media ID is not numeric, assume it is a media URL alias
+        media_id = get_mid_from_media_url_alias(config, media_csv_row['media_id'])  # Note that this function returns False if the media URL alias does not exist
+        if media_id is False:  # Media URL alias does not exist
+            logging.error('Media URL alias %s does not exist.', media_csv_row['media_id'])
+            return None
+        else:
+            return str(media_id)
+
+    else:  # If media ID is numeric, use it as is, if it is a valid media ID
+        if ping_media(config, media_csv_row['media_id']) != 200:  # Invalid media ID
+            logging.error('Media ID %s does not exist.', media_csv_row['media_id'])
+            return None
+        else:
+            return media_csv_row['media_id']  # If media ID exists, use it as is (since this is a string)
+
+
 def ping_remote_file(config, url):
     """Logging, exiting, etc. happens in caller, except on requests error.
     """
@@ -1629,6 +1663,18 @@ def check_input(config, args):
         message = 'OK, CSV column headers match Drupal field names.'
         print(message)
         logging.info(message)
+    
+    # If the task is update media, check if all media_id values are valid.
+    if config['task'] == 'update_media':
+        csv_data = get_csv_data(config)
+        row_number = 1
+        for row in csv_data:
+            media_id = extract_media_id(config, row)  # Extract the media ID from the CSV row.
+            if media_id is None:  # If the media ID is invalid, this is an error and we stop.
+                message = 'Error: Invalid media ID in row ' + str(row_number) + ' of the CSV file.'
+                logging.error(message)
+                sys.exit(message)
+            row_number += 1
 
     if config['task'] == 'add_media' or config['task'] == 'create' and config['nodes_only'] is False:
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
