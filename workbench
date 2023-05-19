@@ -689,10 +689,9 @@ def update_media() -> None:
         """
         # Note that the format of get_media_response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
         try:
-            return get_media_response.links['describes']['type'].split('/')[0]
+            return get_media_response.json()['bundle'][0]['target_id']
         except Exception as e:
             logging.error("Unable to get media type for media ID %s. Reason %s", media_id, e)
-            return None
 
     def get_media_parent_node_id(get_media_response_body: dict, media_csv_row: dict) -> Optional[str]:
         """Get the parent node ID of the media entity.
@@ -712,7 +711,11 @@ def update_media() -> None:
         if not get_media_response_body['field_media_of']:  # If the media entity is not attached to any node
             logging.error("Media ID %s is not attached to any node, which is a requirement for updating media files.", media_id)
             return None
-        return get_media_response_body['field_media_of'][0]['target_id']  # Return the first node ID in the list of nodes the media entity is attached to
+        try:
+            return get_media_response_body['field_media_of'][0]['target_id']  # Return the first node ID in the list of nodes the media entity is attached to
+        except Exception as e:
+            logging.error("Unable to get parent node ID for media ID %s. Reason %s", media_id, e)
+            return None
 
     def patch_plain_text_fields(config: dict, media_type: str, media_csv_row: dict) -> dict:
         """Create the JSON request to be sent to the media entity's PATCH endpoint for updating plain-text fields.
@@ -975,7 +978,7 @@ def update_media() -> None:
         media_type = get_media_type(media_id, get_media_response)
         if media_type is None:  # If the media type is invalid, skip this row.
             row_count += 1
-            print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+            print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
             if config['progress_bar'] is True:
                 row_position = get_percentage(row_count, num_csv_records)
                 pbar(row_position)
@@ -990,7 +993,7 @@ def update_media() -> None:
             node_id = get_media_parent_node_id(get_media_response_body, row)
             if node_id is None:  # If the node ID is invalid, skip this row.
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1002,7 +1005,7 @@ def update_media() -> None:
             if file_id is False or file_id is None:  # If the file ID is invalid, skip this row.
                 logging.error('Failed to create file for media ID ' + media_id + '. Skipping this row.')
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1014,7 +1017,7 @@ def update_media() -> None:
             except KeyError:
                 logging.error("The media type " + media_type + " is not supported.")
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1027,7 +1030,7 @@ def update_media() -> None:
             node_id = get_media_parent_node_id(get_media_response_body, row)
             if node_id is None:  # If the node ID is invalid, skip this row.
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1056,7 +1059,7 @@ def update_media() -> None:
                 track_files_info['track_file_ids'].append(file_id)
             if invalid_track_file:
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1073,7 +1076,7 @@ def update_media() -> None:
             except KeyError:
                 logging.error("The media type " + media_type + " is not set to have a track file field.")
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1105,7 +1108,7 @@ def update_media() -> None:
 
             if invalid_media_use_tid:
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1123,7 +1126,7 @@ def update_media() -> None:
             else:
                 logging.error('Invalid value for published status.')
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1139,7 +1142,7 @@ def update_media() -> None:
             # Delete the old file which was attached to this media from the server.
             if not delete_media_file(config, media_id, get_media_response_body):
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1150,7 +1153,7 @@ def update_media() -> None:
             # Delete the old track files which were attached to this media from the server.
             if not delete_media_track_files(config, media_id, media_type, get_media_response_body):
                 row_count += 1
-                print("There are errors for CSV row " + str(row_count) + ". Please check the log for more details.")
+                print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
                 if config['progress_bar'] is True:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
@@ -1166,12 +1169,17 @@ def update_media() -> None:
         response = issue_request(config, 'PATCH', update_media_url, headers, patch_request_json)
         if response.status_code != 200:
             logging.error('Error updating media ' + media_id + '. Response code: ' + str(response.status_code) + '. Response body: ' + response.text)
-            print("There are errors for CSV row " + str(row_count + 1) + ". Please check the log for more details.")
-
-        row_count += 1
-        if config['progress_bar'] is True:
-            row_position = get_percentage(row_count, num_csv_records)
-            pbar(row_position)
+            print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
+            row_count += 1
+            if config['progress_bar'] is True:
+                row_position = get_percentage(row_count, num_csv_records)
+                pbar(row_position)
+        else:
+            print('Media at ' + config['host'] + '/media/' + media_id + ' updated successfully.')
+            row_count += 1
+            if config['progress_bar'] is True:
+                row_position = get_percentage(row_count, num_csv_records)
+                pbar(row_position)
 
 
 def delete_media():
