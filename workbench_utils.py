@@ -1663,7 +1663,7 @@ def check_input(config, args):
         message = 'OK, CSV column headers match Drupal field names.'
         print(message)
         logging.info(message)
-    
+
     # If the task is update media, check if all media_id values are valid.
     if config['task'] == 'update_media':
         csv_data = get_csv_data(config)
