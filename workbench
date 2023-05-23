@@ -687,7 +687,6 @@ def update_media() -> None:
         Returns:
             The media type of the media entity (e.g., 'image'), None if it could not be found.
         """
-        # Note that the format of get_media_response['links']['describes']['type'] is something like "image/jpeg", but we only want the "image" part
         try:
             return get_media_response.json()['bundle'][0]['target_id']
         except Exception as e:
