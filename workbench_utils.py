@@ -1364,12 +1364,13 @@ def check_input(config, args):
         view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page=0&' + view_parameters
 
         view_path_status_code = ping_view_endpoint(config, view_url)
+        view_url_for_message = config['host'] + '/' + config['view_path'].lstrip('/')
         if view_path_status_code != 200:
-            message = f"Cannot access View at {view_url}."
+            message = f"Cannot access View at {view_url_for_message}."
             logging.error(message)
             sys.exit("Error: " + message)
         else:
-            message = f'View REST export at "{view_url}" is accessible.'
+            message = f'View REST export at "{view_url_for_message}" is accessible.'
             logging.info(message)
             print("OK, " + message)
 
