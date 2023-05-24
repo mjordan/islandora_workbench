@@ -898,8 +898,9 @@ def update_media() -> None:
             ]
         }
 
-    def patch_media_use_terms(media_use_tids: list[str]) -> dict:
+    def patch_media_use_terms_update_media(media_use_tids: list[str]) -> dict:
         """Return the JSON object for a PATCH request required to patch the media entity's media use terms.
+           Note: workbench_utils has its own patch_media_use_terms().
 
         Parameters:
             - media_use_tids: A list of taxonomy term IDs to patch to the media entity's field_media_use.
@@ -1113,8 +1114,8 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
-            # By this point we have a valid media ID and media use tid, so we can update the media use tid
-            patch_request_json.update(patch_media_use_terms(media_use_tids))  # This call returns a dict with the JSON for the PATCH request to update the media use tid
+            # By this point we have a valid media ID and media use tid, so we can update the media use tid.
+            patch_request_json.update(patch_media_use_terms_update_media(media_use_tids))  # This call returns a dict with the JSON for the PATCH request to update the media use tid
 
         # Update media status
         if 'status' in row and row['status'] != '':

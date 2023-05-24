@@ -3368,6 +3368,32 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
             logging.warning("Media %s fields not updated to match parent node's.", endpoint)
 
 
+def patch_media_use_terms(config, media_id, media_type, media_use_tids):
+    """Patch the media entity's field_media_use.
+    """
+    media_json = {
+        'bundle': [
+            {'target_id': media_type}
+        ]
+    }
+
+    media_use_tids_json = []
+    for media_use_tid in media_use_tids:
+        media_use_tids_json.append({'target_id': media_use_tid, 'target_type': 'taxonomy_term'})
+
+    media_json['field_media_use'] = media_use_tids_json
+    if config['standalone_media_url'] is True:
+        endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
+    else:
+        endpoint = config['host'] + '/media/' + str(media_id) + '/edit?_format=json'
+    headers = {'Content-Type': 'application/json'}
+    response = issue_request(config, 'PATCH', endpoint, headers, media_json)
+    if response.status_code == 200:
+        logging.info("Media %s Islandora Media Use terms updated.", endpoint)
+    else:
+        logging.warning("Media %s Islandora Media Use terms not updated.", endpoint)
+
+
 def clean_image_alt_text(input_string):
     ''' Strip out HTML markup to guard against CSRF in alt text.
     '''
