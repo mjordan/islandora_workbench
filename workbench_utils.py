@@ -1014,9 +1014,13 @@ def get_entity_fields(config, entity_type, bundle_type):
                 fieldname = fieldname.replace(fieldname_prefix, '')
                 fields.append(fieldname)
     else:
-        message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
-        logging.error(message + " HTTP response code was " + str(bundle_type_response.status_code) + '.')
-        sys.exit('Error: ' + message)
+        message = 'Workbench cannot retrieve field definitions from Drupal.'
+        if config['task'] == 'create_terms':
+            message_detail = f" Check that the vocabulary name identified in your vocab_id config setting is spelled correctly."
+        if config['task'] == 'create' or config['task'] == 'create_from_files':
+            message_detail = f" Check that the content type named in your content_type config setting is spelled correctly."
+        logging.error(message + message_detail + " HTTP response code was " + str(bundle_type_response.status_code) + '.')
+        sys.exit('Error: ' + message + ' See the log for more information.')
 
     return fields
 
