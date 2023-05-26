@@ -1844,7 +1844,7 @@ ping_islandora(config, print_message=True)
 check_integration_module_version(config)
 
 if config['enable_http_cache'] is True:
-    requests_cache.install_cache(backend='memory')
+    requests_cache.install_cache(backend='sqlite')
 
 cache_enabled = requests_cache.patcher.is_installed()
 if cache_enabled:
