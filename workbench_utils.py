@@ -2518,7 +2518,12 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
        two :, the entire third segment is considered, for the purposes of
        splitting the value, to be the term.
     """
+    typed_relation_string = typed_relation_string.strip()
+
     return_list = []
+    if len(typed_relation_string) == 0:
+        return return_list
+
     temp_list = typed_relation_string.split(config['subdelimiter'])
     for item in temp_list:
         item_list = item.split(':', 2)
@@ -2566,7 +2571,12 @@ def split_link_string(config, link_string):
        and returns a list of dictionaries with 'uri' and 'title' keys required by the
        'link' field type.
     """
+    link_string = link_string.strip()
+
     return_list = []
+    if len(link_string) == 0:
+        return return_list
+
     temp_list = link_string.split(config['subdelimiter'])
     for item in temp_list:
         if '%%' in item:
@@ -2588,7 +2598,12 @@ def split_authority_link_string(config, authority_link_string):
        and returns a list of dictionaries with 'source', 'uri' and 'title' keys required by the
        'authority_link' field type.
     """
+    authority_link_string = authority_link_string.strip()
+
     return_list = []
+    if len(authority_link_string) == 0:
+        return return_list
+
     temp_list = authority_link_string.split(config['subdelimiter'])
     for item in temp_list:
         if item.count('%%') == 2:
@@ -2611,7 +2626,12 @@ def split_media_track_string(config, media_track_string):
        a list of dictionaries with 'label', 'kind', 'srclang', 'file_path' keys required by the
        'media_track' field type.
     """
+    media_track_string = media_track_string.strip()
+
     return_list = []
+    if len(media_track_string) == 0:
+        return return_list
+
     temp_list = media_track_string.split(config['subdelimiter'])
     for item in temp_list:
         track_parts_list = item.split(':', 3)
