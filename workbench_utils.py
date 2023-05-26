@@ -2543,7 +2543,12 @@ def split_geolocation_string(config, geolocation_string):
        dictionaries with 'lat' and 'lng' keys required by the 'geolocation'
        field type.
     """
+    geolocation_string = geolocation_string.strip()
+
     return_list = []
+    if len(geolocation_string) == 0:
+        return return_list
+
     temp_list = geolocation_string.split(config['subdelimiter'])
     for item in temp_list:
         item_list = item.split(',')
