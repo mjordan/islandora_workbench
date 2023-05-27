@@ -26,5 +26,6 @@
 * [ ] Have you run `pycodestyle --show-source --show-pep8 --ignore=E402,W504 --max-line-length=200 yourfile.py`? 
 * [ ] Have you included same configuration and/or CSV files useful for testing this PR?
 * [ ] Have you written unit or integration tests if applicable?
+* [ ] Does the code added in this PR require a version of Python that is higher than the current minimum version?
 * [ ] If the changes in this PR require an additional Python library, have you included it in `setup.py`?
 * [ ] If the changes in this PR add a new configuration option, have you provided a default for when the option is not present in the .yml file?
