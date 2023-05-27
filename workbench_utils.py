@@ -1014,9 +1014,13 @@ def get_entity_fields(config, entity_type, bundle_type):
                 fieldname = fieldname.replace(fieldname_prefix, '')
                 fields.append(fieldname)
     else:
-        message = 'Workbench cannot retrieve field definitions from Drupal. Please confirm that the Field, Field Storage, and Entity Form Display REST resources are enabled.'
-        logging.error(message + " HTTP response code was " + str(bundle_type_response.status_code) + '.')
-        sys.exit('Error: ' + message)
+        message = 'Workbench cannot retrieve field definitions from Drupal.'
+        if config['task'] == 'create_terms':
+            message_detail = f" Check that the vocabulary name identified in your vocab_id config setting is spelled correctly."
+        if config['task'] == 'create' or config['task'] == 'create_from_files':
+            message_detail = f" Check that the content type named in your content_type config setting is spelled correctly."
+        logging.error(message + message_detail + " HTTP response code was " + str(bundle_type_response.status_code) + '.')
+        sys.exit('Error: ' + message + ' See the log for more information.')
 
     return fields
 
@@ -2518,7 +2522,12 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
        two :, the entire third segment is considered, for the purposes of
        splitting the value, to be the term.
     """
+    typed_relation_string = typed_relation_string.strip()
+
     return_list = []
+    if len(typed_relation_string) == 0:
+        return return_list
+
     temp_list = typed_relation_string.split(config['subdelimiter'])
     for item in temp_list:
         item_list = item.split(':', 2)
@@ -2543,7 +2552,12 @@ def split_geolocation_string(config, geolocation_string):
        dictionaries with 'lat' and 'lng' keys required by the 'geolocation'
        field type.
     """
+    geolocation_string = geolocation_string.strip()
+
     return_list = []
+    if len(geolocation_string) == 0:
+        return return_list
+
     temp_list = geolocation_string.split(config['subdelimiter'])
     for item in temp_list:
         item_list = item.split(',')
@@ -2561,7 +2575,12 @@ def split_link_string(config, link_string):
        and returns a list of dictionaries with 'uri' and 'title' keys required by the
        'link' field type.
     """
+    link_string = link_string.strip()
+
     return_list = []
+    if len(link_string) == 0:
+        return return_list
+
     temp_list = link_string.split(config['subdelimiter'])
     for item in temp_list:
         if '%%' in item:
@@ -2583,7 +2602,12 @@ def split_authority_link_string(config, authority_link_string):
        and returns a list of dictionaries with 'source', 'uri' and 'title' keys required by the
        'authority_link' field type.
     """
+    authority_link_string = authority_link_string.strip()
+
     return_list = []
+    if len(authority_link_string) == 0:
+        return return_list
+
     temp_list = authority_link_string.split(config['subdelimiter'])
     for item in temp_list:
         if item.count('%%') == 2:
@@ -2606,7 +2630,12 @@ def split_media_track_string(config, media_track_string):
        a list of dictionaries with 'label', 'kind', 'srclang', 'file_path' keys required by the
        'media_track' field type.
     """
+    media_track_string = media_track_string.strip()
+
     return_list = []
+    if len(media_track_string) == 0:
+        return return_list
+
     temp_list = media_track_string.split(config['subdelimiter'])
     for item in temp_list:
         track_parts_list = item.split(':', 3)
