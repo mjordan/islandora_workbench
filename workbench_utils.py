@@ -5372,6 +5372,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
 
 def create_children_from_directory(config, parent_csv_record, parent_node_id):
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    prepare_csv_id_to_node_id_map(config)
 
     # These objects will have a title (derived from filename), an ID based on the parent's id, and a config-defined
     # Islandora model. Content type and status are inherited as is from parent, as are other required fields. The
@@ -5485,6 +5486,8 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
             node_nid = get_nid_from_url_alias(config, node_uri)
             write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
+
+            populate_csv_id_to_node_id_map(config, page_file_name, node_nid)
 
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
@@ -6987,7 +6990,7 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
         values: tuple
             The positional values to interpolate into the query, e.g., "('baz')".
         db_file_path: string
-            The relativre or absolute path to the database file.
+            The relative or absolute path to the database file.
     Return
         bool|list|sqlite3.Cursor object
             True if the 'create_database' or 'remove_database' operation was successful, False if an
@@ -7050,3 +7053,21 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
         con.commit()
         con.close()
         return res
+
+
+def prepare_csv_id_to_node_id_map(config):
+    """Creates the SQLite database used to map CSV row IDs to newly create node IDs.
+    """
+    if config['csv_id_to_node_id_map_path'] is False:
+        return None
+    create_table_sql = "CREATE TABLE csv_id_to_node_id_map (timestamp TIMESTAMP DEFAULT (datetime('now','localtime')) NOT NULL, config_file TEXT, csv_id TEXT, node_id TEXT)"
+    sqlite_manager(config, operation='create_table', table_name='csv_id_to_node_id_map', query=create_table_sql, db_file_path=config['csv_id_to_node_id_map_path'])
+
+
+def populate_csv_id_to_node_id_map(config, csv_row_id, node_id):
+    """Inserts a row into the SQLite database used to map CSV row IDs to newly create node IDs.
+    """
+    if config['csv_id_to_node_id_map_path'] is False:
+        return None
+    sql_query = "INSERT INTO csv_id_to_node_id_map (config_file, csv_id, node_id) VALUES (?, ?, ?)"
+    sqlite_manager(config, operation='insert', query=sql_query, values=(config['config_file'], str(csv_row_id), node_id), db_file_path=config['csv_id_to_node_id_map_path'])

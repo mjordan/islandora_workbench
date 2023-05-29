@@ -61,6 +61,7 @@ class WorkbenchConfig:
         config['host'] = config['host'].rstrip('/')
         config['current_config_file_path'] = os.path.abspath(self.args.config)
         config['field_text_format_ids'] = self.get_field_level_text_output_formats()
+        config['config_file'] = self.args.config
 
         return config
 
@@ -217,7 +218,9 @@ class WorkbenchConfig:
             'page_title_template': '$parent_title, page $weight',
             'csv_headers': 'names',
             'clean_csv_values_skip': [],
-            'text_format_id': 'basic_html'
+            'text_format_id': 'basic_html',
+            # 'csv_id_to_node_id_map_path': 'csv_id_to_node_id_map.db'
+            'csv_id_to_node_id_map_path': False
         }
 
     # Tests validity and existence of configuration file path.

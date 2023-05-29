@@ -31,6 +31,8 @@ def create():
     prep_rollback_csv(config, path_to_rollback_csv_file)
     logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
 
+    prepare_csv_id_to_node_id_map(config)
+
     if config['csv_headers'] == 'labels':
         fieldname_map_cache_path = os.path.join(config['temp_dir'], f"node-{config['content_type']}-labels.fieldname_map")
         if os.path.exists(fieldname_map_cache_path):
@@ -243,9 +245,13 @@ def create():
             # If Pathauto URL alias creation for nodes is enabled, the location header
             # returns the alias, not the /node/xxx URL, which includes the node ID. In
             # this case, get the node ID from the response body.
-            if not re.match(r'/node/\d+$', node_uri):
+            if re.match(r'/node/\d+$', node_uri):
+                node_nid = node_uri.rsplit('/', 1)[-1]
+            else:
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
+
+            populate_csv_id_to_node_id_map(config, id_field, node_id)
 
             if config['progress_bar'] is False:
                 print('Node for "' + row['title'] + '" (record ' + id_field + ') created at ' + node_uri + '.')
@@ -1264,6 +1270,8 @@ def create_from_files():
     print(message)
     logging.info(message)
 
+    prepare_csv_id_to_node_id_map(config)
+
     file_dir_path = config['input_dir']
     files = os.listdir(file_dir_path)
 
@@ -1275,6 +1283,8 @@ def create_from_files():
     file_count = 0
     for file_name in files:
         if file_name.startswith('rollback.') and file_name.endswith('csv'):
+            continue
+        if config['csv_id_to_node_id_map_path'] is not False and file_name.endswith(config['csv_id_to_node_id_map_path']):
             continue
 
         filename_without_extension = os.path.splitext(file_name)[0]
@@ -1315,6 +1325,14 @@ def create_from_files():
             None)
         if node_response.status_code == 201:
             node_uri = node_response.headers['location']
+            # If Pathauto URL alias creation for nodes is enabled, the location header
+            # returns the alias, not the /node/xxx URL, which includes the node ID. In
+            # this case, get the node ID from the response body.
+            if not re.match(r'/node/\d+$', node_uri):
+                returned_node = json.loads(node_response.text)
+                node_id = returned_node['nid'][0]['value']
+                node_uri = config['host'] + '/node/' + str(node_id)
+
             if config['progress_bar'] is False:
                 print('Node for "' + filename_without_extension + '" created at ' + node_uri + '.')
             logging.info(
@@ -1326,6 +1344,8 @@ def create_from_files():
 
             node_nid = node_uri.rsplit('/', 1)[-1]
             write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
+
+            populate_csv_id_to_node_id_map(config, file_name, node_nid)
 
             # Execute node-specific post-create scripts, if any are configured.
             if 'node_post_create' in config and len(config['node_post_create']) > 0:
