@@ -219,8 +219,8 @@ class WorkbenchConfig:
             'csv_headers': 'names',
             'clean_csv_values_skip': [],
             'text_format_id': 'basic_html',
-            'csv_id_to_node_id_map_path': 'csv_id_to_node_id_map.db'
-            # 'csv_id_to_node_id_map_path': False
+            # 'csv_id_to_node_id_map_path': 'csv_id_to_node_id_map.db'
+            'csv_id_to_node_id_map_path': False
         }
 
     # Tests validity and existence of configuration file path.
