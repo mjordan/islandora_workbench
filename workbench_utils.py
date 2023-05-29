@@ -5487,7 +5487,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             node_nid = get_nid_from_url_alias(config, node_uri)
             write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
-            populate_csv_id_to_node_id_map(config, page_file_name, node_nid)
+            populate_csv_id_to_node_id_map(config, parent_id, parent_node_id, page_file_name, node_nid)
 
             page_file_path = os.path.join(parent_id, page_file_name)
             fake_csv_record = collections.OrderedDict()
@@ -7060,14 +7060,23 @@ def prepare_csv_id_to_node_id_map(config):
     """
     if config['csv_id_to_node_id_map_path'] is False:
         return None
-    create_table_sql = "CREATE TABLE csv_id_to_node_id_map (timestamp TIMESTAMP DEFAULT (datetime('now','localtime')) NOT NULL, config_file TEXT, csv_id TEXT, node_id TEXT)"
+    create_table_sql = "CREATE TABLE csv_id_to_node_id_map (timestamp TIMESTAMP DEFAULT (datetime('now','localtime')) NOT NULL, " + \
+        " config_file TEXT, parent_csv_id TEXT, parent_node_id, csv_id TEXT, node_id TEXT)"
     sqlite_manager(config, operation='create_table', table_name='csv_id_to_node_id_map', query=create_table_sql, db_file_path=config['csv_id_to_node_id_map_path'])
 
 
-def populate_csv_id_to_node_id_map(config, csv_row_id, node_id):
+def populate_csv_id_to_node_id_map(config, parent_csv_row_id, parent_node_id, csv_row_id, node_id):
     """Inserts a row into the SQLite database used to map CSV row IDs to newly create node IDs.
     """
     if config['csv_id_to_node_id_map_path'] is False:
         return None
-    sql_query = "INSERT INTO csv_id_to_node_id_map (config_file, csv_id, node_id) VALUES (?, ?, ?)"
-    sqlite_manager(config, operation='insert', query=sql_query, values=(config['config_file'], str(csv_row_id), node_id), db_file_path=config['csv_id_to_node_id_map_path'])
+    sql_query = "INSERT INTO csv_id_to_node_id_map (config_file, parent_csv_id, parent_node_id, csv_id, node_id) VALUES (?, ?, ?, ?, ?)"
+    sqlite_manager(config,
+                   operation='insert',
+                   query=sql_query,
+                   values=(config['config_file'],
+                           str(parent_csv_row_id),
+                           str(parent_node_id),
+                           str(csv_row_id),
+                           str(node_id)), db_file_path=config['csv_id_to_node_id_map_path']
+                   )

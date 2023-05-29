@@ -251,7 +251,7 @@ def create():
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
-            populate_csv_id_to_node_id_map(config, id_field, node_id)
+            populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)
 
             if config['progress_bar'] is False:
                 print('Node for "' + row['title'] + '" (record ' + id_field + ') created at ' + node_uri + '.')
@@ -1345,7 +1345,7 @@ def create_from_files():
             node_nid = node_uri.rsplit('/', 1)[-1]
             write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
-            populate_csv_id_to_node_id_map(config, file_name, node_nid)
+            populate_csv_id_to_node_id_map(config, '', '', file_name, node_nid)
 
             # Execute node-specific post-create scripts, if any are configured.
             if 'node_post_create' in config and len(config['node_post_create']) > 0:
