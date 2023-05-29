@@ -16,6 +16,7 @@ setup(
         "openpyxl",
         "unidecode",
         "edtf_validate",
+        "typing-extensions",
         "rich",
     ],
     python_requires=">=3.7",
