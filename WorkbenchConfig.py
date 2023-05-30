@@ -5,6 +5,7 @@ import logging
 from ruamel.yaml import YAML, YAMLError
 import os
 import sys
+import tempfile
 from getpass import getpass
 from workbench_utils import *
 from rich.console import Console
@@ -40,7 +41,7 @@ class WorkbenchConfig:
             config[key] = value
         # Modify some conditional values.
         if 'temp_dir' not in user_mods.keys():
-            config['temp_dir'] = config['input_dir']
+            config['temp_dir'] = tempfile.gettempdir()
         if 'task' in ['add_media', 'update', 'delete', 'export_csv']:
             config['id_field'] = 'node_id'
         if 'task' == 'delete_media':
@@ -219,8 +220,7 @@ class WorkbenchConfig:
             'csv_headers': 'names',
             'clean_csv_values_skip': [],
             'text_format_id': 'basic_html',
-            # 'csv_id_to_node_id_map_path': 'csv_id_to_node_id_map.db'
-            'csv_id_to_node_id_map_path': False
+            'csv_id_to_node_id_map_path': os.path.join(tempfile.gettempdir(), 'csv_id_to_node_id_map.db')
         }
 
     # Tests validity and existence of configuration file path.

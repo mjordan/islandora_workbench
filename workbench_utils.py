@@ -6990,7 +6990,8 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
         values: tuple
             The positional values to interpolate into the query, e.g., "('baz')".
         db_file_path: string
-            The relative or absolute path to the database file.
+            The relative or absolute path to the database file. If the path is relative, the file
+            is written to that path relative to the system's temporary directory.
     Return
         bool|list|sqlite3.Cursor object
             True if the 'create_database' or 'remove_database' operation was successful, False if an
