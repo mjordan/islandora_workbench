@@ -135,6 +135,19 @@ def create():
                         logging.warning('Node for row with ID %s in secondary task CSV not created because its parent was not present or not created in the primary task.', id_field)
                         continue
 
+        # Query the CSV ID to node ID map (WIP on #607).
+        if config['query_csv_id_to_node_id_map_for_parents'] is True:
+            query = "select * from csv_row_id_to_parent_node_id_map where csv_id = ?"
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id']))
+            parents_from_id_map = []
+            for parent_in_id_map_row in parent_in_id_map_result:
+                parents_from_id_map.append(parent_in_id_map_row['node_id'])
+            if len(parents_from_id_map) == 1:
+                row['field_member_of'] = parents_from_id_map[0]
+            if len(parents_from_id_map) > 1:
+                logging.warning('Query of ID map for parent ID "%s" returned multiple node IDs: %s. Skpping assignment of parent.', row['parent_id'], ', '.join(parents_from_id_map))
+                continue
+
         # Add custom (non-required) CSV fields.
         entity_fields = get_entity_fields(config, 'node', config['content_type'])
         # Only add config['id_field'] to required_fields if it is not a node field.

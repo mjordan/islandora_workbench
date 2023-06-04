@@ -1494,6 +1494,9 @@ def check_input(config, args):
         if 'parent_id' in csv_column_headers:
             validate_parent_ids_precede_children_csv_data = get_csv_data(config)
             validate_parent_ids_precede_children(config, validate_parent_ids_precede_children_csv_data)
+            if config['query_csv_id_to_node_id_map_for_parents'] is True:
+                validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(config)
+                validate_parent_ids_in_csv_id_to_node_id_map(config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data)
 
         # Specific to creating aggregated content such as collections, compound objects and paged content. Currently, if 'parent_id' is present
         # in the CSV file 'field_member_of' is mandatory.
@@ -4947,6 +4950,23 @@ def validate_parent_ids_precede_children(config, csv_data):
                 message = f"Child item with CSV ID \"{row[0]}\" must come after its parent (CSV ID \"{row[1]['parent_id']}\") in the CSV file."
                 logging.error(message)
                 sys.exit('Error: ' + message)
+
+
+def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
+    """Query the CSV ID to node ID map to check for non-unique parent IDs. If they exist,
+       report out but do not exit.
+    """
+    id_field = config['id_field']
+    if config['query_csv_id_to_node_id_map_for_parents'] is True:
+        query = "select * from csv_row_id_to_parent_node_id_map where parent_id = ?"
+        parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(id_field))
+        parents_from_id_map = []
+        for parent_in_id_map_row in parent_in_id_map_result:
+            parents_from_id_map.append(parent_in_id_map_row['node_id'])
+        if len(parents_from_id_map) > 1:
+            message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}.'
+            logging.warning(message)
+            print("Warning: " + message)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
