@@ -190,6 +190,8 @@ class WorkbenchConfig:
             'timestamp_rollback': False,
             'rollback_dir': None,
             'enable_http_cache': True,
+            'http_cache_storage': 'memory',
+            'http_cache_storage_expire_after': 1200,
             'validate_terms_exist': True,
             'validate_parent_node_exists': True,
             'published': 1,

@@ -6452,12 +6452,11 @@ def prep_parent_node_ids_map(config):
         path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
     else:
         path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
-    if 'secondary_tasks' in config and len(config['secondary_tasks']) > 0:
-        table = "csv_row_id_to_parent_node_id_map"
-        create_table_sql = "CREATE TABLE csv_row_id_to_parent_node_id_map (csv_row_id TEXT, node_id TEXT)"
-        sqlite_manager(config, operation='create_table', table_name=table, query=create_table_sql, db_file_path=path_to_db)
-    else:
-        return False
+
+    table = "csv_row_id_to_parent_node_id_map"
+    create_table_sql = "CREATE TABLE csv_row_id_to_parent_node_id_map (csv_row_id TEXT, node_id TEXT)"
+    sqlite_manager(config, operation='create_table', table_name=table, query=create_table_sql, db_file_path=path_to_db)
+
 
 
 def write_to_parent_node_ids_map(config, row_id, node_id):
@@ -6480,6 +6479,7 @@ def read_parent_node_ids_map(config):
         path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
     else:
         path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
+
     if config['secondary_tasks'] is not None:
         if not os.path.exists(path_to_db):
             message = f'Secondary task database "{path_to_db}" not found.'
@@ -6489,7 +6489,7 @@ def read_parent_node_ids_map(config):
             sys.exit()
 
     if os.path.exists(path_to_db):
-        res = sqlite_manager(config, operation='select', query="SELECT * FROM csv_row_id_to_parent_node_id_map")
+        res = sqlite_manager(config, operation='select', query="SELECT * FROM csv_row_id_to_parent_node_id_map", db_file_path=path_to_db)
         map = dict()
         # Note: since we don't enforce uniquness of CSV IDs across tasks, it is possible that a given
         # CSV ID can exist multiple times in the map table. In practice this shouldn't be a problem,
