@@ -1980,8 +1980,14 @@ def check_input(config, args):
                             # Check that each file's extension is allowed for the current media type. 'file' is the only
                             # CSV field to check here. Files added using the 'additional_files' setting are checked below.
                             if file_check_row['file'].startswith('http'):
-                                extension = get_remote_file_extension(config, file_check_row['file'])
-                                extension = extension.lstrip('.')
+                                # First check to see if the file has an extension.
+                                extension = os.path.splitext(file_check_row['file'])[1]
+                                if len(extension) > 0:
+                                    extension = extension.lstrip('.')
+                                    extension = extension.lstrip('.')
+                                else:
+                                    extension = get_remote_file_extension(config, file_check_row['file'])
+                                    extension = extension.lstrip('.')
                             else:
                                 extension = os.path.splitext(file_check_row['file'])[1]
                                 extension = extension.lstrip('.').lower()
@@ -2073,8 +2079,14 @@ def check_input(config, args):
                         media_type_file_field = config['media_type_file_fields'][media_type]
                         for additional_filename in additional_filenames:
                             if additional_filename.startswith('http'):
-                                extension = get_remote_file_extension(config, additional_filename)
-                                extension = extension.lstrip('.')
+                                # First check to see if the file has an extension.
+                                extension = os.path.splitext(additional_filename)[1]
+                                if len(extension) > 0:
+                                    extension = extension.lstrip('.')
+                                    extension = extension.lstrip('.')
+                                else:
+                                    extension = get_remote_file_extension(config, additional_filename)
+                                    extension = extension.lstrip('.')
                             else:
                                 if check_file_exists(config, additional_filename):
                                     extension = os.path.splitext(additional_filename)
@@ -5966,7 +5978,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
 def get_remote_file_extension(config, file_url):
     """For remote files that have no extension, such as http://acme.com/islandora/object/some:pid/datastream/OBJ/download,
-       assign an extension, with a leading dot.
+       assign an extension, with a leading dot. If the file has an extension, return it.
     """
     # If the file has an extension, just return it.
     extension = os.path.splitext(file_url)[1]
