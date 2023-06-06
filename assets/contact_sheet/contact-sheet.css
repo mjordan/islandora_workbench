@@ -1,0 +1,50 @@
+.cards {
+    margin auto;
+    display: grid;
+    grid-gap: 1rem;
+  }
+
+.card {
+    margin-left: auto;
+    margin-right: auto;
+    width: auto;
+    background-color: ghostwhite;
+    color: black;
+    padding: 1rem;
+
+  }
+
+.fields {
+  margin-bottom: .3rem;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: Helvetica, sans-serif;
+}
+
+.field {
+  margin-top: .2rem;
+}
+
+.system {
+  font-style: italic;
+  margin-bottom: .5rem;
+}
+
+.field-label {
+  text-decoration-style: dashed;
+}
+
+.header {
+  margin-top: .5rem;
+  font-family: Helvetica, sans-serif;
+}
+
+.footer {
+  margin-top: .5rem;
+  font-family: Helvetica, sans-serif;
+  font-size: .8em;
+}
+
+@media (min-width: 900px) {
+  .cards { grid-template-columns: repeat(6, 1fr); }
+}

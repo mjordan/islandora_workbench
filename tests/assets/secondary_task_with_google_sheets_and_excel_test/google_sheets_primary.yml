@@ -1,0 +1,12 @@
+task: create
+host: http://localhost:8000
+username: admin
+password: islandora
+nodes_only: true
+secondary_tasks: ['tests/assets/secondary_task_with_google_sheets_and_excel_test/google_sheets_secondary.yml']
+csv_field_templates:
+ - field_model: https://schema.org/DigitalDocument
+id_field: field_local_identifier
+input_csv: https://docs.google.com/spreadsheets/d/19AxFWEFuwEoNqH8ciUo0PRAroIpNE9BuBhE5tIE6INQ/edit#gid=0
+
+

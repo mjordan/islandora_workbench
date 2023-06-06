@@ -1,9 +1,0 @@
-paged_content_from_directories: true
-paged_content_page_model_tid: 29
-task: create
-host: "http://localhost:8000"
-username: admin
-password: islandora
-input_dir: tests/assets/create_paged_content_from_directories_test/samplebooks
-media_type: image
-drupal_8: true

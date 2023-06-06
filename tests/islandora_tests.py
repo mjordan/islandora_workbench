@@ -1,5 +1,8 @@
 """unittest tests that require a live Drupal at http://localhost:8000. In most cases, the URL, credentials,
    etc. are in a configuration file referenced in the test.
+
+   Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
+   contain tests that interact with an Islandora instance.
 """
 
 import sys
@@ -10,303 +13,13 @@ import subprocess
 import argparse
 import requests
 import json
+import urllib.parse
 import unittest
+import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
-
-
-class TestCheckCreate(unittest.TestCase):
-
-    def setUp(self):
-        cmd = ["./workbench", "--config", "create.yml", "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_create_check(self):
-        lines = self.output.splitlines()
-        self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
-
-
-class TestCheckCreateFromGoogleSpreadsheet(unittest.TestCase):
-    """Note: This test fetches data from https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0.
-    """
-
-    def setUp(self):
-        cmd = ["./workbench", "--config", "google_spreadsheet.yml", "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_create_from_google_spreadsheet_check(self):
-        lines = self.output.splitlines()
-        self.assertRegex(self.output, 'Extracting CSV data from https://docs.google.com', '')
-        self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
-
-
-class TestCheckUpdate(unittest.TestCase):
-
-    def setUp(self):
-        cmd = ["./workbench", "--config", "update.yml", "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_update_check(self):
-        lines = self.output.splitlines()
-        self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
-
-
-class TestCheckDelete(unittest.TestCase):
-
-    def setUp(self):
-        cmd = ["./workbench", "--config", "delete.yml", "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_delete_check(self):
-        lines = self.output.splitlines()
-        self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
-
-
-class TestCheckAddMedia(unittest.TestCase):
-
-    def setUp(self):
-        cmd = ["./workbench", "--config", "add_media.yml", "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_add_media_check(self):
-        lines = self.output.splitlines()
-        self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
-
-
-class TestTypedRelationBadRelatorCheck(unittest.TestCase):
-
-    def test_bad_relator_check_fail(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'bad_relator.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        try:
-            output = subprocess.check_output(cmd)
-            output = output.decode().strip()
-            lines = output.splitlines()
-            self.assertRegex(output, 'does not use the pattern required for typed relation fields', '')
-        except subprocess.CalledProcessError as err:
-            pass
-
-    def tearDown(self):
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_typed_relation_fail.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestTypedRelationBadUriCheck(unittest.TestCase):
-
-    def test_bad_uri_check_fail(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'bad_uri.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        try:
-            output = subprocess.check_output(cmd)
-            output = output.decode().strip()
-            lines = output.splitlines()
-            self.assertRegex(output, 'example.com', '')
-        except subprocess.CalledProcessError as err:
-            pass
-
-    def tearDown(self):
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_uri_fail.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'add_new_typed_relation.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_new_typed_relation_check(self):
-        lines = self.output.splitlines()
-        self.assertRegex(self.output, 'and new terms will be created as noted', '')
-
-    def tearDown(self):
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "new_typed_relation.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
-
-    def test_no_namespace_check_fail(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'no_namespace.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        try:
-            output = subprocess.check_output(cmd)
-            output = output.decode().strip()
-            lines = output.splitlines()
-            self.assertRegex(output, 'require a vocabulary namespace', '')
-        except subprocess.CalledProcessError as err:
-            pass
-
-    def tearDown(self):
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "no_namespace.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestDelimiterCheck(unittest.TestCase):
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'delimiter_test', 'create_tab.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_delimiter_check(self):
-        lines = self.output.splitlines()
-        self.assertRegex(self.output, 'input data appear to be valid', '')
-
-    def tearDown(self):
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "delimiter_test", "metadata.tsv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestGeolocationCheck(unittest.TestCase):
-
-    def test_geolocation_check(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'geolocation_test', 'bad_geocoordinates.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        try:
-            output = subprocess.check_output(cmd)
-            output = output.decode().strip()
-            lines = output.splitlines()
-            self.assertRegex(output, r'+43.45-123.17', '')
-        except subprocess.CalledProcessError as err:
-            pass
-
-    def tearDown(self):
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "geolocation_test", "input_data", "bad_geocoorindates_fail.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestHeaderColumnMismatch(unittest.TestCase):
-
-    def test_header_column_mismatch_fail(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'header_column_mismatch_test', 'create.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        try:
-            output = subprocess.check_output(cmd)
-            output = output.decode().strip()
-            lines = output.splitlines()
-            self.assertRegex(output, 'Row 2 of your CSV file does not', '')
-        except subprocess.CalledProcessError as err:
-            pass
-
-    def tearDown(self):
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'header_column_mismatch_test', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "header_column_mismatch_test", "metadata.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestExecuteBootstrapScript(unittest.TestCase):
-
-    def setUp(self):
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-
-        self.script_path = os.path.join(dir_path, 'assets', 'execute_bootstrap_script_test', 'script.py')
-        self.config_file_path = os.path.join(dir_path, 'assets', 'execute_bootstrap_script_test', 'config.yml')
-
-    def test_execute_python_script(self):
-        output, return_code = workbench_utils.execute_bootstrap_script(self.script_path, self.config_file_path)
-        self.assertEqual(output.strip(), b'Hello')
-
-
-class TestExecutePreprocessorScript(unittest.TestCase):
-
-    def setUp(self):
-        yaml = YAML()
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.script_path = os.path.join(dir_path, 'assets', 'preprocess_field_data', 'script.py')
-
-    def test_preprocessor_script_single_field_value(self):
-        output, return_code = workbench_utils.preprocess_field_data('|', 'hello', self.script_path)
-        self.assertEqual(output.strip(), b'HELLO')
-
-    def test_preprocessor_script_multiple_field_value(self):
-        output, return_code = workbench_utils.preprocess_field_data('|', 'hello|there', self.script_path)
-        self.assertEqual(output.strip(), b'HELLO|THERE')
-
-
-class TestExecutePostActionEntityScript(unittest.TestCase):
-    '''Note: Only tests for creating nodes.
-    '''
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.realpath(__file__))
-        self.config_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'create.yml')
-        self.script_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'script.py')
-        temp_dir = tempfile.gettempdir()
-        self.output_file_path = os.path.join(temp_dir, 'execute_post_action_entity_script.dat')
-        if os.path.exists(self.output_file_path):
-            os.remove(self.output_file_path)
-
-    def test_post_task_entity_script(self):
-        cmd = ["./workbench", "--config", self.config_file_path]
-        output = subprocess.check_output(cmd)
-        with open(self.output_file_path, "r") as lines:
-            titles = lines.readlines()
-
-        self.assertEqual(titles[0].strip(), 'First title')
-        self.assertEqual(titles[1].strip(), 'Second title')
-
-    def tearDown(self):
-        rollback_config_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'rollback.yml')
-        cmd = ["./workbench", "--config", rollback_config_file_path]
-        subprocess.check_output(cmd)
-
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-        self.preprocessed_rollback_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'rollback.csv.prepocessed')
-        if os.path.exists(self.preprocessed_rollback_file_path):
-            os.remove(self.preprocessed_rollback_file_path)
-
-        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'execute_post_action_entity_script_test', 'metadata.csv.prepocessed')
-        if os.path.exists(self.preprocessed_file_path):
-            os.remove(self.preprocessed_file_path)
-
-        if os.path.exists(self.output_file_path):
-            os.remove(self.output_file_path)
+from WorkbenchConfig import WorkbenchConfig
 
 
 class TestCreate(unittest.TestCase):
@@ -347,27 +60,9 @@ class TestCreate(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'metadata.csv.prepocessed')
+        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'create_test', 'metadata.csv.preprocessed')
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
-
-
-class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'create.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_create_with_field_templates_check(self):
-        lines = self.output.splitlines()
-        self.assertRegex(self.output, 'all 3 rows in the CSV file have the same number of columns as there are headers .6.', '')
-
-    def tearDown(self):
-        templated_csv_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'metadata.csv.prepocessed')
-        os.remove(templated_csv_path)
 
 
 class TestCreateFromFiles(unittest.TestCase):
@@ -381,43 +76,6 @@ class TestCreateFromFiles(unittest.TestCase):
         self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatefromfilestestnids.txt')
 
     def test_create_from_files(self):
-        nids = list()
-        create_output = subprocess.check_output(self.create_cmd)
-        create_output = create_output.decode().strip()
-        create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
-            fh.write("node_id\n")
-            for line in create_lines:
-                if 'created at' in line:
-                    nid = line.rsplit('/', 1)[-1]
-                    nid = nid.strip('.')
-                    nids.append(nid)
-                    fh.write(nid + "\n")
-
-        self.assertEqual(len(nids), 3)
-
-    def tearDown(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'delete.yml')
-        delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-        os.remove(self.nid_file)
-
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'files', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-
-class TestCreateFromFilesDrupal8(unittest.TestCase):
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        create_config_file_path = os.path.join(self.current_dir, 'assets', 'create_from_files_test', 'create_drupal_8.yml')
-        self.create_cmd = ["./workbench", "--config", create_config_file_path]
-
-        self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatefromfilestestnids.txt')
-
-    def test_create_from_files_drupal_8(self):
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -464,7 +122,8 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         parser.add_argument('--get_csv_template')
         parser.set_defaults(config=config_file_path, check=False)
         args = parser.parse_args()
-        config = workbench_utils.set_config_defaults(args)
+        workbench_config = WorkbenchConfig(args)
+        config = workbench_config.get_config()
         self.config = config
 
     def test_create_with_new_typed_relation(self):
@@ -494,7 +153,7 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'create_with_new_typed_relation.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'create_with_new_typed_relation.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -532,17 +191,26 @@ class TestDelete(unittest.TestCase):
         delete_output = delete_output.decode().strip()
         delete_lines = delete_output.splitlines()
 
-        self.assertEqual(len(delete_lines), 6)
+        self.assertEqual(len(delete_lines), 7)
 
     def tearDown(self):
-        os.remove(self.nid_file)
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+        if os.path.exists(self.nid_file + ".preprocessed"):
+            os.remove(self.nid_file + ".preprocessed")
 
 
-class TestCreatePagedContent(unittest.TestCase):
+class TestUpdate(unittest.TestCase):
 
     def setUp(self):
+        self.maxDiff = None
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        create_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_test', 'create.yml')
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'create.yml')
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+
+        self.temp_dir = tempfile.gettempdir()
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchupdatetestnids.txt')
+        self.update_metadata_file = os.path.join(self.current_dir, 'assets', 'update_test', 'workbenchupdatetest.csv')
 
         yaml = YAML()
         with open(create_config_file_path, 'r') as f:
@@ -553,307 +221,48 @@ class TestCreatePagedContent(unittest.TestCase):
             config[k] = v
         self.islandora_host = config['host']
 
-        self.create_cmd = ["./workbench", "--config", create_config_file_path]
-
-        self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatepagedcontenttestnids.txt')
-
-    def test_create_paged_content(self):
-        nids = list()
+        self.nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
-
-        # Write a file to the system's temp directory containing the node IDs of the
-        # nodes created during this test so they can be deleted in tearDown().
         create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
-            fh.write("node_id\n")
+
+        with open(self.nid_file, "a") as nids_fh:
+            nids_fh.write("node_id\n")
             for line in create_lines:
                 if 'created at' in line:
                     nid = line.rsplit('/', 1)[-1]
                     nid = nid.strip('.')
-                    nids.append(nid)
-                    fh.write(nid + "\n")
+                    nids_fh.write(nid + "\n")
+                    self.nids.append(nid)
 
-        self.assertEqual(len(nids), 6)
+        # Add some values to the update CSV file to test against.
+        with open(self.update_metadata_file, "a") as update_fh:
+            update_fh.write("node_id,field_identifier,field_coordinates\n")
+            update_fh.write(f'{self.nids[0]},identifier-0001,"99.1,-123.2"')
 
-        # Test a page object's 'field_member_of' value to see if it matches
-        # its parent's node ID. In this test, the last paged content object's
-        # node ID will be the fourth node ID in nids (the previous three were
-        # for the first paged content object plus its two pages). Note: the
-        # metadata.csv file used to create the paged content and page objects
-        # uses hard-coded term IDs from the Islandora Models taxonomy as used
-        # in the Islandora Playbook. If they change or are different in the
-        # Islandora this test is running against, this test will fail.
-        parent_node_id_to_test = nids[3]
-        # The last node to be created was a page.
-        child_node_id_to_test = nids[5]
-        node_url = self.islandora_host + '/node/' + child_node_id_to_test + '?_format=json'
-        response = requests.get(node_url)
-        node_json = json.loads(response.text)
-        field_member_of = node_json['field_member_of'][0]['target_id']
+    def test_update(self):
+        # Run update task.
+        time.sleep(5)
+        update_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'update.yml')
+        self.update_cmd = ["./workbench", "--config", update_config_file_path]
+        subprocess.check_output(self.update_cmd)
 
-        self.assertEqual(int(parent_node_id_to_test), field_member_of)
-
-    def tearDown(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_test', 'delete.yml')
-        delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-        delete_output = delete_output.decode().strip()
-        delete_lines = delete_output.splitlines()
-        os.remove(self.nid_file)
-
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_test', 'metadata.csv.prepocessed')
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_test', 'rollback.csv')
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-
-class TestCreatePagedContentFromDirectories(unittest.TestCase):
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        create_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'books.yml')
-
-        yaml = YAML()
-        with open(create_config_file_path, 'r') as f:
-            config_file_contents = f.read()
-        config_data = yaml.load(config_file_contents)
-        config = {}
-        for k, v in config_data.items():
-            config[k] = v
-        self.islandora_host = config['host']
-
-        self.create_cmd = ["./workbench", "--config", create_config_file_path]
-
-        self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatepagedcontentfromdirectoriestestnids.txt')
-
-    def test_create_paged_content_from_directories(self):
-        nids = list()
-        create_output = subprocess.check_output(self.create_cmd)
-        create_output = create_output.decode().strip()
-
-        # Write a file to the system's temp directory containing the node IDs of the
-        # nodes created during this test so they can be deleted in tearDown().
-        create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
-            fh.write("node_id\n")
-            for line in create_lines:
-                if 'created at' in line:
-                    nid = line.rsplit('/', 1)[-1]
-                    nid = nid.strip('.')
-                    nids.append(nid)
-                    fh.write(nid + "\n")
-
-        self.assertEqual(len(nids), 4)
-
-        # Test a page object's 'field_member_of' value to see if it matches its
-        # parent's node ID. In this test, we'll test the second page. Note: the
-        # metadata CSV file used to create the paged content and page objects
-        # uses hard-coded term IDs from the Islandora Models taxonomy as used
-        # in the Islandora Playbook. If they change or are different in the
-        # Islandora this test is running against, this test will fail. Also note
-        # that this test creates media and does not delete them.
-        parent_node_id_to_test = nids[0]
-        child_node_id_to_test = nids[2]
-        node_url = self.islandora_host + '/node/' + child_node_id_to_test + '?_format=json'
-        response = requests.get(node_url)
-        node_json = json.loads(response.text)
-        field_member_of = node_json['field_member_of'][0]['target_id']
-
-        self.assertEqual(int(parent_node_id_to_test), field_member_of)
-
-        # Test that the 'field_weight' value of the second node is 3.
-        self.assertEqual(3, node_json['field_weight'][0]['value'])
+        # Confirm that fields have been updated.
+        url = self.islandora_host + '/node/' + str(self.nids[0]) + '?_format=json'
+        response = requests.get(url)
+        node = json.loads(response.text)
+        identifier = str(node['field_identifier'][0]['value'])
+        self.assertEqual(identifier, 'identifier-0001')
+        coodinates = str(node['field_coordinates'][0]['lat'])
+        self.assertEqual(coodinates, '99.1')
 
     def tearDown(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'delete.yml')
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'update_test', 'delete.yml')
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-        delete_output = delete_output.decode().strip()
-        delete_lines = delete_output.splitlines()
+        subprocess.check_output(delete_cmd)
+
         os.remove(self.nid_file)
-
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'metadata.csv.prepocessed')
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'rollback.csv')
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-
-class TestCreatePagedContentFromDirectoriesDrupal8(unittest.TestCase):
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        create_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'books_drupal_8.yml')
-
-        yaml = YAML()
-        with open(create_config_file_path, 'r') as f:
-            config_file_contents = f.read()
-        config_data = yaml.load(config_file_contents)
-        config = {}
-        for k, v in config_data.items():
-            config[k] = v
-        self.islandora_host = config['host']
-
-        self.create_cmd = ["./workbench", "--config", create_config_file_path]
-
-        self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatepagedcontentfromdirectoriestestnids.txt')
-
-    def test_create_paged_content_from_directories_drupal_8(self):
-        nids = list()
-        create_output = subprocess.check_output(self.create_cmd)
-        create_output = create_output.decode().strip()
-
-        # Write a file to the system's temp directory containing the node IDs of the
-        # nodes created during this test so they can be deleted in tearDown().
-        create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
-            fh.write("node_id\n")
-            for line in create_lines:
-                if 'created at' in line:
-                    nid = line.rsplit('/', 1)[-1]
-                    nid = nid.strip('.')
-                    nids.append(nid)
-                    fh.write(nid + "\n")
-
-        self.assertEqual(len(nids), 4)
-
-        # Test a page object's 'field_member_of' value to see if it matches its
-        # parent's node ID. In this test, we'll test the second page. Note: the
-        # metadata CSV file used to create the paged content and page objects
-        # uses hard-coded term IDs from the Islandora Models taxonomy as used
-        # in the Islandora Playbook. If they change or are different in the
-        # Islandora this test is running against, this test will fail. Also note
-        # that this test creates media and does not delete them.
-        parent_node_id_to_test = nids[0]
-        child_node_id_to_test = nids[2]
-        node_url = self.islandora_host + '/node/' + child_node_id_to_test + '?_format=json'
-        response = requests.get(node_url)
-        node_json = json.loads(response.text)
-        field_member_of = node_json['field_member_of'][0]['target_id']
-
-        self.assertEqual(int(parent_node_id_to_test), field_member_of)
-
-        # Test that the 'field_weight' value of the second node is 3.
-        self.assertEqual(3, node_json['field_weight'][0]['value'])
-
-    def tearDown(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'delete.yml')
-        delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-        delete_output = delete_output.decode().strip()
-        delete_lines = delete_output.splitlines()
-        os.remove(self.nid_file)
-
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'metadata.csv.prepocessed')
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        rollback_file_path = os.path.join(self.current_dir, 'assets', 'create_paged_content_from_directories_test', 'samplebooks', 'rollback.csv')
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-
-class TestTaxonomies (unittest.TestCase):
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        taxonomies_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'create.yml')
-
-        yaml = YAML()
-        with open(taxonomies_config_file_path, 'r') as f:
-            config_file_contents = f.read()
-        config_data = yaml.load(config_file_contents)
-        config = {}
-        for k, v in config_data.items():
-            config[k] = v
-        self.islandora_host = config['host']
-        self.islandora_username = config['username']
-        self.islandora_password = config['password']
-
-        self.create_cmd = ["./workbench", "--config", taxonomies_config_file_path]
-
-        self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchtaxonomiestestnids.txt')
-
-        nids = list()
-        create_output = subprocess.check_output(self.create_cmd)
-        create_output = create_output.decode().strip()
-
-        # Write a file to the system's temp directory containing the node IDs of the
-        # nodes created during this test so they can be deleted in tearDown().
-        create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
-            fh.write("node_id\n")
-            for line in create_lines:
-                if 'created at' in line:
-                    nid = line.rsplit('/', 1)[-1]
-                    nid = nid.strip('.')
-                    nids.append(nid)
-                    fh.write(nid + "\n")
-
-    def test_validate_term_names_exist(self):
-        taxonomies_terms_exist_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'create.yml')
-        cmd = ["./workbench", "--config", taxonomies_terms_exist_config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, 'term IDs/names in CSV file exist in their respective taxonomies', '')
-
-    def test_validate_term_name_does_not_exist(self):
-        taxonomies_term_name_does_not_exist_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_name_not_in_taxonomy.yml')
-        cmd = ["./workbench", "--config", taxonomies_term_name_does_not_exist_config_file_path, "--check"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
-        self.assertRegex(str(stdout), '"Posters"', '')
-
-    def test_validate_term_id_does_not_exist(self):
-        taxonomies_term_id_does_not_exist_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_id_not_in_taxonomy.yml')
-        cmd = ["./workbench", "--config", taxonomies_term_id_does_not_exist_config_file_path, "--check"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
-        self.assertRegex(str(stdout), '1000000', '')
-
-    def tearDown(self):
-        # Delete all terms in the genre taxonomy.
-        vocab_url = self.islandora_host + '/vocabulary/genre?_format=json'
-        response = requests.get(vocab_url, auth=(self.islandora_username, self.islandora_password))
-        vocab_json = json.loads(response.text)
-        vocab = json.loads(response.text)
-        for term in vocab:
-            tid = term['tid'][0]['value']
-            term_url = self.islandora_host + '/taxonomy/term/' + str(tid) + '?_format=json'
-            response = requests.delete(term_url, auth=(self.islandora_username, self.islandora_password))
-
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'delete.yml')
-        delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-        delete_output = delete_output.decode().strip()
-        delete_lines = delete_output.splitlines()
-        os.remove(self.nid_file)
-
-        rollback_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'rollback.csv')
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'metadata.csv.prepocessed')
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_id_not_in_taxonomy.csv.prepocessed')
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_name_not_in_taxonomy.csv.prepocessed')
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
+        os.remove(self.update_metadata_file)
 
 
 class TestTermFromUri(unittest.TestCase):
@@ -872,7 +281,8 @@ class TestTermFromUri(unittest.TestCase):
         parser.add_argument('--get_csv_template')
         parser.set_defaults(config=config_file_path, check=False)
         args = parser.parse_args()
-        config = workbench_utils.set_config_defaults(args)
+        workbench_config = WorkbenchConfig(args)
+        config = workbench_config.get_config()
 
         tid = workbench_utils.get_term_id_from_uri(config, 'http://mozilla.github.io/pdf.js')
         self.assertEqual(tid, 3)
@@ -943,84 +353,9 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
-
-
-class TestGoogleGid(unittest.TestCase):
-
-    def test_google_gid(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_0.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        lines = output.splitlines()
-        self.assertRegex(output, 'OK, all 2 rows in the CSV file')
-
-        config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_1867618389.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        lines = output.splitlines()
-        self.assertRegex(output, 'OK, all 3 rows in the CSV file')
-
-        config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_390347846.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        lines = output.splitlines()
-        self.assertRegex(output, 'OK, all 5 rows in the CSV file')
-
-        config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_953977578.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        lines = output.splitlines()
-        self.assertRegex(output, 'OK, all 1 rows in the CSV file')
-
-
-class TestCommentedCsvs(unittest.TestCase):
-
-    def test_commented_csv(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        config_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "raw_csv.yml")
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        lines = output.splitlines()
-        self.assertRegex(output, 'all 3 rows in the CSV file', '')
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "metadata.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-        config_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.yml")
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        lines = output.splitlines()
-        self.assertRegex(output, 'all 4 rows in the CSV file', '')
-        csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv")
-        if os.path.exists(csv_file_path):
-            os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-        config_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheets.yml")
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        lines = output.splitlines()
-        self.assertRegex(output, 'all 5 rows in the CSV file', '')
-        csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv")
-        if os.path.exists(csv_file_path):
-            os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv.prepocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
 
 
 class TestSecondaryTask(unittest.TestCase):
@@ -1042,6 +377,13 @@ class TestSecondaryTask(unittest.TestCase):
 
         self.temp_dir = tempfile.gettempdir()
         self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt')
+        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytasktestnids.txt.preprocessed')
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
 
     def test_secondary_task(self):
         nids = list()
@@ -1090,10 +432,10 @@ class TestSecondaryTask(unittest.TestCase):
         delete_lines = delete_output.splitlines()
         os.remove(self.nid_file)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'metadata.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
-        secondary_preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'secondary.csv.prepocessed')
+        secondary_preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'secondary.csv.preprocessed')
         if os.path.exists(secondary_preprocessed_csv_path):
             os.remove(secondary_preprocessed_csv_path)
 
@@ -1105,8 +447,185 @@ class TestSecondaryTask(unittest.TestCase):
         if os.path.exists(rollback_file_path):
             os.remove(rollback_file_path)
 
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
 
-class TestAdditionalFilesCreate (unittest.TestCase):
+
+class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'google_sheets_primary.yml')
+
+        yaml = YAML()
+        with open(create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config['host']
+
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+
+        self.temp_dir = tempfile.gettempdir()
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt')
+        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt.preprocessed')
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
+
+    def test_secondary_task_with_google_sheet(self):
+        self.nids = list()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        # Write a file to the system's temp directory containing the node IDs of the
+        # nodes created during this test so they can be deleted in tearDown().
+        create_lines = create_output.splitlines()
+        with open(self.nid_file, "a") as fh:
+            fh.write("node_id\n")
+            for line in create_lines:
+                if 'created at' in line:
+                    nid = line.rsplit('/', 1)[-1]
+                    nid = nid.strip('.')
+                    self.nids.append(nid)
+                    fh.write(nid + "\n")
+
+        self.assertEqual(len(self.nids), 8)
+
+        for nid in self.nids:
+            node_url = self.islandora_host + '/node/' + nid + '?_format=json'
+            response = requests.get(node_url)
+            node_json = json.loads(response.text)
+            # Get the node ID of the parent node.
+            if node_json['field_local_identifier'][0]['value'] == 'GSP-04':
+                parent_nid = node_json['nid'][0]['value']
+                break
+
+        for nid in self.nids:
+            node_url = self.islandora_host + '/node/' + nid + '?_format=json'
+            response = requests.get(node_url)
+            node_json = json.loads(response.text)
+            if node_json['field_local_identifier'][0]['value'] == 'GSC-03':
+                self.assertEqual(int(node_json['field_member_of'][0]['target_id']), int(parent_nid))
+            if node_json['field_local_identifier'][0]['value'] == 'GSC-04':
+                self.assertEqual(int(node_json['field_member_of'][0]['target_id']), int(parent_nid))
+
+    def tearDown(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'delete.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        delete_output = subprocess.check_output(delete_cmd)
+        delete_output = delete_output.decode().strip()
+        delete_lines = delete_output.splitlines()
+        os.remove(self.nid_file)
+
+        map_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'id_to_node_map.tsv')
+        if os.path.exists(map_file_path):
+            os.remove(map_file_path)
+
+        rollback_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'rollback.csv')
+        if os.path.exists(rollback_file_path):
+            os.remove(rollback_file_path)
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
+
+
+class TestSecondaryTaskWithExcel(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        create_config_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'excel_primary.yml')
+
+        yaml = YAML()
+        with open(create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config['host']
+
+        self.create_cmd = ["./workbench", "--config", create_config_file_path]
+
+        self.temp_dir = tempfile.gettempdir()
+        self.nid_file = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt')
+        self.nid_file_preprocessed = os.path.join(self.temp_dir, 'workbenchsecondarytaskwithgooglesheetsandexceltestnids.txt.preprocessed')
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
+
+    def test_secondary_task_with_excel(self):
+        self.nids = list()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        # Write a file to the system's temp directory containing the node IDs of the
+        # nodes created during this test so they can be deleted in tearDown().
+        create_lines = create_output.splitlines()
+        with open(self.nid_file, "a") as fh:
+            fh.write("node_id\n")
+            for line in create_lines:
+                if 'created at' in line:
+                    nid = line.rsplit('/', 1)[-1]
+                    nid = nid.strip('.')
+                    self.nids.append(nid)
+                    fh.write(nid + "\n")
+
+        self.assertEqual(len(self.nids), 8)
+
+        for nid in self.nids:
+            node_url = self.islandora_host + '/node/' + nid + '?_format=json'
+            response = requests.get(node_url)
+            node_json = json.loads(response.text)
+            # Get the node ID of the parent node.
+            if node_json['field_local_identifier'][0]['value'] == 'STTP-02':
+                parent_nid = node_json['nid'][0]['value']
+                break
+
+        for nid in self.nids:
+            node_url = self.islandora_host + '/node/' + nid + '?_format=json'
+            response = requests.get(node_url)
+            node_json = json.loads(response.text)
+            if node_json['field_local_identifier'][0]['value'] == 'STTC-01':
+                self.assertEqual(int(node_json['field_member_of'][0]['target_id']), int(parent_nid))
+            if node_json['field_local_identifier'][0]['value'] == 'STTC-02':
+                self.assertEqual(int(node_json['field_member_of'][0]['target_id']), int(parent_nid))
+
+    def tearDown(self):
+        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'delete.yml')
+        delete_cmd = ["./workbench", "--config", delete_config_file_path]
+        delete_output = subprocess.check_output(delete_cmd)
+        delete_output = delete_output.decode().strip()
+        delete_lines = delete_output.splitlines()
+        os.remove(self.nid_file)
+
+        map_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'id_to_node_map.tsv')
+        if os.path.exists(map_file_path):
+            os.remove(map_file_path)
+
+        rollback_file_path = os.path.join(self.current_dir, 'assets', 'secondary_task_with_google_sheets_and_excel_test', 'rollback.csv')
+        if os.path.exists(rollback_file_path):
+            os.remove(rollback_file_path)
+
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+
+        if os.path.exists(self.nid_file_preprocessed):
+            os.remove(self.nid_file_preprocessed)
+
+
+class TestAdditionalFilesCreate(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1177,7 +696,7 @@ class TestAdditionalFilesCreate (unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.csv.prepocessed')
+        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -1185,7 +704,7 @@ class TestAdditionalFilesCreate (unittest.TestCase):
         if os.path.exists(rollback_csv_path):
             os.remove(rollback_csv_path)
 
-        preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.prepocessed')
+        preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.preprocessed')
         if os.path.exists(preprocessed_rollback_csv_path):
             os.remove(preprocessed_rollback_csv_path)
 
