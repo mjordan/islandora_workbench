@@ -67,7 +67,7 @@ def create():
 
         id_field = row[config['id_field']]
 
-        # Add required fields. 'status' ("published") can be overridden in CSV, below.
+        # Add required fields.
         node = {
             'type': [
                 {'target_id': config['content_type'],
@@ -75,9 +75,6 @@ def create():
             ],
             'title': [
                 {'value': row['title']}
-            ],
-            'status': [
-                {'value': config['published']}
             ]
         }
 
@@ -1290,9 +1287,6 @@ def create_from_files():
             ],
             'title': [
                 {'value': filename_without_extension}
-            ],
-            'status': [
-                {'value': config['published']}
             ]
         }
 

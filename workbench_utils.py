@@ -5342,9 +5342,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             'title': [
                 {'value': page_title}
             ],
-            'status': [
-                {'value': config['published']}
-            ],
             'field_member_of': [
                 {'target_id': parent_node_id,
                  'target_type': 'node'}
