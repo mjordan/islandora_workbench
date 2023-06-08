@@ -53,7 +53,7 @@ class SimpleField():
         else:
             text_format = config['text_format_id']
 
-        id_field = row[config['id_field']]
+        id_field = row.get(config.get('id_field', 'not_applicable'), 'not_applicable')
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
             if config['subdelimiter'] in row[field_name]:
@@ -1779,3 +1779,129 @@ class MediaTrackField():
             return None
         else:
             return subvalues[0]
+
+
+class EntityReferenceRevisionsField():
+    """Functions for handling fields with 'entity_reference_revisions' Drupal field
+       data type. This field *can* reference nodes, taxonomy terms, and media, but
+       workbench only supports paragraphs for now.
+
+       All functions return a "entity" dictionary that is passed to Requests' "json"
+       parameter.
+    """
+
+    paragraph_field_definitions = {}
+
+    def create(self, config, field_definitions, entity, row, field_name):
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            entity : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            Returns
+            -------
+            dictionary
+                A dictionary represeting the entity that is POSTed to Drupal as JSON.
+        """
+        if row[field_name] is None:
+            logging.warning("Did not find " + field_name + " in row.")
+            return entity
+        id_field = row[config['id_field']]
+
+        # This field *can* reference nodes, taxonomy terms, and media, but workbench
+        # only supports paragraphs for now.
+        if not field_definitions[field_name]['target_type'] == 'paragraph':
+            return entity
+
+        # We allow fields to overide the global subdelimiter.
+        subdelimiter = config.get(field_name, {}).get('subdelimiter', None) or config['subdelimiter']
+
+        subvalues = row[field_name].split(subdelimiter)
+
+        # @todo self.dedup_values
+
+        # Enforce cardinality.
+        cardinality = field_definitions[field_name].get('cardinality', -1)
+        if -1 < cardinality < len(subvalues):
+            log_field_cardinality_violation(field_name, id_field, str(cardinality))
+            subvalues = subvalues[slice(0, cardinality)]
+
+        # Paragraphs are essentially field bundles, like any other entity,
+        # the difference is that this node "owns" the entity rather
+        # than simply references it. So we need to parse the row data
+        # and populate the paragraph entity, which looks a lot like
+        # creating a node from the CSV row...
+
+        # Cache paragraph field definitions
+        paragraph_type = config.get(field_name, {}).get('type')
+        if not paragraph_type:
+            logging.warn("Could not determine target paragraph type for field " + field_name)
+            return entity
+
+        if not self.paragraph_field_definitions.get(paragraph_type):
+            self.paragraph_field_definitions[paragraph_type] = get_field_definitions(config, 'paragraph', paragraph_type)
+
+        reference_revisions = []
+        for subvalue in subvalues:
+            # Zip together the fields and their values.
+            paragraph = dict(zip(config[field_name].get('field_order', {}), subvalue.split(config[field_name].get('field_delimiter', ':'))))
+
+            # Process each field's value.
+            for p_field, value in paragraph.items():
+                # This certainly isn't DRY, but here we go.
+
+                # Entity reference fields (taxonomy_term and node).
+                if self.paragraph_field_definitions[paragraph_type][p_field]['field_type'] == 'entity_reference':
+                    entity_reference_field = EntityReferenceField()
+                    paragraph = entity_reference_field.create(config, self.paragraph_field_definitions[paragraph_type], paragraph, paragraph, p_field)
+
+                # Entity reference revision fields (paragraphs).
+                elif self.paragraph_field_definitions[paragraph_type][p_field]['field_type'] == 'entity_reference_revisions':
+                    entity_reference_revisions_field = EntityReferenceRevisionsField()
+                    paragraph = entity_reference_field.create(config, self.paragraph_field_definitions[paragraph_type], paragraph, paragraph, p_field)
+
+                # Typed relation fields.
+                elif self.paragraph_field_definitions[paragraph_type][p_field]['field_type'] == 'typed_relation':
+                    typed_relation_field = TypedRelationField()
+                    paragraph = typed_relation_field.create(config, self.paragraph_field_definitions[paragraph_type], paragraph, paragraph, p_field)
+
+                # Geolocation fields.
+                elif self.paragraph_field_definitions[paragraph_type][p_field]['field_type'] == 'geolocation':
+                    geolocation_field = GeolocationField()
+                    paragraph = geolocation_field.create(config, self.paragraph_field_definitions[paragraph_type], paragraph, paragraph, p_field)
+
+                # Link fields.
+                elif self.paragraph_field_definitions[paragraph_type][p_field]['field_type'] == 'link':
+                    link_field = LinkField()
+                    paragraph = link_field.create(config, self.paragraph_field_definitions[paragraph_type], paragraph, paragraph, p_field)
+
+                # Authority Link fields.
+                elif self.paragraph_field_definitions[paragraph_type][p_field]['field_type'] == 'authority_link':
+                    link_field = AuthorityLinkField()
+                    paragraph = link_field.create(config, self.paragraph_field_definitions[paragraph_type], paragraph, paragraph, p_field)
+
+                # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
+                else:
+                    simple_field = SimpleField()
+                    paragraph = simple_field.create(config, self.paragraph_field_definitions[paragraph_type], paragraph, paragraph, p_field)
+
+            # Set parent information.
+            paragraph.update({'type': [{'target_id': config[field_name].get('type')}], 'parent_field_name': [{'value': field_name}]})
+
+            # Create the paragraph.
+            p_response = issue_request(config, 'POST', '/entity/paragraph?_format=json', {'Content-Type': 'application/json'}, paragraph, None)
+            if p_response.status_code == 201:
+                paragraph = p_response.json()
+                reference_revisions.append({'target_id': paragraph['id'][0]['value'], 'target_revision_id': paragraph['revision_id'][0]['value']})
+            else:
+                logging.warn("Could not create paragraph for " + field_name + " in row " + str(id_field))
+
+        entity[field_name] = reference_revisions
+        return entity
