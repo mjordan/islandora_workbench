@@ -1900,6 +1900,10 @@ class EntityReferenceRevisionsField():
             if p_response.status_code == 201:
                 paragraph = p_response.json()
                 reference_revisions.append({'target_id': paragraph['id'][0]['value'], 'target_revision_id': paragraph['revision_id'][0]['value']})
+            elif p_response.status_code == 403:
+                message = 'Not authorized to create paragraphs. Please ensure the paragraphs_type_permissions module is enable and the user has sufficient permissions.'
+                print(message)
+                logging.error(message)
             else:
                 message = p_response.json().get('message', 'Unknown')
                 logging.warn(f'Could not create paragraph for "{field_name}" in row "{id_field}": {message}')
