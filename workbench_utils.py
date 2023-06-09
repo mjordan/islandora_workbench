@@ -6417,6 +6417,10 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     if field_definitions[field_name]['field_type'] == 'entity_reference':
         serialized_field = workbench_fields.EntityReferenceField()
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
+    # Entity reference revision fields (mostly paragraphs).
+    if field_definitions[field_name]['field_type'] == 'entity_reference_revisions':
+        serialized_field = workbench_fields.EntityReferenceRevisionsField()
+        csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
     # Typed relation fields (currently, only taxonomy term)
     elif field_definitions[field_name]['field_type'] == 'typed_relation':
         serialized_field = workbench_fields.TypedRelationField()

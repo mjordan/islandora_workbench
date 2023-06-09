@@ -1910,3 +1910,101 @@ class EntityReferenceRevisionsField():
 
         entity[field_name] = reference_revisions
         return entity
+
+    def dedupe_values(self, values):
+        """Removes duplicate entries from 'values'.
+        """
+        """Parameters
+           ----------
+            values : list
+                List containing value(s) to dedupe. Members could be strings
+                from CSV or dictionairies.
+            Returns
+            -------
+            list
+                A list of unique field values.
+        """
+        return deduplicate_field_values(values)
+
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            string
+                A string structured same as the Workbench CSV field data for this field type.
+        """
+        if 'field_type' not in field_definitions[field_name]:
+            return field_data
+
+        # We allow fields to overide the global subdelimiter.
+        subdelimiter = config.get(field_name, {}).get('subdelimiter', None) or config['subdelimiter']
+
+        # Cache paragraph field definitions
+        paragraph_type = config.get(field_name, {}).get('type')
+        if not paragraph_type:
+            logging.warn(f'Could not determine target paragraph type for field "field_name". Returning data from Drupal.')
+            return json.dumps(field_data)
+        if not self.paragraph_field_definitions.get(paragraph_type):
+            self.paragraph_field_definitions[paragraph_type] = get_field_definitions(config, 'paragraph', paragraph_type)
+
+        subvalues = list()
+        for subvalue in field_data:
+            # Retrieve the paragraph so we can serialize it.
+            target_id = subvalue.get('target_id')
+            p_response = issue_request(config, 'GET', f'/entity/paragraph/{target_id}?_format=json')
+            if p_response.status_code == 200:
+                paragraph = p_response.json()
+                paragraph_parts = []
+                for field in config[field_name].get('field_order', {}):
+                    logging.info(f'Serializing paragraph field: {field}:' + json.dumps(paragraph.get(field)))
+                    if not paragraph.get(field):
+                        continue
+                    # Entity reference fields (taxonomy term and node).
+                    if self.paragraph_field_definitions[paragraph_type][field]['field_type'] == 'entity_reference':
+                        serialized_field = EntityReferenceField()
+                        paragraph_parts.append(serialized_field.serialize(config, self.paragraph_field_definitions[paragraph_type], field, paragraph.get(field)))
+                    # Entity reference revision fields (mostly paragraphs).
+                    elif self.paragraph_field_definitions[paragraph_type][field]['field_type'] == 'entity_reference_revisions':
+                        serialized_field = EntityReferenceRevisionsField()
+                        paragraph_parts.append(serialized_field.serialize(config, self.paragraph_field_definitions[paragraph_type], field, paragraph.get(field)))
+                    # Typed relation fields (currently, only taxonomy term)
+                    elif self.paragraph_field_definitions[paragraph_type][field]['field_type'] == 'typed_relation':
+                        serialized_field = TypedRelationField()
+                        paragraph_parts.append(serialized_field.serialize(config, self.paragraph_field_definitions[paragraph_type], field, paragraph.get(field)))
+                    # Geolocation fields.
+                    elif self.paragraph_field_definitions[paragraph_type][field]['field_type'] == 'geolocation':
+                        serialized_field = GeolocationField()
+                        paragraph_parts.append(serialized_field.serialize(config, self.paragraph_field_definitions[paragraph_type], field, paragraph.get(field)))
+                    # Link fields.
+                    elif self.paragraph_field_definitions[paragraph_type][field]['field_type'] == 'link':
+                        serialized_field = LinkField()
+                        paragraph_parts.append(serialized_field.serialize(config, self.paragraph_field_definitions[paragraph_type], field, paragraph.get(field)))
+                    # Authority Link fields.
+                    elif self.paragraph_field_definitions[paragraph_type][field]['field_type'] == 'authority_link':
+                        serialized_field = AuthorityLinkField()
+                        paragraph_parts.append(serialized_field.serialize(config, self.paragraph_field_definitions[paragraph_type], field, paragraph.get(field)))
+                    # Simple fields.
+                    else:
+                        paragraph_parts.append(SimpleField().serialize(config, self.paragraph_field_definitions[paragraph_type], field, paragraph.get(field)))
+                subvalues.append(config.get(field_name, {}).get('field_delimiter', ':').join(paragraph_parts))
+            else:
+                # Something went wrong, so we'll just return the Drupal field data we already have.
+                message = p_response.json().get('message', 'Unknown')
+                logging.warn(f'Could not retrieve paragraph for "{field_name}": {message}')
+                subvalues.append(subvalue)
+        if len(subvalues) > 1:
+            return subdelimiter.join(subvalues)
+        elif len(subvalues) == 0:
+            return None
+        return subvalues[0]
