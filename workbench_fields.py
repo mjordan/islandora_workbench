@@ -1811,7 +1811,7 @@ class EntityReferenceRevisionsField():
                 A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
         if row[field_name] is None:
-            logging.warning("Did not find " + field_name + " in row.")
+            logging.warning(f'Did not find "{field_name}" in row.')
             return entity
         id_field = row[config['id_field']]
 
@@ -1842,7 +1842,7 @@ class EntityReferenceRevisionsField():
         # Cache paragraph field definitions
         paragraph_type = config.get(field_name, {}).get('type')
         if not paragraph_type:
-            logging.warn("Could not determine target paragraph type for field " + field_name)
+            logging.warn(f'Could not determine target paragraph type for field "field_name"')
             return entity
 
         if not self.paragraph_field_definitions.get(paragraph_type):
@@ -1901,7 +1901,8 @@ class EntityReferenceRevisionsField():
                 paragraph = p_response.json()
                 reference_revisions.append({'target_id': paragraph['id'][0]['value'], 'target_revision_id': paragraph['revision_id'][0]['value']})
             else:
-                logging.warn("Could not create paragraph for " + field_name + " in row " + str(id_field))
+                message = p_response.json().get('message', 'Unknown')
+                logging.warn(f'Could not create paragraph for "{field_name}" in row "{id_field}": {message}')
 
         entity[field_name] = reference_revisions
         return entity
