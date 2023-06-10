@@ -360,7 +360,7 @@ class GeolocationField():
         if row[field_name] is None:
             return entity
 
-        id_field = row[config['id_field']]
+        id_field = row.get(config.get('id_field', 'not_applicable'), 'not_applicable')
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
             if config['subdelimiter'] in row[field_name]:
@@ -579,7 +579,7 @@ class LinkField():
         if row[field_name] is None:
             return entity
 
-        id_field = row[config['id_field']]
+        id_field = row.get(config.get('id_field', 'not_applicable'), 'not_applicable')
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
             if config['subdelimiter'] in row[field_name]:
@@ -800,7 +800,7 @@ class EntityReferenceField():
         if row[field_name] is None:
             return entity
 
-        id_field = row[config['id_field']]
+        id_field = row.get(config.get('id_field', 'not_applicable'), 'not_applicable')
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
             field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
@@ -1098,7 +1098,7 @@ class TypedRelationField():
         if row[field_name] is None:
             return entity
 
-        id_field = row[config['id_field']]
+        id_field = row.get(config.get('id_field', 'not_applicable'), 'not_applicable')
         # Currently only supports Typed Relation taxonomy entities.
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
@@ -1365,7 +1365,7 @@ class AuthorityLinkField():
         if row[field_name] is None:
             return entity
 
-        id_field = row[config['id_field']]
+        id_field = row.get(config.get('id_field', 'not_applicable'), 'not_applicable')
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
             if config['subdelimiter'] in row[field_name]:
@@ -1586,7 +1586,7 @@ class MediaTrackField():
         if row[field_name] is None:
             return entity
 
-        id_field = row[config['id_field']]
+        id_field = row.get(config.get('id_field', 'not_applicable'), 'not_applicable')
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
             if config['subdelimiter'] in row[field_name]:
@@ -1813,7 +1813,7 @@ class EntityReferenceRevisionsField():
         if row[field_name] is None:
             logging.warning(f'Did not find "{field_name}" in row.')
             return entity
-        id_field = row[config['id_field']]
+        id_field = row.get(config.get('id_field', 'not_applicable'), 'not_applicable')
 
         # This field *can* reference nodes, taxonomy terms, and media, but workbench
         # only supports paragraphs for now.
@@ -1842,7 +1842,7 @@ class EntityReferenceRevisionsField():
         # Cache paragraph field definitions
         paragraph_type = config.get(field_name, {}).get('type')
         if not paragraph_type:
-            logging.warn(f'Could not determine target paragraph type for field "field_name"')
+            logging.warn(f'Could not determine target paragraph type for field "{field_name}"')
             return entity
 
         if not self.paragraph_field_definitions.get(paragraph_type):
