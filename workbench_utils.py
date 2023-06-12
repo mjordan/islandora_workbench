@@ -6971,7 +6971,7 @@ def generate_contact_sheet_from_csv(config):
     shutil.copyfile(os.path.join(css_file_path), os.path.join(config['contact_sheet_output_dir'], css_file_name))
 
 
-def sqlite_manager(config, operation='select', table_name=None, query=None, values=(), db_file_path=None):
+def sqlite_manager(config, operation='select', table_name=None, query=None, values=(), db_file_path=None, warn_table_exists=False):
     """Perform operations on an SQLite database.
     """
     """
@@ -6993,6 +6993,8 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
         db_file_path: string
             The relative or absolute path to the database file. If the path is relative, the file
             is written to that path relative to the system's temporary directory.
+        warn_table_exists: boolean
+            Log a warning if a table that you are asking to be created already exists. Useful for debugging.
     Return
         bool|list|sqlite3.Cursor object
             True if the 'create_database' or 'remove_database' operation was successful, False if an
@@ -7011,7 +7013,7 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
 
     # Only create the database if the database file does not exist. Note: Sqlite3 creates the db file
     # automatically in its .connect method, so you only need to use this operation if you want to
-    # create the db prior to creating a table. No need to use it the first time you create a table.
+    # create the db prior to creating a table. No need to use it as a prerequisite for creating a table.
     if operation == 'create_database':
         if os.path.isfile(db_path):
             return False
@@ -7037,7 +7039,8 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
             return res
         else:
             con.close()
-            logging.warning(f'SQLite database "{db_path}" already contains a table named "{table_name}".')
+            if warn_table_exists is True:
+                logging.warning(f'SQLite database "{db_path}" already contains a table named "{table_name}".')
             return False
     elif operation == 'select':
         con = sqlite3.connect(db_path)
