@@ -1911,6 +1911,52 @@ class EntityReferenceRevisionsField():
         entity[field_name] = reference_revisions
         return entity
 
+    def update(self, config, field_definitions, entity, row, field_name, entity_field_values):
+        """Note: this method appends incoming CSV values to existing values, replaces existing field
+           values with incoming values, or deletes all values from fields, depending on whether
+           config['update_mode'] is 'append', 'replace', or 'delete'. It doesn not replace individual
+           values within fields.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            entity : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            entity_field_values : list
+                List of dictionaries containing existing value(s) for field_name in the entity being updated.
+            Returns
+            -------
+            dictionary
+                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
+        """
+        if config['update_mode'] == 'delete':
+            entity[field_name] = []
+            return entity
+
+        if row[field_name] is None:
+            return entity
+
+        if config['update_mode'] == 'replace':
+            return self.create(config, field_definitions, entity, row, field_name)
+
+        if config['update_mode'] == 'append':
+            # Save away existing values
+            entity = self.create(config, field_definitions, entity, row, field_name)
+            entity[field_name] = entity_field_values + entity[field_name]
+            # Enforce cardinality
+            cardinality = field_definitions[field_name].get('cardinality', -1)
+            if -1 < cardinality < len(entity[field_name]):
+                log_field_cardinality_violation(field_name, row.get(config.get('id_field', 'not_applicable'), 'not_applicable'), str(cardinality))
+                entity[field_name] = entity[field_name][slice(0, cardinality)]
+            return entity
+
     def dedupe_values(self, values):
         """Removes duplicate entries from 'values'.
         """
