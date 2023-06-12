@@ -1821,7 +1821,8 @@ class EntityReferenceRevisionsField():
             return entity
 
         # We allow fields to overide the global subdelimiter.
-        subdelimiter = config.get(field_name, {}).get('subdelimiter', None) or config['subdelimiter']
+        paragraph_configs = config.get('paragraph_fields', {}).get(field_definitions[field_name]['entity_type'], {}).get(field_name, {})
+        subdelimiter = paragraph_configs.get('subdelimiter', None) or config['subdelimiter']
 
         subvalues = row[field_name].split(subdelimiter)
 
@@ -1840,7 +1841,7 @@ class EntityReferenceRevisionsField():
         # creating a node from the CSV row...
 
         # Cache paragraph field definitions
-        paragraph_type = config.get(field_name, {}).get('type')
+        paragraph_type = paragraph_configs.get('type')
         if not paragraph_type:
             logging.warn(f'Could not determine target paragraph type for field "{field_name}"')
             return entity
@@ -1851,7 +1852,7 @@ class EntityReferenceRevisionsField():
         reference_revisions = []
         for subvalue in subvalues:
             # Zip together the fields and their values.
-            paragraph = dict(zip(config[field_name].get('field_order', {}), subvalue.split(config[field_name].get('field_delimiter', ':'))))
+            paragraph = dict(zip(paragraph_configs.get('field_order', {}), subvalue.split(paragraph_configs.get('field_delimiter', ':'))))
 
             # Process each field's value.
             for p_field, value in paragraph.items():
@@ -1893,7 +1894,7 @@ class EntityReferenceRevisionsField():
                     paragraph = simple_field.create(config, self.paragraph_field_definitions[paragraph_type], paragraph, paragraph, p_field)
 
             # Set parent information.
-            paragraph.update({'type': [{'target_id': config[field_name].get('type')}], 'parent_field_name': [{'value': field_name}]})
+            paragraph.update({'type': [{'target_id': paragraph_configs.get('type')}], 'parent_field_name': [{'value': field_name}]})
 
             # Create the paragraph.
             p_response = issue_request(config, 'POST', '/entity/paragraph?_format=json', {'Content-Type': 'application/json'}, paragraph, None)
@@ -1994,10 +1995,11 @@ class EntityReferenceRevisionsField():
             return field_data
 
         # We allow fields to overide the global subdelimiter.
-        subdelimiter = config.get(field_name, {}).get('subdelimiter', None) or config['subdelimiter']
+        paragraph_configs = config.get('paragraph_fields', {}).get(field_definitions[field_name]['entity_type'], {}).get(field_name, {})
+        subdelimiter = paragraph_configs.get('subdelimiter', None) or config['subdelimiter']
 
         # Cache paragraph field definitions
-        paragraph_type = config.get(field_name, {}).get('type')
+        paragraph_type = paragraph_configs.get('type')
         if not paragraph_type:
             logging.warn(f'Could not determine target paragraph type for field "field_name". Returning data from Drupal.')
             return json.dumps(field_data)
@@ -2012,7 +2014,7 @@ class EntityReferenceRevisionsField():
             if p_response.status_code == 200:
                 paragraph = p_response.json()
                 paragraph_parts = []
-                for field in config[field_name].get('field_order', {}):
+                for field in paragraph_configs.get('field_order', {}):
                     logging.info(f'Serializing paragraph field: {field}:' + json.dumps(paragraph.get(field)))
                     if not paragraph.get(field):
                         continue
@@ -2043,7 +2045,7 @@ class EntityReferenceRevisionsField():
                     # Simple fields.
                     else:
                         paragraph_parts.append(SimpleField().serialize(config, self.paragraph_field_definitions[paragraph_type], field, paragraph.get(field)))
-                subvalues.append(config.get(field_name, {}).get('field_delimiter', ':').join(paragraph_parts))
+                subvalues.append(paragraph_configs.get('field_delimiter', ':').join(paragraph_parts))
             else:
                 # Something went wrong, so we'll just return the Drupal field data we already have.
                 message = p_response.json().get('message', 'Unknown')
