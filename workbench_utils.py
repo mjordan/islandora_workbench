@@ -1980,8 +1980,14 @@ def check_input(config, args):
                             # Check that each file's extension is allowed for the current media type. 'file' is the only
                             # CSV field to check here. Files added using the 'additional_files' setting are checked below.
                             if file_check_row['file'].startswith('http'):
-                                extension = get_remote_file_extension(config, file_check_row['file'])
-                                extension = extension.lstrip('.')
+                                # First check to see if the file has an extension.
+                                extension = os.path.splitext(file_check_row['file'])[1]
+                                if len(extension) > 0:
+                                    extension = extension.lstrip('.')
+                                    extension = extension.lstrip('.')
+                                else:
+                                    extension = get_remote_file_extension(config, file_check_row['file'])
+                                    extension = extension.lstrip('.')
                             else:
                                 extension = os.path.splitext(file_check_row['file'])[1]
                                 extension = extension.lstrip('.').lower()
@@ -2073,8 +2079,14 @@ def check_input(config, args):
                         media_type_file_field = config['media_type_file_fields'][media_type]
                         for additional_filename in additional_filenames:
                             if additional_filename.startswith('http'):
-                                extension = get_remote_file_extension(config, additional_filename)
-                                extension = extension.lstrip('.')
+                                # First check to see if the file has an extension.
+                                extension = os.path.splitext(additional_filename)[1]
+                                if len(extension) > 0:
+                                    extension = extension.lstrip('.')
+                                    extension = extension.lstrip('.')
+                                else:
+                                    extension = get_remote_file_extension(config, additional_filename)
+                                    extension = extension.lstrip('.')
                             else:
                                 if check_file_exists(config, additional_filename):
                                     extension = os.path.splitext(additional_filename)
@@ -5963,7 +5975,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
 def get_remote_file_extension(config, file_url):
     """For remote files that have no extension, such as http://acme.com/islandora/object/some:pid/datastream/OBJ/download,
-       assign an extension, with a leading dot.
+       assign an extension, with a leading dot. If the file has an extension, return it.
     """
     # If the file has an extension, just return it.
     extension = os.path.splitext(file_url)[1]
@@ -6453,12 +6465,11 @@ def prep_parent_node_ids_map(config):
         path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
     else:
         path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
-    if 'secondary_tasks' in config and len(config['secondary_tasks']) > 0:
-        table = "csv_row_id_to_parent_node_id_map"
-        create_table_sql = "CREATE TABLE csv_row_id_to_parent_node_id_map (csv_row_id TEXT, node_id TEXT)"
-        sqlite_manager(config, operation='create_table', table_name=table, query=create_table_sql, db_file_path=path_to_db)
-    else:
-        return False
+
+    table = "csv_row_id_to_parent_node_id_map"
+    create_table_sql = "CREATE TABLE csv_row_id_to_parent_node_id_map (csv_row_id TEXT, node_id TEXT)"
+    sqlite_manager(config, operation='create_table', table_name=table, query=create_table_sql, db_file_path=path_to_db)
+
 
 
 def write_to_parent_node_ids_map(config, row_id, node_id):
@@ -6481,6 +6492,7 @@ def read_parent_node_ids_map(config):
         path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
     else:
         path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
+
     if config['secondary_tasks'] is not None:
         if not os.path.exists(path_to_db):
             message = f'Secondary task database "{path_to_db}" not found.'
@@ -6490,7 +6502,7 @@ def read_parent_node_ids_map(config):
             sys.exit()
 
     if os.path.exists(path_to_db):
-        res = sqlite_manager(config, operation='select', query="SELECT * FROM csv_row_id_to_parent_node_id_map")
+        res = sqlite_manager(config, operation='select', query="SELECT * FROM csv_row_id_to_parent_node_id_map", db_file_path=path_to_db)
         map = dict()
         # Note: since we don't enforce uniquness of CSV IDs across tasks, it is possible that a given
         # CSV ID can exist multiple times in the map table. In practice this shouldn't be a problem,

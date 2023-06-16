@@ -31,6 +31,7 @@ def create():
     prep_rollback_csv(config, path_to_rollback_csv_file)
     logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
 
+    prep_parent_node_ids_map(config)
     prepare_csv_id_to_node_id_map(config)
 
     if config['csv_headers'] == 'labels':
@@ -40,10 +41,6 @@ def create():
 
     if config['log_term_creation'] is False:
         logging.info("'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged.")
-
-    if config['secondary_tasks'] is not None:
-        if os.path.abspath(args.config) not in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
-            prep_parent_node_ids_map(config)
 
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     node_ids = dict()
@@ -1868,7 +1865,7 @@ ping_islandora(config, print_message=True)
 check_integration_module_version(config)
 
 if config['enable_http_cache'] is True:
-    requests_cache.install_cache(backend='sqlite')
+    requests_cache.install_cache(backend=config['http_cache_storage'], expire_after=config['http_cache_storage_expire_after'])
 
 cache_enabled = requests_cache.patcher.is_installed()
 if cache_enabled:
