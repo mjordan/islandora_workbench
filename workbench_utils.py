@@ -1160,7 +1160,7 @@ def replace_field_labels_with_names(config, csv_headers):
             The list of CSV headers with any labels replaced with field names.
     """
     # @todo: account for other entity types. @todo #572 add media (where do we get media type from?).
-    if config['task'] == 'create_terms':
+    if config['task'] == 'create_terms' or config['task'] == 'update_terms':
         field_map = get_fieldname_map(config, 'taxonomy_term', config['vocab_id'], 'labels')
     else:
         field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
@@ -1213,12 +1213,13 @@ def check_input(config, args):
         'create_from_files',
         'create_terms',
         'export_csv',
-        'get_data_from_view'
+        'get_data_from_view',
+        'update_terms'
     ]
     joiner = ', '
     if config['task'] not in tasks:
         message = '"task" in your configuration file must be one of "create", "update", "delete", ' + \
-            '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", or "get_data_from_view".'
+            '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", or "update_terms".'
         logging.error(message)
         sys.exit('Error: ' + message)
 
@@ -1353,6 +1354,18 @@ def check_input(config, args):
                 message = 'Please check your config file for required values: ' + joiner.join(get_data_from_view_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+    if config['task'] == 'update_terms':
+        update_terms_required_options = [
+            'task',
+            'host',
+            'username',
+            'password',
+            'vocab_id']
+        for update_terms_required_option in update_terms_required_options:
+            if update_terms_required_option not in config_keys:
+                message = 'Please check your config file for required values: ' + joiner.join(update_terms_required_options) + '.'
+                logging.error(message)
+                sys.exit('Error: ' + message)
 
     message = 'OK, configuration file has all required values (did not check for optional values).'
     print(message)
@@ -1425,8 +1438,8 @@ def check_input(config, args):
     # Check column headers in CSV file.
     csv_data = get_csv_data(config)
     # WIP on #559.
-    if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms']:
-        if config['task'] == 'create_terms':
+    if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms', 'update_terms']:
+        if config['task'] == 'create_terms' or config['task'] == 'update_terms':
             fieldname_map_cache_path = os.path.join(config['temp_dir'], f"taxonomy_term-{config['vocab_id']}-labels.fieldname_map")
         else:
             fieldname_map_cache_path = os.path.join(config['temp_dir'], f"node-{config['content_type']}-labels.fieldname_map")
@@ -1752,6 +1765,37 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit('Error: ' + message)
 
+    if config['task'] == 'update_terms':
+        if 'term_id' not in csv_column_headers:
+            message = 'For "update" tasks, your CSV file must contain a "term_id" column.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+        field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
+        drupal_fieldnames = []
+        for drupal_fieldname in field_definitions:
+            drupal_fieldnames.append(drupal_fieldname)
+        if 'term_name' in csv_column_headers:
+            csv_column_headers.remove('term_name')
+        if 'parent' in csv_column_headers:
+            csv_column_headers.remove('parent')
+        if 'weight' in csv_column_headers:
+            csv_column_headers.remove('weight')
+        if 'description' in csv_column_headers:
+            csv_column_headers.remove('description')
+        if 'term_id' in csv_column_headers:
+            csv_column_headers.remove('term_id')
+
+        for csv_column_header in csv_column_headers:
+            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+                logging.error('CSV column header %s does not match any Drupal field names in the %s taxonomy term.', csv_column_header, config['vocab_id'])
+                sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names in the ' + config['vocab_id'] + ' taxonomy term.')
+        message = 'OK, CSV column headers match Drupal field names.'
+        print(message)
+        logging.info(message)
+
+    if config['task'] == 'create_terms' or config['task'] == 'update_terms':
+        # Check that all required fields are present in the CSV.
+        field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
         validate_geolocation_values_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         validate_geolocation_fields(config, field_definitions, validate_geolocation_values_csv_data)
@@ -3610,9 +3654,9 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
     csv_reader = csv.DictReader(csv_reader_file_handle, delimiter=config['delimiter'], restval='stringtopopulateextrafields')
 
     # Unfinished (e.g. still need to apply this to creating taxonomies) WIP on #559.
-    if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms']:
+    if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms', 'update_terms']:
         '''
-        if config['task'] == 'create_terms':
+        if config['task'] == 'create_terms' or config['task'] == 'update_terms':
             field_map = get_fieldname_map(config, 'taxonomy_term', config['vocab_id'], 'labels')
         else:
             field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
@@ -7084,3 +7128,13 @@ def populate_csv_id_to_node_id_map(config, parent_csv_row_id, parent_node_id, cs
                            str(csv_row_id),
                            str(node_id)), db_file_path=config['csv_id_to_node_id_map_path']
                    )
+
+
+def get_term_field_values(config, term_id):
+    """Get a term's field data so we can use it during PATCH updates,
+       which replace a field's values.
+    """
+    url = config['host'] + '/taxonomy/term/' + term_id + '?_format=json'
+    response = issue_request(config, 'GET', url)
+    term_fields = json.loads(response.text)
+    return term_fields

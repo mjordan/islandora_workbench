@@ -50,6 +50,9 @@ class WorkbenchConfig:
         if 'task' == 'create_terms':
             config['id_field'] = 'term_name'
             config['allow_adding_terms'] = True
+        # @todo: These two overrides aren't working. For now, they are set within workbench.update_terms().
+        if 'task' == 'update_terms':
+            config['id_field'] = 'term_id'
         if 'paged_content_page_content_type' not in user_mods:
             config['paged_content_page_content_type'] = config['content_type']
         # Add preprocessor, if specified.
