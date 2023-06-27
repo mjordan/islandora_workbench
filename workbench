@@ -43,7 +43,7 @@ def create():
 
     if config['secondary_tasks'] is not None:
         if os.path.abspath(args.config) not in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
-            prep_parent_node_ids_map(config)
+            prepare_csv_id_to_node_id_map(config)
 
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     node_ids = dict()
@@ -117,28 +117,10 @@ def create():
         if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
             row['field_member_of'] = node_ids[row['parent_id']]
 
-        # For children whose parent node was created in the primary task. The ISLANDORA_WORKBENCH_SECONDARY_TASKS
-        # environment variable (set by the primary task) contains the names of the config files registered in the
-        # primary task's 'secondary_tasks' config option. If the name of the currently running task is in that list
-        # (i.e., it's a secondary task), populate its CSV 'field_member_of' with node IDs from the primary task using
-        # parent IDs from its 'parent_id' field as the key.
-        if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
-            secondary_task_data = read_parent_node_ids_map(config)
-            if os.path.abspath(args.config) in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
-                if len(secondary_task_data) > 0:
-                    if 'field_member_of' in row and row['field_member_of'] is None and 'parent_id' in row and row['parent_id'] in secondary_task_data.keys():
-                        row['field_member_of'] = secondary_task_data[row['parent_id']]
-                    else:
-                        # If there is no parent ID/nid pair in the secondary_task_data mapping, either because it wasn't
-                        # in the primary CSV or it failed to be created in the primary task, skip creating the current
-                        # secondary node and move on.
-                        logging.warning('Node for row with ID %s in secondary task CSV not created because its parent was not present or not created in the primary task.', id_field)
-                        continue
-
-        # Query the CSV ID to node ID map (WIP on #607).
-        if config['query_csv_id_to_node_id_map_for_parents'] is True and row['field_member_of'] is None:
-            query = "select * from csv_row_id_to_parent_node_id_map where csv_id = ?"
-            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id']))
+        # Assumes field_member_of is empty.
+        if config['query_csv_id_to_node_id_map_for_parents'] is True and 'parent_id' in row and row['parent_id'] is not None:
+            query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id'],), db_file_path=config['csv_id_to_node_id_map_path'])
             parents_from_id_map = []
             for parent_in_id_map_row in parent_in_id_map_result:
                 parents_from_id_map.append(parent_in_id_map_row['node_id'])
@@ -259,12 +241,13 @@ def create():
             # returns the alias, not the /node/xxx URL, which includes the node ID. In
             # this case, get the node ID from the response body.
             if re.match(r'/node/\d+$', node_uri):
-                node_nid = node_uri.rsplit('/', 1)[-1]
+                node_id = node_uri.rsplit('/', 1)[-1]
             else:
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
             populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)
+            write_rollback_node_id(config, node_id, path_to_rollback_csv_file)
 
             if config['progress_bar'] is False:
                 print('Node for "' + row['title'] + '" (record ' + id_field + ') created at ' + node_uri + '.')
@@ -287,22 +270,10 @@ def create():
                 else:
                     logging.error("Post node create script " + command + " failed.")
 
-        # For primary tasks, map the ID from CSV of newly created node to its node ID so
-        # we can use it for linking child nodes, media, etc.
-        if node_response.status_code == 201:
-            node_nid = node_uri.rsplit('/', 1)[-1]
-            node_ids[id_field] = node_nid
-            if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
-                # Only populate the CSV ID->node ID map for items created in the primary task.
-                if args.config not in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
-                    write_to_parent_node_ids_map(config, id_field, node_id)
-
         if config['progress_bar'] is True:
             row_count += 1
             row_position = get_percentage(row_count, num_csv_records)
             pbar(row_position)
-
-        write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
         if config['nodes_only'] is False and config['allow_missing_files'] is False is True and 'file' in row and len(row['file'].strip()) == 0 and config['paged_content_from_directories'] is False:
@@ -314,7 +285,7 @@ def create():
         if node_response.status_code == 201:
             allowed_media_response_codes = [201, 204]
             if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
-                media_response_status_code = create_media(config, row['file'], 'file', node_nid, row_for_media)
+                media_response_status_code = create_media(config, row['file'], 'file', node_id, row_for_media)
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
                         print("+ Media for " + row['file'] + " created.")
@@ -364,7 +335,7 @@ def create():
 
             # If 'url_alias' is in the CSV, create the alias.
             if 'url_alias' in row and len(row['url_alias']) > 0:
-                create_url_alias(config, node_nid, row['url_alias'])
+                create_url_alias(config, node_id, row['url_alias'])
 
             write_rollback_config(config, path_to_rollback_csv_file)
 

@@ -4969,18 +4969,14 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
         id_field = config['id_field']
         parents_from_id_map = []
         for row in csv_data:
-            print("DEBUG 1")
             query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
             parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row[id_field],), db_file_path=config['csv_id_to_node_id_map_path'])
-            print("DEBUG 2")
             for parent_in_id_map_row in parent_in_id_map_result:
-                print("DEBUG parent node ID", parent_in_id_map_row['node_id'])
                 parents_from_id_map.append(parent_in_id_map_row['node_id'].strip())
             if len(parents_from_id_map) > 1:
                 message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
                 logging.warning(message)
                 print("Warning: " + message)
-        print("DEBUG parents_from_id_map", parents_from_id_map)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
@@ -6476,63 +6472,6 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
 
     return csv_field_data
-
-
-def prep_parent_node_ids_map(config):
-    """Create a database table where we maintain the CSV ID->nid map in write_to_parent_node_ids_map().
-       Used in secondary tasks to create parent/child references.
-    """
-    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
-    else:
-        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
-    if 'secondary_tasks' in config and len(config['secondary_tasks']) > 0:
-        table = "csv_row_id_to_parent_node_id_map"
-        create_table_sql = "CREATE TABLE csv_row_id_to_parent_node_id_map (csv_row_id TEXT, node_id TEXT)"
-        sqlite_manager(config, operation='create_table', table_name=table, query=create_table_sql, db_file_path=path_to_db)
-    else:
-        return False
-
-
-def write_to_parent_node_ids_map(config, row_id, node_id):
-    """Inserts an entry into the SQLite table tracking the CSV->node ID mappings
-       used in secondary tasks to create parent/child references.
-    """
-    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
-    else:
-        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
-
-    sqlite_manager(config, operation='insert', query="INSERT INTO csv_row_id_to_parent_node_id_map VALUES (?, ?)", values=(str(row_id), str(node_id)), db_file_path=path_to_db)
-
-
-def read_parent_node_ids_map(config):
-    """Gets all of the CSV ID->node ID mappings used in secondary tasks to create parent/child references.
-    """
-    map = dict()
-    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
-    else:
-        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
-    if config['secondary_tasks'] is not None:
-        if not os.path.exists(path_to_db):
-            message = f'Secondary task database "{path_to_db}" not found.'
-            print('Error: ' + message)
-            logging.error(message)
-            return map
-            sys.exit()
-
-    if os.path.exists(path_to_db):
-        res = sqlite_manager(config, operation='select', query="SELECT * FROM csv_row_id_to_parent_node_id_map")
-        map = dict()
-        # Note: since we don't enforce uniquness of CSV IDs across tasks, it is possible that a given
-        # CSV ID can exist multiple times in the map table. In practice this shouldn't be a problem,
-        # since by iterating over them and adding them to the 'map' dictionary, the newest usage of
-        # the CSV ID will end up being the one used.
-        for row in res:
-            map[row['csv_row_id']] = row['node_id']
-
-    return map
 
 
 def csv_subset_warning(config):
