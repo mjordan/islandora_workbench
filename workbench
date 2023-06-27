@@ -122,11 +122,11 @@ def create():
         # primary task's 'secondary_tasks' config option. If the name of the currently running task is in that list
         # (i.e., it's a secondary task), populate its CSV 'field_member_of' with node IDs from the primary task using
         # parent IDs from its 'parent_id' field as the key.
-        secondary_task_data = read_parent_node_ids_map(config)
         if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
+            secondary_task_data = read_parent_node_ids_map(config)
             if os.path.abspath(args.config) in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
                 if len(secondary_task_data) > 0:
-                    if 'field_member_of' in row and 'parent_id' in row and row['parent_id'] in secondary_task_data.keys():
+                    if 'field_member_of' in row and row['field_member_of'] is None and 'parent_id' in row and row['parent_id'] in secondary_task_data.keys():
                         row['field_member_of'] = secondary_task_data[row['parent_id']]
                     else:
                         # If there is no parent ID/nid pair in the secondary_task_data mapping, either because it wasn't
@@ -136,7 +136,7 @@ def create():
                         continue
 
         # Query the CSV ID to node ID map (WIP on #607).
-        if config['query_csv_id_to_node_id_map_for_parents'] is True:
+        if config['query_csv_id_to_node_id_map_for_parents'] is True and row['field_member_of'] is None:
             query = "select * from csv_row_id_to_parent_node_id_map where csv_id = ?"
             parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id']))
             parents_from_id_map = []
@@ -145,7 +145,7 @@ def create():
             if len(parents_from_id_map) == 1:
                 row['field_member_of'] = parents_from_id_map[0]
             if len(parents_from_id_map) > 1:
-                logging.warning('Query of ID map for parent ID "%s" returned multiple node IDs: %s. Skpping assignment of parent.', row['parent_id'], ', '.join(parents_from_id_map))
+                logging.warning('Query of ID map for parent ID "%s" returned multiple node IDs: %s. Skpping populatiuon of field_member_of.', row['parent_id'], ', '.join(parents_from_id_map))
                 continue
 
         # Add custom (non-required) CSV fields.

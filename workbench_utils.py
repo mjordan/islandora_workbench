@@ -1495,6 +1495,7 @@ def check_input(config, args):
             validate_parent_ids_precede_children_csv_data = get_csv_data(config)
             validate_parent_ids_precede_children(config, validate_parent_ids_precede_children_csv_data)
             if config['query_csv_id_to_node_id_map_for_parents'] is True:
+                prepare_csv_id_to_node_id_map(config)
                 validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(config)
                 validate_parent_ids_in_csv_id_to_node_id_map(config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data)
 
@@ -4958,15 +4959,28 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     """
     id_field = config['id_field']
     if config['query_csv_id_to_node_id_map_for_parents'] is True:
-        query = "select * from csv_row_id_to_parent_node_id_map where parent_id = ?"
-        parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(id_field))
+        # First, confirm the databae exists; if not, tell the user and exit.
+        if not os.path.exists(config['csv_id_to_node_id_map_path']):
+            message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
+            logging.error(message)
+            sys.exit('Error: ' + message)
+
+        # If database exists, query it.
+        id_field = config['id_field']
         parents_from_id_map = []
-        for parent_in_id_map_row in parent_in_id_map_result:
-            parents_from_id_map.append(parent_in_id_map_row['node_id'])
-        if len(parents_from_id_map) > 1:
-            message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}.'
-            logging.warning(message)
-            print("Warning: " + message)
+        for row in csv_data:
+            print("DEBUG 1")
+            query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row[id_field],), db_file_path=config['csv_id_to_node_id_map_path'])
+            print("DEBUG 2")
+            for parent_in_id_map_row in parent_in_id_map_result:
+                print("DEBUG parent node ID", parent_in_id_map_row['node_id'])
+                parents_from_id_map.append(parent_in_id_map_row['node_id'].strip())
+            if len(parents_from_id_map) > 1:
+                message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
+                logging.warning(message)
+                print("Warning: " + message)
+        print("DEBUG parents_from_id_map", parents_from_id_map)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
@@ -7062,21 +7076,29 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
                 logging.warning(f'SQLite database "{db_path}" already contains a table named "{table_name}".')
             return False
     elif operation == 'select':
-        con = sqlite3.connect(db_path)
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
-        res = cur.execute(query, values).fetchall()
-        con.close()
-        return res
+        try:
+            con = sqlite3.connect(db_path)
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            res = cur.execute(query, values).fetchall()
+            con.close()
+            return res
+        except sqlite3.OperationalError as e:
+            logging.error(f'Error executing SQLite query against database at {db_path}: {e}')
+            sys.exit(f'Error executing SQLite query against database at {db_path}: {e}')
     else:
         # 'insert', 'update', 'delete' queries.
-        con = sqlite3.connect(db_path)
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
-        res = cur.execute(query, values)
-        con.commit()
-        con.close()
-        return res
+        try:
+            con = sqlite3.connect(db_path)
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            res = cur.execute(query, values)
+            con.commit()
+            con.close()
+            return res
+        except sqlite3.OperationalError as e:
+            logging.error(f'Error executing SQLite query against database at {db_path}: {e}')
+            sys.exit(f'Error executing SQLite query against database at {db_path}: {e}')
 
 
 def prepare_csv_id_to_node_id_map(config):
