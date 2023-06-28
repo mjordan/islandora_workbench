@@ -122,7 +122,7 @@ def create():
             if len(parents_from_id_map) == 1:
                 row['field_member_of'] = parents_from_id_map[0]
             if len(parents_from_id_map) > 1:
-                message = 'Query of ID map for parent ID "%s" returned multiple node IDs: %s. Skpping populatiuon of field_member_of.', row['parent_id'], ', '.join(parents_from_id_map)
+                message = f"Query of ID map for parent ID \"{row['parent_id']}\" returned multiple node IDs: {', '.join(parents_from_id_map)}. Skpping population of field_member_of."
                 logging.warning(message)
                 print('Warning: ' + message)
                 continue
