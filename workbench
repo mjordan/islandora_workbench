@@ -46,7 +46,6 @@ def create():
             prepare_csv_id_to_node_id_map(config)
 
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
-    node_ids = dict()
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
@@ -112,13 +111,7 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['published'] = ''
 
-        # If a node with an ID that matches the current item's 'parent_id'
-        # value has just been created, make the item a child of the node.
-        if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
-            row['field_member_of'] = node_ids[row['parent_id']]
-
-        # Assumes field_member_of is empty.
-        if config['query_csv_id_to_node_id_map_for_parents'] is True and 'parent_id' in row and row['parent_id'] is not None:
+        if config['query_csv_id_to_node_id_map_for_parents'] is True and 'parent_id' in row:
             query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
             parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id'],), db_file_path=config['csv_id_to_node_id_map_path'])
             parents_from_id_map = []
@@ -127,7 +120,9 @@ def create():
             if len(parents_from_id_map) == 1:
                 row['field_member_of'] = parents_from_id_map[0]
             if len(parents_from_id_map) > 1:
-                logging.warning('Query of ID map for parent ID "%s" returned multiple node IDs: %s. Skpping populatiuon of field_member_of.', row['parent_id'], ', '.join(parents_from_id_map))
+                message = 'Query of ID map for parent ID "%s" returned multiple node IDs: %s. Skpping populatiuon of field_member_of.', row['parent_id'], ', '.join(parents_from_id_map)
+                logging.warning(message)
+                print('Warning: ' + message)
                 continue
 
         # Add custom (non-required) CSV fields.
