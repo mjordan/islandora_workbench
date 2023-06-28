@@ -3546,7 +3546,7 @@ def remove_media_and_file(config, media_id):
                 logging.error("Media track file %s (from media %s) not deleted (HTTP response code %s).", track_file_id, media_id, track_file_response.status_code)
 
     # Then the media.
-    if file_response.status_code == 204 or file_id is None:
+    if file_id is None or file_response.status_code == 204:
         if config['standalone_media_url'] is True:
             media_endpoint = config['host'] + '/media/' + str(media_id) + '?_format=json'
         else:
