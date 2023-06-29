@@ -1997,7 +1997,7 @@ def check_input(config, args):
                                 extension = extension.lstrip('.').lower()
                             media_type_file_field = config['media_type_file_fields'][media_type]
                             registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
-                            if extension not in registered_extensions[media_type_file_field]:
+                            if isinstance(extension, str) and isinstance(registered_extensions, dict) and extension not in registered_extensions[media_type_file_field]:
                                 message = 'File "' + file_check_row[filename_field] + '" in CSV row "' + file_check_row[config['id_field']] + \
                                     '" has an extension (' + str(extension) + ') that is not allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
                                 logging.error(message)
@@ -3081,9 +3081,8 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
         file_result = create_file(config, filename, file_fieldname, csv_row, node_id)
 
     if filename.startswith('http'):
-        if file_result is False:
-            return False
-        filename = get_preprocessed_file_path(config, file_fieldname, csv_row, node_id, False)
+        if file_result > 0:
+            filename = get_preprocessed_file_path(config, file_fieldname, csv_row, node_id, False)
 
     if isinstance(file_result, int):
         if 'media_use_tid' in csv_row and len(csv_row['media_use_tid']) > 0:
