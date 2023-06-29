@@ -1997,7 +1997,7 @@ def check_input(config, args):
                                 extension = extension.lstrip('.').lower()
                             media_type_file_field = config['media_type_file_fields'][media_type]
                             registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
-                            if extension not in registered_extensions[media_type_file_field]:
+                            if isinstance(extension, str) and isinstance(registered_extensions, dict) and extension not in registered_extensions[media_type_file_field]:
                                 message = 'File "' + file_check_row[filename_field] + '" in CSV row "' + file_check_row[config['id_field']] + \
                                     '" has an extension (' + str(extension) + ') that is not allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
                                 logging.error(message)
