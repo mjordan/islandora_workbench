@@ -1959,7 +1959,7 @@ def check_input(config, args):
                 if config['allow_missing_files'] is True:
                     message = 'OK, missing or empty CSV "file" column values detected, but the "allow_missing_files" configuration setting is enabled.'
                     print(message + " See the log for more information.")
-                    logging.info(message + " See log entries above for more information.")
+                    logging.info(message + " Details are logged above.")
             else:
                 message = 'OK, files named in the CSV "file" column are all present.'
                 print(message)
