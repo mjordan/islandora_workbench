@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 '''Utility script to dump the CSV ID to Node ID map from its SQLite database, or to remove
    entries from the database with specificed config files names or prior to/before a provided timestamp.
 
