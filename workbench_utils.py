@@ -5032,9 +5032,17 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 
     if True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
         if config['validate_terms_exist'] is True:
-            print("OK, term IDs/names in CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
+            message = "OK, term IDs/names in CSV file exist in their respective taxonomies"
+            if config['log_term_creation'] is True:
+                message = message + " (new terms will be created as noted in the Workbench log)."
+            else:
+                message = message + ' (new terms will be created but not noted in the Workbench log since "log_term_creation" is set to false).'
+            print(message)
         else:
-            print("Skipping check for existence of terms (but new terms will be created as noted in the Workbench log).")
+            if config['log_term_creation'] is True:
+                print("Skipping check for existence of terms (new terms will be created as noted in the Workbench log).")
+            else:
+                print('Skipping check for existence of terms (notee: terms will be created but not noted in the Workbench log - "log_term_creation" is set to false).')
             logging.warning("Skipping check for existence of terms (but new terms will be created).")
     else:
         # All term IDs are in their field's vocabularies.
@@ -5201,7 +5209,12 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                             new_term_names_in_csv_results.append(new_term_names_in_csv)
 
     if typed_relation_fields_present is True and True in new_term_names_in_csv_results and config['allow_adding_terms'] is True:
-        print("OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies (and new terms will be created as noted in the Workbench log).")
+        message = "OK, term IDs/names used in typed relation fields in the CSV file exist in their respective taxonomies"
+        if config['log_term_creation'] is True:
+            message = message + " (new terms will be created as noted in the Workbench log)."
+        else:
+            message = message + ' (new terms will be created but not noted in the Workbench log since "log_term_creation" is set to false).'
+        print(message)
     else:
         if typed_relation_fields_present is True:
             # All term IDs are in their field's vocabularies.
