@@ -3344,7 +3344,7 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                 media_track_field_data[0]['default'] = True
                 media_json[media_track_field_name_parts[2]] = media_track_field_data
 
-        media_endpoint_path = '/entity/media?_format=json' if config['standalone_media_url']  else '/entity/media'
+        media_endpoint_path = '/entity/media?_format=json' if config['standalone_media_url'] else '/entity/media'
         media_headers = {
             'Content-Type': 'application/json'
         }
