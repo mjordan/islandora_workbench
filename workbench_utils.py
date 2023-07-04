@@ -3596,12 +3596,14 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         input_csv_path = file_path
     elif file_path.startswith('http') is True:
         input_csv_path = get_extracted_csv_file_path(config)
-        if not os.path.exists(input_csv_path):
-            get_csv_from_google_sheet(config)
+        if os.path.exists(input_csv_path):
+            os.remove(input_csv_path)
+        get_csv_from_google_sheet(config)
     elif file_path.endswith('.xlsx') is True:
         input_csv_path = get_extracted_csv_file_path(config)
-        if not os.path.exists(input_csv_path):
-            get_csv_from_excel(config)
+        if os.path.exists(input_csv_path):
+            os.remove(input_csv_path)
+        get_csv_from_excel(config)
     else:
         input_csv_path = os.path.join(config['input_dir'], file_path)
 
