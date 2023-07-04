@@ -39,15 +39,15 @@ class WorkbenchConfig:
         # Blend defaults with user mods
         for key, value in user_mods.items():
             config[key] = value
+
         # Modify some conditional values.
         if 'temp_dir' not in user_mods.keys():
             config['temp_dir'] = tempfile.gettempdir()
-        if 'task' in ['add_media', 'update', 'delete', 'export_csv']:
+        if user_mods['task'] in ['add_media', 'update', 'delete', 'export_csv']:
             config['id_field'] = 'node_id'
         if 'task' == 'delete_media':
             config['id_field'] = 'media_id'
-        # @todo: These two overrides aren't working. For now, they are set within workbench.create_terms().
-        if 'task' == 'create_terms':
+        if user_mods['task'] == 'create_terms':
             config['id_field'] = 'term_name'
             config['allow_adding_terms'] = True
         if 'paged_content_page_content_type' not in user_mods:
