@@ -113,7 +113,8 @@ def create():
 
         # Since all nodes, both ones just created and also ones created in previous runs of
         # Workbench, may have entries in the node ID map database, we always query it.
-        if config['query_csv_id_to_node_id_map_for_parents'] is True and 'parent_id' in row:
+        if config['query_csv_id_to_node_id_map_for_parents'] is True and 'parent_id' in row and row['parent_id'] is not None:
+            current_parent_node_id = ''
             query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
             parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id'],), db_file_path=config['csv_id_to_node_id_map_path'])
             parents_from_id_map = []
@@ -121,6 +122,7 @@ def create():
                 parents_from_id_map.append(parent_in_id_map_row['node_id'])
             if len(parents_from_id_map) == 1:
                 row['field_member_of'] = parents_from_id_map[0]
+                current_parent_node_id = parents_from_id_map[0]
             if len(parents_from_id_map) > 1:
                 message = f"Query of ID map for parent ID \"{row['parent_id']}\" returned multiple node IDs: {', '.join(parents_from_id_map)}. Skpping population of field_member_of."
                 logging.warning(message)
@@ -243,7 +245,10 @@ def create():
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
-            populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)
+            if 'parent_id' in row and row['parent_id'] is not None:
+                populate_csv_id_to_node_id_map(config, row['parent_id'], current_parent_node_id, id_field, node_id)
+            else:
+                populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)
             write_rollback_node_id(config, node_id, path_to_rollback_csv_file)
 
             if config['progress_bar'] is False:

@@ -1506,7 +1506,7 @@ def check_input(config, args):
                 message = 'If ingesting paged content, or compound objects where order is required a "field_weight" column is required.'
                 logging.info(message)
             if ('field_member_of' not in csv_column_headers):
-                message = 'If your CSV file contains a "parent_id" column, it must also contain an empty "field_member_of" column.'
+                message = 'If your CSV file contains a "parent_id" column, it must also contain a "field_member_of" column (with empty values in child rows).'
                 logging.error(message)
                 sys.exit('Error: ' + message)
         drupal_fieldnames = []
