@@ -1622,7 +1622,7 @@ def check_input(config, args):
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         if 'created' in csv_column_headers:
             validate_node_created_csv_data = get_csv_data(config)
-            validate_node_created_date(validate_node_created_csv_data)
+            validate_node_created_date(config, validate_node_created_csv_data)
         # Validate user IDs in 'uid' field, if present.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         if 'uid' in csv_column_headers:
@@ -4791,7 +4791,7 @@ def validate_term_name_length(term_name, row_number, column_name):
         sys.exit('Error: ' + message + ' See the Workbench log for more information.')
 
 
-def validate_node_created_date(csv_data):
+def validate_node_created_date(config, csv_data):
     """Checks that date_string is in the format used by Drupal's 'created' node property,
        e.g., 2020-11-15T23:49:22+00:00. Also check to see if the date is in the future.
     """
