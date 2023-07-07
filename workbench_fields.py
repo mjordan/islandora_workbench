@@ -186,7 +186,7 @@ class SimpleField():
                     entity[field_name] = field_values
                 else:
                     row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
-                    if field_definitions[field_name]['formatted_text'] is True:
+                    if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name] = [{'value': row[field_name], 'format': text_format}]
                     else:
                         entity[field_name] = [{'value': row[field_name]}]
