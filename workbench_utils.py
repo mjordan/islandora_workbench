@@ -1244,6 +1244,11 @@ def check_input(config, args):
                 message = 'Please check your config file for required values: ' + joiner.join(create_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+        if 'secondary_tasks' in config:
+            message = "If you are using one or more secondary tasks to create child/member nodes, be sure to include " + \
+                "\"ignore_existing_parent_ids: false\" in each of your secondary tasks' configuration files (Workbench doesn't check for this)."
+            logging.warning(message)
+            print("Warning: " + message)
     if config['task'] == 'update':
         update_required_options = [
             'task',
