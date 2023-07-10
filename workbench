@@ -126,28 +126,28 @@ def create():
         parent_node_ids_from_id_map = []
         current_parent_node_id = ''
 
-        if config['ignore_existing_parent_ids'] is True:
-            query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
-            params = (row['parent_id'], workbench_execution_start_time)
-        else:
-            query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
-            params = (row['parent_id'],)
+        if 'parent_id' in row and len(row['parent_id']) > 0:
+            if config['ignore_existing_parent_ids'] is True:
+                query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
+                params = (row['parent_id'], workbench_execution_start_time)
+            else:
+                query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
+                params = (row['parent_id'],)
 
-        # query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
-        parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=params, db_file_path=config['csv_id_to_node_id_map_path'])
-        for parent_in_id_map_row in parent_in_id_map_result:
-            parent_node_exists = ping_node(config, parent_in_id_map_row['node_id'], warn=False)
-            if parent_node_exists is True:
-                parent_node_ids_from_id_map.append(parent_in_id_map_row['node_id'])
-        if len(parent_node_ids_from_id_map) == 1:
-            row['field_member_of'] = parent_node_ids_from_id_map[0]
-            current_parent_node_id = parent_node_ids_from_id_map[0]
-        if len(parent_node_ids_from_id_map) > 1:
-            message = f"Review your Workbench log for problems with the \"parent_id\" value in row with ID \"{id_field}\" in your input CSV data."
-            unpopulated_member_of_log_message = f"Row ID \"{id_field}\" has a \"parent_id\" value (\"{row['parent_id']}\") that corresponds to more than one node ID in the CSV ID to node ID " + \
-                f"map (corresponding node IDs in the map are {', '.join(parent_node_ids_from_id_map)}). Workbench cannot reliably determine the child node's (CHILDNODEID) parent " + \
-                "node ID and will not populate node CHILDNODEID's \"field_member_of\"."
-            print('Warning: ' + message)
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=params, db_file_path=config['csv_id_to_node_id_map_path'])
+            for parent_in_id_map_row in parent_in_id_map_result:
+                parent_node_exists = ping_node(config, parent_in_id_map_row['node_id'], warn=False)
+                if parent_node_exists is True:
+                    parent_node_ids_from_id_map.append(parent_in_id_map_row['node_id'])
+            if len(parent_node_ids_from_id_map) == 1:
+                row['field_member_of'] = parent_node_ids_from_id_map[0]
+                current_parent_node_id = parent_node_ids_from_id_map[0]
+            if len(parent_node_ids_from_id_map) > 1:
+                message = f"Review your Workbench log for problems with the \"parent_id\" value in row with ID \"{id_field}\" in your input CSV data."
+                unpopulated_member_of_log_message = f"Row ID \"{id_field}\" has a \"parent_id\" value (\"{row['parent_id']}\") that corresponds to more than one node ID in the CSV ID to node ID " + \
+                    f"map (corresponding node IDs in the map are {', '.join(parent_node_ids_from_id_map)}). Workbench cannot reliably determine the child node's (CHILDNODEID) parent " + \
+                    "node ID and will not populate node CHILDNODEID's \"field_member_of\"."
+                print('Warning: ' + message)
 
         # Add custom (non-required) CSV fields.
         entity_fields = get_entity_fields(config, 'node', config['content_type'])
