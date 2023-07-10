@@ -417,7 +417,7 @@ def get_integration_module_version(config):
         return False
 
 
-def ping_node(config, nid, method='HEAD', return_json=False):
+def ping_node(config, nid, method='HEAD', return_json=False, warn=True):
     """Ping the node to see if it exists.
 
        Note that HEAD requests do not return a response body.
@@ -427,6 +427,7 @@ def ping_node(config, nid, method='HEAD', return_json=False):
         method: string
             Either 'HEAD' or 'GET'.
         return_json: boolean
+        warn: boolean
 
         Returns
         ------
@@ -444,7 +445,8 @@ def ping_node(config, nid, method='HEAD', return_json=False):
         else:
             return True
     else:
-        logging.warning("Node ping (%s) on %s returned a %s status code.", method.upper(), url, response.status_code)
+        if warn is True:
+            logging.warning("Node ping (%s) on %s returned a %s status code.", method.upper(), url, response.status_code)
         return False
 
 
@@ -1494,10 +1496,9 @@ def check_input(config, args):
         if 'parent_id' in csv_column_headers:
             validate_parent_ids_precede_children_csv_data = get_csv_data(config)
             validate_parent_ids_precede_children(config, validate_parent_ids_precede_children_csv_data)
-            if config['query_csv_id_to_node_id_map_for_parents'] is True:
-                prepare_csv_id_to_node_id_map(config)
-                validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(config)
-                validate_parent_ids_in_csv_id_to_node_id_map(config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data)
+            prepare_csv_id_to_node_id_map(config)
+            validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(config)
+            validate_parent_ids_in_csv_id_to_node_id_map(config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data)
 
         # Specific to creating aggregated content such as collections, compound objects and paged content. Currently, if 'parent_id' is present
         # in the CSV file 'field_member_of' is mandatory.
@@ -4936,29 +4937,51 @@ def validate_parent_ids_precede_children(config, csv_data):
 
 
 def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
-    """Query the CSV ID to node ID map to check for non-unique parent IDs. If they exist,
-       report out but do not exit.
+    """Query the CSV ID to node ID map to check for non-unique parent IDs.
+       If they exist, report out but do not exit.
     """
-    id_field = config['id_field']
-    if config['query_csv_id_to_node_id_map_for_parents'] is True:
-        # First, confirm the databae exists; if not, tell the user and exit.
-        if not os.path.exists(config['csv_id_to_node_id_map_path']):
-            message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
-            logging.error(message)
-            sys.exit('Error: ' + message)
+    workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+    message = "Validating parent IDs in the CSV ID to node ID map, please wait."
+    print(message)
+    # First, confirm the databae exists; if not, tell the user and exit.
+    if not os.path.exists(config['csv_id_to_node_id_map_path']):
+        message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
+        logging.error(message)
+        sys.exit('Error: ' + message)
 
-        # If database exists, query it.
-        id_field = config['id_field']
+    # If database exists, query it.
+    if config['ignore_existing_parent_ids'] is True:
+        workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+        message = "Parent IDs from previous Workbench sessions will be ignored."
+        print(message)
+        logging.warning(message)
+    else:
+        message = "'ignore_existing_parent_ids' is set to false, parent IDs from previous Workbench sessions will be checked."
+        print("Warning: " + message)
+        logging.warning(message)
+
+    id_field = config['id_field']
+    for row in csv_data:
+        if config['ignore_existing_parent_ids'] is True:
+            # Shouldn't find any, since they shouldn't have been created yet.
+            query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
+            params = (row['parent_id'], workbench_execution_start_time)
+        else:
+            query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
+            params = (row['parent_id'],)
         parents_from_id_map = []
-        for row in csv_data:
-            query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
-            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row[id_field],), db_file_path=config['csv_id_to_node_id_map_path'])
+        if 'parent_id' in row and len(row['parent_id']) > 0:
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=params, db_file_path=config['csv_id_to_node_id_map_path'])
             for parent_in_id_map_row in parent_in_id_map_result:
-                parents_from_id_map.append(parent_in_id_map_row['node_id'].strip())
+                parent_node_exists = ping_node(config, parent_in_id_map_row['node_id'], warn=False)
+                if parent_node_exists is True:
+                    parents_from_id_map.append(parent_in_id_map_row['node_id'])
+
             if len(parents_from_id_map) > 1:
-                message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
-                logging.warning(message)
-                print("Warning: " + message)
+                log_message = f'CSV row for child item with ID "{row[id_field]}" has a "parent_id" value ({row["parent_id"]}) that corresponds to existing parent node IDs ' + \
+                    f'in the CSV ID to node ID map (node IDs {", ".join(parents_from_id_map)}). Workbench will not be able to populate the "field_member_of" for nodes created from that row.'
+                logging.warning(log_message)
+                print(f'Warning: Review your Workbench log for potential problems with the "parent_id" value in CSV input row ID "{row[id_field]}".')
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):

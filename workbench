@@ -27,6 +27,15 @@ def create():
     print(message)
     logging.info(message)
 
+    if config['ignore_existing_parent_ids'] is True:
+        workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+        message = "Parent IDs from previous Workbench sessions will be ignored."
+        logging.warning(message)
+    else:
+        message = "'ignore_existing_parent_ids' is set to false, parent IDs from previous Workbench sessions will be used."
+        print("Warning: " + message)
+        logging.warning(message)
+
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     prep_rollback_csv(config, path_to_rollback_csv_file)
     logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
@@ -67,6 +76,7 @@ def create():
             row_as_parent = copy.deepcopy(row)
 
         id_field = row[config['id_field']]
+        unpopulated_member_of_log_message = None
 
         # Add required fields. 'status' ("published") can be overridden in CSV, below.
         node = {
@@ -111,23 +121,33 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['published'] = ''
 
-        # Since all nodes, both ones just created and also ones created in previous runs of
+        # Since all nodes created by Workbench, both ones just created and also ones created in previous runs of
         # Workbench, may have entries in the node ID map database, we always query it.
-        if config['query_csv_id_to_node_id_map_for_parents'] is True and 'parent_id' in row and row['parent_id'] is not None:
-            current_parent_node_id = ''
+        parent_node_ids_from_id_map = []
+        current_parent_node_id = ''
+
+        if config['ignore_existing_parent_ids'] is True:
+            query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
+            params = (row['parent_id'], workbench_execution_start_time)
+        else:
             query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
-            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id'],), db_file_path=config['csv_id_to_node_id_map_path'])
-            parents_from_id_map = []
-            for parent_in_id_map_row in parent_in_id_map_result:
-                parents_from_id_map.append(parent_in_id_map_row['node_id'])
-            if len(parents_from_id_map) == 1:
-                row['field_member_of'] = parents_from_id_map[0]
-                current_parent_node_id = parents_from_id_map[0]
-            if len(parents_from_id_map) > 1:
-                message = f"Query of ID map for parent ID \"{row['parent_id']}\" returned multiple node IDs: {', '.join(parents_from_id_map)}. Skpping population of field_member_of."
-                logging.warning(message)
-                print('Warning: ' + message)
-                continue
+            params = (row['parent_id'],)
+
+        # query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
+        parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=params, db_file_path=config['csv_id_to_node_id_map_path'])
+        for parent_in_id_map_row in parent_in_id_map_result:
+            parent_node_exists = ping_node(config, parent_in_id_map_row['node_id'], warn=False)
+            if parent_node_exists is True:
+                parent_node_ids_from_id_map.append(parent_in_id_map_row['node_id'])
+        if len(parent_node_ids_from_id_map) == 1:
+            row['field_member_of'] = parent_node_ids_from_id_map[0]
+            current_parent_node_id = parent_node_ids_from_id_map[0]
+        if len(parent_node_ids_from_id_map) > 1:
+            message = f"Review your Workbench log for problems with the \"parent_id\" value in row with ID \"{id_field}\" in your input CSV data."
+            unpopulated_member_of_log_message = f"Row ID \"{id_field}\" has a \"parent_id\" value (\"{row['parent_id']}\") that corresponds to more than one node ID in the CSV ID to node ID " + \
+                f"map (corresponding node IDs in the map are {', '.join(parent_node_ids_from_id_map)}). Workbench cannot reliably determine the child node's (CHILDNODEID) parent " + \
+                "node ID and will not populate node CHILDNODEID's \"field_member_of\"."
+            print('Warning: ' + message)
 
         # Add custom (non-required) CSV fields.
         entity_fields = get_entity_fields(config, 'node', config['content_type'])
@@ -245,11 +265,16 @@ def create():
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
-            if 'parent_id' in row and row['parent_id'] is not None:
+            if 'parent_id' in row and len(row['parent_id']) > 0:
                 populate_csv_id_to_node_id_map(config, row['parent_id'], current_parent_node_id, id_field, node_id)
             else:
                 populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)
+
             write_rollback_node_id(config, node_id, path_to_rollback_csv_file)
+
+            if unpopulated_member_of_log_message is not None:
+                unpopulated_member_of_log_message = unpopulated_member_of_log_message.replace('CHILDNODEID', str(node_id))
+                logging.warning(unpopulated_member_of_log_message)
 
             if config['progress_bar'] is False:
                 print('Node for "' + row['title'] + '" (record ' + id_field + ') created at ' + node_uri + '.')
@@ -1850,17 +1875,16 @@ ping_islandora(config, print_message=True)
 check_integration_module_version(config)
 
 if config['enable_http_cache'] is True:
+    if config['http_cache_storage'] == 'sqlite' and os.path.exists('http_cache.sqlite'):
+        logging.info('Cleared HTTP cache file "http_cache.sqlite".')
+        os.remove('http_cache.sqlite')
     requests_cache.install_cache(backend=config['http_cache_storage'], expire_after=config['http_cache_storage_expire_after'])
-
-cache_enabled = requests_cache.patcher.is_installed()
-if cache_enabled:
     message = "Client-side request caching is enabled."
 else:
     message = "Client-side request caching is not enabled."
 logging.info(message)
 
-if config['nodes_only'] is False:
-    check_drupal_core_version(config)
+check_drupal_core_version(config)
 
 csv_subset_warning(config)
 

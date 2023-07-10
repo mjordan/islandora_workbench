@@ -9,6 +9,7 @@
           python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_before "2023-05-29 19:17"
           python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_after "2023-05-22"
           python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_with_config_files create.yml,test_dir/create_testing.yml
+          python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_for_deleted_nodes https://islandora.traefik.me
 '''
 
 import os
@@ -16,6 +17,7 @@ import sys
 import csv
 import sqlite3
 import argparse
+import requests
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--db_path', required=True, help='Relative or absolute path to the SQLite database file.')
@@ -24,13 +26,15 @@ parser.add_argument('--nonunique', help='Name of the column that contains nonuni
 parser.add_argument('--remove_entries_before', help='Date string in yyyy:mm:dd hh:mm:ss (or truncated for of that pattern).')
 parser.add_argument('--remove_entries_after', help='Date string in yyyy:mm:dd hh:mm:ss (or truncated for of that pattern).')
 parser.add_argument('--remove_entries_with_config_files', help='comma-separated list of Workbench config files (exactly as passed to Workbench).')
+parser.add_argument('--remove_entries_for_deleted_nodes', help='Hostname (and port if applicable) of your Islandora.')
 args = parser.parse_args()
 
 if args.csv_path is None and \
     args.remove_entries_before is None and  \
     args.remove_entries_after is None and \
-    args.remove_entries_with_config_files is None:
-        sys.exit("You need to provide either --csv_path, --remove_entries_before, or --remove_entries_after option.")
+    args.remove_entries_with_config_files is None and \
+    args.remove_entries_for_deleted_nodes is None:
+        sys.exit("You need to provide either --csv_path, --remove_entries_before, --remove_entries_after, --remove_entries_with_config_files, or --remove_entries_for_deleted_nodes option.")
 
 #######################################
 # Check existence of specified paths. #
@@ -143,3 +147,40 @@ if args.remove_entries_with_config_files is not None:
         sys.exit(f"Error executing database query: {e}")
 
     print(f"Removed {num_rows_deleted} entries added to the database using config file(s) {args.remove_entries_with_config_files}.")
+
+if args.remove_entries_for_deleted_nodes is not None:
+    try:
+        query = "select * from csv_id_to_node_id_map"
+        params = ()
+        con = sqlite3.connect(db_path)
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        res = cur.execute(query, params).fetchall()
+        con.close()
+    except sqlite3.OperationalError as e:
+        sys.exit(f"Error executing database query: {e}")
+
+    deleted_nodes = []
+    for row in res:
+        url = args.remove_entries_for_deleted_nodes.rstrip('/') + '/node/' + str(row[5])
+        ping_response = requests.head(url, allow_redirects=True)
+        if ping_response.status_code == 404:
+            deleted_nodes.append(row[5])
+
+    if len(deleted_nodes) > 0:
+        deleted_nodes_tuple = tuple(deleted_nodes)
+        try:
+            placeholders = ', '.join('?' for x in deleted_nodes)
+            query = f"delete from csv_id_to_node_id_map where node_id in ({placeholders})"
+            con = sqlite3.connect(db_path)
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            res = cur.execute(query, deleted_nodes_tuple)
+            num_rows_deleted = cur.rowcount
+            con.commit()
+            con.close()
+        except sqlite3.OperationalError as e:
+            sys.exit(f"Error executing database query: {e}")
+
+    print(f"Removed {len(deleted_nodes)} rows from CSV ID to node ID map {db_path}.")
+    sys.exit()
