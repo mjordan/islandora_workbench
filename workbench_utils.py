@@ -1244,11 +1244,6 @@ def check_input(config, args):
                 message = 'Please check your config file for required values: ' + joiner.join(create_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
-        if config['secondary_tasks'] is not None:
-            message = "If you are using one or more secondary tasks to create child/member nodes, be sure to include " + \
-                "\"ignore_existing_parent_ids: false\" in each of your secondary tasks' configuration files (Workbench doesn't check for this)."
-            logging.warning(message)
-            print("Warning: " + message)
     if config['task'] == 'update':
         update_required_options = [
             'task',
@@ -1498,6 +1493,13 @@ def check_input(config, args):
         if 'url_alias' in csv_column_headers:
             validate_url_aliases_csv_data = get_csv_data(config)
             validate_url_aliases(config, validate_url_aliases_csv_data)
+
+        # We populate the ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME environment variable here so secondary
+        # tasks can access it during in validate_parent_ids_in_csv_id_to_node_id_map().
+        workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+        # Assumes that only primary tasks have something in their 'secondary_tasks' config setting.
+        if config['secondary_tasks'] is not None:
+            os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME"] = workbench_execution_start_time
         if 'parent_id' in csv_column_headers:
             validate_parent_ids_precede_children_csv_data = get_csv_data(config)
             validate_parent_ids_precede_children(config, validate_parent_ids_precede_children_csv_data)
@@ -4945,7 +4947,6 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     """Query the CSV ID to node ID map to check for non-unique parent IDs.
        If they exist, report out but do not exit.
     """
-    workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
     message = "Validating parent IDs in the CSV ID to node ID map, please wait."
     print(message)
     # First, confirm the databae exists; if not, tell the user and exit.
@@ -4954,12 +4955,19 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
         logging.error(message)
         sys.exit('Error: ' + message)
 
+    workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+
     # If database exists, query it.
     if config['ignore_existing_parent_ids'] is True:
         workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
         message = "Parent IDs from previous Workbench sessions will be ignored."
         print(message)
-        logging.warning(message)
+        logging.info(message)
+
+        # If this is a secondary task, use the primary task's execution start time.
+        if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
+            if os.path.abspath(config['config_file']) in json.loads(os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS')):
+                workbench_execution_start_time = os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME')
     else:
         message = "'ignore_existing_parent_ids' is set to false, parent IDs from previous Workbench sessions will be checked."
         print("Warning: " + message)
