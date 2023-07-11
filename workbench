@@ -85,7 +85,7 @@ def create():
         id_field = row[config['id_field']]
         unpopulated_member_of_log_message = None
 
-        # Add required fields. 'status' ("published") can be overridden in CSV, below.
+        # Add required fields.
         node = {
             'type': [
                 {'target_id': config['content_type'],
@@ -93,9 +93,6 @@ def create():
             ],
             'title': [
                 {'value': row['title']}
-            ],
-            'status': [
-                {'value': config['published']}
             ]
         }
 
@@ -230,6 +227,11 @@ def create():
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.create(config, field_definitions, node, row, custom_field)
+
+            # Entity reference revision fields (paragraphs).
+            elif field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
+                entity_reference_revisions_field = workbench_fields.EntityReferenceRevisionsField()
+                node = entity_reference_revisions_field.create(config, field_definitions, node, row, custom_field)
 
             # Typed relation fields.
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
@@ -484,6 +486,11 @@ def update():
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
+
+            # Entity reference revisions fields (paragraphs).
+            if field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
+                entity_reference_revisions_field = workbench_fields.EntityReferenceRevisionsField()
+                node = entity_reference_revisions_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # Typed relation fields (currently, only taxonomy term).
             elif field_definitions[custom_field]['field_type'] == 'typed_relation':
@@ -1318,9 +1325,6 @@ def create_from_files():
             ],
             'title': [
                 {'value': filename_without_extension}
-            ],
-            'status': [
-                {'value': config['published']}
             ]
         }
 

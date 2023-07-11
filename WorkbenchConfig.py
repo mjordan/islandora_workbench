@@ -204,7 +204,6 @@ class WorkbenchConfig:
             'http_cache_storage_expire_after': 1200,
             'validate_terms_exist': True,
             'validate_parent_node_exists': True,
-            'published': 1,
             'media_types': self.get_media_types(),
             'preprocessors': {},
             'check': self.args.check,
