@@ -2002,7 +2002,8 @@ def check_input(config, args):
                                 message = 'File "' + file_check_row[filename_field] + '" in CSV row "' + file_check_row[config['id_field']] + \
                                     '" has an extension (' + str(extension) + ') that is not allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
                                 logging.error(message)
-                                sys.exit('Error: ' + message)
+                                if config['perform_soft_checks'] is False:
+                                    sys.exit('Error: ' + message)
 
     # Check existence of fields identified in 'additional_files' config setting.
     if (config['task'] == 'create' or config['task'] == 'add_media') and config['nodes_only'] is False and config['paged_content_from_directories'] is False:
@@ -4845,7 +4846,8 @@ def validate_edtf_fields(config, field_definitions, csv_data):
                             if valid is False:
                                 message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + ' ("' + field_value + '") is not a valid EDTF date/time.'
                                 logging.error(message)
-                                sys.exit('Error: ' + message)
+                                if config['perform_soft_checks'] is False:
+                                    sys.exit('Error: ' + message)
 
     if edtf_fields_present is True:
         message = "OK, EDTF field values in the CSV file validate."
@@ -4933,7 +4935,8 @@ def validate_parent_ids_precede_children(config, csv_data):
             if row[1]['position'] < positions[parent_id]['position']:
                 message = f"Child item with CSV ID \"{row[0]}\" must come after its parent (CSV ID \"{row[1]['parent_id']}\") in the CSV file."
                 logging.error(message)
-                sys.exit('Error: ' + message)
+                if config['perform_soft_checks'] is False:
+                    sys.exit('Error: ' + message)
 
 
 def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
