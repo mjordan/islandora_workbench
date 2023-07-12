@@ -1417,6 +1417,8 @@ def check_input(config, args):
 
         # If nothing has failed by now, exit with a positive, upbeat message.
         print("Configuration and input data appear to be valid.")
+        if config['perform_soft_checks'] is True:
+            print('Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.')
         logging.info('Configuration checked for "%s" task using config file "%s", no problems found.', config['task'], args.config)
         sys.exit()
 
