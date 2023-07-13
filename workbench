@@ -350,7 +350,7 @@ def create():
                             logging.warning('File "%s" from additional_file field "%s" for CSV row "%s" does not exist, cannot create media.', filename, additional_file_field, row[config['id_field']])
                             continue
 
-                        media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_nid, row_for_media, additional_file_media_use_tid)
+                        media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, node_id, row_for_media, additional_file_media_use_tid)
                         if media_response_status_code in allowed_media_response_codes:
                             if config['progress_bar'] is False:
                                 print("+ Media for " + row[additional_file_field] + " created.")
@@ -367,7 +367,7 @@ def create():
 
             if config['paged_content_from_directories'] is True:
                 # Console output and logging are done in the create_children_from_directory() function.
-                create_children_from_directory(config, row_as_parent, node_nid)
+                create_children_from_directory(config, row_as_parent, node_id)
 
             # If 'url_alias' is in the CSV, create the alias.
             if 'url_alias' in row and len(row['url_alias']) > 0:
