@@ -161,8 +161,9 @@ class WorkbenchConfig:
             'log_file_path': 'workbench.log',
             'log_file_mode': 'a',
             'allow_missing_files': False,
-            # See issue 268.
-            'strict_check': True,
+            # See Issue 620. Allows the "--check" function to keep running past errors that can be handled
+            #  well with batch operations, rather than having to fix it in real-time when one error is hit.
+            'perform_soft_checks': False,
             'update_mode': 'replace',
             'max_node_title_length': 255,
             'paged_content_from_directories': False,
