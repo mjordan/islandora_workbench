@@ -189,6 +189,8 @@ class WorkbenchConfig:
             'ignore_csv_columns': list(),
             'use_node_title_for_media': False,
             'use_nid_in_media_title': False,
+            'use_node_title_for_media_title': False,
+            'field_for_remote_filename': False,
             'field_for_media_title': False,
             'delete_tmp_upload': False,
             'list_missing_drupal_fields': False,

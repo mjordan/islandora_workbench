@@ -3120,11 +3120,11 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                 if not media_name:
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using oEmbed URL instead.'
                     logging.warning(message)
-                    media_name = filename
+                    media_name = basename(filename)
         else:
             media_name = os.path.basename(filename)
 
-        if config['use_node_title_for_media']:
+        if config['use_node_title_for_media_title']:
             if 'title' in csv_row:
                 # WIP on #572: 'title' applies to node CSVs, for media, it should be 'name'.
                 media_name = csv_row['title']
@@ -3134,10 +3134,13 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using filename instead.'
                     logging.warning(message)
                     media_name = os.path.basename(filename)
-        if config['use_nid_in_media_title']:
+        elif config['use_nid_in_media_title']:
             media_name = f"{node_id}-Original File"
-        if config['field_for_media_title']:
-            media_name = csv_row[config['field_for_media_title']].replace(':', '_')
+        elif config['field_for_media_title']:
+            if len(csv_row[config['field_for_media_title']]) > 0:
+                media_name = csv_row[config['field_for_media_title']][:255]
+        else:
+            media_name = os.path.basename(filename)
 
         # Create a media from an oEmbed URL.
         if media_type in get_oembed_media_types(config):
@@ -5858,7 +5861,6 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
 
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
-        sections = urllib.parse.urlparse(file_path_from_csv)
         if config['task'] == 'add_media':
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', str(node_csv_row['node_id'])))
         elif config['task'] == 'update_media':
@@ -5869,9 +5871,18 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             Path(subdir).mkdir(parents=True, exist_ok=True)
 
         if 'check' in config.keys() and config['check'] is True:
-            os.rmdir(subdir)
+            try:
+                os.rmdir(subdir)
+            except Exception as e:
+                # This can happen if subdirectories from previous runs of Workbench exist.
+                message = f'Subdirectory "{subdir}" could not be deleted. See log for more info.'
+                print("Warning: " + message)
+                logging.warning(f'Subdictory "{subdir}" could not be deleted: {e}.')
 
-        if config["use_node_title_for_media"]:
+        remote_extension_with_dot = get_remote_file_extension(config, file_path_from_csv)
+        remote_filename_parts = os.path.splitext(file_path_from_csv)
+
+        if 'use_node_title_for_remote_filename' in config and config['use_node_title_for_remote_filename'] is True:
             # CSVs for add_media tasks don't contain 'title', so we need to get it.
             if config['task'] == 'add_media':
                 node_csv_row['title'] = get_node_title_from_nid(config, node_csv_row['node_id'])
@@ -5880,34 +5891,30 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
                     logging.warning(message)
                     node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
 
-            filename = re.sub(r'\s+', '_', node_csv_row['title'])
-            filename = re.sub('[^A-Za-z0-9]+', '_', filename)
-            if filename[-1] == '_':
-                filename = filename[:-1]
+            filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
+            filename = filename.strip('_')
+            downloaded_file_path = os.path.join(subdir, filename + remote_extension_with_dot)
+        elif 'use_nid_in_remote_filename' in config and config['use_nid_in_remote_filename'] is True:
+            filename = f"{node_id}{remote_extension_with_dot}"
             downloaded_file_path = os.path.join(subdir, filename)
-            extension = os.path.splitext(downloaded_file_path)[1]
+        elif config['field_for_remote_filename'] is not False and config['field_for_remote_filename'] in node_csv_row and len(node_csv_row[config['field_for_remote_filename']]) > 0:
+            field_for_remote_filename_string = node_csv_row[config['field_for_remote_filename']][:255]
+            sanitized_filename = re.sub('[^0-9a-zA-Z]+', '_', field_for_remote_filename_string)
+            downloaded_file_path = os.path.join(subdir, sanitized_filename.strip('_') + remote_extension_with_dot)
         else:
-            extension = os.path.splitext(sections.path)[1]
-            filename = sections.path.split("/")[-1]
+            # For files from Islandora Legacy ending in /view, we use the CSV ID as the filename.
+            if len(remote_filename_parts[1]) == 0:
+                filename = node_csv_row[config['id_field']] + remote_extension_with_dot
+            else:
+                # For other files, we use the last part of the path preceding the file extension.
+                url_path_parts = remote_filename_parts[0].split('/')
+                filename = url_path_parts[-1] + remote_extension_with_dot
             downloaded_file_path = os.path.join(subdir, filename)
 
-        if config['field_for_media_title']:
-            filename = node_csv_row[config['field_for_media_title']]
-            downloaded_file_path = os.path.join(subdir, filename)
-
-        if config['use_nid_in_media_title']:
-            filename = f"{node_id}-Original File"
-            downloaded_file_path = os.path.join(subdir, filename)
-
-        if extension == '':
-            extension_with_dot = get_remote_file_extension(config, file_path_from_csv)
-
-            downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
-
-            # Check to see if a file with this path already exists; if so, insert an
-            # incremented digit into the file path before the extension.
-            if os.path.exists(downloaded_file_path):
-                downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+        # Check to see if a file with this path already exists; if so, insert an
+        # incremented digit into the file path before the extension.
+        if os.path.exists(downloaded_file_path):
+            downloaded_file_path = get_deduped_file_path(downloaded_file_path)
 
         return downloaded_file_path
     # It's a local file.
@@ -5915,7 +5922,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
         if os.path.isabs(file_path_from_csv):
             file_path = file_path_from_csv
         else:
-            file_path = os.path.join(config['temp_dir'], file_path_from_csv)
+            file_path = os.path.join(config['input_dir'], file_path_from_csv)
         return file_path
 
 
@@ -5987,13 +5994,13 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
 def get_remote_file_extension(config, file_url):
     """For remote files that have no extension, such as http://acme.com/islandora/object/some:pid/datastream/OBJ/download,
-       assign an extension, with a leading dot. If the file has an extension, return it.
+       assign an extension, with a leading dot. If the file has an extension, return it, also with dot.
     """
     # If the file has an extension, just return it.
     extension = os.path.splitext(file_url)[1]
     extension = extension.lstrip('.').lower()
     if len(extension) > 0:
-        return extension + '.' + extension
+        return '.' + extension
 
     # If it doesn't have an extension, assign one based on its MIME type. Request's docs at
     # https://requests.readthedocs.io/en/latest/user/quickstart/#response-headers say that
