@@ -963,6 +963,21 @@ def update_media() -> None:
                 {'value': status}
             ]
         }
+    
+    def is_revisions_enabled(config: dict, media_type: str) -> bool:
+        """Return True if the media type has revisions enabled, False otherwise.
+
+        Parameters:
+            - config: The global configuration object.
+            - media_type: The media entity's type (e.g., 'image').
+
+        Returns:
+            True if the media type has revisions enabled, False otherwise.
+        """
+        media_type_endpoint = f"{config['host']}/entity/media_type/{media_type}/?_format=json"
+        response = issue_request(config, 'GET', media_type_endpoint).text
+        return json.loads(response)['new_revision']
+    
     # ========================================================= Main Logic =========================================================
 
     # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
