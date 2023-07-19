@@ -482,6 +482,9 @@ def update():
             if custom_field == 'uid':
                 continue
 
+            if custom_field == 'revision_log':
+                continue
+
             # Entity reference fields (taxonomy term and node).
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
@@ -527,7 +530,7 @@ def update():
             revisions_enabled = json.loads(response)['new_revision']
             if revisions_enabled:
                 # Add revision information to node
-                revision_log_message = row['revision_log_message'] if 'revision_log_message' in row else 'Updated by Islandora Workbench.'
+                revision_log_message = row['revision_log'] if 'revision_log' in row else 'Updated by Islandora Workbench.'
                 revision_json = {
                         "revision_log": [
                             {
