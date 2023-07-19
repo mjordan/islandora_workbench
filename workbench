@@ -520,6 +520,22 @@ def update():
         if node_has_all_fields is True:
             node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
             node_headers = {'Content-Type': 'application/json'}
+            # Make a GET request to the content type
+            content_type_endpoint = f"{config['host']}/entity/node_type/{config['content_type']}/?_format=json"
+            response = issue_request(config, 'GET', content_type_endpoint).text
+            # See if revisions are enabled for the content type and create a new revision log message if so
+            revisions_enabled = json.loads(response)['new_revision']
+            if revisions_enabled:
+                # Add revision information to node
+                revision_log_message = row['revision_log_message'] if 'revision_log_message' in row else 'Updated by Islandora Workbench.'
+                revision_json = {
+                        "revision_log": [
+                            {
+                            "value": revision_log_message
+                            }
+                        ],
+                    }
+                node.update(revision_json)
             node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
             if node_response.status_code == 200:
