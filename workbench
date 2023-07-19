@@ -978,6 +978,21 @@ def update_media() -> None:
         response = issue_request(config, 'GET', media_type_endpoint).text
         return json.loads(response)['new_revision']
     
+    def patch_media_revision_log_message(revision_log_message) -> dict:
+        """Return the JSON object for a PATCH request required to patch the media entity's revision log message.
+
+        Parameters:
+            - revision_log_message: The revision log message.
+
+        Returns:
+            The JSON request for a PATCH request required to patch the media entity's revision log message.
+        """
+        return {
+            'revision_log_message': [
+                {'value': revision_log_message}
+            ]
+        }
+
     # ========================================================= Main Logic =========================================================
 
     # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
