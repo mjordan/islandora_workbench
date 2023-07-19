@@ -536,7 +536,7 @@ def update():
                             {
                             "value": revision_log_message
                             }
-                        ],
+                        ]
                     }
                 node.update(revision_json)
             node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
