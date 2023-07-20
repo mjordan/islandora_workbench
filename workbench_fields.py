@@ -1259,8 +1259,12 @@ class TypedRelationField():
                         field_values.append(subvalue)
                     entity[field_name] = field_values
                 else:
-                    subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, field_name, subvalues[0]['target_id'])
-                    entity[field_name] = subvalues
+                    target_id = prepare_term_id(config, field_vocabs, field_name, subvalues[0]['target_id'])
+                    if target_id:
+                        subvalues[0]['target_id'] = target_id
+                        entity[field_name] = subvalues
+                    else:
+                        logging.warning("Skipping value '%s' in field '%s'; no term was found or created.", subvalues[0]['target_id'], field_name)
             if config['update_mode'] == 'append':
                 subvalues = split_typed_relation_string(config, row[field_name], target_type)
                 if config['subdelimiter'] in row[field_name]:
