@@ -6551,62 +6551,6 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     return csv_field_data
 
 
-def prep_parent_node_ids_map(config):
-    """Create a database table where we maintain the CSV ID->nid map in write_to_parent_node_ids_map().
-       Used in secondary tasks to create parent/child references.
-    """
-    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
-    else:
-        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
-
-    table = "csv_row_id_to_parent_node_id_map"
-    create_table_sql = "CREATE TABLE csv_row_id_to_parent_node_id_map (csv_row_id TEXT, node_id TEXT)"
-    sqlite_manager(config, operation='create_table', table_name=table, query=create_table_sql, db_file_path=path_to_db)
-
-
-def write_to_parent_node_ids_map(config, row_id, node_id):
-    """Inserts an entry into the SQLite table tracking the CSV->node ID mappings
-       used in secondary tasks to create parent/child references.
-    """
-    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
-    else:
-        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
-
-    sqlite_manager(config, operation='insert', query="INSERT INTO csv_row_id_to_parent_node_id_map VALUES (?, ?)", values=(str(row_id), str(node_id)), db_file_path=path_to_db)
-
-
-def read_parent_node_ids_map(config):
-    """Gets all of the CSV ID->node ID mappings used in secondary tasks to create parent/child references.
-    """
-    map = dict()
-    if os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR') is not None:
-        path_to_db = os.path.join(os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_TEMP_DIR"], config['sqlite_db_filename'])
-    else:
-        path_to_db = os.path.join(config['temp_dir'], config['sqlite_db_filename'])
-
-    if config['secondary_tasks'] is not None:
-        if not os.path.exists(path_to_db):
-            message = f'Secondary task database "{path_to_db}" not found.'
-            print('Error: ' + message)
-            logging.error(message)
-            return map
-            sys.exit()
-
-    if os.path.exists(path_to_db):
-        res = sqlite_manager(config, operation='select', query="SELECT * FROM csv_row_id_to_parent_node_id_map", db_file_path=path_to_db)
-        map = dict()
-        # Note: since we don't enforce uniquness of CSV IDs across tasks, it is possible that a given
-        # CSV ID can exist multiple times in the map table. In practice this shouldn't be a problem,
-        # since by iterating over them and adding them to the 'map' dictionary, the newest usage of
-        # the CSV ID will end up being the one used.
-        for row in res:
-            map[row['csv_row_id']] = row['node_id']
-
-    return map
-
-
 def csv_subset_warning(config):
     """Create a message indicating that the csv_start_row and csv_stop_row config
        options are present and that a subset of the input CSV will be used.
