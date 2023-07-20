@@ -1817,6 +1817,150 @@ def create_terms():
 def update_terms():
     """Placeholder function. See https://github.com/mjordan/islandora_workbench/issues/469 for more info.
     """
+    """Update terms via PATCH. Note that PATCHing replaces the target field,
+       so if we are adding an additional value to a multivalued field, we need
+       to include the existing value(s) in our PATCH. The field classes take
+       care of preserving existing values in 'append' updates.
+    """
+    message = '"Update Terms" (' + config['update_mode'] + ') task started using config file ' + args.config + '.'
+    print(message)
+    logging.info(message)
+
+    if config['csv_headers'] == 'labels':
+        fieldname_map_cache_path = os.path.join(config['temp_dir'], f"taxonomy_term-{config['vocab_id']}-labels.fieldname_map")
+        if os.path.exists(fieldname_map_cache_path):
+            os.remove(fieldname_map_cache_path)
+
+    # This should be set in WorkbenchConfig.get_config() but isn't
+    # taking effect there. @todo: address later.
+    config['id_field'] = 'term_id'
+
+    field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
+    csv_data = get_csv_data(config)
+    csv_column_headers = csv_data.fieldnames
+    invalid_target_ids = []
+
+    if config['log_term_creation'] is False:
+        logging.info("'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged.")
+
+    method = 'GET'
+    row_count = 0
+    for row in csv_data:
+        if not value_is_numeric(row['term_id']):
+            row['term_id'] = find_term_in_vocab(config, config['vocab_id'], row['term_id'])
+        term_ping_result = ping_term(config, row['term_id'])
+        url =  config['host'] + '/taxonomy/term/' + str(row['term_id']) + '?_format=json'
+        term_response = issue_request(config, method.upper(), url)
+        if term_ping_result is False:
+            if config['progress_bar'] is False:
+                print("Term " + row['term_name'] + " not found or not accessible, skipping update.")
+            logging.warning("Term " + row['term_name'] + " not found or not accessible, skipping update.")
+            continue
+
+        term = {
+            "vid": [
+                {
+                    "target_id": config['vocab_id'],
+                    "target_type": "taxonomy_vocabulary"
+                }
+            ],
+        }
+
+        term_field_values = get_term_field_values(config, row['term_id'])
+
+        if 'term_name' in csv_column_headers:
+            if len(row['term_name'].strip()) != 0:
+                term['name'] = [{'value': row['term_name']}]
+        
+        # Some optional base fields.
+        if 'parent' in csv_column_headers:
+            if len(row['parent'].strip()) != 0:
+                if not value_is_numeric(row['parent']):
+                    row['parent'] = find_term_in_vocab(config, config['vocab_id'], row['parent'])
+                term['parent'] = [{'target_id': row['parent']}]
+
+        if 'weight' in csv_column_headers:
+            if len(row['weight'].strip()) != 0 and value_is_numeric(row['weight']):
+                term['weight'] = [{'value': row['weight']}]
+
+        if 'description' in csv_column_headers:
+            if len(row['description'].strip()) != 0:
+                term['description'] = [{'value': row['description']}]
+
+        # Add custom (non-required) fields.
+        required_fields = ['term_id']
+        custom_fields = list(set(csv_column_headers) - set(required_fields))
+        for custom_field in custom_fields:
+            term_has_all_fields = True
+            # If node doesn't have the field, log that fact and skip updating the field.
+            reserved_fields = ['parent', 'weight', 'description', 'term_name']
+            if custom_field not in json.loads(term_response.text) and custom_field not in reserved_fields:
+                message = f'Term {row["term_name"]} does not have a "{custom_field}" field, skipping update.'
+                print(f'ERROR: ' + message)
+                logging.warning(message)
+                term_has_all_fields = False
+                break
+
+            # 'term_name' is a reserved CSV field.
+            if custom_field == 'term_name':
+                continue
+
+            # 'parent' is a reserved CSV field.
+            if custom_field == 'parent':
+                continue
+
+            # 'weight' is a reserved CSV field.
+            if custom_field == 'weight':
+                continue
+
+            # 'description' is a reserved CSV field.
+            if custom_field == 'description':
+                continue
+
+            # Entity reference fields (taxonomy term and node).
+            if field_definitions[custom_field]['field_type'] == 'entity_reference':
+                entity_reference_field = workbench_fields.EntityReferenceField()
+                term = entity_reference_field.update(config, field_definitions, term, row, custom_field, term_field_values[custom_field])
+
+            # Typed relation fields (currently, only taxonomy term).
+            elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                typed_relation_field = workbench_fields.TypedRelationField()
+                term = typed_relation_field.update(config, field_definitions, term, row, custom_field, term_field_values[custom_field])
+
+            # Geolocation fields.
+            elif field_definitions[custom_field]['field_type'] == 'geolocation':
+                geolocation_field = workbench_fields.GeolocationField()
+                term = geolocation_field.update(config, field_definitions, term, row, custom_field, term_field_values[custom_field])
+
+            # Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'link':
+                link_field = workbench_fields.LinkField()
+                term = link_field.update(config, field_definitions, term, row, custom_field, term_field_values[custom_field])
+
+            # Authority Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'authority_link':
+                link_field = workbench_fields.AuthorityLinkField()
+                term = link_field.update(config, field_definitions, term, row, custom_field, term_field_values[custom_field])
+
+            # For non-entity reference and non-typed relation fields (text, etc.).
+            else:
+                simple_field = workbench_fields.SimpleField()
+                term = simple_field.update(config, field_definitions, term, row, custom_field, term_field_values[custom_field])
+
+        if term_has_all_fields is True:
+            term_endpoint = config['host'] + '/taxonomy/term/' + row['term_id'] + '?_format=json'
+            term_headers = {'Content-Type': 'application/json'}
+            term_response = issue_request(config, 'PATCH', term_endpoint, term_headers, term)
+
+            if term_response.status_code == 200:
+                if config['progress_bar'] is False:
+                    print("Term " + config['host'] + '/taxonomy/term/' + row['term_id'] + " updated.")
+                logging.info("Term %s updated.", config['host'] + '/taxonomy/term/' + row['term_id'])
+
+            if config['progress_bar'] is True:
+                row_count += 1
+                row_position = get_percentage(row_count, num_csv_records)
+                pbar(row_position)
 
 
 # Main program logic.
@@ -1958,6 +2102,8 @@ try:
         create_terms()
     if config['task'] == 'update_media':
         update_media()
+    if config['task'] == 'update_terms':
+        update_terms()
 
     if config['secondary_tasks'] is not None and len(config['secondary_tasks']) > 0:
         for secondary_config_file in config['secondary_tasks']:

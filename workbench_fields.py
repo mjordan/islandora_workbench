@@ -139,6 +139,11 @@ class SimpleField():
         else:
             text_format = config['text_format_id']
 
+        if config['task'] == 'update_terms':
+            entity_id_field = 'term_id'
+        if config['task'] == 'update':
+            entity_id_field = 'node_id'
+
         # Cardinality has a limit.
         if field_definitions[field_name]['cardinality'] > 0:
             if config['update_mode'] == 'append':
@@ -146,25 +151,25 @@ class SimpleField():
                     subvalues = row[field_name].split(config['subdelimiter'])
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
-                        subvalue = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], subvalue)
+                        subvalue = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], subvalue)
                         if field_definitions[field_name]['formatted_text'] is True:
                             entity[field_name].append({'value': subvalue, 'format': text_format})
                         else:
                             entity[field_name].append({'value': subvalue})
                     entity[field_name] = self.dedupe_values(entity[field_name])
                     if len(entity[field_name]) > int(field_definitions[field_name]['cardinality']):
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                         entity[field_name] = entity[field_name][:field_definitions[field_name]['cardinality']]
                 else:
                     row[field_name] = self.remove_invalid_values(config, field_definitions, field_name, row[field_name])
-                    row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
+                    row[field_name] = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], row[field_name])
                     if field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name].append({'value': row[field_name], 'format': text_format})
                     else:
                         entity[field_name].append({'value': row[field_name]})
                     entity[field_name] = self.dedupe_values(entity[field_name])
                     if len(entity[field_name]) > int(field_definitions[field_name]['cardinality']):
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                         entity[field_name] = entity[field_name][:field_definitions[field_name]['cardinality']]
 
             if config['update_mode'] == 'replace':
@@ -174,10 +179,10 @@ class SimpleField():
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     subvalues = self.dedupe_values(subvalues)
                     if len(subvalues) > int(field_definitions[field_name]['cardinality']):
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                         subvalues = subvalues[:field_definitions[field_name]['cardinality']]
                     for subvalue in subvalues:
-                        subvalue = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], subvalue)
+                        subvalue = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], subvalue)
                         if field_definitions[field_name]['formatted_text'] is True:
                             field_values.append({'value': subvalue, 'format': text_format})
                         else:
@@ -185,8 +190,8 @@ class SimpleField():
                     field_values = self.dedupe_values(field_values)
                     entity[field_name] = field_values
                 else:
-                    row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
-                    if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
+                    row[field_name] = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], row[field_name])
+                    if field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name] = [{'value': row[field_name], 'format': text_format}]
                     else:
                         entity[field_name] = [{'value': row[field_name]}]
@@ -199,7 +204,7 @@ class SimpleField():
                     subvalues = row[field_name].split(config['subdelimiter'])
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
-                        subvalue = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], subvalue)
+                        subvalue = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], subvalue)
                         if field_definitions[field_name]['formatted_text'] is True:
                             field_values.append({'value': subvalue, 'format': text_format})
                         else:
@@ -207,7 +212,7 @@ class SimpleField():
                     entity[field_name] = entity_field_values + field_values
                     entity[field_name] = self.dedupe_values(entity[field_name])
                 else:
-                    row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
+                    row[field_name] = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], row[field_name])
                     if field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name] = entity_field_values + [{'value': row[field_name], 'format': text_format}]
                     else:
@@ -219,7 +224,7 @@ class SimpleField():
                     subvalues = row[field_name].split(config['subdelimiter'])
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
-                        subvalue = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], subvalue)
+                        subvalue = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], subvalue)
                         if field_definitions[field_name]['formatted_text'] is True:
                             field_values.append({'value': subvalue, 'format': text_format})
                         else:
@@ -227,7 +232,7 @@ class SimpleField():
                     entity[field_name] = field_values
                     entity[field_name] = self.dedupe_values(entity[field_name])
                 else:
-                    row[field_name] = truncate_csv_value(field_name, row['node_id'], field_definitions[field_name], row[field_name])
+                    row[field_name] = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], row[field_name])
                     if field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name] = [{'value': row[field_name], 'format': text_format}]
                     else:
@@ -420,6 +425,11 @@ class GeolocationField():
         if row[field_name] is None:
             return entity
 
+        if config['task'] == 'update_terms':
+            entity_id_field = 'term_id'
+        if config['task'] == 'update':
+            entity_id_field = 'node_id'
+
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
             if config['update_mode'] == 'replace':
@@ -450,7 +460,7 @@ class GeolocationField():
                     for subvalue in subvalues:
                         field_values.append(subvalue)
                     if len(field_values) > int(field_definitions[field_name]['cardinality']):
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                         field_values = field_values[:field_definitions[field_name]['cardinality']]
                     entity[field_name] = field_values
                 else:
@@ -464,13 +474,13 @@ class GeolocationField():
                         entity_field_values.append(subvalue)
                     if len(entity[field_name]) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                 else:
                     for subvalue in subvalues:
                         entity_field_values.append(subvalue)
                     if len(entity_field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
 
         return entity
 
@@ -636,6 +646,11 @@ class LinkField():
         if row[field_name] is None:
             return entity
 
+        if config['task'] == 'update_terms':
+            entity_id_field = 'term_id'
+        if config['task'] == 'update':
+            entity_id_field = 'node_id'
+
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
             if config['update_mode'] == 'replace':
@@ -674,7 +689,7 @@ class LinkField():
                     subvalues = split_link_string(config, row[field_name])
                     subvalues = self.dedupe_values(subvalues)
                     if len(subvalues) > int(field_definitions[field_name]['cardinality']):
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                     subvalues = subvalues[:field_definitions[field_name]['cardinality']]
                     for subvalue in subvalues:
                         field_values.append(subvalue)
@@ -688,7 +703,7 @@ class LinkField():
                     entity_field_values.append(subvalue)
                 entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
                 if len(entity[field_name]) > int(field_definitions[field_name]['cardinality']):
-                    log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                    log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
 
         return entity
 
@@ -895,6 +910,11 @@ class EntityReferenceField():
         if row[field_name] is None:
             return entity
 
+        if config['task'] == 'update_terms':
+            entity_id_field = 'term_id'
+        if config['task'] == 'update':
+            entity_id_field = 'node_id'
+
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
             field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
@@ -928,7 +948,7 @@ class EntityReferenceField():
                         field_values.append({'target_id': str(subvalue), 'target_type': target_type})
                     if len(field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = field_values[:field_definitions[field_name]['cardinality']]
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                     else:
                         entity[field_name] = field_values
                 else:
@@ -941,7 +961,7 @@ class EntityReferenceField():
                     entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                     else:
                         entity[field_name] = entity_field_values
                 else:
@@ -949,7 +969,7 @@ class EntityReferenceField():
                     entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                     else:
                         entity[field_name] = entity_field_values
 
@@ -1176,6 +1196,11 @@ class TypedRelationField():
         if row[field_name] is None:
             return entity
 
+        if config['task'] == 'update_terms':
+            entity_id_field = 'term_id'
+        if config['task'] == 'update':
+            entity_id_field = 'node_id'
+
         # Currently only supports Typed Relation taxonomy entities.
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
@@ -1193,7 +1218,7 @@ class TypedRelationField():
                         field_values.append(subvalue)
                     if len(field_values) > int(field_definitions[field_name]['cardinality']):
                         field_values = field_values[:field_definitions[field_name]['cardinality']]
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                     entity[field_name] = field_values
                 else:
                     subvalues[0]['target_id'] = prepare_term_id(config, field_vocabs, field_name, subvalues[0]['target_id'])
@@ -1208,7 +1233,7 @@ class TypedRelationField():
                     entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                     else:
                         entity[field_name] = entity_field_values
                 else:
@@ -1218,7 +1243,7 @@ class TypedRelationField():
                     entity_field_values = self.dedupe_values(entity_field_values)
                     if len(entity_field_values) > int(field_definitions[field_name]['cardinality']):
                         entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                     else:
                         entity[field_name] = entity_field_values
 
@@ -1422,6 +1447,11 @@ class AuthorityLinkField():
         if row[field_name] is None:
             return entity
 
+        if config['task'] == 'update_terms':
+            entity_id_field = 'term_id'
+        if config['task'] == 'update':
+            entity_id_field = 'node_id'
+
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
             if config['update_mode'] == 'replace':
@@ -1460,7 +1490,7 @@ class AuthorityLinkField():
                     subvalues = split_authority_link_string(config, row[field_name])
                     subvalues = self.dedupe_values(subvalues)
                     if len(subvalues) > int(field_definitions[field_name]['cardinality']):
-                        log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                        log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
                     subvalues = subvalues[:field_definitions[field_name]['cardinality']]
                     for subvalue in subvalues:
                         field_values.append(subvalue)
@@ -1474,7 +1504,7 @@ class AuthorityLinkField():
                     entity_field_values.append(subvalue)
                 entity[field_name] = entity_field_values[:field_definitions[field_name]['cardinality']]
                 if len(entity[field_name]) > int(field_definitions[field_name]['cardinality']):
-                    log_field_cardinality_violation(field_name, row['node_id'], field_definitions[field_name]['cardinality'])
+                    log_field_cardinality_violation(field_name, row[entity_id_field], field_definitions[field_name]['cardinality'])
 
         return entity
 
