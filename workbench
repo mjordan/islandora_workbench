@@ -1849,7 +1849,7 @@ def update_terms():
         if not value_is_numeric(row['term_id']):
             row['term_id'] = find_term_in_vocab(config, config['vocab_id'], row['term_id'])
         term_ping_result = ping_term(config, row['term_id'])
-        url =  config['host'] + '/taxonomy/term/' + str(row['term_id']) + '?_format=json'
+        url = config['host'] + '/taxonomy/term/' + str(row['term_id']) + '?_format=json'
         term_response = issue_request(config, method.upper(), url)
         if term_ping_result is False:
             if config['progress_bar'] is False:
@@ -1871,7 +1871,7 @@ def update_terms():
         if 'term_name' in csv_column_headers:
             if len(row['term_name'].strip()) != 0:
                 term['name'] = [{'value': row['term_name']}]
-        
+
         # Some optional base fields.
         if 'parent' in csv_column_headers:
             if len(row['parent'].strip()) != 0:
