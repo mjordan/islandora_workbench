@@ -113,7 +113,7 @@ def create():
 
         # Since all nodes, both ones just created and also ones created in previous runs of
         # Workbench, may have entries in the node ID map database, we always query it.
-        if config['query_csv_id_to_node_id_map_for_parents'] is True and 'parent_id' in row and row['parent_id'] is not None:
+        if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False and 'parent_id' in row and row['parent_id'] is not None:
             current_parent_node_id = ''
             query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
             parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id'],), db_file_path=config['csv_id_to_node_id_map_path'])
@@ -245,7 +245,7 @@ def create():
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
-            if 'parent_id' in row and row['parent_id'] is not None:
+            if 'parent_id' in row and row['parent_id'] is not None and config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False:
                 populate_csv_id_to_node_id_map(config, row['parent_id'], current_parent_node_id, id_field, node_id)
             else:
                 populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)

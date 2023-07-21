@@ -6971,6 +6971,9 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
             operation could not be completed, a list of sqlite3.Row objects for 'select' and 'update'
             queries, or an sqlite3.Cursor object for 'insert' and 'delete' queries.
     """
+    if isinstance(db_file_path, str) is not True:
+        return False
+
     if db_file_path is None:
         db_file_name = config['sqlite_db_filename']
     else:
