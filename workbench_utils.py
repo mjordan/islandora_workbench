@@ -4951,17 +4951,18 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
             sys.exit('Error: ' + message)
 
         # If database exists, query it.
-        id_field = config['id_field']
-        parents_from_id_map = []
-        for row in csv_data:
-            query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
-            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row[id_field],), db_file_path=config['csv_id_to_node_id_map_path'])
-            for parent_in_id_map_row in parent_in_id_map_result:
-                parents_from_id_map.append(parent_in_id_map_row['node_id'].strip())
-            if len(parents_from_id_map) > 1:
-                message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
-                logging.warning(message)
-                print("Warning: " + message)
+        if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False:
+            id_field = config['id_field']
+            parents_from_id_map = []
+            for row in csv_data:
+                query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
+                parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row[id_field],), db_file_path=config['csv_id_to_node_id_map_path'])
+                for parent_in_id_map_row in parent_in_id_map_result:
+                    parents_from_id_map.append(parent_in_id_map_row['node_id'].strip())
+                if len(parents_from_id_map) > 1:
+                    message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
+                    logging.warning(message)
+                    print("Warning: " + message)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):

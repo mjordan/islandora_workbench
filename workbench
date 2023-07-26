@@ -45,6 +45,7 @@ def create():
         if os.path.abspath(args.config) not in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
             prepare_csv_id_to_node_id_map(config)
 
+    node_ids = dict()
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
@@ -111,6 +112,16 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['published'] = ''
 
+        # We want to collect the node IDs of items that are parents so that
+        # users who have 'query_csv_id_to_node_id_map_for_parents: false' in
+        # their config files. Note: this will not work with secondary tasks,
+        # if you're using a secondary task you need to use the CSV ID to node
+        # ID map.
+        # If a node with an ID that matches the current item's 'parent_id'
+        # value has just been created, make the item a child of the node.
+        if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
+            row['field_member_of'] = node_ids[row['parent_id']]
+
         # Since all nodes, both ones just created and also ones created in previous runs of
         # Workbench, may have entries in the node ID map database, we always query it.
         if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False and 'parent_id' in row and row['parent_id'] is not None:
@@ -139,7 +150,7 @@ def create():
         additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
             # Skip processing field if empty.
-            if len(row[custom_field].strip()) == 0:
+            if len(str(row[custom_field]).strip()) == 0:
                 continue
 
             if len(additional_files_entries) > 0:
@@ -229,6 +240,12 @@ def create():
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.create(config, field_definitions, node, row, custom_field)
 
+            # If the user has configured Workbench to not query the CSV ID to node ID map,
+            # use the in-session node_ids list to track and assign parent node IDs.
+            if config['query_csv_id_to_node_id_map_for_parents'] is False:
+                if 'parent_id' in row and row['parent_id'] in node_ids.keys():
+                    node['field_member_of'] = [{'target_id': node_ids[row['parent_id']], 'target_type': 'node_type'}]
+
         node_headers = {'Content-Type': 'application/json'}
         node_endpoint = '/node?_format=json'
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
@@ -245,10 +262,15 @@ def create():
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
+            node_ids[id_field] = node_id
+
             if 'parent_id' in row and row['parent_id'] is not None and config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False:
                 populate_csv_id_to_node_id_map(config, row['parent_id'], current_parent_node_id, id_field, node_id)
+            elif config['query_csv_id_to_node_id_map_for_parents'] is False and config['csv_id_to_node_id_map_path'] is not False and row['parent_id'] in node_ids.keys():
+                populate_csv_id_to_node_id_map(config, row['parent_id'], node_ids[row['parent_id']], id_field, node_id)
             else:
                 populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)
+
             write_rollback_node_id(config, node_id, path_to_rollback_csv_file)
 
             if config['progress_bar'] is False:
