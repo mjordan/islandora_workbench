@@ -75,6 +75,9 @@ def create():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row
+        requests_cache.delete(expired=True)
+
         # Create a copy of the current item's row to pass to create_media().
         row_for_media = copy.deepcopy(row)
         if config['paged_content_from_directories'] is True:
