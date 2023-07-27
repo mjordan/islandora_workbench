@@ -11,8 +11,8 @@ jobs:
         include:
           - os: macos-11
             TARGET: macos
-            CMD_BUILD: pyinstaller workbench --onefile --name workbench-osx
-            OUT_FILE_NAME: workbench-osx
+            CMD_BUILD: pyinstaller workbench --onefile --name workbench-macos
+            OUT_FILE_NAME: workbench-macos
             ASSET_MIME: application/zip
           - os: ubuntu-latest
             TARGET: linux
