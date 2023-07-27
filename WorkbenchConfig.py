@@ -234,8 +234,8 @@ class WorkbenchConfig:
             'csv_headers': 'names',
             'clean_csv_values_skip': [],
             'text_format_id': 'basic_html',
-            'query_csv_id_to_node_id_map_for_parents': True
-
+            'query_csv_id_to_node_id_map_for_parents': False,
+            'ignore_duplicate_parent_ids': True
         }
 
     # Tests validity and existence of configuration file path.

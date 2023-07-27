@@ -51,6 +51,16 @@ def create():
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
 
+    if 'parent_id' in csv_column_headers and config['query_csv_id_to_node_id_map_for_parents'] is False:
+        message = "'query_csv_id_to_node_id_map_for_parents' is set to False, so only parent IDs from the current session will be used."
+        print(message)
+        logging.warning(message)
+
+    if config['query_csv_id_to_node_id_map_for_parents'] is True and config['ignore_duplicate_parent_ids'] is True:
+        message = "Ingoring duplicate parent IDs in the CSV ID to node ID map; only the most recent entry will be used."
+        print(message)
+        logging.warning(message)
+
     node_endpoint = config['host'] + '/node?_format=json'
 
     if config['nodes_only'] is True:
@@ -112,11 +122,10 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['published'] = ''
 
-        # We want to collect the node IDs of items that are parents so that
-        # users who have 'query_csv_id_to_node_id_map_for_parents: false' in
-        # their config files. Note: this will not work with secondary tasks,
-        # if you're using a secondary task you need to use the CSV ID to node
-        # ID map.
+        # We want to collect the node IDs of items that are parents so that users
+        # who have 'query_csv_id_to_node_id_map_for_parents: false' in their config
+        # files. Note: this will not work with secondary tasks, if you're using
+        # a secondary task you need to use the CSV ID to node ID map.
         # If a node with an ID that matches the current item's 'parent_id'
         # value has just been created, make the item a child of the node.
         if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
@@ -126,7 +135,10 @@ def create():
         # Workbench, may have entries in the node ID map database, we always query it.
         if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False and 'parent_id' in row and row['parent_id'] is not None:
             current_parent_node_id = ''
-            query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
+            if config['ignore_duplicate_parent_ids'] is True:
+                query = "select node_id from csv_id_to_node_id_map where csv_id = ? order by timestamp desc limit 1"
+            else:
+                query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
             parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id'],), db_file_path=config['csv_id_to_node_id_map_path'])
             parents_from_id_map = []
             for parent_in_id_map_row in parent_in_id_map_result:

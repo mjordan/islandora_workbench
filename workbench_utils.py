@@ -4955,7 +4955,10 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
             id_field = config['id_field']
             parents_from_id_map = []
             for row in csv_data:
-                query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
+                if config['ignore_duplicate_parent_ids'] is True:
+                    query = "select * from csv_id_to_node_id_map where parent_csv_id = ? order by timestamp desc limit 1"
+                else:
+                    query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
                 parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row[id_field],), db_file_path=config['csv_id_to_node_id_map_path'])
                 for parent_in_id_map_row in parent_in_id_map_result:
                     parents_from_id_map.append(parent_in_id_map_row['node_id'].strip())
