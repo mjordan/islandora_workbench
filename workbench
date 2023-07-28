@@ -2024,6 +2024,7 @@ parser.add_argument('--get_csv_template', help='Generate a CSV template using th
 parser.add_argument('--quick_delete_node', help='Delete the node (and all attached media) identified by the URL).')
 parser.add_argument('--quick_delete_media', help='Delete the media (and attached file) identified by the URL).')
 parser.add_argument('--contactsheet', help='Generate a contact sheet.', action='store_true')
+parser.add_argument('--version', action='version', version='Islandora Workbench 0.0.0')
 args = parser.parse_args()
 workbench_config = WorkbenchConfig(args)
 
