@@ -35,19 +35,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install "pyinstaller" "requests>=2.22,<3" "requests_cache" "ruamel.yaml<=0.17.21" "progress_bar" "openpyxl" "unidecode" "edtf_validate" "typing-extensions" "rich"        
     - name: Build for ${{matrix.TARGET}}
-      run: ${{matrix.CMD_BUILD}}
-    - name: Get release
-      id: get_release
-      uses: bruceadams/get-release@v1.3.2
-      env:
-        GITHUB_TOKEN: ${{ github.token }}      
+      run: ${{matrix.CMD_BUILD}}    
     - name: Upload Release Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        upload_url: ${{ github.event.release.upload_url }}
         asset_path: ./dist/${{ matrix.OUT_FILE_NAME}}
         asset_name: ${{ matrix.OUT_FILE_NAME}}
         asset_content_type: ${{ matrix.ASSET_MIME}}
