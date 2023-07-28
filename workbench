@@ -75,8 +75,9 @@ def create():
 
     row_count = 0
     for row in csv_data:
-        # Delete expired items from request_cache before processing a row
-        requests_cache.delete(expired=True)
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
 
         # Create a copy of the current item's row to pass to create_media().
         row_for_media = copy.deepcopy(row)
@@ -404,6 +405,10 @@ def update():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         node_ping_result = ping_node(config, row['node_id'], 'GET', True)
@@ -560,6 +565,10 @@ def delete():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
@@ -610,6 +619,10 @@ def add_media():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
@@ -981,6 +994,10 @@ def update_media() -> None:
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         media_id = extract_media_id(config, row)  # Extract the media ID from the CSV row
         if media_id is None:  # If the media ID is invalid, skip this row
             row_count += 1
@@ -1227,6 +1244,10 @@ def delete_media():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['media_id']):
             row['media_id'] = get_mid_from_media_url_alias(config, row['node_id'])
         media_delete_status_code = remove_media_and_file(config, row['media_id'])
@@ -1257,6 +1278,10 @@ def delete_media_by_node():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['row_id'])
 
@@ -1310,6 +1335,10 @@ def create_from_files():
     num_files = len(files)
     file_count = 0
     for file_name in files:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if file_name.startswith('rollback.') and file_name.endswith('csv'):
             continue
         if config['csv_id_to_node_id_map_path'] is not False and file_name.endswith(config['csv_id_to_node_id_map_path']):
@@ -1484,6 +1513,10 @@ def export_csv():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         output_row = collections.OrderedDict()
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
@@ -1621,6 +1654,10 @@ def get_data_from_view():
         sys.exit("Error: " + message)
     nodes = json.loads(response.text)
     for node in nodes:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if node['nid'][0]['value'] not in seen_nids:
             if node['type'][0]['target_id'] == config['content_type']:
                 seen_nids.append(node['nid'][0]['value'])
@@ -1673,6 +1710,10 @@ def get_data_from_view():
             continue
         nodes = json.loads(response.text)
         for node in nodes:
+            # Delete expired items from request_cache before processing a row.
+            if config['enable_http_cache'] is True:
+                requests_cache.delete(expired=True)
+
             if node['nid'][0]['value'] not in seen_nids:
                 if node['type'][0]['target_id'] == config['content_type']:
                     seen_nids.append(node['nid'][0]['value'])
@@ -1789,6 +1830,10 @@ def create_terms():
 
     # Finally, create any non-existent child terms.
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         # If it's a parent term, it will have been created above.
         if row['term_name'] in is_parent:
             continue
@@ -1849,6 +1894,10 @@ def update_terms():
     method = 'GET'
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['term_id']):
             row['term_id'] = find_term_in_vocab(config, config['vocab_id'], row['term_id'])
         term_ping_result = ping_term(config, row['term_id'])
