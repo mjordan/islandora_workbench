@@ -186,6 +186,12 @@ def issue_request(
         if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE'] and value_is_numeric(config['pause']):
             time.sleep(int(config['pause']))
 
+    if headers is None:
+        headers = dict()
+
+    if query is None:
+        query = dict()
+
     headers.update({'User-Agent': config['user_agent']})
 
     # The trailing / is stripped in config, but we do it here too, just in case.
@@ -309,12 +315,6 @@ def issue_request(
         logging.info(response_time_trend_entry)
         # Set this config option back to what it was before we updated in above.
         config['log_response_time'] = log_response_time_value
-
-    if headers is None:
-        headers = dict()
-
-    if query is None:
-        query = dict()
 
     return response
 
