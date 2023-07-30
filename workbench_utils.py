@@ -169,10 +169,10 @@ def issue_request(
         config,
         method,
         path,
-        headers=dict(),
+        headers=None,
         json='',
         data='',
-        query={}):
+        query=None):
     """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
        do not use this function.
     """
@@ -309,6 +309,12 @@ def issue_request(
         logging.info(response_time_trend_entry)
         # Set this config option back to what it was before we updated in above.
         config['log_response_time'] = log_response_time_value
+
+    if headers is None:
+        headers = dict()
+
+    if query is None:
+        query = dict()
 
     return response
 
@@ -6001,7 +6007,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
         return file_path
 
 
-def get_node_media_ids(config, node_id, media_use_tids=[]):
+def get_node_media_ids(config, node_id, media_use_tids=None):
     """Gets a list of media IDs for a node.
     """
     """Parameters
@@ -6019,6 +6025,9 @@ def get_node_media_ids(config, node_id, media_use_tids=[]):
         list
             List of media IDs.
     """
+    if media_use_tids is None:
+        media_use_tids = []
+
     media_id_list = list()
     url = f"{config['host']}/node/{node_id}/media?_format=json"
     response = issue_request(config, 'GET', url)
@@ -7147,7 +7156,7 @@ def populate_csv_id_to_node_id_map(config, parent_csv_row_id, parent_node_id, cs
 def get_term_field_values(config, term_id):
     """Get a term's field data so we can use it during PATCH updates,
        which replace a field's values.
-    """
+    """.
     url = config['host'] + '/taxonomy/term/' + term_id + '?_format=json'
     response = issue_request(config, 'GET', url)
     term_fields = json.loads(response.text)
