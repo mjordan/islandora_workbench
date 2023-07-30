@@ -7156,7 +7156,7 @@ def populate_csv_id_to_node_id_map(config, parent_csv_row_id, parent_node_id, cs
 def get_term_field_values(config, term_id):
     """Get a term's field data so we can use it during PATCH updates,
        which replace a field's values.
-    """.
+    """
     url = config['host'] + '/taxonomy/term/' + term_id + '?_format=json'
     response = issue_request(config, 'GET', url)
     term_fields = json.loads(response.text)
