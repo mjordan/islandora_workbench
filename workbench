@@ -496,7 +496,7 @@ def update():
                 node = entity_reference_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # Entity reference revisions fields (paragraphs).
-            if field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
+            elif field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
                 entity_reference_revisions_field = workbench_fields.EntityReferenceRevisionsField()
                 node = entity_reference_revisions_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
