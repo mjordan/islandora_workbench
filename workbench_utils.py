@@ -3180,7 +3180,7 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                 if not media_name:
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using oEmbed URL instead.'
                     logging.warning(message)
-                    media_name = basename(filename)
+                    media_name = os.path.basename(filename)
         else:
             media_name = os.path.basename(filename)
 
