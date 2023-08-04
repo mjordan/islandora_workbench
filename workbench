@@ -47,6 +47,11 @@ def create():
 
     prepare_csv_id_to_node_id_map(config)
 
+    if config['query_csv_id_to_node_id_map_for_parents'] is False:
+        message = "Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
+        print(message)
+        logging.warning(message)
+
     if config['csv_headers'] == 'labels':
         fieldname_map_cache_path = os.path.join(config['temp_dir'], f"node-{config['content_type']}-labels.fieldname_map")
         if os.path.exists(fieldname_map_cache_path):
@@ -61,10 +66,21 @@ def create():
             # Register the start time of the primary task so we can access it in secondary tasks.
             os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME"] = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
 
+    node_ids = dict()
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
+
+    if 'parent_id' in csv_column_headers and config['query_csv_id_to_node_id_map_for_parents'] is False:
+        message = "'query_csv_id_to_node_id_map_for_parents' is set to False, so only parent IDs from the current session will be used."
+        print(message)
+        logging.warning(message)
+
+    if config['query_csv_id_to_node_id_map_for_parents'] is True and config['ignore_duplicate_parent_ids'] is True:
+        message = "Ingoring duplicate parent IDs in the CSV ID to node ID map; only the most recent entry will be used."
+        print(message)
+        logging.warning(message)
 
     node_endpoint = config['host'] + '/node?_format=json'
 
@@ -129,20 +145,25 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['published'] = ''
 
-        # Since all nodes created by Workbench, both ones just created and also ones created in previous runs of
-        # Workbench, may have entries in the node ID map database, we always query it.
-        parent_node_ids_from_id_map = []
-        current_parent_node_id = ''
+        # We want to collect the node IDs of items that are parents in-session
+        # to accommodate users who have 'query_csv_id_to_node_id_map_for_parents: false'
+        # in their config files. Note: this will not work with secondary tasks, if
+        # you're using a secondary task you need to use the CSV ID to node ID map.
+        # If a node with an ID that matches the current item's 'parent_id'
+        # value has just been created, make the item a child of the node.
+        if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
+            row['field_member_of'] = node_ids[row['parent_id']]
 
-        if 'parent_id' in row and len(row['parent_id']) > 0:
-            if config['ignore_existing_parent_ids'] is True:
-                query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
-                params = (row['parent_id'], workbench_execution_start_time)
+        # Since all nodes, both ones just created and also ones created in previous runs of
+        # Workbench, may have entries in the node ID map database, we always query it.
+        if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False and 'parent_id' in row and row['parent_id'] is not None:
+            current_parent_node_id = ''
+            if config['ignore_duplicate_parent_ids'] is True:
+                query = "select node_id from csv_id_to_node_id_map where csv_id = ? order by timestamp desc limit 1"
             else:
                 query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
-                params = (row['parent_id'],)
-
-            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=params, db_file_path=config['csv_id_to_node_id_map_path'])
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id'],), db_file_path=config['csv_id_to_node_id_map_path'])
+            parents_from_id_map = []
             for parent_in_id_map_row in parent_in_id_map_result:
                 parent_node_exists = ping_node(config, parent_in_id_map_row['node_id'], warn=False)
                 if parent_node_exists is True:
@@ -167,7 +188,7 @@ def create():
         additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
             # Skip processing field if empty.
-            if len(row[custom_field].strip()) == 0:
+            if len(str(row[custom_field]).strip()) == 0:
                 continue
 
             if len(additional_files_entries) > 0:
@@ -262,6 +283,12 @@ def create():
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.create(config, field_definitions, node, row, custom_field)
 
+            # If the user has configured Workbench to not query the CSV ID to node ID map,
+            # use the in-session node_ids list to track and assign parent node IDs.
+            if config['query_csv_id_to_node_id_map_for_parents'] is False:
+                if 'parent_id' in row and row['parent_id'] in node_ids.keys():
+                    node['field_member_of'] = [{'target_id': node_ids[row['parent_id']], 'target_type': 'node_type'}]
+
         node_headers = {'Content-Type': 'application/json'}
         node_endpoint = '/node?_format=json'
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
@@ -278,8 +305,12 @@ def create():
                 node_id = returned_node['nid'][0]['value']
                 node_uri = config['host'] + '/node/' + str(node_id)
 
-            if 'parent_id' in row and len(row['parent_id']) > 0:
+            node_ids[id_field] = node_id
+
+            if 'parent_id' in row and row['parent_id'] is not None and config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False:
                 populate_csv_id_to_node_id_map(config, row['parent_id'], current_parent_node_id, id_field, node_id)
+            elif config['query_csv_id_to_node_id_map_for_parents'] is False and config['csv_id_to_node_id_map_path'] is not False and 'parent_id' in row and row['parent_id'] in node_ids.keys():
+                populate_csv_id_to_node_id_map(config, row['parent_id'], node_ids[row['parent_id']], id_field, node_id)
             else:
                 populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)
 
@@ -496,7 +527,7 @@ def update():
                 node = entity_reference_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # Entity reference revisions fields (paragraphs).
-            if field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
+            elif field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
                 entity_reference_revisions_field = workbench_fields.EntityReferenceRevisionsField()
                 node = entity_reference_revisions_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 

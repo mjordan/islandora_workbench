@@ -1519,8 +1519,13 @@ def check_input(config, args):
             validate_parent_ids_precede_children_csv_data = get_csv_data(config)
             validate_parent_ids_precede_children(config, validate_parent_ids_precede_children_csv_data)
             prepare_csv_id_to_node_id_map(config)
-            validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(config)
-            validate_parent_ids_in_csv_id_to_node_id_map(config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data)
+            if config['query_csv_id_to_node_id_map_for_parents'] is True:
+                validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(config)
+                validate_parent_ids_in_csv_id_to_node_id_map(config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data)
+            else:
+                message = "Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
+                print(message)
+                logging.warning(message)
 
         # Specific to creating aggregated content such as collections, compound objects and paged content. Currently, if 'parent_id' is present
         # in the CSV file 'field_member_of' is mandatory.
@@ -3175,11 +3180,11 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                 if not media_name:
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using oEmbed URL instead.'
                     logging.warning(message)
-                    media_name = filename
+                    media_name = basename(filename)
         else:
             media_name = os.path.basename(filename)
 
-        if config['use_node_title_for_media']:
+        if config['use_node_title_for_media_title']:
             if 'title' in csv_row:
                 # WIP on #572: 'title' applies to node CSVs, for media, it should be 'name'.
                 media_name = csv_row['title']
@@ -3189,10 +3194,13 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using filename instead.'
                     logging.warning(message)
                     media_name = os.path.basename(filename)
-        if config['use_nid_in_media_title']:
+        elif config['use_nid_in_media_title']:
             media_name = f"{node_id}-Original File"
-        if config['field_for_media_title']:
-            media_name = csv_row[config['field_for_media_title']].replace(':', '_')
+        elif config['field_for_media_title']:
+            if len(csv_row[config['field_for_media_title']]) > 0:
+                media_name = csv_row[config['field_for_media_title']][:255]
+        else:
+            media_name = os.path.basename(filename)
 
         # Create a media from an oEmbed URL.
         if media_type in get_oembed_media_types(config):
@@ -4996,54 +5004,35 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     """Query the CSV ID to node ID map to check for non-unique parent IDs.
        If they exist, report out but do not exit.
     """
-    message = "Validating parent IDs in the CSV ID to node ID map, please wait."
-    print(message)
-    # First, confirm the databae exists; if not, tell the user and exit.
-    if not os.path.exists(config['csv_id_to_node_id_map_path']):
-        message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
-        logging.error(message)
-        sys.exit('Error: ' + message)
+    if config['query_csv_id_to_node_id_map_for_parents'] is True:
+        message = "Validating parent IDs in the CSV ID to node ID map, please wait."
+        print(message)
+    else:
+        return
 
-    workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+    # First, confirm the databae exists; if not, tell the user and exit.
+    if config['csv_id_to_node_id_map_path'] is not False:
+        if not os.path.exists(config['csv_id_to_node_id_map_path']):
+            message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
+            logging.error(message)
+            sys.exit('Error: ' + message)
 
     # If database exists, query it.
-    if config['ignore_existing_parent_ids'] is True:
-        workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
-        message = "Parent IDs from previous Workbench sessions will be ignored."
-        print(message)
-        logging.info(message)
-
-        # If this is a secondary task, use the primary task's execution start time.
-        if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
-            if os.path.abspath(config['config_file']) in json.loads(os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS')):
-                workbench_execution_start_time = os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME')
-    else:
-        message = "'ignore_existing_parent_ids' is set to false, parent IDs from previous Workbench sessions will be checked."
-        print("Warning: " + message)
-        logging.warning(message)
-
-    id_field = config['id_field']
-    for row in csv_data:
-        if config['ignore_existing_parent_ids'] is True:
-            # Shouldn't find any, since they shouldn't have been created yet.
-            query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
-            params = (row['parent_id'], workbench_execution_start_time)
-        else:
-            query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
-            params = (row['parent_id'],)
+    if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False:
+        id_field = config['id_field']
         parents_from_id_map = []
-        if 'parent_id' in row and len(row['parent_id']) > 0:
-            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=params, db_file_path=config['csv_id_to_node_id_map_path'])
+        for row in csv_data:
+            if config['ignore_duplicate_parent_ids'] is True:
+                query = "select * from csv_id_to_node_id_map where parent_csv_id = ? order by timestamp desc limit 1"
+            else:
+                query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row[id_field],), db_file_path=config['csv_id_to_node_id_map_path'])
             for parent_in_id_map_row in parent_in_id_map_result:
-                parent_node_exists = ping_node(config, parent_in_id_map_row['node_id'], warn=False)
-                if parent_node_exists is True:
-                    parents_from_id_map.append(parent_in_id_map_row['node_id'])
-
+                parents_from_id_map.append(parent_in_id_map_row['node_id'].strip())
             if len(parents_from_id_map) > 1:
-                log_message = f'CSV row for child item with ID "{row[id_field]}" has a "parent_id" value ({row["parent_id"]}) that corresponds to existing parent node IDs ' + \
-                    f'in the CSV ID to node ID map (node IDs {", ".join(parents_from_id_map)}). Workbench will not be able to populate the "field_member_of" for nodes created from that row.'
-                logging.warning(log_message)
-                print(f'Warning: Review your Workbench log for potential problems with the "parent_id" value in CSV input row ID "{row[id_field]}".')
+                message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
+                logging.warning(message)
+                print("Warning: " + message)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
@@ -5940,7 +5929,6 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
 
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
-        sections = urllib.parse.urlparse(file_path_from_csv)
         if config['task'] == 'add_media':
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', str(node_csv_row['node_id'])))
         elif config['task'] == 'update_media':
@@ -5951,9 +5939,17 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             Path(subdir).mkdir(parents=True, exist_ok=True)
 
         if 'check' in config.keys() and config['check'] is True:
-            os.rmdir(subdir)
+            try:
+                os.rmdir(subdir)
+            except Exception as e:
+                # This can happen if subdirectories from previous runs of Workbench exist.
+                message = f'Subdirectory "{subdir}" could not be deleted. See log for more info.'
+                logging.warning(f'Subdictory "{subdir}" could not be deleted: {e}.')
 
-        if config["use_node_title_for_media"]:
+        remote_extension_with_dot = get_remote_file_extension(config, file_path_from_csv)
+        remote_filename_parts = os.path.splitext(file_path_from_csv)
+
+        if 'use_node_title_for_remote_filename' in config and config['use_node_title_for_remote_filename'] is True:
             # CSVs for add_media tasks don't contain 'title', so we need to get it.
             if config['task'] == 'add_media':
                 node_csv_row['title'] = get_node_title_from_nid(config, node_csv_row['node_id'])
@@ -5962,34 +5958,30 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
                     logging.warning(message)
                     node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
 
-            filename = re.sub(r'\s+', '_', node_csv_row['title'])
-            filename = re.sub('[^A-Za-z0-9]+', '_', filename)
-            if filename[-1] == '_':
-                filename = filename[:-1]
+            filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
+            filename = filename.strip('_')
+            downloaded_file_path = os.path.join(subdir, filename + remote_extension_with_dot)
+        elif 'use_nid_in_remote_filename' in config and config['use_nid_in_remote_filename'] is True:
+            filename = f"{node_id}{remote_extension_with_dot}"
             downloaded_file_path = os.path.join(subdir, filename)
-            extension = os.path.splitext(downloaded_file_path)[1]
+        elif config['field_for_remote_filename'] is not False and config['field_for_remote_filename'] in node_csv_row and len(node_csv_row[config['field_for_remote_filename']]) > 0:
+            field_for_remote_filename_string = node_csv_row[config['field_for_remote_filename']][:255]
+            sanitized_filename = re.sub('[^0-9a-zA-Z]+', '_', field_for_remote_filename_string)
+            downloaded_file_path = os.path.join(subdir, sanitized_filename.strip('_') + remote_extension_with_dot)
         else:
-            extension = os.path.splitext(sections.path)[1]
-            filename = sections.path.split("/")[-1]
+            # For files from Islandora Legacy ending in /view, we use the CSV ID as the filename.
+            if len(remote_filename_parts[1]) == 0:
+                filename = node_csv_row[config['id_field']] + remote_extension_with_dot
+            else:
+                # For other files, we use the last part of the path preceding the file extension.
+                url_path_parts = remote_filename_parts[0].split('/')
+                filename = url_path_parts[-1] + remote_extension_with_dot
             downloaded_file_path = os.path.join(subdir, filename)
 
-        if config['field_for_media_title']:
-            filename = node_csv_row[config['field_for_media_title']]
-            downloaded_file_path = os.path.join(subdir, filename)
-
-        if config['use_nid_in_media_title']:
-            filename = f"{node_id}-Original File"
-            downloaded_file_path = os.path.join(subdir, filename)
-
-        if extension == '':
-            extension_with_dot = get_remote_file_extension(config, file_path_from_csv)
-
-            downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
-
-            # Check to see if a file with this path already exists; if so, insert an
-            # incremented digit into the file path before the extension.
-            if os.path.exists(downloaded_file_path):
-                downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+        # Check to see if a file with this path already exists; if so, insert an
+        # incremented digit into the file path before the extension.
+        if os.path.exists(downloaded_file_path):
+            downloaded_file_path = get_deduped_file_path(downloaded_file_path)
 
         return downloaded_file_path
     # It's a local file.
@@ -5997,7 +5989,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
         if os.path.isabs(file_path_from_csv):
             file_path = file_path_from_csv
         else:
-            file_path = os.path.join(config['temp_dir'], file_path_from_csv)
+            file_path = os.path.join(config['input_dir'], file_path_from_csv)
         return file_path
 
 
@@ -6069,13 +6061,13 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
 def get_remote_file_extension(config, file_url):
     """For remote files that have no extension, such as http://acme.com/islandora/object/some:pid/datastream/OBJ/download,
-       assign an extension, with a leading dot. If the file has an extension, return it.
+       assign an extension, with a leading dot. If the file has an extension, return it, also with dot.
     """
     # If the file has an extension, just return it.
     extension = os.path.splitext(file_url)[1]
     extension = extension.lstrip('.').lower()
     if len(extension) > 0:
-        return extension + '.' + extension
+        return '.' + extension
 
     # If it doesn't have an extension, assign one based on its MIME type. Request's docs at
     # https://requests.readthedocs.io/en/latest/user/quickstart/#response-headers say that
@@ -7050,6 +7042,9 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
             operation could not be completed, a list of sqlite3.Row objects for 'select' and 'update'
             queries, or an sqlite3.Cursor object for 'insert' and 'delete' queries.
     """
+    if isinstance(db_file_path, str) is not True:
+        return False
+
     if db_file_path is None:
         db_file_name = config['sqlite_db_filename']
     else:
