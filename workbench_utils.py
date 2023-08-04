@@ -62,9 +62,9 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
            The configuration settings defined by workbench_config.get_config().
        filepath: string
            The value of the CSV 'file' column.
-        file_fieldname: string
+       file_fieldname: string
             The name of the CSV column containing the filename (usually 'file').
-        csv_row : OrderedDict
+       csv_row : OrderedDict
             The CSV row for the current item.
        Returns
        -------
@@ -105,21 +105,22 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
 
 
 def get_oembed_url_media_type(config, filepath):
-    """Since oEmbed remote media (e.g. remove video) don't have extensions, which we
-       use to detect the media type of local files, we use remote URL patterns to
-       detect if the value of the 'file' columns is an oEmbed media.
+    """
+    Since oEmbed remote media (e.g. remove video) don't have extensions, which we
+    use to detect the media type of local files, we use remote URL patterns to
+    detect if the value of the 'file' columns is an oEmbed media.
 
-       Parameters
-       ----------
-       config : dict
-           The configuration settings defined by workbench_config.get_config().
-       filepath: string
-           The value of the CSV 'file' column.
-       Returns
-       -------
-       mtype
-           A string naming the detected media type, e.g. 'remote_video', or None
-           if the filepath does not start with a configured provider URL.
+    Parameters
+    ----------
+    config : dict
+       The configuration settings defined by workbench_config.get_config().
+    filepath: string
+       The value of the CSV 'file' column.
+    Returns
+    -------
+    mtype : str
+       A string naming the detected media type, e.g. 'remote_video', or None
+       if the filepath does not start with a configured provider URL.
     """
     for oembed_provider in config['oembed_providers']:
         for mtype, provider_urls in oembed_provider.items():
@@ -131,7 +132,21 @@ def get_oembed_url_media_type(config, filepath):
 
 
 def get_oembed_media_types(config):
-    # Get a list of the registered oEmbed media types from config.
+    """
+    Get a list of the registered oEmbed media types from config.
+
+    Parameters
+    ----------
+    config : dict
+           The configuration settings defined by workbench_config.get_config().
+
+    Returns
+    -------
+    media_types : list
+        A list with the configured allowed oEmbed media type(s), e.g. 'remote_video'.
+
+    """
+
     media_types = list()
     for omt in config['oembed_providers']:
         keys = list(omt.keys())
@@ -140,9 +155,28 @@ def get_oembed_media_types(config):
 
 
 def set_model_from_extension(file_name, config):
-    """Using configuration options, determine which Islandora Model value
-       to assign to nodes created from files. Options are either a single model
-       or a set of mappings from file extenstion to Islandora Model term ID.
+    """
+    Using configuration options, determine which Islandora Model value
+    to assign to nodes created from files. Options are either a single model
+    or a set of mappings from file extension to Islandora Model term ID.
+
+    Parameters
+    ----------
+    file_name : str
+        Filename that will be checked to determine Islandora Model value(s).
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+
+
+    Returns
+    -------
+    None
+        Is returned if 'task' is not set to 'create_from_files'.
+    str
+        If 'model' config value is set, a single model term ID is str returned.
+    dict
+        If 'models' config value is set, a dict with a mapping of URIs or Islandora Model term ID(s) to file
+        extension(s) is returned.
     """
     if config['task'] != 'create_from_files':
         return None
@@ -173,8 +207,30 @@ def issue_request(
         json='',
         data='',
         query={}):
-    """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
-       do not use this function.
+    """
+    Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
+    do not use this function.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    method : str
+        The HTTP method to be issued for the request, e.g. POST or GET.
+    path : str
+        Path to the API endpoint that will be used for request.
+    headers : dict, optional
+        HTTP header information to be sent with request encoded as a dict.
+    json : dict, optional
+        Data to be sent with request body as JSON format, but encoded as a dict.
+    data : str, optional
+        Data to be sent in request body.
+    query : dict, optional
+        Request parameters sent as a dict.
+
+    Returns
+    -------
+    requests.Response
     """
     if not config['password']:
         message = 'Password for Drupal user not found. Please add the "password" option to your configuration ' + \
