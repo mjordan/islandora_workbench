@@ -3209,9 +3209,6 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                     "target_id": media_type,
                     "target_type": "media_type",
                 }],
-                "status": [{
-                    "value": True
-                }],
                 "name": [{
                     "value": media_name
                 }],
@@ -3234,9 +3231,6 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                     "target_id": media_type,
                     "target_type": "media_type",
                 }],
-                "status": [{
-                    "value": True
-                }],
                 "name": [{
                     "value": media_name
                 }],
@@ -3253,6 +3247,9 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                     "target_type": 'taxonomy_term'
                 }]
             }
+
+        if 'published' in csv_row and len(csv_row['published']) > 0:
+            media_json['status'] = {'value': csv_row['published']}
 
         # Populate some media type-specific fields on the media. @todo: We need a generalized way of
         # determining which media fields are required, e.g. checking the media type configuration.
