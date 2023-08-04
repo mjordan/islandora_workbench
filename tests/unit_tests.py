@@ -687,6 +687,80 @@ class TestGetPageTitleFromTemplate(unittest.TestCase):
             self.assertEqual(fixture['control'], page_title)
 
 
+class TestGetPreprocessedFilePath(unittest.TestCase):
+    def test_get_preprocessed_file_path_with_extension(self):
+        node_csv_record = collections.OrderedDict()
+        node_csv_record['id'] = 'id_0001'
+        node_csv_record['file'] = 'https://example.com/somepathinfo/fullsize/test-filename.jpg'
+        node_csv_record['title'] = 'Test Title'
+        self.node_csv_record = node_csv_record
+
+        self.config = {'task': 'create',
+                       'id_field': 'id',
+                       'oembed_providers': [],
+                       'temp_dir': tempfile.gettempdir(),
+                       'field_for_remote_filename': False}
+
+        path = workbench_utils.get_preprocessed_file_path(self.config, 'file', self.node_csv_record)
+        expected_path = os.path.join(self.config['temp_dir'], self.node_csv_record['id'], 'test-filename.jpg')
+        self.assertEqual(path, expected_path)
+
+    def test_get_preprocessed_file_path_use_node_title_for_remote_filename(self):
+        node_csv_record = collections.OrderedDict()
+        node_csv_record['id'] = 'id_0001'
+        node_csv_record['file'] = 'https://example.com/somepathinfo/fullsize/test-filename.jpg'
+        node_csv_record['title'] = 'Test Title'
+        self.node_csv_record = node_csv_record
+
+        self.config = {'task': 'create',
+                       'id_field': 'id',
+                       'oembed_providers': [],
+                       'temp_dir': tempfile.gettempdir(),
+                       'field_for_remote_filename': False,
+                       'use_node_title_for_remote_filename': True}
+
+        path = workbench_utils.get_preprocessed_file_path(self.config, 'file', self.node_csv_record)
+        expected_path = os.path.join(self.config['temp_dir'], self.node_csv_record['id'], 'Test_Title.jpg')
+        self.assertEqual(path, expected_path)
+
+    def test_get_preprocessed_file_path_use_nid_in_remote_filename(self):
+        node_csv_record = collections.OrderedDict()
+        node_csv_record['id'] = 'id_0001'
+        node_csv_record['file'] = 'https://example.com/somepathinfo/fullsize/test-filename.jpg'
+        node_csv_record['title'] = 'Test Title'
+        self.node_csv_record = node_csv_record
+
+        self.config = {'task': 'create',
+                       'id_field': 'id',
+                       'oembed_providers': [],
+                       'temp_dir': tempfile.gettempdir(),
+                       'field_for_remote_filename': False,
+                       'use_nid_in_remote_filename': True}
+
+        path = workbench_utils.get_preprocessed_file_path(self.config, 'file', self.node_csv_record, node_id=456)
+        expected_path = os.path.join(self.config['temp_dir'], self.node_csv_record['id'], '456.jpg')
+        self.assertEqual(path, expected_path)
+
+    def test_get_preprocessed_file_path_field_for_remote_filename(self):
+        node_csv_record = collections.OrderedDict()
+        node_csv_record['id'] = 'id_0001'
+        node_csv_record['file'] = 'https://example.com/somepathinfo/fullsize/test-filename.jpg'
+        node_csv_record['title'] = 'Test Title'
+        node_csv_record['field_description'] = 'A description used for testing.'
+        self.node_csv_record = node_csv_record
+
+        self.config = {'task': 'create',
+                       'id_field': 'id',
+                       'oembed_providers': [],
+                       'temp_dir': tempfile.gettempdir(),
+                       'field_for_remote_filename': False,
+                       'field_for_remote_filename': 'field_description'}
+
+        path = workbench_utils.get_preprocessed_file_path(self.config, 'file', self.node_csv_record, node_id=456)
+        expected_path = os.path.join(self.config['temp_dir'], self.node_csv_record['id'], 'A_description_used_for_testing.jpg')
+        self.assertEqual(path, expected_path)
+
+
 class TestDeduplicateFieldValues(unittest.TestCase):
     def test_strings(self):
         fixtures = [{'input': ['one', 'two', 'two', 'three'], 'control': ['one', 'two', 'three']},

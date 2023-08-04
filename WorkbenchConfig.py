@@ -193,6 +193,8 @@ class WorkbenchConfig:
             'ignore_csv_columns': list(),
             'use_node_title_for_media': False,
             'use_nid_in_media_title': False,
+            'use_node_title_for_media_title': False,
+            'field_for_remote_filename': False,
             'field_for_media_title': False,
             'delete_tmp_upload': False,
             'list_missing_drupal_fields': False,
@@ -236,6 +238,8 @@ class WorkbenchConfig:
             'clean_csv_values_skip': [],
             'text_format_id': 'basic_html',
             'ignore_existing_parent_ids': True,
+            'query_csv_id_to_node_id_map_for_parents': False,
+            'ignore_duplicate_parent_ids': True
         }
 
     # Tests validity and existence of configuration file path.
