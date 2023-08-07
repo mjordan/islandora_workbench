@@ -118,7 +118,7 @@ def get_oembed_url_media_type(config, filepath):
        The value of the CSV 'file' column.
     Returns
     -------
-    mtype : str
+    mtype : str|None
        A string naming the detected media type, e.g. 'remote_video', or None
        if the filepath does not start with a configured provider URL.
     """
@@ -170,13 +170,13 @@ def set_model_from_extension(file_name, config):
 
     Returns
     -------
-    None
-        Is returned if 'task' is not set to 'create_from_files'.
-    str
-        If 'model' config value is set, a single model term ID is str returned.
-    dict
-        If 'models' config value is set, a dict with a mapping of URIs or Islandora Model term ID(s) to file
-        extension(s) is returned.
+    None|str|dict
+        None is returned if 'task' is not set to 'create_from_files'.
+
+        str is returned if 'model' config value is set, a single model term ID is str returned.
+
+        dict is returned if 'models' config value is set, a dict with a mapping of URIs or Islandora Model term ID(s)
+        to file extension(s) is returned.
     """
     if config['task'] != 'create_from_files':
         return None
@@ -6694,7 +6694,7 @@ def is_ascii(input):
             The string to test.
         Returns
         -------
-        string
+        Boolean
             True if all characters are within the ASCII character set,
             False otherwise.
     """
