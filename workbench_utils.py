@@ -413,7 +413,15 @@ def get_drupal_core_version(config):
 
 
 def check_drupal_core_version(config):
-    """Used during --check.
+    """Used during --check to verify if the minimum required Drupal version for workbench is being used.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    Returns
+    -------
+    None
     """
     drupal_core_version = get_drupal_core_version(config)
     if drupal_core_version is not False:
@@ -430,6 +438,16 @@ def check_drupal_core_version(config):
 
 
 def check_integration_module_version(config):
+    """Verifies if the minimum required version of the workbench integration module is being used.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    Returns
+    -------
+    None
+    """
     version = get_integration_module_version(config)
 
     if version is False:
@@ -480,13 +498,18 @@ def ping_node(config, nid, method='HEAD', return_json=False, warn=True):
 
         Parameters
         ----------
-        method: string
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        nid :
+            Node ID of the node to be pinged.
+        method: string, optional
             Either 'HEAD' or 'GET'.
         return_json: boolean
-        warn: boolean
+        warn: boolean, optional
 
         Returns
         ------
+         boolean|str
             True if method is HEAD and node was found, the response JSON response
             body if method was GET. False if request returns a non-allowed status code.
     """
@@ -508,6 +531,17 @@ def ping_node(config, nid, method='HEAD', return_json=False, warn=True):
 
 def ping_url_alias(config, url_alias):
     """Ping the URL alias to see if it exists. Return the status code.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    url_alias : str
+        The string with the URL alias being pinged.
+    Returns
+    -------
+    int
+        HTTP status code.
     """
     url = config['host'] + url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -516,13 +550,24 @@ def ping_url_alias(config, url_alias):
 
 def ping_vocabulary(config, vocab_id):
     """Ping the node to see if it exists.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    vocab_id : str
+        The string with the vocabulary ID being pinged.
+    Returns
+    -------
+    boolean
+        Returns Ture if HTTP status code returned is 200, if not False is returned.
     """
     url = config['host'] + '/entity/taxonomy_vocabulary/' + vocab_id.strip() + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         return True
     else:
-        logging.warning("Node ping (HEAD) on %s returned a %s status code.", url, response.status_code)
+        logging.warning("Node ping (GET) on %s returned a %s status code.", url, response.status_code)
         return False
 
 
