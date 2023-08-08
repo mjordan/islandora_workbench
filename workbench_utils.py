@@ -673,12 +673,17 @@ def ping_media(config, media_id):
 def extract_media_id(config: dict, media_csv_row: dict):
     """Extract the media entity's ID from the CSV row.
 
-    Parameters:
-        - config: The global configuration object.
-        - media_csv_row: The CSV row containing the media entity's field names and values.
+    Parameters
+    ----------
+    config : dict
+        The global configuration object.
+    media_csv_row : OrderedDict
+        The CSV row containing the media entity's field names and values.
 
-    Returns:
-        - The media entity's ID if it could be extracted from the CSV row and is valid, otherwise None.
+    Returns
+    -------
+    str|None
+        The media entity's ID if it could be extracted from the CSV row and is valid, otherwise None.
     """
     if 'media_id' not in media_csv_row:  # Media ID column is missing
         logging.error('Media ID column missing in CSV file.')
