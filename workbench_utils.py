@@ -722,14 +722,25 @@ def ping_entity_reference_view_endpoint(config, fieldname, handler_settings):
     if response.status_code == 200:
         return True
     else:
-        logging.warning("View REST export ping (HEAD) on %s returned a %s status code", url, response.status_code)
+        logging.warning("View REST export ping (GET) on %s returned a %s status code", url, response.status_code)
         return False
 
 
 def ping_media_bundle(config, bundle_name):
-    """Ping the Media bunlde/type to see if it exists. Return the status code,
-       a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
-       is not enabled on the target Drupal.
+    """Ping the Media bundle/type to see if it exists. Return the status code,
+    a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
+    is not enabled on the target Drupal.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    bundle_name : str
+        Media bundle/type to be pinged.
+    Returns
+    -------
+    int
+        The HTTP response code.
     """
     url = config['host'] + '/entity/media_type/' + bundle_name + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -738,9 +749,21 @@ def ping_media_bundle(config, bundle_name):
 
 def ping_media(config, media_id):
     """Ping the Media to see if it exists. Return the status code,
-       a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
-       is not enabled on the target Drupal.
+    a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
+    is not enabled on the target Drupal.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    media_id : str
+         Media ID to be pinged.
+    Returns
+    -------
+    int
+        The HTTP response code.
     """
+
     if config['standalone_media_url'] is True:
         media_json_url = config['host'] + '/media/' + media_id + '?_format=json'
     else:
@@ -789,8 +812,18 @@ def extract_media_id(config: dict, media_csv_row: dict):
 
 
 def ping_remote_file(config, url):
-    """Logging, exiting, etc. happens in caller, except on requests error.
+    """Ping remote file, but logging, exiting, etc. happens in caller, except on requests error.
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    url : str
+        URL of remote file to be pinged.
+    Returns
+    -------
+    None
     """
+
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.head(url, allow_redirects=True, verify=config['secure_ssl_only'])
@@ -811,19 +844,18 @@ def ping_remote_file(config, url):
 
 def get_nid_from_url_alias(config, url_alias):
     """Gets a node ID from a URL alias. This function also works
-       canonical URLs, e.g. http://localhost:8000/node/1648.
-    """
-    """
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        url_alias : string
-            The full URL alias (or canonical URL), including http://, etc.
-        Returns
-        -------
-        int
-            The node ID, or False if the URL cannot be found.
+    canonical URLs, e.g. http://localhost:8000/node/1648.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    url_alias : string
+        The full URL alias (or canonical URL), including http://, etc.
+    Returns
+    -------
+    int|boolean
+        The node ID, or False if the URL cannot be found.
     """
     if url_alias is False:
         return False
@@ -839,19 +871,18 @@ def get_nid_from_url_alias(config, url_alias):
 
 def get_mid_from_media_url_alias(config, url_alias):
     """Gets a media ID from a media URL alias. This function also works
-       with canonical URLs, e.g. http://localhost:8000/media/1234.
-    """
-    """
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        url_alias : string
-            The full URL alias (or canonical URL), including http://, etc.
-        Returns
-        -------
-        int
-            The media ID, or False if the URL cannot be found.
+    with canonical URLs, e.g. http://localhost:8000/media/1234.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    url_alias : string
+        The full URL alias (or canonical URL), including http://, etc.
+    Returns
+    -------
+    int|boolean
+        The media ID, or False if the URL cannot be found.
     """
     url = url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -865,6 +896,16 @@ def get_mid_from_media_url_alias(config, url_alias):
 def get_node_title_from_nid(config, node_id):
     """Get node title from Drupal.
 
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    node_id : string
+        The node ID for the node title being fetched.
+    Returns
+    -------
+    str|boolean
+        The node title, or False if the URL does not return HTTP status 200.
     """
     node_url = config['host'] + '/node/' + node_id + '?_format=json'
     node_response = issue_request(config, 'GET', node_url)
