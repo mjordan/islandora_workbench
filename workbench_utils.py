@@ -573,19 +573,42 @@ def ping_vocabulary(config, vocab_id):
 
 def ping_term(config, term_id):
     """Ping the term to see if it exists.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    term_id : str
+        The string with the term ID being pinged.
+    Returns
+    -------
+    boolean
+        Returns Ture if HTTP status code returned is 200, if not False is returned.
     """
+
     url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         return True
     else:
-        logging.warning("Term ping (HEAD) on %s returned a %s status code.", url, response.status_code)
+        logging.warning("Term ping (GET) on %s returned a %s status code.", url, response.status_code)
         return False
 
 
 def ping_islandora(config, print_message=True):
     """Connect to Islandora in prep for subsequent HTTP requests.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    print_message : boolean, optional
+        If set to True, after ping successfully performed, a status message is printed for the user.
+    Returns
+    -------
+    None
     """
+
     # First, test a known request that requires Administrator-level permissions.
     url = config['host'] + '/islandora_workbench_integration/version'
     try:
@@ -630,23 +653,34 @@ def ping_islandora(config, print_message=True):
 
 
 def ping_content_type(config):
+    """Ping the content_type set in the configuration to see if it exists.
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    Returns
+    -------
+    int
+        The HTTP response code.
+    """
+
     url = f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
     return issue_request(config, 'GET', url).status_code
 
 
 def ping_view_endpoint(config, view_url):
     """Verifies that the View REST endpoint is accessible.
-    """
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        view_url
-            The View's REST export path.
-        Returns
-        -------
-        int
-            The HTTP response code.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    view_url
+        The View's REST export path.
+    Returns
+    -------
+    int
+        The HTTP response code.
     """
     return issue_request(config, 'HEAD', view_url).status_code
 
@@ -659,20 +693,20 @@ def ping_entity_reference_view_endpoint(config, fieldname, hander_settings):
        Unlike Views endpoints for taxonomy entity reference fields configured using the "default"
        entity reference method, the Islandora Workbench Integration module does not provide a generic
        Views REST endpoint that can be used to validate values in this type of field.
-    """
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        fieldname: string
-            The name of the Drupal field.
-        handler_settings : dict
-            The handler_settings values from the field's configuration.
-            # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
-        Returns
-        -------
-        bool
-            True if the REST endpoint is accessible, False if not.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    fieldname: string
+        The name of the Drupal field.
+    handler_settings : dict
+        The handler_settings values from the field's configuration.
+        # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
+    Returns
+    -------
+    bool
+        True if the REST endpoint is accessible, False if not.
     """
     endpoint_mappings = get_entity_reference_view_endpoints(config)
     if len(endpoint_mappings) == 0:
