@@ -685,7 +685,7 @@ def ping_view_endpoint(config, view_url):
     return issue_request(config, 'HEAD', view_url).status_code
 
 
-def ping_entity_reference_view_endpoint(config, fieldname, hander_settings):
+def ping_entity_reference_view_endpoint(config, fieldname, handler_settings):
     """Verifies that the REST endpoint of the View is accessible. The path to this endpoint
        is defined in the configuration file's 'entity_reference_view_endpoints' option.
 
