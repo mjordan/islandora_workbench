@@ -1160,6 +1160,21 @@ def get_field_definitions(config, entity_type, bundle_type=None):
 
 def get_entity_fields(config, entity_type, bundle_type):
     """Get all the fields configured on a bundle.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+
+       entity_type : string
+           Values could be 'node', 'media', 'taxonomy_term', or 'paragraph'.
+       bundle_type : string
+
+       Returns
+       -------
+       list
+           A list with field names, e.g. ['field_name1', 'field_name2'].
+
     """
     if ping_content_type(config) == 404:
         message = f"Content type '{config['content_type']}' does not exist on {config['host']}."
@@ -1205,21 +1220,22 @@ def get_entity_fields(config, entity_type, bundle_type):
 
 def get_required_bundle_fields(config, entity_type, bundle_type):
     """Gets a list of required fields for the given bundle type.
-    """
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        entity_type : string
-            One of 'node', 'media', or 'taxonomy_term'.
-        bundle_type : string
-            The (node) content type, the vocabulary name, or the media type ('image',
-            'document', 'audio', 'video', 'file', etc.).
 
-        Returns
-        -------
-        list
-            A list of Drupal field names that are configured as required for this bundle.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       entity_type : string
+           One of 'node', 'media', or 'taxonomy_term'.
+       bundle_type : string
+           The (node) content type, the vocabulary name, or the media type ('image',
+           'document', 'audio', 'video', 'file', etc.).
+
+       Returns
+       -------
+       list
+           A list of Drupal field names that are configured as required for this bundle, e.g
+           ['required_field1_name', 'required_field2_name'].
     """
     field_definitions = get_field_definitions(config, entity_type, bundle_type)
     required_drupal_fields = list()
