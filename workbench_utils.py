@@ -6830,7 +6830,7 @@ def is_ascii(input):
             The string to test.
         Returns
         -------
-        Boolean
+        boolean
             True if all characters are within the ASCII character set,
             False otherwise.
     """
