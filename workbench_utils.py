@@ -499,7 +499,7 @@ def ping_node(config, nid, method='HEAD', return_json=False, warn=True):
            Node ID of the node to be pinged.
        method: string, optional
            Either 'HEAD' or 'GET'.
-       return_json: boolean
+       return_json: boolean, optional
        warn: boolean, optional
 
        Returns
