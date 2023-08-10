@@ -47,11 +47,6 @@ def create():
 
     prepare_csv_id_to_node_id_map(config)
 
-    if config['query_csv_id_to_node_id_map_for_parents'] is False:
-        message = "Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
-        print(message)
-        logging.warning(message)
-
     if config['csv_headers'] == 'labels':
         fieldname_map_cache_path = os.path.join(config['temp_dir'], f"node-{config['content_type']}-labels.fieldname_map")
         if os.path.exists(fieldname_map_cache_path):
@@ -73,7 +68,7 @@ def create():
     csv_column_headers = csv_data.fieldnames
 
     if 'parent_id' in csv_column_headers and config['query_csv_id_to_node_id_map_for_parents'] is False:
-        message = "'query_csv_id_to_node_id_map_for_parents' is set to False, so only parent IDs from the current session will be used."
+        message = "Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
         print(message)
         logging.warning(message)
 
