@@ -105,22 +105,21 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
 
 
 def get_oembed_url_media_type(config, filepath):
-    """
-    Since oEmbed remote media (e.g. remove video) don't have extensions, which we
-    use to detect the media type of local files, we use remote URL patterns to
-    detect if the value of the 'file' columns is an oEmbed media.
+    """Since oEmbed remote media (e.g. remove video) don't have extensions, which we
+       use to detect the media type of local files, we use remote URL patterns to
+       detect if the value of the 'file' columns is an oEmbed media.
 
-    Parameters
-    ----------
-    config : dict
-       The configuration settings defined by workbench_config.get_config().
-    filepath: string
-       The value of the CSV 'file' column.
-    Returns
-    -------
-    mtype : str|None
-       A string naming the detected media type, e.g. 'remote_video', or None
-       if the filepath does not start with a configured provider URL.
+       Parameters
+       ----------
+       config : dict
+          The configuration settings defined by workbench_config.get_config().
+       filepath: string
+          The value of the CSV 'file' column.
+       Returns
+       -------
+       mtype : str|None
+          A string naming the detected media type, e.g. 'remote_video', or None
+          if the filepath does not start with a configured provider URL.
     """
     for oembed_provider in config['oembed_providers']:
         for mtype, provider_urls in oembed_provider.items():
@@ -132,19 +131,17 @@ def get_oembed_url_media_type(config, filepath):
 
 
 def get_oembed_media_types(config):
-    """
-    Get a list of the registered oEmbed media types from config.
+    """Get a list of the registered oEmbed media types from config.
 
-    Parameters
-    ----------
-    config : dict
-           The configuration settings defined by workbench_config.get_config().
+       Parameters
+       ----------
+       config : dict
+              The configuration settings defined by workbench_config.get_config().
 
-    Returns
-    -------
-    media_types : list
-        A list with the configured allowed oEmbed media type(s), e.g. 'remote_video'.
-
+       Returns
+       -------
+       media_types : list
+           A list with the configured allowed oEmbed media type(s), e.g. ['remote_video'].
     """
 
     media_types = list()
@@ -155,28 +152,27 @@ def get_oembed_media_types(config):
 
 
 def set_model_from_extension(file_name, config):
-    """
-    Using configuration options, determine which Islandora Model value
-    to assign to nodes created from files. Options are either a single model
-    or a set of mappings from file extension to Islandora Model term ID.
+    """Using configuration options, determine which Islandora Model value
+       to assign to nodes created from files. Options are either a single model
+       or a set of mappings from file extension to Islandora Model term ID.
 
-    Parameters
-    ----------
-    file_name : str
-        Filename that will be checked to determine Islandora Model value(s).
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
+       Parameters
+       ----------
+       file_name : str
+           Filename that will be checked to determine Islandora Model value(s).
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
 
 
-    Returns
-    -------
-    None|str|dict
-        None is returned if 'task' is not set to 'create_from_files'.
+       Returns
+       -------
+       None|str|dict
+           None is returned if 'task' is not set to 'create_from_files'.
 
-        str is returned if 'model' config value is set, a single model term ID is str returned.
+           str is returned if 'model' config value is set, a single model term ID is str returned.
 
-        dict is returned if 'models' config value is set, a dict with a mapping of URIs or Islandora Model term ID(s)
-        to file extension(s) is returned.
+           dict is returned if 'models' config value is set, a dict with a mapping of URIs or Islandora Model term ID(s)
+           to file extension(s) is returned.
     """
     if config['task'] != 'create_from_files':
         return None
@@ -207,30 +203,29 @@ def issue_request(
         json='',
         data='',
         query={}):
-    """
-    Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
-    do not use this function.
+    """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
+       do not use this function.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    method : str
-        The HTTP method to be issued for the request, e.g. POST or GET.
-    path : str
-        Path to the API endpoint that will be used for request.
-    headers : dict, optional
-        HTTP header information to be sent with request encoded as a dict.
-    json : dict, optional
-        Data to be sent with request body as JSON format, but encoded as a dict.
-    data : str, optional
-        Data to be sent in request body.
-    query : dict, optional
-        Request parameters sent as a dict.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       method : str
+           The HTTP method to be issued for the request, e.g. POST or GET.
+       path : str
+           Path to the API endpoint that will be used for request.
+       headers : dict, optional
+           HTTP header information to be sent with request encoded as a dict.
+       json : dict, optional
+           Data to be sent with request body as JSON format, but encoded as a dict.
+       data : str, optional
+           Data to be sent in request body.
+       query : dict, optional
+           Request parameters sent as a dict.
 
-    Returns
-    -------
-    requests.Response
+       Returns
+       -------
+       requests.Response
     """
     if not config['password']:
         message = 'Password for Drupal user not found. Please add the "password" option to your configuration ' + \
@@ -373,14 +368,14 @@ def convert_semver_to_number(version_string):
     """Convert a Semantic Version number (e.g. Drupal's) string to a number. We only need the major
        and minor numbers (e.g. 9.2).
 
-        Parameters
-        ----------
-        version_string: string
-            The version string as retrieved from Drupal.
-        Returns
-        -------
-        tuple
-            A tuple containing the major and minor Drupal core version numbers as integers.
+       Parameters
+       ----------
+       version_string: string
+           The version string as retrieved from Drupal.
+       Returns
+       -------
+       tuple
+           A tuple containing the major and minor Drupal core version numbers as integers.
     """
     parts = version_string.split('.')
     parts = parts[:2]
@@ -392,14 +387,14 @@ def convert_semver_to_number(version_string):
 def get_drupal_core_version(config):
     """Get Drupal's version number.
 
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        Returns
-        -------
-        string|False
-            The Drupal core version number string (i.e., may contain -dev, etc.).
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       string|False
+           The Drupal core version number string (i.e., may contain -dev, etc.).
     """
     url = config['host'] + '/islandora_workbench_integration/core_version'
     response = issue_request(config, 'GET', url)
@@ -415,13 +410,13 @@ def get_drupal_core_version(config):
 def check_drupal_core_version(config):
     """Used during --check to verify if the minimum required Drupal version for workbench is being used.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    Returns
-    -------
-    None
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       None
     """
     drupal_core_version = get_drupal_core_version(config)
     if drupal_core_version is not False:
@@ -440,13 +435,13 @@ def check_drupal_core_version(config):
 def check_integration_module_version(config):
     """Verifies if the minimum required version of the workbench integration module is being used.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    Returns
-    -------
-    None
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       None
     """
     version = get_integration_module_version(config)
 
@@ -470,15 +465,15 @@ def check_integration_module_version(config):
 def get_integration_module_version(config):
     """Get the Islandora Workbench Integration module's version number.
 
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        Returns
-        -------
-        string|False
-            The version number string (i.e., may contain -dev, etc.) from the
-            Islandora Workbench Integration module.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       string|False
+           The version number string (i.e., may contain -dev, etc.) from the
+           Islandora Workbench Integration module.
     """
     url = config['host'] + '/islandora_workbench_integration/version'
     response = issue_request(config, 'GET', url)
@@ -496,22 +491,22 @@ def ping_node(config, nid, method='HEAD', return_json=False, warn=True):
 
        Note that HEAD requests do not return a response body.
 
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        nid :
-            Node ID of the node to be pinged.
-        method: string, optional
-            Either 'HEAD' or 'GET'.
-        return_json: boolean
-        warn: boolean, optional
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       nid :
+           Node ID of the node to be pinged.
+       method: string, optional
+           Either 'HEAD' or 'GET'.
+       return_json: boolean
+       warn: boolean, optional
 
-        Returns
-        ------
-         boolean|str
-            True if method is HEAD and node was found, the response JSON response
-            body if method was GET. False if request returns a non-allowed status code.
+       Returns
+       ------
+        boolean|str
+           True if method is HEAD and node was found, the response JSON response
+           body if method was GET. False if request returns a non-allowed status code.
     """
     if value_is_numeric(nid) is False:
         nid = get_nid_from_url_alias(config, nid)
@@ -532,16 +527,16 @@ def ping_node(config, nid, method='HEAD', return_json=False, warn=True):
 def ping_url_alias(config, url_alias):
     """Ping the URL alias to see if it exists. Return the status code.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    url_alias : str
-        The string with the URL alias being pinged.
-    Returns
-    -------
-    int
-        HTTP status code.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       url_alias : str
+           The string with the URL alias being pinged.
+       Returns
+       -------
+       int
+           HTTP status code.
     """
     url = config['host'] + url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -551,16 +546,16 @@ def ping_url_alias(config, url_alias):
 def ping_vocabulary(config, vocab_id):
     """Ping the node to see if it exists.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    vocab_id : str
-        The string with the vocabulary ID being pinged.
-    Returns
-    -------
-    boolean
-        Returns Ture if HTTP status code returned is 200, if not False is returned.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       vocab_id : str
+           The string with the vocabulary ID being pinged.
+       Returns
+       -------
+       boolean
+           Returns Ture if HTTP status code returned is 200, if not False is returned.
     """
     url = config['host'] + '/entity/taxonomy_vocabulary/' + vocab_id.strip() + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -574,16 +569,16 @@ def ping_vocabulary(config, vocab_id):
 def ping_term(config, term_id):
     """Ping the term to see if it exists.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    term_id : str
-        The string with the term ID being pinged.
-    Returns
-    -------
-    boolean
-        Returns Ture if HTTP status code returned is 200, if not False is returned.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       term_id : str
+           The string with the term ID being pinged.
+       Returns
+       -------
+       boolean
+           Returns Ture if HTTP status code returned is 200, if not False is returned.
     """
 
     url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
@@ -598,15 +593,15 @@ def ping_term(config, term_id):
 def ping_islandora(config, print_message=True):
     """Connect to Islandora in prep for subsequent HTTP requests.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    print_message : boolean, optional
-        If set to True, after ping successfully performed, a status message is printed for the user.
-    Returns
-    -------
-    None
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       print_message : boolean, optional
+           If set to True, after ping successfully performed, a status message is printed for the user.
+       Returns
+       -------
+       None
     """
 
     # First, test a known request that requires Administrator-level permissions.
@@ -654,14 +649,14 @@ def ping_islandora(config, print_message=True):
 
 def ping_content_type(config):
     """Ping the content_type set in the configuration to see if it exists.
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    Returns
-    -------
-    int
-        The HTTP response code.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       int
+           The HTTP response code.
     """
 
     url = f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
@@ -671,16 +666,16 @@ def ping_content_type(config):
 def ping_view_endpoint(config, view_url):
     """Verifies that the View REST endpoint is accessible.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    view_url
-        The View's REST export path.
-    Returns
-    -------
-    int
-        The HTTP response code.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       view_url
+           The View's REST export path.
+       Returns
+       -------
+       int
+           The HTTP response code.
     """
     return issue_request(config, 'HEAD', view_url).status_code
 
@@ -694,19 +689,19 @@ def ping_entity_reference_view_endpoint(config, fieldname, handler_settings):
        entity reference method, the Islandora Workbench Integration module does not provide a generic
        Views REST endpoint that can be used to validate values in this type of field.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    fieldname: string
-        The name of the Drupal field.
-    handler_settings : dict
-        The handler_settings values from the field's configuration.
-        # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
-    Returns
-    -------
-    bool
-        True if the REST endpoint is accessible, False if not.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       fieldname : string
+           The name of the Drupal field.
+       handler_settings : dict
+           The handler_settings values from the field's configuration.
+           # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
+       Returns
+       -------
+       bool
+           True if the REST endpoint is accessible, False if not.
     """
     endpoint_mappings = get_entity_reference_view_endpoints(config)
     if len(endpoint_mappings) == 0:
@@ -728,19 +723,19 @@ def ping_entity_reference_view_endpoint(config, fieldname, handler_settings):
 
 def ping_media_bundle(config, bundle_name):
     """Ping the Media bundle/type to see if it exists. Return the status code,
-    a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
-    is not enabled on the target Drupal.
+       a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
+       is not enabled on the target Drupal.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    bundle_name : str
-        Media bundle/type to be pinged.
-    Returns
-    -------
-    int
-        The HTTP response code.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       bundle_name : str
+           Media bundle/type to be pinged.
+       Returns
+       -------
+       int
+           The HTTP response code.
     """
     url = config['host'] + '/entity/media_type/' + bundle_name + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -749,19 +744,19 @@ def ping_media_bundle(config, bundle_name):
 
 def ping_media(config, media_id):
     """Ping the Media to see if it exists. Return the status code,
-    a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
-    is not enabled on the target Drupal.
+       a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
+       is not enabled on the target Drupal.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    media_id : str
-         Media ID to be pinged.
-    Returns
-    -------
-    int
-        The HTTP response code.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       media_id : str
+            Media ID to be pinged.
+       Returns
+       -------
+       int
+           The HTTP response code.
     """
 
     if config['standalone_media_url'] is True:
@@ -775,17 +770,17 @@ def ping_media(config, media_id):
 def extract_media_id(config: dict, media_csv_row: dict):
     """Extract the media entity's ID from the CSV row.
 
-    Parameters
-    ----------
-    config : dict
-        The global configuration object.
-    media_csv_row : OrderedDict
-        The CSV row containing the media entity's field names and values.
+       Parameters
+       ----------
+       config : dict
+           The global configuration object.
+       media_csv_row : OrderedDict
+           The CSV row containing the media entity's field names and values.
 
-    Returns
-    -------
-    str|None
-        The media entity's ID if it could be extracted from the CSV row and is valid, otherwise None.
+       Returns
+       -------
+       str|None
+           The media entity's ID if it could be extracted from the CSV row and is valid, otherwise None.
     """
     if 'media_id' not in media_csv_row:  # Media ID column is missing
         logging.error('Media ID column missing in CSV file.')
@@ -813,15 +808,15 @@ def extract_media_id(config: dict, media_csv_row: dict):
 
 def ping_remote_file(config, url):
     """Ping remote file, but logging, exiting, etc. happens in caller, except on requests error.
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    url : str
-        URL of remote file to be pinged.
-    Returns
-    -------
-    None
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       url : str
+           URL of remote file to be pinged.
+       Returns
+       -------
+       None
     """
 
     sections = urllib.parse.urlparse(url)
@@ -844,18 +839,18 @@ def ping_remote_file(config, url):
 
 def get_nid_from_url_alias(config, url_alias):
     """Gets a node ID from a URL alias. This function also works
-    canonical URLs, e.g. http://localhost:8000/node/1648.
+       canonical URLs, e.g. http://localhost:8000/node/1648.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    url_alias : string
-        The full URL alias (or canonical URL), including http://, etc.
-    Returns
-    -------
-    int|boolean
-        The node ID, or False if the URL cannot be found.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       url_alias : string
+           The full URL alias (or canonical URL), including http://, etc.
+       Returns
+       -------
+       int|boolean
+           The node ID, or False if the URL cannot be found.
     """
     if url_alias is False:
         return False
@@ -871,18 +866,18 @@ def get_nid_from_url_alias(config, url_alias):
 
 def get_mid_from_media_url_alias(config, url_alias):
     """Gets a media ID from a media URL alias. This function also works
-    with canonical URLs, e.g. http://localhost:8000/media/1234.
+       with canonical URLs, e.g. http://localhost:8000/media/1234.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    url_alias : string
-        The full URL alias (or canonical URL), including http://, etc.
-    Returns
-    -------
-    int|boolean
-        The media ID, or False if the URL cannot be found.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       url_alias : string
+           The full URL alias (or canonical URL), including http://, etc.
+       Returns
+       -------
+       int|boolean
+           The media ID, or False if the URL cannot be found.
     """
     url = url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -896,16 +891,16 @@ def get_mid_from_media_url_alias(config, url_alias):
 def get_node_title_from_nid(config, node_id):
     """Get node title from Drupal.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration settings defined by workbench_config.get_config().
-    node_id : string
-        The node ID for the node title being fetched.
-    Returns
-    -------
-    str|boolean
-        The node title, or False if the URL does not return HTTP status 200.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       node_id : string
+           The node ID for the node title being fetched.
+       Returns
+       -------
+       str|boolean
+           The node title, or False if the URL does not return HTTP status 200.
     """
     node_url = config['host'] + '/node/' + node_id + '?_format=json'
     node_response = issue_request(config, 'GET', node_url)
@@ -919,21 +914,21 @@ def get_node_title_from_nid(config, node_id):
 def get_field_definitions(config, entity_type, bundle_type=None):
     """Get field definitions from Drupal.
 
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        entity_type : string
-            One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
-        bundle_type : string
-            None for nodes (the content type can optionally be gotten from config),
-            the vocabulary name, or the media type (image', 'document', 'audio',
-            'video', 'file', etc.).
-        Returns
-        -------
-        dict
-            A dictionary with field names as keys and values arrays containing
-            field config data. Config data varies slightly by entity type.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       entity_type : string
+           One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
+       bundle_type : string, optional
+           None for nodes (the content type can optionally be gotten from config),
+           the vocabulary name, or the media type (image', 'document', 'audio',
+           'video', 'file', etc.).
+       Returns
+       -------
+       dict
+           A dictionary with field names as keys and values arrays containing
+           field config data. Config data varies slightly by entity type.
     """
     ping_islandora(config, print_message=False)
     field_definitions = {}
