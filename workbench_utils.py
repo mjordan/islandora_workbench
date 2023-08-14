@@ -5606,7 +5606,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         # Execute node-specific post-create scripts, if any are configured.
         if 'node_post_create' in config and len(config['node_post_create']) > 0:
             for command in config['node_post_create']:
-                post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                post_task_output, post_task_return_code = execute_entity_post_task_script(command, config['config_file'], node_response.status_code, node_response.text)
                 if post_task_return_code == 0:
                     logging.info("Post node create script " + command + " executed successfully.")
                 else:
@@ -6187,7 +6187,7 @@ def download_file_from_drupal(config, node_id):
                 else:
                     continue
     else:
-        logging.error(f'Attempt to fetch media list {media_list_url} returned an {r.status_code} HTTP response.')
+        logging.error(f'Attempt to fetch media list {media_list_url} returned an {media_list_response.status_code} HTTP response.')
         return False
 
 
