@@ -169,10 +169,10 @@ def issue_request(
         config,
         method,
         path,
-        headers=dict(),
+        headers=None,
         json='',
         data='',
-        query={}):
+        query=None):
     """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
        do not use this function.
     """
@@ -185,6 +185,12 @@ def issue_request(
     if config['check'] is False:
         if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE'] and value_is_numeric(config['pause']):
             time.sleep(int(config['pause']))
+
+    if headers is None:
+        headers = dict()
+
+    if query is None:
+        query = dict()
 
     headers.update({'User-Agent': config['user_agent']})
 
@@ -5993,7 +5999,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
         return file_path
 
 
-def get_node_media_ids(config, node_id, media_use_tids=[]):
+def get_node_media_ids(config, node_id, media_use_tids=None):
     """Gets a list of media IDs for a node.
     """
     """Parameters
@@ -6011,6 +6017,9 @@ def get_node_media_ids(config, node_id, media_use_tids=[]):
         list
             List of media IDs.
     """
+    if media_use_tids is None:
+        media_use_tids = []
+
     media_id_list = list()
     url = f"{config['host']}/node/{node_id}/media?_format=json"
     response = issue_request(config, 'GET', url)
