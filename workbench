@@ -288,17 +288,9 @@ def create():
         node_endpoint = '/node?_format=json'
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
         if node_response.status_code == 201:
-            node_uri = node_response.headers['location']
             returned_node = json.loads(node_response.text)
-
-            # If Pathauto URL alias creation for nodes is enabled, the location header
-            # returns the alias, not the /node/xxx URL, which includes the node ID. In
-            # this case, get the node ID from the response body.
-            if re.match(r'/node/\d+$', node_uri):
-                node_id = node_uri.rsplit('/', 1)[-1]
-            else:
-                node_id = returned_node['nid'][0]['value']
-                node_uri = config['host'] + '/node/' + str(node_id)
+            node_id = returned_node['nid'][0]['value']
+            node_uri = config['host'] + '/node/' + str(node_id)
 
             node_ids[id_field] = node_id
 
@@ -1404,14 +1396,9 @@ def create_from_files():
             node_json,
             None)
         if node_response.status_code == 201:
-            node_uri = node_response.headers['location']
-            # If Pathauto URL alias creation for nodes is enabled, the location header
-            # returns the alias, not the /node/xxx URL, which includes the node ID. In
-            # this case, get the node ID from the response body.
-            if not re.match(r'/node/\d+$', node_uri):
-                returned_node = json.loads(node_response.text)
-                node_id = returned_node['nid'][0]['value']
-                node_uri = config['host'] + '/node/' + str(node_id)
+            returned_node = json.loads(node_response.text)
+            node_id = returned_node['nid'][0]['value']
+            node_uri = config['host'] + '/node/' + str(node_id)
 
             if config['progress_bar'] is False:
                 print('Node for "' + filename_without_extension + '" created at ' + node_uri + '.')
