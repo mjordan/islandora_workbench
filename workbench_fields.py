@@ -63,14 +63,14 @@ class SimpleField():
                 subvalues = self.dedupe_values(subvalues)
                 for subvalue in subvalues:
                     subvalue = truncate_csv_value(field_name, id_field, field_definitions[field_name], subvalue)
-                    if field_definitions[field_name]['formatted_text'] is True:
+                    if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                         field_values.append({'value': subvalue, 'format': text_format})
                     else:
                         field_values.append({'value': subvalue})
                 entity[field_name] = field_values
             else:
                 row[field_name] = truncate_csv_value(field_name, id_field, field_definitions[field_name], row[field_name])
-                if field_definitions[field_name]['formatted_text'] is True:
+                if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                     entity[field_name] = [{'value': row[field_name], 'format': text_format}]
                 else:
                     entity[field_name] = [{'value': row[field_name]}]
@@ -87,7 +87,7 @@ class SimpleField():
                 subvalues = subvalues[:field_definitions[field_name]['cardinality']]
                 for subvalue in subvalues:
                     subvalue = truncate_csv_value(field_name, id_field, field_definitions[field_name], subvalue)
-                    if field_definitions[field_name]['formatted_text'] is True:
+                    if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                         field_values.append({'value': subvalue, 'format': text_format})
                     else:
                         field_values.append({'value': subvalue})
@@ -95,7 +95,7 @@ class SimpleField():
                 entity[field_name] = field_values
             else:
                 row[field_name] = truncate_csv_value(field_name, id_field, field_definitions[field_name], row[field_name])
-                if field_definitions[field_name]['formatted_text'] is True:
+                if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                     entity[field_name] = [{'value': row[field_name], 'format': text_format}]
                 else:
                     entity[field_name] = [{'value': row[field_name]}]
@@ -152,7 +152,7 @@ class SimpleField():
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], subvalue)
-                        if field_definitions[field_name]['formatted_text'] is True:
+                        if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                             entity[field_name].append({'value': subvalue, 'format': text_format})
                         else:
                             entity[field_name].append({'value': subvalue})
@@ -163,7 +163,7 @@ class SimpleField():
                 else:
                     row[field_name] = self.remove_invalid_values(config, field_definitions, field_name, row[field_name])
                     row[field_name] = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], row[field_name])
-                    if field_definitions[field_name]['formatted_text'] is True:
+                    if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name].append({'value': row[field_name], 'format': text_format})
                     else:
                         entity[field_name].append({'value': row[field_name]})
@@ -183,7 +183,7 @@ class SimpleField():
                         subvalues = subvalues[:field_definitions[field_name]['cardinality']]
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], subvalue)
-                        if field_definitions[field_name]['formatted_text'] is True:
+                        if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                             field_values.append({'value': subvalue, 'format': text_format})
                         else:
                             field_values.append({'value': subvalue})
@@ -191,7 +191,7 @@ class SimpleField():
                     entity[field_name] = field_values
                 else:
                     row[field_name] = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], row[field_name])
-                    if field_definitions[field_name]['formatted_text'] is True:
+                    if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name] = [{'value': row[field_name], 'format': text_format}]
                     else:
                         entity[field_name] = [{'value': row[field_name]}]
@@ -205,7 +205,7 @@ class SimpleField():
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], subvalue)
-                        if field_definitions[field_name]['formatted_text'] is True:
+                        if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                             field_values.append({'value': subvalue, 'format': text_format})
                         else:
                             field_values.append({'value': subvalue})
@@ -213,7 +213,7 @@ class SimpleField():
                     entity[field_name] = self.dedupe_values(entity[field_name])
                 else:
                     row[field_name] = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], row[field_name])
-                    if field_definitions[field_name]['formatted_text'] is True:
+                    if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name] = entity_field_values + [{'value': row[field_name], 'format': text_format}]
                     else:
                         entity[field_name] = entity_field_values + [{'value': row[field_name]}]
@@ -225,7 +225,7 @@ class SimpleField():
                     subvalues = self.remove_invalid_values(config, field_definitions, field_name, subvalues)
                     for subvalue in subvalues:
                         subvalue = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], subvalue)
-                        if field_definitions[field_name]['formatted_text'] is True:
+                        if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                             field_values.append({'value': subvalue, 'format': text_format})
                         else:
                             field_values.append({'value': subvalue})
@@ -233,7 +233,7 @@ class SimpleField():
                     entity[field_name] = self.dedupe_values(entity[field_name])
                 else:
                     row[field_name] = truncate_csv_value(field_name, row[entity_id_field], field_definitions[field_name], row[field_name])
-                    if field_definitions[field_name]['formatted_text'] is True:
+                    if 'formatted_text' in field_definitions[field_name] and field_definitions[field_name]['formatted_text'] is True:
                         entity[field_name] = [{'value': row[field_name], 'format': text_format}]
                     else:
                         entity[field_name] = [{'value': row[field_name]}]
