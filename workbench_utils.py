@@ -832,6 +832,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname]['entity_type'] = field_config['entity_type']
             field_definitions[fieldname]['required'] = field_config['required']
             field_definitions[fieldname]['label'] = field_config['label']
+            raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+            if len(raw_vocabularies) > 0:
+                vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
+                field_definitions[fieldname]['vocabularies'] = vocabularies
             # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
             if 'handler' in field_config['settings']:
                 field_definitions[fieldname]['handler'] = field_config['settings']['handler']
