@@ -1,7 +1,7 @@
 task: create
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: "tests/assets/non_latin_text_test"
 allow_missing_files: True
 nodes_only: true

@@ -64,6 +64,12 @@ class TestCreate(unittest.TestCase):
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
 
+        self.preprocessed_nid_file_path = self.nid_file + '.preprocessed'
+        if os.path.exists(self.nid_file):
+            os.remove(self.nid_file)
+        if os.path.exists(self.preprocessed_nid_file_path):
+            os.remove(self.preprocessed_nid_file_path)
+
 
 class TestCreateFromFiles(unittest.TestCase):
 
@@ -101,12 +107,17 @@ class TestCreateFromFiles(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        self.preprocessed_nid_file_path = self.nid_file + '.preprocessed'
+        if os.path.exists(self.preprocessed_nid_file_path):
+            os.remove(self.preprocessed_nid_file_path)
+
 
 class TestCreateWithNewTypedRelation(unittest.TestCase):
-    # Note: You can't run this test class on its own, e.g.,
-    # python3 tests/islandora_tests.py TestCreateWithNewTypedRelation.
-    # because passing "TestCreateWithNewTypedRelation" as an argument
-    # will cause the argparse parser to fail.
+    # Note: You can't run this test class on its own, e.g., python3 tests/islandora_tests.py TestCreateWithNewTypedRelation.
+    # because passing "TestCreateWithNewTypedRelation" as an argument will cause the argparse parser to fail.
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -263,13 +274,17 @@ class TestUpdate(unittest.TestCase):
 
         os.remove(self.nid_file)
         os.remove(self.update_metadata_file)
+        nid_file_preprocessed_file = os.path.join(self.temp_dir, 'workbenchupdatetestnids.txt.preprocessed')
+        if os.path.exists(nid_file_preprocessed_file):
+            os.remove(nid_file_preprocessed_file)
+        update_test_csv_preprocessed_file = os.path.join(self.temp_dir, 'workbenchupdatetest.csv.preprocessed')
+        if os.path.exists(update_test_csv_preprocessed_file):
+            os.remove(update_test_csv_preprocessed_file)
 
 
 class TestTermFromUri(unittest.TestCase):
-    # Note: You can't run this test class on its own, e.g.,
-    # python3 tests/islandora_tests.py TestTermFromUri.
-    # because passing "TestTermFromUri" as an argument
-    # will cause the argparse parser to fail.
+    # Note: You can't run this test class on its own, e.g., python3 tests/islandora_tests.py TestTermFromUri
+    # because passing "TestTermFromUri" as an argument will cause the argparse parser to fail.
 
     def test_term_from_uri(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -356,6 +371,10 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'non_latin_text_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
+
+        nid_file_preprocessed_path = self.nid_file + '.preprocessed'
+        if os.path.exists(nid_file_preprocessed_path):
+            os.remove(nid_file_preprocessed_path)
 
 
 class TestSecondaryTask(unittest.TestCase):
