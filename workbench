@@ -1912,7 +1912,7 @@ def update_terms():
             requests_cache.delete(expired=True)
 
         if not value_is_numeric(row['term_id']):
-            row['term_id'] = find_term_in_vocab(config, config['vocab_id'], row['term_id'])
+            row['term_id'] = str(find_term_in_vocab(config, config['vocab_id'], row['term_id']))
         term_ping_result = ping_term(config, row['term_id'])
         url = config['host'] + '/taxonomy/term/' + str(row['term_id']) + '?_format=json'
         term_response = issue_request(config, method.upper(), url)
