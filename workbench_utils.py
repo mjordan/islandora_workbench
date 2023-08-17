@@ -864,6 +864,8 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
             else:
                 field_definitions[fieldname]['authority_sources'] = None
+            if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
+                field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
             if 'allowed_values' in field_storage['settings']:
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
@@ -893,6 +895,21 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_config = json.loads(raw_field_config)
             field_definitions[fieldname]['media_type'] = bundle_type
             field_definitions[fieldname]['field_type'] = field_config['field_type']
+            field_definitions[fieldname]['required'] = field_config['required']
+            field_definitions[fieldname]['label'] = field_config['label']
+            raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+            if len(raw_vocabularies) > 0:
+                vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
+                field_definitions[fieldname]['vocabularies'] = vocabularies
+            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
+            if 'handler' in field_config['settings']:
+                field_definitions[fieldname]['handler'] = field_config['settings']['handler']
+            else:
+                field_definitions[fieldname]['handler'] = None
+            if 'handler_settings' in field_config['settings']:
+                field_definitions[fieldname]['handler_settings'] = field_config['settings']['handler_settings']
+            else:
+                field_definitions[fieldname]['handler_settings'] = None
             if 'file_extensions' in field_config['settings']:
                 field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
 
@@ -908,6 +925,8 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
             else:
                 field_definitions[fieldname]['target_type'] = None
+            if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
+                field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
             if 'authority_sources' in field_config['settings']:
                 field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
             else:
