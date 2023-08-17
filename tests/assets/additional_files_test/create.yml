@@ -1,10 +1,10 @@
 task: create
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_csv: create.csv
 input_dir: "tests/assets/additional_files_test"
-# allow_missing_files: true
 additional_files:
  - preservation: "http://pcdm.org/use#PreservationMasterFile"
  - transcript: "http://pcdm.org/use#Transcript"
+standalone_media_url: true

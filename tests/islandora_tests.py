@@ -580,6 +580,8 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
 
+        self.temp_dir = tempfile.gettempdir()
+
         self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv')
         with open(self.rollback_file_path, 'r') as rbf:
             rollback_file_contents = rbf.read()
@@ -630,7 +632,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'create.csv.preprocessed')
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'create.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
@@ -638,7 +640,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         if os.path.exists(rollback_csv_path):
             os.remove(rollback_csv_path)
 
-        preprocessed_rollback_csv_path = os.path.join(self.current_dir, 'assets', 'additional_files_test', 'rollback.csv.preprocessed')
+        preprocessed_rollback_csv_path = os.path.join(self.temp_dir, 'rollback.csv.preprocessed')
         if os.path.exists(preprocessed_rollback_csv_path):
             os.remove(preprocessed_rollback_csv_path)
 

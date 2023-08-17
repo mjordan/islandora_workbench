@@ -1,6 +1,7 @@
 task: delete
-host: http://localhost:8000
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: tests/assets/additional_files_test
 input_csv: rollback.csv
+standalone_media_url: true
