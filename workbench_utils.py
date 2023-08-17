@@ -4943,8 +4943,47 @@ def validate_edtf_fields(config, field_definitions, csv_data):
 
 
 def validate_edtf_date(date):
-    valid = edtf_validate.valid_edtf.is_valid(date.strip())
-    return valid
+    date = date.strip()
+    # nnnX?
+    if re.match(r'^[1-2]\d\dX\?', date):
+        return True
+    # nnXX?
+    elif re.match(r'^[1-2]\dXX\?', date):
+        return True
+    # nXXX?
+    elif re.match(r'^[1-2]XXX\?', date):
+        return True
+    # nXXX~
+    elif re.match(r'^[1-2]XXX\~', date):
+        return True
+    # nnXX~
+    elif re.match(r'^[1-2]\dXX\~', date):
+        return True
+    # nnnX~
+    elif re.match(r'^[1-2]\d\dX\~', date):
+        return True
+    # nXXX%
+    elif re.match(r'^[1-2]XXX\%', date):
+        return True
+    # nnXX%
+    elif re.match(r'^[1-2]\dXX\%', date):
+        return True
+    # nnnX%
+    elif re.match(r'^[1-2]\d\dX\%', date):
+        return True
+    # XXXX?
+    elif re.match(r'^XXXX\?', date):
+        return True
+    # XXXX~
+    elif re.match(r'^XXXX\~', date):
+        return True
+    # XXXX%
+    elif re.match(r'^XXXX\%', date):
+        return True
+    elif edtf_validate.valid_edtf.is_valid(date):
+        return True
+    else:
+        return False
 
 
 def validate_url_aliases(config, csv_data):

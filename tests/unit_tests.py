@@ -316,7 +316,7 @@ class TestValidateNodeCreatedDateValue(unittest.TestCase):
             self.assertFalse(res)
 
 
-class TestValideEdtfDate(unittest.TestCase):
+class TestValidEdtfDate(unittest.TestCase):
 
     def test_validate_good_edtf_values(self):
         good_values = ['190X',
@@ -329,7 +329,19 @@ class TestValideEdtfDate(unittest.TestCase):
                        '2001-23',
                        '2001-24',
                        '2001-31',
-                       '193X/196X'
+                       '193X/196X',
+                       '198X?',
+                       '19XX?',
+                       '2XXX?',
+                       '198X~',
+                       '19XX~',
+                       '2XXX~',
+                       '198X%',
+                       '19XX%',
+                       '2XXX%',
+                       'XXXX?',
+                       'XXXX~',
+                       'XXXX%'
                        ]
         for good_value in good_values:
             res = workbench_utils.validate_edtf_date(good_value)
@@ -342,7 +354,9 @@ class TestValideEdtfDate(unittest.TestCase):
                       '1900-00-31',
                       '1900-00',
                       '19000',
-                      '7/5/51'
+                      '7/5/51',
+                      '19X?',
+                      '2XX%',
                       ]
         for bad_value in bad_values:
             res = workbench_utils.validate_edtf_date(bad_value)
