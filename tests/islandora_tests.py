@@ -428,7 +428,8 @@ class TestSecondaryTask(unittest.TestCase):
         preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
-        secondary_preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'secondary_task_test', 'secondary.csv.preprocessed')
+
+        secondary_preprocessed_csv_path = os.path.join(self.temp_dir, 'secondary.csv.preprocessed')
         if os.path.exists(secondary_preprocessed_csv_path):
             os.remove(secondary_preprocessed_csv_path)
 

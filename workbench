@@ -35,6 +35,8 @@ def create():
         # If this is a secondary task, use the primary tasks execution start time.
         if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
             if os.path.abspath(args.config) in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
+                # Ensure that query_csv_id_to_node_id_map_for_parents is True.
+                config['query_csv_id_to_node_id_map_for_parents'] = True
                 workbench_execution_start_time = os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME')
     else:
         message = "'ignore_existing_parent_ids' is set to false, parent IDs from previous Workbench sessions will be used."
@@ -152,6 +154,7 @@ def create():
         # Since all nodes, both ones just created and also ones created in previous runs of
         # Workbench, may have entries in the node ID map database, we always query it.
         if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False and 'parent_id' in row and row['parent_id'] is not None:
+            parent_node_ids_from_id_map = []
             current_parent_node_id = ''
             if config['ignore_duplicate_parent_ids'] is True:
                 query = "select node_id from csv_id_to_node_id_map where csv_id = ? order by timestamp desc limit 1"
