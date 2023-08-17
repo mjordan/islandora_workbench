@@ -3960,6 +3960,19 @@ def get_term_name(config, term_id):
         return False
 
 
+def get_uid_from_username(config, username):
+    """Get the user's ID from the provided name and return it. If the user doesn't exist, return False.
+    """
+    url = config['host'] + '/uid_from_username?username=' + username.strip() + '&_format=json'
+    response = issue_request(config, 'GET', url)
+    if response.status_code == 200:
+        user_data = json.loads(response.text)
+        return user_data[0]['uid'][0]['value']
+    else:
+        logging.warning('Query for user "%s" returned a %s status code', username, response.status_code)
+        return False
+
+
 def get_term_uri(config, term_id):
     """Get the term's URI and return it. If the term or URI doesn't exist, return False.
        If the term has no URI, return None.

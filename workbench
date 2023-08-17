@@ -114,6 +114,8 @@ def create():
         # Some optional base fields.
         if 'uid' in csv_column_headers:
             if len(row['uid']) > 0:
+                if not value_is_numeric(row['uid']):
+                    row['uid'] = get_uid_from_username(config, row['uid'])
                 node['uid'] = [{'target_id': row['uid']}]
             # Reset it to empty so it doesn't throw a key error in the code
             # in the "Assemble Drupal field structures..." section below.
@@ -448,6 +450,8 @@ def update():
         # Some optional base fields.
         if 'uid' in csv_column_headers:
             if len(row['uid']) > 0:
+                if not value_is_numeric(row['uid']):
+                    row['uid'] = get_uid_from_username(config, row['uid'])
                 node['uid'] = [{'target_id': row['uid']}]
 
         if 'langcode' in csv_column_headers:
