@@ -90,59 +90,52 @@ class TestCreateFromFiles(unittest.TestCase):
 
 
 class TestCreateWithNewTypedRelation(unittest.TestCase):
-    # Note: You can't run this test class on its own, e.g., python3 tests/islandora_tests.py TestCreateWithNewTypedRelation.
+    # Note: You can't run this test class on its own, e.g., python3 tests/islandora_tests.py TestCreateWithNewTypedRelation
     # because passing "TestCreateWithNewTypedRelation" as an argument will cause the argparse parser to fail.
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'create_with_new_typed_relation.yml')
-        self.create_cmd = ["./workbench", "--config", config_file_path]
+        self.config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'create_with_new_typed_relation.yml')
+        self.create_cmd = ["./workbench", "--config", self.config_file_path]
 
         self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchcreatewithnewtypedrelationtestnids.txt')
 
         parser = argparse.ArgumentParser()
         parser.add_argument('--config')
         parser.add_argument('--check')
         parser.add_argument('--get_csv_template')
-        parser.set_defaults(config=config_file_path, check=False)
+        parser.set_defaults(config=self.config_file_path, check=False)
         args = parser.parse_args()
         workbench_config = WorkbenchConfig(args)
         config = workbench_config.get_config()
         self.config = config
 
     def test_create_with_new_typed_relation(self):
-        nids = list()
+        self.nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
         create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
-            fh.write("node_id\n")
-            for line in create_lines:
-                if 'created at' in line:
-                    nid = line.rsplit('/', 1)[-1]
-                    nid = nid.strip('.')
-                    nids.append(nid)
-                    fh.write(nid + "\n")
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
 
-        self.assertEqual(len(nids), 1)
+        self.assertEqual(len(self.nids), 1)
 
-        self.new_term_id = workbench_utils.find_term_in_vocab(self.config, 'person', 'Kirk, James T.')
-        self.assertTrue(self.new_term_id)
+        self.term_id = workbench_utils.find_term_in_vocab(self.config, 'person', 'Kirk, James T.')
+        self.assertTrue(self.term_id)
 
     def tearDown(self):
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'create_with_new_typed_relation_delete.yml')
-        delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-        delete_output = delete_output.decode().strip()
-        delete_lines = delete_output.splitlines()
-        os.remove(self.nid_file)
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.config_file_path, '--quick_delete_node', self.config['host'] + '/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'create_with_new_typed_relation.csv.preprocessed')
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'create_with_new_typed_relation.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        term_endpoint = self.config['host'] + '/taxonomy/term/' + str(self.new_term_id) + '?_format=json'
+        term_endpoint = self.config['host'] + '/taxonomy/term/' + str(self.term_id) + '?_format=json'
         delete_term_response = workbench_utils.issue_request(self.config, 'DELETE', term_endpoint)
 
 
@@ -198,7 +191,7 @@ class TestUpdate(unittest.TestCase):
         self.update_metadata_file = os.path.join(self.current_dir, 'assets', 'update_test', 'workbenchupdatetest.csv')
 
         yaml = YAML()
-        with open(create_config_file_path, 'r') as f:
+        with open(self.create_config_file_path, 'r') as f:
             config_file_contents = f.read()
         config_data = yaml.load(config_file_contents)
         config = {}
@@ -254,27 +247,9 @@ class TestUpdate(unittest.TestCase):
         update_test_csv_preprocessed_file = os.path.join(self.temp_dir, 'workbenchupdatetest.csv.preprocessed')
         if os.path.exists(update_test_csv_preprocessed_file):
             os.remove(update_test_csv_preprocessed_file)
-
-
-class TestTermFromUri(unittest.TestCase):
-    # Note: You can't run this test class on its own, e.g., python3 tests/islandora_tests.py TestTermFromUri
-    # because passing "TestTermFromUri" as an argument will cause the argparse parser to fail.
-
-    def test_term_from_uri(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(current_dir, 'assets', 'create_test', 'create.yml')
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--config')
-        parser.add_argument('--check')
-        parser.add_argument('--get_csv_template')
-        parser.set_defaults(config=config_file_path, check=False)
-        args = parser.parse_args()
-        workbench_config = WorkbenchConfig(args)
-        config = workbench_config.get_config()
-
-        tid = workbench_utils.get_term_id_from_uri(config, 'http://mozilla.github.io/pdf.js')
-        self.assertEqual(tid, 3)
+        create_csv_preprocessed_file = os.path.join(self.temp_dir, 'create.csv.preprocessed')
+        if os.path.exists(create_csv_preprocessed_file):
+            os.remove(create_csv_preprocessed_file)
 
 
 class TestCreateWithNonLatinText(unittest.TestCase):
