@@ -5571,7 +5571,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         # Add field_model if that field exists in the child's content type.
         entity_fields = get_entity_fields(config, 'node', config['paged_content_page_content_type'])
         if 'field_model' in entity_fields:
-            node_json['field_model'] = [{'target_id': config['paged_content_page_model_tid'], 'target_type': 'taxonomy_term'}]
+            if not value_is_numeric(config['paged_content_page_model_tid'].strip()) and config['paged_content_page_model_tid'].strip().startswith('http'):
+                paged_content_model_tid = get_term_id_from_uri(config, config['paged_content_page_model_tid'].strip())
+            else:
+                paged_content_model_tid = config['paged_content_page_model_tid'].strip()
+            node_json['field_model'] = [{'target_id': paged_content_model_tid, 'target_type': 'taxonomy_term'}]
 
         if 'field_display_hints' in parent_csv_record:
             node_json['field_display_hints'] = [{'target_id': parent_csv_record['field_display_hints'], 'target_type': 'taxonomy_term'}]
