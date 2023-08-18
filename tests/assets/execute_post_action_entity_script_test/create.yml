@@ -1,7 +1,7 @@
 task: create
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: tests/assets/execute_post_action_entity_script_test
 nodes_only: true
 node_post_create: ['tests/assets/execute_post_action_entity_script_test/script.py']
