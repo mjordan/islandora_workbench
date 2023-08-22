@@ -7,6 +7,7 @@
 
 import sys
 import os
+import glob
 from ruamel.yaml import YAML
 import tempfile
 import subprocess
@@ -463,6 +464,12 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
         google_sheet_csv_path = os.path.join(self.temp_dir, 'google_sheet.csv')
         if os.path.exists(google_sheet_csv_path):
             os.remove(google_sheet_csv_path)
+
+        secondary_task_google_sheets_csv_paths = glob.glob('*secondary_task_with_google_sheets_and_excel_test_google_sheets_secondary*', root_dir=self.temp_dir)
+        for secondary_csv_file_path in secondary_task_google_sheets_csv_paths:
+            if os.path.exists(os.path.join(self.temp_dir, secondary_csv_file_path)):
+                os.remove(os.path.join(self.temp_dir, secondary_csv_file_path))
+
         google_sheet_csv_preprocessed_path = os.path.join(self.temp_dir, 'google_sheet.csv.preprocessed')
         if os.path.exists(google_sheet_csv_preprocessed_path):
             os.remove(google_sheet_csv_preprocessed_path)
@@ -531,6 +538,12 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
         excel_csv_path = os.path.join(self.temp_dir, 'excel.csv')
         if os.path.exists(excel_csv_path):
             os.remove(excel_csv_path)
+
+        secondary_task_excel_csv_paths = glob.glob('*secondary_task_with_google_sheets_and_excel_test_excel_secondary*', root_dir=self.temp_dir)
+        for secondary_csv_file_path in secondary_task_excel_csv_paths:
+            if os.path.exists(os.path.join(self.temp_dir, secondary_csv_file_path)):
+                os.remove(os.path.join(self.temp_dir, secondary_csv_file_path))
+
         excel_csv_preprocessed_path = os.path.join(self.temp_dir, 'excel.csv.preprocessed')
         if os.path.exists(excel_csv_preprocessed_path):
             os.remove(excel_csv_preprocessed_path)
