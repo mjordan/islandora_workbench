@@ -2032,6 +2032,15 @@ def check_input(config, args):
         print(message)
         logging.info(message)
 
+        # Validate length of 'term_name'.
+        # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+        validate_term_name_csv_data = get_csv_data(config)
+        for count, row in enumerate(validate_term_name_csv_data, start=1):
+            if 'term_name' in row and len(row['term_name']) > 255:
+                message = "The 'term_name' column in row for term '" + row['term_name'] + "' of your CSV file exceeds Drupal's maximum length of 255 characters."
+                logging.error(message)
+                sys.exit('Error: ' + message)
+
     if config['task'] == 'create_terms' or config['task'] == 'update_terms':
         # Check that all required fields are present in the CSV.
         field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
