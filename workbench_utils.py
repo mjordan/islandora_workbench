@@ -1662,7 +1662,6 @@ def check_input(config, args):
 
     # Check column headers in CSV file.
     csv_data = get_csv_data(config)
-    # WIP on #559.
     if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms', 'update_terms']:
         if config['task'] == 'create_terms' or config['task'] == 'update_terms':
             fieldname_map_cache_path = os.path.join(config['temp_dir'], f"taxonomy_term-{config['vocab_id']}-labels.fieldname_map")
@@ -1852,7 +1851,7 @@ def check_input(config, args):
         print(message)
         logging.info(message)
 
-    # Check that Drupal fields that are required are in the CSV file (create task only).
+    # Check that Drupal fields that are required are in the 'create' task CSV file.
     if config['task'] == 'create':
         required_drupal_fields_node = get_required_bundle_fields(config, 'node', config['content_type'])
         for required_drupal_field in required_drupal_fields_node:
@@ -2007,7 +2006,7 @@ def check_input(config, args):
 
     if config['task'] == 'update_terms':
         if 'term_id' not in csv_column_headers:
-            message = 'For "update" tasks, your CSV file must contain a "term_id" column.'
+            message = 'For "update_terms" tasks, your CSV file must contain a "term_id" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
         field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
