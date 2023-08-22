@@ -1,9 +1,9 @@
 task: create
 allow_adding_terms: false
 allow_missing_files: true
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: tests/assets/taxonomies_test
 input_csv: term_id_not_in_taxonomy.csv
 media_type: image

@@ -401,6 +401,8 @@ class TestSecondaryTask(unittest.TestCase):
 
 
 class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
+    """Note: This test fetches data from https://docs.google.com/spreadsheets/d/19AxFWEFuwEoNqH8ciUo0PRAroIpNE9BuBhE5tIE6INQ/edit#gid=0
+    """
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))

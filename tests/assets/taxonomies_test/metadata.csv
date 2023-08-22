@@ -1,5 +1,5 @@
 file,id,title,field_model,field_genre
-,01,Taxo test 1,25,XNewspapers
-,02,Taxo test 2,25,XPostcards
-,03,Taxo test 3,25,XCartoons
-,04,Taxo test 4,25,XCertificates
+,01,Taxo test 1,Image,XNewspapers
+,02,Taxo test 2,Image,XPostcards
+,03,Taxo test 3,Image,XCartoons
+,04,Taxo test 4,Image,XCertificates

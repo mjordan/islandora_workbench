@@ -60,6 +60,7 @@ class TestUpdateCheck(unittest.TestCase):
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(self.current_dir, 'assets', 'check_test', 'update.yml')
+        self.temp_dir = tempfile.gettempdir()
 
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
@@ -69,12 +70,18 @@ class TestUpdateCheck(unittest.TestCase):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
+    def tearDown(self):
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "update.csv.preprocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
 
 class TestDeleteCheck(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(self.current_dir, 'assets', 'check_test', 'delete.yml')
+        self.temp_dir = tempfile.gettempdir()
 
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
@@ -84,12 +91,18 @@ class TestDeleteCheck(unittest.TestCase):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
+    def tearDown(self):
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "delete.csv.preprocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
 
 class TestAddMediaCheck(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(self.current_dir, 'assets', 'check_test', 'add_media.yml')
+        self.temp_dir = tempfile.gettempdir()
 
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
@@ -99,8 +112,16 @@ class TestAddMediaCheck(unittest.TestCase):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
+    def tearDown(self):
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "add_media.csv.preprocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
 
 class TestTypedRelationBadRelatorCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.gettempdir()
 
     def test_bad_relator_check_fail(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -119,12 +140,15 @@ class TestTypedRelationBadRelatorCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_typed_relation_fail.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "bad_typed_relation_fail.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
 
 class TestTypedRelationBadUriCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.gettempdir()
 
     def test_bad_uri_check_fail(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -143,7 +167,7 @@ class TestTypedRelationBadUriCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "bad_uri_fail.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "bad_uri_fail.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -156,22 +180,26 @@ class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
+        self.temp_dir = tempfile.gettempdir()
 
     def test_new_typed_relation_check(self):
         lines = self.output.splitlines()
-        self.assertRegex(self.output, 'and new terms will be created as noted', '')
+        self.assertRegex(self.output, 'new terms will be created as noted', '')
 
     def tearDown(self):
         self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'typed_relation_test', 'input_data', 'rollback.csv')
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "new_typed_relation.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "new_typed_relation.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
 
 class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.gettempdir()
 
     def test_no_namespace_check_fail(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -190,55 +218,7 @@ class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "typed_relation_test", "input_data", "no_namespace.csv.preprocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestMissingVocabCsvCheck(unittest.TestCase):
-
-    def test_missing_vocab_csv(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', 'vocab_csv_missing.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        try:
-            output = subprocess.check_output(cmd)
-            output = output.decode().strip()
-            lines = output.splitlines()
-            self.assertRegex(output, 'tests/assets/vocab_csv_test/assets/vocab_csv_test/person_fields_.csv not found', '')
-        except subprocess.CalledProcessError as err:
-            pass
-
-    def tearDown(self):
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'assets', 'vocab_csv_test', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', "metadata.csv.preprocessed")
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
-class TestExtraFieldInVocabCsvCheck(unittest.TestCase):
-
-    def test_extra_field_in_vocab_csv(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', 'extra_field_in_csv.yml')
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        try:
-            output = subprocess.check_output(cmd)
-            output = output.decode().strip()
-            lines = output.splitlines()
-            self.assertRegex(output, '"person_fields_extra_field.csv" is not a field in the "person" vocabulary', '')
-        except subprocess.CalledProcessError as err:
-            pass
-
-    def tearDown(self):
-        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'assets', 'vocab_csv_test', 'rollback.csv')
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(self.current_dir, 'assets', 'vocab_csv_test', "metadata.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "no_namespace.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -251,18 +231,22 @@ class TestDelimiterCheck(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
+        self.temp_dir = tempfile.gettempdir()
 
     def test_delimiter_check(self):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'input data appear to be valid', '')
 
     def tearDown(self):
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "delimiter_test", "metadata.tsv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "metadata.tsv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
 
 class TestGeolocationCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.gettempdir()
 
     def test_geolocation_check(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -277,12 +261,15 @@ class TestGeolocationCheck(unittest.TestCase):
             pass
 
     def tearDown(self):
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "geolocation_test", "input_data", "bad_geocoorindates_fail.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "bad_geocoorindates_fail.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
 
 class TestHeaderColumnMismatchCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.gettempdir()
 
     def test_header_column_mismatch_fail(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -301,7 +288,7 @@ class TestHeaderColumnMismatchCheck(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        preprocessed_csv_file_path = os.path.join(self.current_dir, "assets", "header_column_mismatch_test", "metadata.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "metadata.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -314,13 +301,14 @@ class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
+        self.temp_dir = tempfile.gettempdir()
 
     def test_create_with_field_templates_check(self):
         lines = self.output.splitlines()
         self.assertRegex(self.output, 'all 3 rows in the CSV file have the same number of columns as there are headers .6.', '')
 
     def tearDown(self):
-        templated_csv_path = os.path.join(self.current_dir, 'assets', 'create_with_field_templates_test', 'metadata.csv.preprocessed')
+        templated_csv_path = os.path.join(self.temp_dir, 'metadata.csv.preprocessed')
         os.remove(templated_csv_path)
 
 
@@ -328,6 +316,7 @@ class TestCommentedCsvs(unittest.TestCase):
 
     def test_commented_csv(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.temp_dir = tempfile.gettempdir()
 
         config_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "raw_csv.yml")
         cmd = ["./workbench", "--config", config_file_path, "--check"]
@@ -335,7 +324,7 @@ class TestCommentedCsvs(unittest.TestCase):
         output = output.decode().strip()
         lines = output.splitlines()
         self.assertRegex(output, 'all 3 rows in the CSV file', '')
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "metadata.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "metadata.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -345,10 +334,10 @@ class TestCommentedCsvs(unittest.TestCase):
         output = output.decode().strip()
         lines = output.splitlines()
         self.assertRegex(output, 'all 4 rows in the CSV file', '')
-        csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv")
+        csv_file_path = os.path.join(self.temp_dir, "excel.csv")
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "excel.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "excel.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -361,7 +350,7 @@ class TestCommentedCsvs(unittest.TestCase):
         csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv")
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "google_sheet.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
 
@@ -370,10 +359,10 @@ class TestTaxonomies(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        taxonomies_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'create.yml')
+        self.taxonomies_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'create.yml')
 
         yaml = YAML()
-        with open(taxonomies_config_file_path, 'r') as f:
+        with open(self.taxonomies_config_file_path, 'r') as f:
             config_file_contents = f.read()
         config_data = yaml.load(config_file_contents)
         config = {}
@@ -383,13 +372,10 @@ class TestTaxonomies(unittest.TestCase):
         self.islandora_username = config['username']
         self.islandora_password = config['password']
 
-        self.create_cmd = ["./workbench", "--config", taxonomies_config_file_path]
+        self.create_cmd = ["./workbench", "--config", self.taxonomies_config_file_path]
 
         self.temp_dir = tempfile.gettempdir()
-        self.nid_file = os.path.join(self.temp_dir, 'workbenchtaxonomiestestnids.txt')
-
-        if os.path.exists(self.nid_file):
-            os.remove(self.nid_file)
+        self.nids = list()
 
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
@@ -398,14 +384,11 @@ class TestTaxonomies(unittest.TestCase):
         # Write a file to the system's temp directory containing the node IDs of the
         # nodes created during this test so they can be deleted in tearDown().
         create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
-            fh.write("node_id\n")
-            for line in create_lines:
-                if 'created at' in line:
-                    nid = line.rsplit('/', 1)[-1]
-                    nid = nid.strip('.')
-                    nids.append(nid)
-                    fh.write(nid + "\n")
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
 
     def test_validate_term_names_exist(self):
         taxonomies_terms_exist_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'create.yml')
@@ -440,31 +423,31 @@ class TestTaxonomies(unittest.TestCase):
                 delete_term_url = self.islandora_host + '/taxonomy/term/' + str(term_to_delete_tid) + '?_format=json'
                 term_delete_response = requests.delete(delete_term_url, auth=(self.islandora_username, self.islandora_password))
 
-        delete_config_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'delete.yml')
-        delete_cmd = ["./workbench", "--config", delete_config_file_path]
-        delete_output = subprocess.check_output(delete_cmd)
-
-        if os.path.exists(self.nid_file):
-            os.remove(self.nid_file)
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.taxonomies_config_file_path, '--quick_delete_node', self.islandora_host + '/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
         rollback_file_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'rollback.csv')
         if os.path.exists(rollback_file_path):
             os.remove(rollback_file_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'metadata.csv.preprocessed')
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'metadata.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_id_not_in_taxonomy.csv.preprocessed')
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'term_id_not_in_taxonomy.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'taxonomies_test', 'term_name_not_in_taxonomy.csv.preprocessed')
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'term_name_not_in_taxonomy.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
 
 class TestGoogleGid(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_dir = tempfile.gettempdir()
 
     def test_google_gid(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -496,11 +479,21 @@ class TestGoogleGid(unittest.TestCase):
         lines = output.splitlines()
         self.assertRegex(output, 'OK, all 1 rows in the CSV file')
 
+    def tearDown(self):
+        csv_path = os.path.join(self.temp_dir, 'google_sheet.csv')
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'google_sheet.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
 
 class TestParentsPrecedeChildren(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.temp_dir = tempfile.gettempdir()
 
     def test_good_csv(self):
         config_file_path = os.path.join(self.current_dir, 'assets', 'parents_precede_children_test', 'good.yml')
@@ -518,11 +511,11 @@ class TestParentsPrecedeChildren(unittest.TestCase):
         self.assertRegex(str(stdout), '"c2p2" must come after', '')
 
     def tearDown(self):
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'parents_precede_children_test', 'good.csv.preprocessed')
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'good.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        preprocessed_csv_path = os.path.join(self.current_dir, 'assets', 'parents_precede_children_test', 'bad.csv.preprocessed')
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'bad.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 

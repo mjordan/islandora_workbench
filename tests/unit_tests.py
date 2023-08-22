@@ -499,22 +499,22 @@ class TestSqliteManager(unittest.TestCase):
 
         self.db_file_path = os.path.join(self.config['temp_dir'], self.config['sqlite_db_filename'])
 
-        workbench_utils.sqlite_manager(self.config, operation='create_database')
-        workbench_utils.sqlite_manager(self.config, operation='create_table', table_name='names', query='CREATE TABLE names (name TEXT, location TEXT)')
+        workbench_utils.sqlite_manager(self.config, db_file_path=self.db_file_path, operation='create_database')
+        workbench_utils.sqlite_manager(self.config, db_file_path=self.db_file_path, operation='create_table', table_name='names', query='CREATE TABLE names (name TEXT, location TEXT)')
 
     def test_crud_operations(self):
-        workbench_utils.sqlite_manager(self.config, operation='insert', query="INSERT INTO names VALUES (?, ?)", values=('Mark', 'Burnaby'))
-        workbench_utils.sqlite_manager(self.config, operation='insert', query="INSERT INTO names VALUES (?, ?)", values=('Mix', 'Catland'))
-        res = workbench_utils.sqlite_manager(self.config, operation='select', query="select * from names")
+        workbench_utils.sqlite_manager(self.config, operation='insert', db_file_path=self.db_file_path, query="INSERT INTO names VALUES (?, ?)", values=('Mark', 'Burnaby'))
+        workbench_utils.sqlite_manager(self.config, operation='insert', db_file_path=self.db_file_path, query="INSERT INTO names VALUES (?, ?)", values=('Mix', 'Catland'))
+        res = workbench_utils.sqlite_manager(self.config, operation='select', db_file_path=self.db_file_path, query="select * from names")
         self.assertEqual(res[0]['name'], 'Mark')
         self.assertEqual(res[1]['location'], 'Catland')
 
-        workbench_utils.sqlite_manager(self.config, operation='update', query="UPDATE names set location = ? where name = ?", values=('Blank stare', 'Mix'))
-        res = workbench_utils.sqlite_manager(self.config, operation='select', query="select * from names")
+        workbench_utils.sqlite_manager(self.config, operation='update', db_file_path=self.db_file_path, query="UPDATE names set location = ? where name = ?", values=('Blank stare', 'Mix'))
+        res = workbench_utils.sqlite_manager(self.config, operation='select', db_file_path=self.db_file_path, query="select * from names")
         self.assertEqual(res[1]['location'], 'Blank stare')
 
-        workbench_utils.sqlite_manager(self.config, operation='delete', query="delete from names where name = ?", values=('Mix',))
-        res = workbench_utils.sqlite_manager(self.config, operation='select', query="select * from names")
+        workbench_utils.sqlite_manager(self.config, operation='delete', db_file_path=self.db_file_path, query="delete from names where name = ?", values=('Mix',))
+        res = workbench_utils.sqlite_manager(self.config, operation='select', db_file_path=self.db_file_path, query="select * from names")
         self.assertEqual(len(res), 1)
 
     def tearDown(self):
