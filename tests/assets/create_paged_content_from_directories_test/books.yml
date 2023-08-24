@@ -1,0 +1,9 @@
+paged_content_from_directories: true
+paged_content_page_model_tid: http://id.loc.gov/ontologies/bibframe/part
+task: create
+host: https://islandora.traefik.me
+username: admin
+password: password
+input_dir: tests/assets/create_paged_content_from_directories_test/samplebooks
+media_type: image
+standalone_media_url: true
