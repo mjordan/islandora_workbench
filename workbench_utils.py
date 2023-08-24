@@ -1198,7 +1198,7 @@ def check_input(config, args):
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created', 'published']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
     # but it doesn't show up in any field configs.
-    reserved_fields = ['file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode', 'revision_log ']
+    reserved_fields = ['file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode', 'revision_log']
     entity_fields = get_entity_fields(config, 'node', config['content_type'])
     if config['id_field'] not in entity_fields:
         reserved_fields.append(config['id_field'])
