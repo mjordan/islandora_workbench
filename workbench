@@ -530,7 +530,7 @@ def update():
             revisions_enabled = json.loads(response)['new_revision']
             if revisions_enabled:
                 # Add revision information to node
-                revision_log_message = row['revision_log'] if 'revision_log' in row else 'Updated by Islandora Workbench.'
+                revision_log_message = row['revision_log'] if 'revision_log' in row and row['revision_log'] != '' else 'Updated by Islandora Workbench.'
                 revision_json = {
                         "revision_log": [
                             {
@@ -1241,7 +1241,7 @@ def update_media() -> None:
 
         # Update revision log message
         if is_revisions_enabled(config, media_type):
-            revision_log_message = row['revision_log_message'] if 'revision_log_message' in row else 'Updated by Islandora Workbench.'
+            revision_log_message = row['revision_log_message'] if 'revision_log_message' in row and row['revision_log_message'] != '' else 'Updated by Islandora Workbench.'
             patch_request_json.update(patch_media_revision_log_message(revision_log_message))
 
         # Make the PATCH request
