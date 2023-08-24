@@ -983,7 +983,7 @@ def update_media() -> None:
             ]
         }
     
-    def is_revisions_enabled(config: dict, media_type: str) -> bool:
+    def is_revisions_enabled(config: dict, media_type: str):
         """Return True if the media type has revisions enabled, False otherwise.
 
         Parameters:
