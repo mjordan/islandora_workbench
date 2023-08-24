@@ -29,8 +29,6 @@ def create():
 
     if config['ignore_existing_parent_ids'] is True:
         workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
-        message = "Parent IDs from previous Workbench sessions will be ignored."
-        logging.warning(message)
 
         # If this is a secondary task, use the primary tasks execution start time.
         if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
