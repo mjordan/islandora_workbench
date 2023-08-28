@@ -1,5 +1,5 @@
-"""unittest tests that require a live Drupal at http://localhost:8000. In most cases, the URL, credentials,
-   etc. are in a configuration file referenced in the test.
+"""unittest tests that require a live Drupal at https://islandora.traefik.me. In most cases, the host URL, 
+   credentials, etc. are in a configuration file referenced in the test.
 
    Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
    contain tests that interact with an Islandora instance.

@@ -1,4 +1,4 @@
-"""unittest tests for the CSV ID to node ID map.
+"""unittest tests for the CSV ID to node ID map. Do not require a live Drupal.
 """
 
 import os
