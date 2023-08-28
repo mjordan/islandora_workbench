@@ -509,6 +509,9 @@ def update():
             if custom_field == 'uid':
                 continue
 
+            if custom_field == 'revision_log':
+                continue
+
             # Entity reference fields (taxonomy term and node).
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
@@ -547,6 +550,22 @@ def update():
         if node_has_all_fields is True:
             node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
             node_headers = {'Content-Type': 'application/json'}
+            # Make a GET request to the content type
+            content_type_endpoint = f"{config['host']}/entity/node_type/{config['content_type']}/?_format=json"
+            response = issue_request(config, 'GET', content_type_endpoint).text
+            # See if revisions are enabled for the content type and create a new revision log message if so
+            revisions_enabled = json.loads(response)['new_revision']
+            if revisions_enabled:
+                # Add revision information to node
+                revision_log_message = row['revision_log'] if 'revision_log' in row and row['revision_log'] != '' else 'Updated by Islandora Workbench.'
+                revision_json = {
+                        "revision_log": [
+                            {
+                            "value": revision_log_message
+                            }
+                        ]
+                    }
+                node.update(revision_json)
             node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
             if node_response.status_code == 200:
@@ -998,6 +1017,36 @@ def update_media() -> None:
                 {'value': status}
             ]
         }
+    
+    def is_revisions_enabled(config: dict, media_type: str):
+        """Return True if the media type has revisions enabled, False otherwise.
+
+        Parameters:
+            - config: The global configuration object.
+            - media_type: The media entity's type (e.g., 'image').
+
+        Returns:
+            True if the media type has revisions enabled, False otherwise.
+        """
+        media_type_endpoint = f"{config['host']}/entity/media_type/{media_type}/?_format=json"
+        response = issue_request(config, 'GET', media_type_endpoint).text
+        return json.loads(response)['new_revision']
+    
+    def patch_media_revision_log_message(revision_log_message) -> dict:
+        """Return the JSON object for a PATCH request required to patch the media entity's revision log message.
+
+        Parameters:
+            - revision_log_message: The revision log message.
+
+        Returns:
+            The JSON request for a PATCH request required to patch the media entity's revision log message.
+        """
+        return {
+            'revision_log_message': [
+                {'value': revision_log_message}
+            ]
+        }
+
     # ========================================================= Main Logic =========================================================
 
     # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
@@ -1228,6 +1277,11 @@ def update_media() -> None:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue
+
+        # Update revision log message
+        if is_revisions_enabled(config, media_type):
+            revision_log_message = row['revision_log'] if 'revision_log' in row and row['revision_log'] != '' else 'Updated by Islandora Workbench.'
+            patch_request_json.update(patch_media_revision_log_message(revision_log_message))
 
         # Make the PATCH request
         if config['standalone_media_url'] is True:
