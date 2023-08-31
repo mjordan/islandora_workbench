@@ -6601,9 +6601,8 @@ def get_entity_reference_view_endpoints(config):
     if 'entity_reference_view_endpoints' not in config:
         return endpoint_mappings
 
-    for endpoint_mapping in config['entity_reference_view_endpoints']:
-        for field_name, endpoint in endpoint_mapping.items():
-            endpoint_mappings[field_name] = endpoint
+    for field_name, endpoint in config['entity_reference_view_endpoints'].items():
+        endpoint_mappings[field_name] = endpoint
 
     return endpoint_mappings
 
