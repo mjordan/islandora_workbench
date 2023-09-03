@@ -5,7 +5,7 @@ import argparse
 from WorkbenchConfig import WorkbenchConfig
 
 
-class Test(unittest.TestCase):
+class TestWorkbenchConfig(unittest.TestCase):
 
     def test_path_check_valid_file(self):
         test_file_name = '/file/does/not/exist.yml'
