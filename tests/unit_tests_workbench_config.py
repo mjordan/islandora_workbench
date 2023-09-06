@@ -26,7 +26,7 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(['--config', test_file_name])
 
-        with self.assertRaises(SystemExit) as exit_return,\
+        with self.assertRaises(SystemExit) as exit_return, \
                 patch('WorkbenchConfig.logging') as mocked_logging:
 
             mocked_logging.return_value = None
@@ -45,7 +45,7 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         with patch('sys.exit', side_effect=lambda x: None) as mock_exit, \
                 patch('WorkbenchConfig.WorkbenchConfig.validate') as mocked_validate, \
-                    patch('WorkbenchConfig.logging') as mocked_logging:
+                patch('WorkbenchConfig.logging') as mocked_logging:
 
             mocked_validate.return_value = None
             mocked_logging.return_value = None
@@ -56,13 +56,12 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         # TODO: check values sent to logger
 
-
     def test_get_config_config_file_01(self):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_01_create_short_valid.yml'
 
         args = self.parser.parse_args(['--config', test_file_name])
 
-        with patch('WorkbenchConfig.WorkbenchConfig.validate') as mocked_validate,\
+        with patch('WorkbenchConfig.WorkbenchConfig.validate') as mocked_validate, \
                 patch('WorkbenchConfig.logging') as mocked_logging:
 
             mocked_validate.return_value = None
@@ -108,7 +107,7 @@ class TestWorkbenchConfig(unittest.TestCase):
         args = self.parser.parse_args(['--config', test_file_name])
 
         with patch('WorkbenchConfig.issue_request') as mocked_issue_request, \
-                patch('WorkbenchConfig.logging') as mocked_logging,\
+                patch('WorkbenchConfig.logging') as mocked_logging, \
                 self.assertRaises(SystemExit) as exit_return:
 
             mocked_logging.return_value = None
@@ -145,7 +144,8 @@ class TestWorkbenchConfig(unittest.TestCase):
 #             test_config_obj = WorkbenchConfig(args)
 #
 #
-#             error_message = """Error: You may only select one of ['use_node_title_for_media', 'use_nid_in_media_title', 'field_for_media_title'].
+#             error_message = """Error: You may only select one of ['use_node_title_for_media',
+#             'use_nid_in_media_title', 'field_for_media_title'].
 #   - This config  has selected ['use_node_title_for_media', 'use_nid_in_media_title'].
 # """
 #             # error_message = f"You may only select one of {mutators}.\n  - This config  has selected {selected}."
@@ -158,7 +158,6 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         with patch('WorkbenchConfig.issue_request') as mocked_issue_request, \
                 patch('WorkbenchConfig.logging') as mocked_logging:
-
 
             mocked_logging.return_value = None
 
