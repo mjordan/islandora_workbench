@@ -5692,7 +5692,8 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         'content_translation_source',
         'content_translation_outdated']
     for field_to_remove in fields_to_remove:
-        node_field_names.remove(field_to_remove)
+        if field_to_remove in node_field_names:
+            node_field_names.remove(field_to_remove)
 
     csvfile = open(config['output_csv'], 'a+', encoding='utf-8')
 
