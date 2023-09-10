@@ -56,7 +56,7 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         # TODO: check values sent to logger
 
-    def test_get_config_config_file_01(self):
+    def test_get_config_valid_config_file_01(self):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_01_create_short_valid.yml'
 
         args = self.parser.parse_args(['--config', test_file_name])
@@ -126,30 +126,27 @@ class TestWorkbenchConfig(unittest.TestCase):
             error_message = f'Error: Content type {content_type} does not exist on {host}.'
             self.assertEqual(exit_return.exception.code, error_message)
 
-#     def test_init_validate_invalid_mutators_01(self):
-#         test_file_name = 'tests/assets/WorkbenchConfig_test/config_02_02_create_short_invalid.yml'
-#
-#         args = self.parser.parse_args(['--config', test_file_name])
-#
-#         with patch('WorkbenchConfig.issue_request') as mocked_issue_request, \
-#                 patch('WorkbenchConfig.logging') as mocked_logging,\
-#                 self.assertRaises(SystemExit) as exit_return:
-#
-#             mocked_logging.return_value = None
-#
-#             fake_response = namedtuple('fake_response', ['status_code'])
-#             fake_response.status_code = 200
-#             mocked_issue_request.return_value = fake_response
-#
-#             test_config_obj = WorkbenchConfig(args)
-#
-#
-#             error_message = """Error: You may only select one of ['use_node_title_for_media',
-#             'use_nid_in_media_title', 'field_for_media_title'].
-#   - This config  has selected ['use_node_title_for_media', 'use_nid_in_media_title'].
-# """
-#             # error_message = f"You may only select one of {mutators}.\n  - This config  has selected {selected}."
-#             self.assertEqual(exit_return.exception.code, error_message)
+    def test_init_validate_invalid_mutators_01(self):
+        test_file_name = 'tests/assets/WorkbenchConfig_test/config_02_02_create_short_invalid.yml'
+
+        args = self.parser.parse_args(['--config', test_file_name])
+
+        with patch('WorkbenchConfig.issue_request') as mocked_issue_request, \
+                patch('WorkbenchConfig.logging') as mocked_logging:
+
+            mocked_logging.return_value = None
+
+            fake_response = namedtuple('fake_response', ['status_code'])
+            fake_response.status_code = 200
+            mocked_issue_request.return_value = fake_response
+
+            # Error text should only be this line, therefore use ^ and $ at the start and end of the message respectively
+            error_message = "^Error: You may only select one of \['use_node_title_for_media', "  \
+                + "'use_nid_in_media_title', 'field_for_media_title'\].\n  - This config  has selected " \
+                + "\['use_node_title_for_media', 'use_nid_in_media_title'\].\n$"
+
+            with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
+                test_config_obj = WorkbenchConfig(args)
 
     def test_init_validate_invalid_mutators_02(self):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_02_03_create_short_invalid.yml'
@@ -165,14 +162,11 @@ class TestWorkbenchConfig(unittest.TestCase):
             fake_response.status_code = 200
             mocked_issue_request.return_value = fake_response
 
-            with self.assertRaises(SystemExit) as exit_return:
+            # Error text should only be this line, therefore use ^ and $ at the start and end of the message respectively
+            error_message = "^Error: You may only select one of \['use_node_title_for_media', "  \
+                + "'use_nid_in_media_title', 'field_for_media_title'\].\n  - This config  has selected " \
+                + "\['use_node_title_for_media', 'field_for_media_title'\].\n$"
+
+            with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
                 test_config_obj = WorkbenchConfig(args)
 
-                print(exit_return)
-
-            error_message = """Error: You may only select one of ['use_node_title_for_media', 'use_nid_in_media_title', 'field_for_media_title'].
-  - This config  has selected ['use_node_title_for_media', 'field_for_media_title'].
-"""
-            error_message = f"You may only select one of.\n  - This config  has selected."
-            # print(exit_return.exception.code, error_message)
-            # self.assertEqual(exit_return.exception.code, error_message)
