@@ -1,5 +1,5 @@
-task: create
+task: add_media
 host: https://islandora.traefik.me
 username: admin
 password: password
-media_type: document
+input_csv: add_media.csv

@@ -1,7 +1,7 @@
 task: create
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: tests/assets/commented_csvs_test
 input_csv: 'https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0'
 nodes_only: true

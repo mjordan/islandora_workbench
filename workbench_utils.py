@@ -62,9 +62,9 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
            The configuration settings defined by workbench_config.get_config().
        filepath: string
            The value of the CSV 'file' column.
-        file_fieldname: string
+       file_fieldname: string
             The name of the CSV column containing the filename (usually 'file').
-        csv_row : OrderedDict
+       csv_row : OrderedDict
             The CSV row for the current item.
        Returns
        -------
@@ -112,14 +112,14 @@ def get_oembed_url_media_type(config, filepath):
        Parameters
        ----------
        config : dict
-           The configuration settings defined by workbench_config.get_config().
+          The configuration settings defined by workbench_config.get_config().
        filepath: string
-           The value of the CSV 'file' column.
+          The value of the CSV 'file' column.
        Returns
        -------
-       mtype
-           A string naming the detected media type, e.g. 'remote_video', or None
-           if the filepath does not start with a configured provider URL.
+       mtype : str|None
+          A string naming the detected media type, e.g. 'remote_video', or None
+          if the filepath does not start with a configured provider URL.
     """
     for oembed_provider in config['oembed_providers']:
         for mtype, provider_urls in oembed_provider.items():
@@ -131,7 +131,19 @@ def get_oembed_url_media_type(config, filepath):
 
 
 def get_oembed_media_types(config):
-    # Get a list of the registered oEmbed media types from config.
+    """Get a list of the registered oEmbed media types from config.
+
+       Parameters
+       ----------
+       config : dict
+              The configuration settings defined by workbench_config.get_config().
+
+       Returns
+       -------
+       media_types : list
+           A list with the configured allowed oEmbed media type(s), e.g. ['remote_video'].
+    """
+
     media_types = list()
     for omt in config['oembed_providers']:
         keys = list(omt.keys())
@@ -142,7 +154,25 @@ def get_oembed_media_types(config):
 def set_model_from_extension(file_name, config):
     """Using configuration options, determine which Islandora Model value
        to assign to nodes created from files. Options are either a single model
-       or a set of mappings from file extenstion to Islandora Model term ID.
+       or a set of mappings from file extension to Islandora Model term ID.
+
+       Parameters
+       ----------
+       file_name : str
+           Filename that will be checked to determine Islandora Model value(s).
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+
+
+       Returns
+       -------
+       None|str|dict
+           None is returned if 'task' is not set to 'create_from_files'.
+
+           str is returned if 'model' config value is set, a single model term ID is str returned.
+
+           dict is returned if 'models' config value is set, a dict with a mapping of URIs or Islandora Model term ID(s)
+           to file extension(s) is returned.
     """
     if config['task'] != 'create_from_files':
         return None
@@ -169,12 +199,33 @@ def issue_request(
         config,
         method,
         path,
-        headers=dict(),
+        headers=None,
         json='',
         data='',
-        query={}):
+        query=None):
     """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
        do not use this function.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       method : str
+           The HTTP method to be issued for the request, e.g. POST or GET.
+       path : str
+           Path to the API endpoint that will be used for request.
+       headers : dict, optional
+           HTTP header information to be sent with request encoded as a dict.
+       json : dict, optional
+           Data to be sent with request body as JSON format, but encoded as a dict.
+       data : str, optional
+           Data to be sent in request body.
+       query : dict, optional
+           Request parameters sent as a dict.
+
+       Returns
+       -------
+       requests.Response
     """
     if not config['password']:
         message = 'Password for Drupal user not found. Please add the "password" option to your configuration ' + \
@@ -185,6 +236,12 @@ def issue_request(
     if config['check'] is False:
         if 'pause' in config and method in ['POST', 'PUT', 'PATCH', 'DELETE'] and value_is_numeric(config['pause']):
             time.sleep(int(config['pause']))
+
+    if headers is None:
+        headers = dict()
+
+    if query is None:
+        query = dict()
 
     headers.update({'User-Agent': config['user_agent']})
 
@@ -317,14 +374,14 @@ def convert_semver_to_number(version_string):
     """Convert a Semantic Version number (e.g. Drupal's) string to a number. We only need the major
        and minor numbers (e.g. 9.2).
 
-        Parameters
-        ----------
-        version_string: string
-            The version string as retrieved from Drupal.
-        Returns
-        -------
-        tuple
-            A tuple containing the major and minor Drupal core version numbers as integers.
+       Parameters
+       ----------
+       version_string: string
+           The version string as retrieved from Drupal.
+       Returns
+       -------
+       tuple
+           A tuple containing the major and minor Drupal core version numbers as integers.
     """
     parts = version_string.split('.')
     parts = parts[:2]
@@ -336,14 +393,14 @@ def convert_semver_to_number(version_string):
 def get_drupal_core_version(config):
     """Get Drupal's version number.
 
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        Returns
-        -------
-        string|False
-            The Drupal core version number string (i.e., may contain -dev, etc.).
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       string|False
+           The Drupal core version number string (i.e., may contain -dev, etc.).
     """
     url = config['host'] + '/islandora_workbench_integration/core_version'
     response = issue_request(config, 'GET', url)
@@ -357,7 +414,15 @@ def get_drupal_core_version(config):
 
 
 def check_drupal_core_version(config):
-    """Used during --check.
+    """Used during --check to verify if the minimum required Drupal version for workbench is being used.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       None
     """
     drupal_core_version = get_drupal_core_version(config)
     if drupal_core_version is not False:
@@ -374,6 +439,16 @@ def check_drupal_core_version(config):
 
 
 def check_integration_module_version(config):
+    """Verifies if the minimum required version of the workbench integration module is being used.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       None
+    """
     version = get_integration_module_version(config)
 
     if version is False:
@@ -396,15 +471,15 @@ def check_integration_module_version(config):
 def get_integration_module_version(config):
     """Get the Islandora Workbench Integration module's version number.
 
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        Returns
-        -------
-        string|False
-            The version number string (i.e., may contain -dev, etc.) from the
-            Islandora Workbench Integration module.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       string|False
+           The version number string (i.e., may contain -dev, etc.) from the
+           Islandora Workbench Integration module.
     """
     url = config['host'] + '/islandora_workbench_integration/version'
     response = issue_request(config, 'GET', url)
@@ -422,17 +497,22 @@ def ping_node(config, nid, method='HEAD', return_json=False, warn=True):
 
        Note that HEAD requests do not return a response body.
 
-        Parameters
-        ----------
-        method: string
-            Either 'HEAD' or 'GET'.
-        return_json: boolean
-        warn: boolean
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       nid :
+           Node ID of the node to be pinged.
+       method: string, optional
+           Either 'HEAD' or 'GET'.
+       return_json: boolean, optional
+       warn: boolean, optional
 
-        Returns
-        ------
-            True if method is HEAD and node was found, the response JSON response
-            body if method was GET. False if request returns a non-allowed status code.
+       Returns
+       ------
+        boolean|str
+           True if method is HEAD and node was found, the response JSON response
+           body if method was GET. False if request returns a non-allowed status code.
     """
     if value_is_numeric(nid) is False:
         nid = get_nid_from_url_alias(config, nid)
@@ -452,6 +532,17 @@ def ping_node(config, nid, method='HEAD', return_json=False, warn=True):
 
 def ping_url_alias(config, url_alias):
     """Ping the URL alias to see if it exists. Return the status code.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       url_alias : str
+           The string with the URL alias being pinged.
+       Returns
+       -------
+       int
+           HTTP status code.
     """
     url = config['host'] + url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -460,31 +551,65 @@ def ping_url_alias(config, url_alias):
 
 def ping_vocabulary(config, vocab_id):
     """Ping the node to see if it exists.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       vocab_id : str
+           The string with the vocabulary ID being pinged.
+       Returns
+       -------
+       boolean
+           Returns Ture if HTTP status code returned is 200, if not False is returned.
     """
     url = config['host'] + '/entity/taxonomy_vocabulary/' + vocab_id.strip() + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         return True
     else:
-        logging.warning("Node ping (HEAD) on %s returned a %s status code.", url, response.status_code)
+        logging.warning("Node ping (GET) on %s returned a %s status code.", url, response.status_code)
         return False
 
 
 def ping_term(config, term_id):
     """Ping the term to see if it exists.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       term_id : str
+           The string with the term ID being pinged.
+       Returns
+       -------
+       boolean
+           Returns Ture if HTTP status code returned is 200, if not False is returned.
     """
+
     url = config['host'] + '/taxonomy/term/' + str(term_id).strip() + '?_format=json'
     response = issue_request(config, 'GET', url)
     if response.status_code == 200:
         return True
     else:
-        logging.warning("Term ping (HEAD) on %s returned a %s status code.", url, response.status_code)
+        logging.warning("Term ping (GET) on %s returned a %s status code.", url, response.status_code)
         return False
 
 
 def ping_islandora(config, print_message=True):
     """Connect to Islandora in prep for subsequent HTTP requests.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       print_message : boolean, optional
+           If set to True, after ping successfully performed, a status message is printed for the user.
+       Returns
+       -------
+       None
     """
+
     # First, test a known request that requires Administrator-level permissions.
     url = config['host'] + '/islandora_workbench_integration/version'
     try:
@@ -529,28 +654,39 @@ def ping_islandora(config, print_message=True):
 
 
 def ping_content_type(config):
+    """Ping the content_type set in the configuration to see if it exists.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       Returns
+       -------
+       int
+           The HTTP response code.
+    """
+
     url = f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
     return issue_request(config, 'GET', url).status_code
 
 
 def ping_view_endpoint(config, view_url):
     """Verifies that the View REST endpoint is accessible.
-    """
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        view_url
-            The View's REST export path.
-        Returns
-        -------
-        int
-            The HTTP response code.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       view_url
+           The View's REST export path.
+       Returns
+       -------
+       int
+           The HTTP response code.
     """
     return issue_request(config, 'HEAD', view_url).status_code
 
 
-def ping_entity_reference_view_endpoint(config, fieldname, hander_settings):
+def ping_entity_reference_view_endpoint(config, fieldname, handler_settings):
     """Verifies that the REST endpoint of the View is accessible. The path to this endpoint
        is defined in the configuration file's 'entity_reference_view_endpoints' option.
 
@@ -558,20 +694,20 @@ def ping_entity_reference_view_endpoint(config, fieldname, hander_settings):
        Unlike Views endpoints for taxonomy entity reference fields configured using the "default"
        entity reference method, the Islandora Workbench Integration module does not provide a generic
        Views REST endpoint that can be used to validate values in this type of field.
-    """
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        fieldname: string
-            The name of the Drupal field.
-        handler_settings : dict
-            The handler_settings values from the field's configuration.
-            # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
-        Returns
-        -------
-        bool
-            True if the REST endpoint is accessible, False if not.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       fieldname : string
+           The name of the Drupal field.
+       handler_settings : dict
+           The handler_settings values from the field's configuration.
+           # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
+       Returns
+       -------
+       bool
+           True if the REST endpoint is accessible, False if not.
     """
     endpoint_mappings = get_entity_reference_view_endpoints(config)
     if len(endpoint_mappings) == 0:
@@ -587,14 +723,25 @@ def ping_entity_reference_view_endpoint(config, fieldname, hander_settings):
     if response.status_code == 200:
         return True
     else:
-        logging.warning("View REST export ping (HEAD) on %s returned a %s status code", url, response.status_code)
+        logging.warning("View REST export ping (GET) on %s returned a %s status code", url, response.status_code)
         return False
 
 
 def ping_media_bundle(config, bundle_name):
-    """Ping the Media bunlde/type to see if it exists. Return the status code,
+    """Ping the Media bundle/type to see if it exists. Return the status code,
        a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
        is not enabled on the target Drupal.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       bundle_name : str
+           Media bundle/type to be pinged.
+       Returns
+       -------
+       int
+           The HTTP response code.
     """
     url = config['host'] + '/entity/media_type/' + bundle_name + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -605,7 +752,19 @@ def ping_media(config, media_id):
     """Ping the Media to see if it exists. Return the status code,
        a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
        is not enabled on the target Drupal.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       media_id : str
+            Media ID to be pinged.
+       Returns
+       -------
+       int
+           The HTTP response code.
     """
+
     if config['standalone_media_url'] is True:
         media_json_url = config['host'] + '/media/' + media_id + '?_format=json'
     else:
@@ -617,12 +776,17 @@ def ping_media(config, media_id):
 def extract_media_id(config: dict, media_csv_row: dict):
     """Extract the media entity's ID from the CSV row.
 
-    Parameters:
-        - config: The global configuration object.
-        - media_csv_row: The CSV row containing the media entity's field names and values.
+       Parameters
+       ----------
+       config : dict
+           The global configuration object.
+       media_csv_row : OrderedDict
+           The CSV row containing the media entity's field names and values.
 
-    Returns:
-        - The media entity's ID if it could be extracted from the CSV row and is valid, otherwise None.
+       Returns
+       -------
+       str|None
+           The media entity's ID if it could be extracted from the CSV row and is valid, otherwise None.
     """
     if 'media_id' not in media_csv_row:  # Media ID column is missing
         logging.error('Media ID column missing in CSV file.')
@@ -649,8 +813,18 @@ def extract_media_id(config: dict, media_csv_row: dict):
 
 
 def ping_remote_file(config, url):
-    """Logging, exiting, etc. happens in caller, except on requests error.
+    """Ping remote file, but logging, exiting, etc. happens in caller, except on requests error.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       url : str
+           URL of remote file to be pinged.
+       Returns
+       -------
+       None
     """
+
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.head(url, allow_redirects=True, verify=config['secure_ssl_only'])
@@ -672,18 +846,17 @@ def ping_remote_file(config, url):
 def get_nid_from_url_alias(config, url_alias):
     """Gets a node ID from a URL alias. This function also works
        canonical URLs, e.g. http://localhost:8000/node/1648.
-    """
-    """
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        url_alias : string
-            The full URL alias (or canonical URL), including http://, etc.
-        Returns
-        -------
-        int
-            The node ID, or False if the URL cannot be found.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       url_alias : string
+           The full URL alias (or canonical URL), including http://, etc.
+       Returns
+       -------
+       int|boolean
+           The node ID, or False if the URL cannot be found.
     """
     if url_alias is False:
         return False
@@ -700,18 +873,17 @@ def get_nid_from_url_alias(config, url_alias):
 def get_mid_from_media_url_alias(config, url_alias):
     """Gets a media ID from a media URL alias. This function also works
        with canonical URLs, e.g. http://localhost:8000/media/1234.
-    """
-    """
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        url_alias : string
-            The full URL alias (or canonical URL), including http://, etc.
-        Returns
-        -------
-        int
-            The media ID, or False if the URL cannot be found.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       url_alias : string
+           The full URL alias (or canonical URL), including http://, etc.
+       Returns
+       -------
+       int|boolean
+           The media ID, or False if the URL cannot be found.
     """
     url = url_alias + '?_format=json'
     response = issue_request(config, 'GET', url)
@@ -725,6 +897,16 @@ def get_mid_from_media_url_alias(config, url_alias):
 def get_node_title_from_nid(config, node_id):
     """Get node title from Drupal.
 
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       node_id : string
+           The node ID for the node title being fetched.
+       Returns
+       -------
+       str|boolean
+           The node title, or False if the URL does not return HTTP status 200.
     """
     node_url = config['host'] + '/node/' + node_id + '?_format=json'
     node_response = issue_request(config, 'GET', node_url)
@@ -738,21 +920,21 @@ def get_node_title_from_nid(config, node_id):
 def get_field_definitions(config, entity_type, bundle_type=None):
     """Get field definitions from Drupal.
 
-        Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        entity_type : string
-            One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
-        bundle_type : string
-            None for nodes (the content type can optionally be gotten from config),
-            the vocabulary name, or the media type (image', 'document', 'audio',
-            'video', 'file', etc.).
-        Returns
-        -------
-        dict
-            A dictionary with field names as keys and values arrays containing
-            field config data. Config data varies slightly by entity type.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       entity_type : string
+           One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
+       bundle_type : string, optional
+           None for nodes (the content type can optionally be gotten from config),
+           the vocabulary name, or the media type (image', 'document', 'audio',
+           'video', 'file', etc.).
+       Returns
+       -------
+       dict
+           A dictionary with field names as keys and values arrays containing
+           field config data. Config data varies slightly by entity type.
     """
     ping_islandora(config, print_message=False)
     field_definitions = {}
@@ -832,6 +1014,10 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname]['entity_type'] = field_config['entity_type']
             field_definitions[fieldname]['required'] = field_config['required']
             field_definitions[fieldname]['label'] = field_config['label']
+            raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+            if len(raw_vocabularies) > 0:
+                vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
+                field_definitions[fieldname]['vocabularies'] = vocabularies
             # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
             if 'handler' in field_config['settings']:
                 field_definitions[fieldname]['handler'] = field_config['settings']['handler']
@@ -858,6 +1044,8 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
             else:
                 field_definitions[fieldname]['authority_sources'] = None
+            if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
+                field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
             if 'allowed_values' in field_storage['settings']:
                 field_definitions[fieldname]['allowed_values'] = list(field_storage['settings']['allowed_values'].keys())
             else:
@@ -887,6 +1075,21 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_config = json.loads(raw_field_config)
             field_definitions[fieldname]['media_type'] = bundle_type
             field_definitions[fieldname]['field_type'] = field_config['field_type']
+            field_definitions[fieldname]['required'] = field_config['required']
+            field_definitions[fieldname]['label'] = field_config['label']
+            raw_vocabularies = [x for x in field_config['dependencies']['config'] if re.match("^taxonomy.vocabulary.", x)]
+            if len(raw_vocabularies) > 0:
+                vocabularies = [x.replace("taxonomy.vocabulary.", '') for x in raw_vocabularies]
+                field_definitions[fieldname]['vocabularies'] = vocabularies
+            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
+            if 'handler' in field_config['settings']:
+                field_definitions[fieldname]['handler'] = field_config['settings']['handler']
+            else:
+                field_definitions[fieldname]['handler'] = None
+            if 'handler_settings' in field_config['settings']:
+                field_definitions[fieldname]['handler_settings'] = field_config['settings']['handler_settings']
+            else:
+                field_definitions[fieldname]['handler_settings'] = None
             if 'file_extensions' in field_config['settings']:
                 field_definitions[fieldname]['file_extensions'] = field_config['settings']['file_extensions']
 
@@ -902,6 +1105,8 @@ def get_field_definitions(config, entity_type, bundle_type=None):
                 field_definitions[fieldname]['target_type'] = field_storage['settings']['target_type']
             else:
                 field_definitions[fieldname]['target_type'] = None
+            if field_storage['type'] == 'typed_relation' and 'rel_types' in field_config['settings']:
+                field_definitions[fieldname]['typed_relations'] = field_config['settings']['rel_types']
             if 'authority_sources' in field_config['settings']:
                 field_definitions[fieldname]['authority_sources'] = list(field_config['settings']['authority_sources'].keys())
             else:
@@ -984,6 +1189,21 @@ def get_field_definitions(config, entity_type, bundle_type=None):
 
 def get_entity_fields(config, entity_type, bundle_type):
     """Get all the fields configured on a bundle.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+
+       entity_type : string
+           Values could be 'node', 'media', 'taxonomy_term', or 'paragraph'.
+       bundle_type : string
+
+       Returns
+       -------
+       list
+           A list with field names, e.g. ['field_name1', 'field_name2'].
+
     """
     if ping_content_type(config) == 404:
         message = f"Content type '{config['content_type']}' does not exist on {config['host']}."
@@ -1029,21 +1249,22 @@ def get_entity_fields(config, entity_type, bundle_type):
 
 def get_required_bundle_fields(config, entity_type, bundle_type):
     """Gets a list of required fields for the given bundle type.
-    """
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        entity_type : string
-            One of 'node', 'media', or 'taxonomy_term'.
-        bundle_type : string
-            The (node) content type, the vocabulary name, or the media type ('image',
-            'document', 'audio', 'video', 'file', etc.).
 
-        Returns
-        -------
-        list
-            A list of Drupal field names that are configured as required for this bundle.
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       entity_type : string
+           One of 'node', 'media', or 'taxonomy_term'.
+       bundle_type : string
+           The (node) content type, the vocabulary name, or the media type ('image',
+           'document', 'audio', 'video', 'file', etc.).
+
+       Returns
+       -------
+       list
+           A list of Drupal field names that are configured as required for this bundle, e.g
+           ['required_field1_name', 'required_field2_name'].
     """
     field_definitions = get_field_definitions(config, entity_type, bundle_type)
     required_drupal_fields = list()
@@ -1198,7 +1419,7 @@ def check_input(config, args):
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created', 'published']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
     # but it doesn't show up in any field configs.
-    reserved_fields = ['file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode']
+    reserved_fields = ['file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode', 'revision_log']
     entity_fields = get_entity_fields(config, 'node', config['content_type'])
     if config['id_field'] not in entity_fields:
         reserved_fields.append(config['id_field'])
@@ -1441,7 +1662,6 @@ def check_input(config, args):
 
     # Check column headers in CSV file.
     csv_data = get_csv_data(config)
-    # WIP on #559.
     if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms', 'update_terms']:
         if config['task'] == 'create_terms' or config['task'] == 'update_terms':
             fieldname_map_cache_path = os.path.join(config['temp_dir'], f"taxonomy_term-{config['vocab_id']}-labels.fieldname_map")
@@ -1519,8 +1739,13 @@ def check_input(config, args):
             validate_parent_ids_precede_children_csv_data = get_csv_data(config)
             validate_parent_ids_precede_children(config, validate_parent_ids_precede_children_csv_data)
             prepare_csv_id_to_node_id_map(config)
-            validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(config)
-            validate_parent_ids_in_csv_id_to_node_id_map(config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data)
+            if config['query_csv_id_to_node_id_map_for_parents'] is True:
+                validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(config)
+                validate_parent_ids_in_csv_id_to_node_id_map(config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data)
+            else:
+                message = "Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
+                print(message)
+                logging.warning(message)
 
         # Specific to creating aggregated content such as collections, compound objects and paged content. Currently, if 'parent_id' is present
         # in the CSV file 'field_member_of' is mandatory.
@@ -1626,7 +1851,7 @@ def check_input(config, args):
         print(message)
         logging.info(message)
 
-    # Check that Drupal fields that are required are in the CSV file (create task only).
+    # Check that Drupal fields that are required are in the 'create' task CSV file.
     if config['task'] == 'create':
         required_drupal_fields_node = get_required_bundle_fields(config, 'node', config['content_type'])
         for required_drupal_field in required_drupal_fields_node:
@@ -1673,6 +1898,8 @@ def check_input(config, args):
             csv_column_headers.remove('image_alt_text')
         if 'media_use_tid' in csv_column_headers:
             csv_column_headers.remove('media_use_tid')
+        if 'revision_log' in csv_column_headers:
+            csv_column_headers.remove('revision_log')
         if 'file' in csv_column_headers:
             message = 'Error: CSV column header "file" is not allowed in update tasks.'
             logging.error(message)
@@ -1781,7 +2008,7 @@ def check_input(config, args):
 
     if config['task'] == 'update_terms':
         if 'term_id' not in csv_column_headers:
-            message = 'For "update" tasks, your CSV file must contain a "term_id" column.'
+            message = 'For "update_terms" tasks, your CSV file must contain a "term_id" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
         field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
@@ -1806,6 +2033,15 @@ def check_input(config, args):
         message = 'OK, CSV column headers match Drupal field names.'
         print(message)
         logging.info(message)
+
+        # Validate length of 'term_name'.
+        # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+        validate_term_name_csv_data = get_csv_data(config)
+        for count, row in enumerate(validate_term_name_csv_data, start=1):
+            if 'term_name' in row and len(row['term_name']) > 255:
+                message = "The 'term_name' column in row for term '" + row['term_name'] + "' of your CSV file exceeds Drupal's maximum length of 255 characters."
+                logging.error(message)
+                sys.exit('Error: ' + message)
 
     if config['task'] == 'create_terms' or config['task'] == 'update_terms':
         # Check that all required fields are present in the CSV.
@@ -3175,11 +3411,11 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                 if not media_name:
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using oEmbed URL instead.'
                     logging.warning(message)
-                    media_name = filename
+                    media_name = os.path.basename(filename)
         else:
             media_name = os.path.basename(filename)
 
-        if config['use_node_title_for_media']:
+        if config['use_node_title_for_media_title']:
             if 'title' in csv_row:
                 # WIP on #572: 'title' applies to node CSVs, for media, it should be 'name'.
                 media_name = csv_row['title']
@@ -3189,10 +3425,13 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                     message = 'Cannot access node " + node_id + ", so cannot get its title for use in media title. Using filename instead.'
                     logging.warning(message)
                     media_name = os.path.basename(filename)
-        if config['use_nid_in_media_title']:
+        elif config['use_nid_in_media_title']:
             media_name = f"{node_id}-Original File"
-        if config['field_for_media_title']:
-            media_name = csv_row[config['field_for_media_title']].replace(':', '_')
+        elif config['field_for_media_title']:
+            if len(csv_row[config['field_for_media_title']]) > 0:
+                media_name = csv_row[config['field_for_media_title']][:255]
+        else:
+            media_name = os.path.basename(filename)
 
         # Create a media from an oEmbed URL.
         if media_type in get_oembed_media_types(config):
@@ -3200,9 +3439,6 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                 "bundle": [{
                     "target_id": media_type,
                     "target_type": "media_type",
-                }],
-                "status": [{
-                    "value": True
                 }],
                 "name": [{
                     "value": media_name
@@ -3226,9 +3462,6 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                     "target_id": media_type,
                     "target_type": "media_type",
                 }],
-                "status": [{
-                    "value": True
-                }],
                 "name": [{
                     "value": media_name
                 }],
@@ -3245,6 +3478,9 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                     "target_type": 'taxonomy_term'
                 }]
             }
+
+        if 'published' in csv_row and len(csv_row['published']) > 0:
+            media_json['status'] = {'value': csv_row['published']}
 
         # Populate some media type-specific fields on the media. @todo: We need a generalized way of
         # determining which media fields are required, e.g. checking the media type configuration.
@@ -4909,8 +5145,47 @@ def validate_edtf_fields(config, field_definitions, csv_data):
 
 
 def validate_edtf_date(date):
-    valid = edtf_validate.valid_edtf.is_valid(date.strip())
-    return valid
+    date = date.strip()
+    # nnnX?
+    if re.match(r'^[1-2]\d\dX\?', date):
+        return True
+    # nnXX?
+    elif re.match(r'^[1-2]\dXX\?', date):
+        return True
+    # nXXX?
+    elif re.match(r'^[1-2]XXX\?', date):
+        return True
+    # nXXX~
+    elif re.match(r'^[1-2]XXX\~', date):
+        return True
+    # nnXX~
+    elif re.match(r'^[1-2]\dXX\~', date):
+        return True
+    # nnnX~
+    elif re.match(r'^[1-2]\d\dX\~', date):
+        return True
+    # nXXX%
+    elif re.match(r'^[1-2]XXX\%', date):
+        return True
+    # nnXX%
+    elif re.match(r'^[1-2]\dXX\%', date):
+        return True
+    # nnnX%
+    elif re.match(r'^[1-2]\d\dX\%', date):
+        return True
+    # XXXX?
+    elif re.match(r'^XXXX\?', date):
+        return True
+    # XXXX~
+    elif re.match(r'^XXXX\~', date):
+        return True
+    # XXXX%
+    elif re.match(r'^XXXX\%', date):
+        return True
+    elif edtf_validate.valid_edtf.is_valid(date):
+        return True
+    else:
+        return False
 
 
 def validate_url_aliases(config, csv_data):
@@ -4996,54 +5271,35 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     """Query the CSV ID to node ID map to check for non-unique parent IDs.
        If they exist, report out but do not exit.
     """
-    message = "Validating parent IDs in the CSV ID to node ID map, please wait."
-    print(message)
-    # First, confirm the databae exists; if not, tell the user and exit.
-    if not os.path.exists(config['csv_id_to_node_id_map_path']):
-        message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
-        logging.error(message)
-        sys.exit('Error: ' + message)
+    if config['query_csv_id_to_node_id_map_for_parents'] is True:
+        message = "Validating parent IDs in the CSV ID to node ID map, please wait."
+        print(message)
+    else:
+        return
 
-    workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+    # First, confirm the databae exists; if not, tell the user and exit.
+    if config['csv_id_to_node_id_map_path'] is not False:
+        if not os.path.exists(config['csv_id_to_node_id_map_path']):
+            message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
+            logging.error(message)
+            sys.exit('Error: ' + message)
 
     # If database exists, query it.
-    if config['ignore_existing_parent_ids'] is True:
-        workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
-        message = "Parent IDs from previous Workbench sessions will be ignored."
-        print(message)
-        logging.info(message)
-
-        # If this is a secondary task, use the primary task's execution start time.
-        if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
-            if os.path.abspath(config['config_file']) in json.loads(os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS')):
-                workbench_execution_start_time = os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME')
-    else:
-        message = "'ignore_existing_parent_ids' is set to false, parent IDs from previous Workbench sessions will be checked."
-        print("Warning: " + message)
-        logging.warning(message)
-
-    id_field = config['id_field']
-    for row in csv_data:
-        if config['ignore_existing_parent_ids'] is True:
-            # Shouldn't find any, since they shouldn't have been created yet.
-            query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
-            params = (row['parent_id'], workbench_execution_start_time)
-        else:
-            query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
-            params = (row['parent_id'],)
+    if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False:
+        id_field = config['id_field']
         parents_from_id_map = []
-        if 'parent_id' in row and len(row['parent_id']) > 0:
-            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=params, db_file_path=config['csv_id_to_node_id_map_path'])
+        for row in csv_data:
+            if config['ignore_duplicate_parent_ids'] is True:
+                query = "select * from csv_id_to_node_id_map where parent_csv_id = ? order by timestamp desc limit 1"
+            else:
+                query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row[id_field],), db_file_path=config['csv_id_to_node_id_map_path'])
             for parent_in_id_map_row in parent_in_id_map_result:
-                parent_node_exists = ping_node(config, parent_in_id_map_row['node_id'], warn=False)
-                if parent_node_exists is True:
-                    parents_from_id_map.append(parent_in_id_map_row['node_id'])
-
+                parents_from_id_map.append(parent_in_id_map_row['node_id'].strip())
             if len(parents_from_id_map) > 1:
-                log_message = f'CSV row for child item with ID "{row[id_field]}" has a "parent_id" value ({row["parent_id"]}) that corresponds to existing parent node IDs ' + \
-                    f'in the CSV ID to node ID map (node IDs {", ".join(parents_from_id_map)}). Workbench will not be able to populate the "field_member_of" for nodes created from that row.'
-                logging.warning(log_message)
-                print(f'Warning: Review your Workbench log for potential problems with the "parent_id" value in CSV input row ID "{row[id_field]}".')
+                message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
+                logging.warning(message)
+                print("Warning: " + message)
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
@@ -5436,7 +5692,8 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         'content_translation_source',
         'content_translation_outdated']
     for field_to_remove in fields_to_remove:
-        node_field_names.remove(field_to_remove)
+        if field_to_remove in node_field_names:
+            node_field_names.remove(field_to_remove)
 
     csvfile = open(config['output_csv'], 'a+', encoding='utf-8')
 
@@ -5517,7 +5774,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         # Add field_model if that field exists in the child's content type.
         entity_fields = get_entity_fields(config, 'node', config['paged_content_page_content_type'])
         if 'field_model' in entity_fields:
-            node_json['field_model'] = [{'target_id': config['paged_content_page_model_tid'], 'target_type': 'taxonomy_term'}]
+            if not value_is_numeric(config['paged_content_page_model_tid'].strip()) and config['paged_content_page_model_tid'].strip().startswith('http'):
+                paged_content_model_tid = get_term_id_from_uri(config, config['paged_content_page_model_tid'].strip())
+            else:
+                paged_content_model_tid = config['paged_content_page_model_tid'].strip()
+            node_json['field_model'] = [{'target_id': paged_content_model_tid, 'target_type': 'taxonomy_term'}]
 
         if 'field_display_hints' in parent_csv_record:
             node_json['field_display_hints'] = [{'target_id': parent_csv_record['field_display_hints'], 'target_type': 'taxonomy_term'}]
@@ -5614,7 +5875,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         # Execute node-specific post-create scripts, if any are configured.
         if 'node_post_create' in config and len(config['node_post_create']) > 0:
             for command in config['node_post_create']:
-                post_task_output, post_task_return_code = execute_entity_post_task_script(command, args.config, node_response.status_code, node_response.text)
+                post_task_output, post_task_return_code = execute_entity_post_task_script(command, config['config_file'], node_response.status_code, node_response.text)
                 if post_task_return_code == 0:
                     logging.info("Post node create script " + command + " executed successfully.")
                 else:
@@ -5940,7 +6201,6 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
 
     # It's a remote file.
     if file_path_from_csv.startswith('http'):
-        sections = urllib.parse.urlparse(file_path_from_csv)
         if config['task'] == 'add_media':
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', str(node_csv_row['node_id'])))
         elif config['task'] == 'update_media':
@@ -5951,9 +6211,17 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
             Path(subdir).mkdir(parents=True, exist_ok=True)
 
         if 'check' in config.keys() and config['check'] is True:
-            os.rmdir(subdir)
+            try:
+                os.rmdir(subdir)
+            except Exception as e:
+                # This can happen if subdirectories from previous runs of Workbench exist.
+                message = f'Subdirectory "{subdir}" could not be deleted. See log for more info.'
+                logging.warning(f'Subdictory "{subdir}" could not be deleted: {e}.')
 
-        if config["use_node_title_for_media"]:
+        remote_extension_with_dot = get_remote_file_extension(config, file_path_from_csv)
+        remote_filename_parts = os.path.splitext(file_path_from_csv)
+
+        if 'use_node_title_for_remote_filename' in config and config['use_node_title_for_remote_filename'] is True:
             # CSVs for add_media tasks don't contain 'title', so we need to get it.
             if config['task'] == 'add_media':
                 node_csv_row['title'] = get_node_title_from_nid(config, node_csv_row['node_id'])
@@ -5962,34 +6230,30 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
                     logging.warning(message)
                     node_csv_row['title'] = os.path.basename(node_csv_row[file_fieldname].strip())
 
-            filename = re.sub(r'\s+', '_', node_csv_row['title'])
-            filename = re.sub('[^A-Za-z0-9]+', '_', filename)
-            if filename[-1] == '_':
-                filename = filename[:-1]
+            filename = re.sub('[^A-Za-z0-9]+', '_', node_csv_row['title'])
+            filename = filename.strip('_')
+            downloaded_file_path = os.path.join(subdir, filename + remote_extension_with_dot)
+        elif 'use_nid_in_remote_filename' in config and config['use_nid_in_remote_filename'] is True:
+            filename = f"{node_id}{remote_extension_with_dot}"
             downloaded_file_path = os.path.join(subdir, filename)
-            extension = os.path.splitext(downloaded_file_path)[1]
+        elif config['field_for_remote_filename'] is not False and config['field_for_remote_filename'] in node_csv_row and len(node_csv_row[config['field_for_remote_filename']]) > 0:
+            field_for_remote_filename_string = node_csv_row[config['field_for_remote_filename']][:255]
+            sanitized_filename = re.sub('[^0-9a-zA-Z]+', '_', field_for_remote_filename_string)
+            downloaded_file_path = os.path.join(subdir, sanitized_filename.strip('_') + remote_extension_with_dot)
         else:
-            extension = os.path.splitext(sections.path)[1]
-            filename = sections.path.split("/")[-1]
+            # For files from Islandora Legacy ending in /view, we use the CSV ID as the filename.
+            if len(remote_filename_parts[1]) == 0:
+                filename = node_csv_row[config['id_field']] + remote_extension_with_dot
+            else:
+                # For other files, we use the last part of the path preceding the file extension.
+                url_path_parts = remote_filename_parts[0].split('/')
+                filename = url_path_parts[-1] + remote_extension_with_dot
             downloaded_file_path = os.path.join(subdir, filename)
 
-        if config['field_for_media_title']:
-            filename = node_csv_row[config['field_for_media_title']]
-            downloaded_file_path = os.path.join(subdir, filename)
-
-        if config['use_nid_in_media_title']:
-            filename = f"{node_id}-Original File"
-            downloaded_file_path = os.path.join(subdir, filename)
-
-        if extension == '':
-            extension_with_dot = get_remote_file_extension(config, file_path_from_csv)
-
-            downloaded_file_path = os.path.join(subdir, filename + extension_with_dot)
-
-            # Check to see if a file with this path already exists; if so, insert an
-            # incremented digit into the file path before the extension.
-            if os.path.exists(downloaded_file_path):
-                downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+        # Check to see if a file with this path already exists; if so, insert an
+        # incremented digit into the file path before the extension.
+        if os.path.exists(downloaded_file_path):
+            downloaded_file_path = get_deduped_file_path(downloaded_file_path)
 
         return downloaded_file_path
     # It's a local file.
@@ -5997,11 +6261,11 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
         if os.path.isabs(file_path_from_csv):
             file_path = file_path_from_csv
         else:
-            file_path = os.path.join(config['temp_dir'], file_path_from_csv)
+            file_path = os.path.join(config['input_dir'], file_path_from_csv)
         return file_path
 
 
-def get_node_media_ids(config, node_id, media_use_tids=[]):
+def get_node_media_ids(config, node_id, media_use_tids=None):
     """Gets a list of media IDs for a node.
     """
     """Parameters
@@ -6019,6 +6283,9 @@ def get_node_media_ids(config, node_id, media_use_tids=[]):
         list
             List of media IDs.
     """
+    if media_use_tids is None:
+        media_use_tids = []
+
     media_id_list = list()
     url = f"{config['host']}/node/{node_id}/media?_format=json"
     response = issue_request(config, 'GET', url)
@@ -6069,13 +6336,13 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
 def get_remote_file_extension(config, file_url):
     """For remote files that have no extension, such as http://acme.com/islandora/object/some:pid/datastream/OBJ/download,
-       assign an extension, with a leading dot. If the file has an extension, return it.
+       assign an extension, with a leading dot. If the file has an extension, return it, also with dot.
     """
     # If the file has an extension, just return it.
     extension = os.path.splitext(file_url)[1]
     extension = extension.lstrip('.').lower()
     if len(extension) > 0:
-        return extension + '.' + extension
+        return '.' + extension
 
     # If it doesn't have an extension, assign one based on its MIME type. Request's docs at
     # https://requests.readthedocs.io/en/latest/user/quickstart/#response-headers say that
@@ -6189,7 +6456,7 @@ def download_file_from_drupal(config, node_id):
                 else:
                     continue
     else:
-        logging.error(f'Attempt to fetch media list {media_list_url} returned an {r.status_code} HTTP response.')
+        logging.error(f'Attempt to fetch media list {media_list_url} returned an {media_list_response.status_code} HTTP response.')
         return False
 
 
@@ -6524,7 +6791,7 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
         serialized_field = workbench_fields.EntityReferenceField()
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
     # Entity reference revision fields (mostly paragraphs).
-    if field_definitions[field_name]['field_type'] == 'entity_reference_revisions':
+    elif field_definitions[field_name]['field_type'] == 'entity_reference_revisions':
         serialized_field = workbench_fields.EntityReferenceRevisionsField()
         csv_field_data = serialized_field.serialize(config, field_definitions, field_name, field_data)
     # Typed relation fields (currently, only taxonomy term)
@@ -6646,7 +6913,7 @@ def is_ascii(input):
             The string to test.
         Returns
         -------
-        string
+        boolean
             True if all characters are within the ASCII character set,
             False otherwise.
     """
@@ -7050,6 +7317,9 @@ def sqlite_manager(config, operation='select', table_name=None, query=None, valu
             operation could not be completed, a list of sqlite3.Row objects for 'select' and 'update'
             queries, or an sqlite3.Cursor object for 'insert' and 'delete' queries.
     """
+    if isinstance(db_file_path, str) is not True:
+        return False
+
     if db_file_path is None:
         db_file_name = config['sqlite_db_filename']
     else:

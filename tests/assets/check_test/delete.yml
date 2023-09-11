@@ -2,5 +2,4 @@ task: delete
 host: https://islandora.traefik.me
 username: admin
 password: password
-input_dir: "tests/assets/update_test"
-input_csv: /tmp/workbenchupdatetestnids.txt
+input_csv: delete.csv

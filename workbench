@@ -29,12 +29,12 @@ def create():
 
     if config['ignore_existing_parent_ids'] is True:
         workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
-        message = "Parent IDs from previous Workbench sessions will be ignored."
-        logging.warning(message)
 
         # If this is a secondary task, use the primary tasks execution start time.
         if os.environ.get('ISLANDORA_WORKBENCH_SECONDARY_TASKS') is not None:
             if os.path.abspath(args.config) in json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"]):
+                # Ensure that query_csv_id_to_node_id_map_for_parents is True.
+                config['query_csv_id_to_node_id_map_for_parents'] = True
                 workbench_execution_start_time = os.environ.get('ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME')
     else:
         message = "'ignore_existing_parent_ids' is set to false, parent IDs from previous Workbench sessions will be used."
@@ -61,10 +61,21 @@ def create():
             # Register the start time of the primary task so we can access it in secondary tasks.
             os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME"] = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
 
+    node_ids = dict()
     csv_path = os.path.join(config['input_dir'], config['input_csv'])
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
+
+    if 'parent_id' in csv_column_headers and config['query_csv_id_to_node_id_map_for_parents'] is False:
+        message = "Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
+        print(message)
+        logging.warning(message)
+
+    if config['query_csv_id_to_node_id_map_for_parents'] is True and config['ignore_duplicate_parent_ids'] is True:
+        message = "Ingoring duplicate parent IDs in the CSV ID to node ID map; only the most recent entry will be used."
+        print(message)
+        logging.warning(message)
 
     node_endpoint = config['host'] + '/node?_format=json'
 
@@ -75,6 +86,10 @@ def create():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         # Create a copy of the current item's row to pass to create_media().
         row_for_media = copy.deepcopy(row)
         if config['paged_content_from_directories'] is True:
@@ -125,20 +140,26 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['published'] = ''
 
-        # Since all nodes created by Workbench, both ones just created and also ones created in previous runs of
-        # Workbench, may have entries in the node ID map database, we always query it.
-        parent_node_ids_from_id_map = []
-        current_parent_node_id = ''
+        # We want to collect the node IDs of items that are parents in-session
+        # to accommodate users who have 'query_csv_id_to_node_id_map_for_parents: false'
+        # in their config files. Note: this will not work with secondary tasks, if
+        # you're using a secondary task you need to use the CSV ID to node ID map.
+        # If a node with an ID that matches the current item's 'parent_id'
+        # value has just been created, make the item a child of the node.
+        if 'parent_id' in row.keys() and row['parent_id'] in node_ids:
+            row['field_member_of'] = node_ids[row['parent_id']]
 
-        if 'parent_id' in row and len(row['parent_id']) > 0:
-            if config['ignore_existing_parent_ids'] is True:
-                query = "select node_id from csv_id_to_node_id_map where csv_id = ? and timestamp > ?"
-                params = (row['parent_id'], workbench_execution_start_time)
+        # Since all nodes, both ones just created and also ones created in previous runs of
+        # Workbench, may have entries in the node ID map database, we always query it.
+        if config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False and 'parent_id' in row and row['parent_id'] is not None:
+            parent_node_ids_from_id_map = []
+            current_parent_node_id = ''
+            if config['ignore_duplicate_parent_ids'] is True:
+                query = "select node_id from csv_id_to_node_id_map where csv_id = ? order by timestamp desc limit 1"
             else:
                 query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
-                params = (row['parent_id'],)
-
-            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=params, db_file_path=config['csv_id_to_node_id_map_path'])
+            parent_in_id_map_result = sqlite_manager(config, operation='select', query=query, values=(row['parent_id'],), db_file_path=config['csv_id_to_node_id_map_path'])
+            parents_from_id_map = []
             for parent_in_id_map_row in parent_in_id_map_result:
                 parent_node_exists = ping_node(config, parent_in_id_map_row['node_id'], warn=False)
                 if parent_node_exists is True:
@@ -163,7 +184,7 @@ def create():
         additional_files_entries = get_additional_files_config(config)
         for custom_field in custom_fields:
             # Skip processing field if empty.
-            if len(row[custom_field].strip()) == 0:
+            if len(str(row[custom_field]).strip()) == 0:
                 continue
 
             if len(additional_files_entries) > 0:
@@ -238,24 +259,26 @@ def create():
                 simple_field = workbench_fields.SimpleField()
                 node = simple_field.create(config, field_definitions, node, row, custom_field)
 
+            # If the user has configured Workbench to not query the CSV ID to node ID map,
+            # use the in-session node_ids list to track and assign parent node IDs.
+            if config['query_csv_id_to_node_id_map_for_parents'] is False:
+                if 'parent_id' in row and row['parent_id'] in node_ids.keys():
+                    node['field_member_of'] = [{'target_id': node_ids[row['parent_id']], 'target_type': 'node_type'}]
+
         node_headers = {'Content-Type': 'application/json'}
         node_endpoint = '/node?_format=json'
         node_response = issue_request(config, 'POST', node_endpoint, node_headers, node, None)
         if node_response.status_code == 201:
-            node_uri = node_response.headers['location']
             returned_node = json.loads(node_response.text)
+            node_id = returned_node['nid'][0]['value']
+            node_uri = config['host'] + '/node/' + str(node_id)
 
-            # If Pathauto URL alias creation for nodes is enabled, the location header
-            # returns the alias, not the /node/xxx URL, which includes the node ID. In
-            # this case, get the node ID from the response body.
-            if re.match(r'/node/\d+$', node_uri):
-                node_id = node_uri.rsplit('/', 1)[-1]
-            else:
-                node_id = returned_node['nid'][0]['value']
-                node_uri = config['host'] + '/node/' + str(node_id)
+            node_ids[id_field] = node_id
 
-            if 'parent_id' in row and len(row['parent_id']) > 0:
+            if 'parent_id' in row and row['parent_id'] is not None and config['query_csv_id_to_node_id_map_for_parents'] is True and config['csv_id_to_node_id_map_path'] is not False:
                 populate_csv_id_to_node_id_map(config, row['parent_id'], current_parent_node_id, id_field, node_id)
+            elif config['query_csv_id_to_node_id_map_for_parents'] is False and config['csv_id_to_node_id_map_path'] is not False and 'parent_id' in row and row['parent_id'] in node_ids.keys():
+                populate_csv_id_to_node_id_map(config, row['parent_id'], node_ids[row['parent_id']], id_field, node_id)
             else:
                 populate_csv_id_to_node_id_map(config, '', '', id_field, node_id)
 
@@ -381,6 +404,10 @@ def update():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         node_ping_result = ping_node(config, row['node_id'], 'GET', True)
@@ -465,13 +492,16 @@ def update():
             if 'preprocessors' in config and custom_field in config['preprocessors']:
                 row[custom_field] = preprocess_csv(config, row, custom_field)
 
+            if custom_field == 'revision_log':
+                continue
+
             # Entity reference fields (taxonomy term and node).
             if field_definitions[custom_field]['field_type'] == 'entity_reference':
                 entity_reference_field = workbench_fields.EntityReferenceField()
                 node = entity_reference_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
             # Entity reference revisions fields (paragraphs).
-            if field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
+            elif field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
                 entity_reference_revisions_field = workbench_fields.EntityReferenceRevisionsField()
                 node = entity_reference_revisions_field.update(config, field_definitions, node, row, custom_field, node_field_values[custom_field])
 
@@ -503,6 +533,22 @@ def update():
         if node_has_all_fields is True:
             node_endpoint = config['host'] + '/node/' + row['node_id'] + '?_format=json'
             node_headers = {'Content-Type': 'application/json'}
+            # Make a GET request to the content type
+            content_type_endpoint = f"{config['host']}/entity/node_type/{config['content_type']}/?_format=json"
+            response = issue_request(config, 'GET', content_type_endpoint).text
+            # See if revisions are enabled for the content type and create a new revision log message if so
+            revisions_enabled = json.loads(response)['new_revision']
+            if revisions_enabled:
+                # Add revision information to node
+                revision_log_message = row['revision_log'] if 'revision_log' in row and row['revision_log'] != '' else 'Updated by Islandora Workbench.'
+                revision_json = {
+                        "revision_log": [
+                            {
+                            "value": revision_log_message
+                            }
+                        ]
+                    }
+                node.update(revision_json)
             node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
             if node_response.status_code == 200:
@@ -540,6 +586,10 @@ def delete():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
@@ -590,6 +640,10 @@ def add_media():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
         if not ping_node(config, row['node_id']):
@@ -946,6 +1000,36 @@ def update_media() -> None:
                 {'value': status}
             ]
         }
+    
+    def is_revisions_enabled(config: dict, media_type: str):
+        """Return True if the media type has revisions enabled, False otherwise.
+
+        Parameters:
+            - config: The global configuration object.
+            - media_type: The media entity's type (e.g., 'image').
+
+        Returns:
+            True if the media type has revisions enabled, False otherwise.
+        """
+        media_type_endpoint = f"{config['host']}/entity/media_type/{media_type}/?_format=json"
+        response = issue_request(config, 'GET', media_type_endpoint).text
+        return json.loads(response)['new_revision']
+    
+    def patch_media_revision_log_message(revision_log_message) -> dict:
+        """Return the JSON object for a PATCH request required to patch the media entity's revision log message.
+
+        Parameters:
+            - revision_log_message: The revision log message.
+
+        Returns:
+            The JSON request for a PATCH request required to patch the media entity's revision log message.
+        """
+        return {
+            'revision_log_message': [
+                {'value': revision_log_message}
+            ]
+        }
+
     # ========================================================= Main Logic =========================================================
 
     # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
@@ -961,6 +1045,10 @@ def update_media() -> None:
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         media_id = extract_media_id(config, row)  # Extract the media ID from the CSV row
         if media_id is None:  # If the media ID is invalid, skip this row
             row_count += 1
@@ -1173,6 +1261,11 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
+        # Update revision log message
+        if is_revisions_enabled(config, media_type):
+            revision_log_message = row['revision_log'] if 'revision_log' in row and row['revision_log'] != '' else 'Updated by Islandora Workbench.'
+            patch_request_json.update(patch_media_revision_log_message(revision_log_message))
+
         # Make the PATCH request
         if config['standalone_media_url'] is True:
             update_media_url = config['host'] + '/media/' + media_id + '?_format=json'
@@ -1207,6 +1300,10 @@ def delete_media():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['media_id']):
             row['media_id'] = get_mid_from_media_url_alias(config, row['node_id'])
         media_delete_status_code = remove_media_and_file(config, row['media_id'])
@@ -1237,6 +1334,10 @@ def delete_media_by_node():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['row_id'])
 
@@ -1290,6 +1391,10 @@ def create_from_files():
     num_files = len(files)
     file_count = 0
     for file_name in files:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if file_name.startswith('rollback.') and file_name.endswith('csv'):
             continue
         if config['csv_id_to_node_id_map_path'] is not False and file_name.endswith(config['csv_id_to_node_id_map_path']):
@@ -1329,14 +1434,9 @@ def create_from_files():
             node_json,
             None)
         if node_response.status_code == 201:
-            node_uri = node_response.headers['location']
-            # If Pathauto URL alias creation for nodes is enabled, the location header
-            # returns the alias, not the /node/xxx URL, which includes the node ID. In
-            # this case, get the node ID from the response body.
-            if not re.match(r'/node/\d+$', node_uri):
-                returned_node = json.loads(node_response.text)
-                node_id = returned_node['nid'][0]['value']
-                node_uri = config['host'] + '/node/' + str(node_id)
+            returned_node = json.loads(node_response.text)
+            node_id = returned_node['nid'][0]['value']
+            node_uri = config['host'] + '/node/' + str(node_id)
 
             if config['progress_bar'] is False:
                 print('Node for "' + filename_without_extension + '" created at ' + node_uri + '.')
@@ -1464,6 +1564,10 @@ def export_csv():
 
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         output_row = collections.OrderedDict()
         if not value_is_numeric(row['node_id']):
             row['node_id'] = get_nid_from_url_alias(config, row['node_id'])
@@ -1601,6 +1705,10 @@ def get_data_from_view():
         sys.exit("Error: " + message)
     nodes = json.loads(response.text)
     for node in nodes:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if node['nid'][0]['value'] not in seen_nids:
             if node['type'][0]['target_id'] == config['content_type']:
                 seen_nids.append(node['nid'][0]['value'])
@@ -1653,6 +1761,10 @@ def get_data_from_view():
             continue
         nodes = json.loads(response.text)
         for node in nodes:
+            # Delete expired items from request_cache before processing a row.
+            if config['enable_http_cache'] is True:
+                requests_cache.delete(expired=True)
+
             if node['nid'][0]['value'] not in seen_nids:
                 if node['type'][0]['target_id'] == config['content_type']:
                     seen_nids.append(node['nid'][0]['value'])
@@ -1769,6 +1881,10 @@ def create_terms():
 
     # Finally, create any non-existent child terms.
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         # If it's a parent term, it will have been created above.
         if row['term_name'] in is_parent:
             continue
@@ -1829,8 +1945,12 @@ def update_terms():
     method = 'GET'
     row_count = 0
     for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config['enable_http_cache'] is True:
+            requests_cache.delete(expired=True)
+
         if not value_is_numeric(row['term_id']):
-            row['term_id'] = find_term_in_vocab(config, config['vocab_id'], row['term_id'])
+            row['term_id'] = str(find_term_in_vocab(config, config['vocab_id'], row['term_id']))
         term_ping_result = ping_term(config, row['term_id'])
         url = config['host'] + '/taxonomy/term/' + str(row['term_id']) + '?_format=json'
         term_response = issue_request(config, method.upper(), url)
@@ -1955,9 +2075,10 @@ parser.add_argument('--get_csv_template', help='Generate a CSV template using th
 parser.add_argument('--quick_delete_node', help='Delete the node (and all attached media) identified by the URL).')
 parser.add_argument('--quick_delete_media', help='Delete the media (and attached file) identified by the URL).')
 parser.add_argument('--contactsheet', help='Generate a contact sheet.', action='store_true')
+parser.add_argument('--version', action='version', version='Islandora Workbench 0.0.0')
 args = parser.parse_args()
-workbench_config = WorkbenchConfig(args)
 
+workbench_config = WorkbenchConfig(args)
 config = workbench_config.get_config()
 
 create_temp_dir(config)

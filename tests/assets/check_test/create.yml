@@ -2,6 +2,3 @@ task: create
 host: https://islandora.traefik.me
 username: admin
 password: password
-input_dir: "tests/assets/delete_test"
-allow_missing_files: True
-nodes_only: true

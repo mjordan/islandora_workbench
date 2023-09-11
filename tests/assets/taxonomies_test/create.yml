@@ -1,9 +1,9 @@
 task: create
 allow_adding_terms: true
 allow_missing_files: true
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: tests/assets/taxonomies_test
 media_type: image
 exit_on_first_missing_file_during_check: false

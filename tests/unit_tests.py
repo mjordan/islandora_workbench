@@ -316,7 +316,7 @@ class TestValidateNodeCreatedDateValue(unittest.TestCase):
             self.assertFalse(res)
 
 
-class TestValideEdtfDate(unittest.TestCase):
+class TestValidEdtfDate(unittest.TestCase):
 
     def test_validate_good_edtf_values(self):
         good_values = ['190X',
@@ -329,7 +329,19 @@ class TestValideEdtfDate(unittest.TestCase):
                        '2001-23',
                        '2001-24',
                        '2001-31',
-                       '193X/196X'
+                       '193X/196X',
+                       '198X?',
+                       '19XX?',
+                       '2XXX?',
+                       '198X~',
+                       '19XX~',
+                       '2XXX~',
+                       '198X%',
+                       '19XX%',
+                       '2XXX%',
+                       'XXXX?',
+                       'XXXX~',
+                       'XXXX%'
                        ]
         for good_value in good_values:
             res = workbench_utils.validate_edtf_date(good_value)
@@ -342,7 +354,9 @@ class TestValideEdtfDate(unittest.TestCase):
                       '1900-00-31',
                       '1900-00',
                       '19000',
-                      '7/5/51'
+                      '7/5/51',
+                      '19X?',
+                      '2XX%',
                       ]
         for bad_value in bad_values:
             res = workbench_utils.validate_edtf_date(bad_value)
@@ -485,22 +499,22 @@ class TestSqliteManager(unittest.TestCase):
 
         self.db_file_path = os.path.join(self.config['temp_dir'], self.config['sqlite_db_filename'])
 
-        workbench_utils.sqlite_manager(self.config, operation='create_database')
-        workbench_utils.sqlite_manager(self.config, operation='create_table', table_name='names', query='CREATE TABLE names (name TEXT, location TEXT)')
+        workbench_utils.sqlite_manager(self.config, db_file_path=self.db_file_path, operation='create_database')
+        workbench_utils.sqlite_manager(self.config, db_file_path=self.db_file_path, operation='create_table', table_name='names', query='CREATE TABLE names (name TEXT, location TEXT)')
 
     def test_crud_operations(self):
-        workbench_utils.sqlite_manager(self.config, operation='insert', query="INSERT INTO names VALUES (?, ?)", values=('Mark', 'Burnaby'))
-        workbench_utils.sqlite_manager(self.config, operation='insert', query="INSERT INTO names VALUES (?, ?)", values=('Mix', 'Catland'))
-        res = workbench_utils.sqlite_manager(self.config, operation='select', query="select * from names")
+        workbench_utils.sqlite_manager(self.config, operation='insert', db_file_path=self.db_file_path, query="INSERT INTO names VALUES (?, ?)", values=('Mark', 'Burnaby'))
+        workbench_utils.sqlite_manager(self.config, operation='insert', db_file_path=self.db_file_path, query="INSERT INTO names VALUES (?, ?)", values=('Mix', 'Catland'))
+        res = workbench_utils.sqlite_manager(self.config, operation='select', db_file_path=self.db_file_path, query="select * from names")
         self.assertEqual(res[0]['name'], 'Mark')
         self.assertEqual(res[1]['location'], 'Catland')
 
-        workbench_utils.sqlite_manager(self.config, operation='update', query="UPDATE names set location = ? where name = ?", values=('Blank stare', 'Mix'))
-        res = workbench_utils.sqlite_manager(self.config, operation='select', query="select * from names")
+        workbench_utils.sqlite_manager(self.config, operation='update', db_file_path=self.db_file_path, query="UPDATE names set location = ? where name = ?", values=('Blank stare', 'Mix'))
+        res = workbench_utils.sqlite_manager(self.config, operation='select', db_file_path=self.db_file_path, query="select * from names")
         self.assertEqual(res[1]['location'], 'Blank stare')
 
-        workbench_utils.sqlite_manager(self.config, operation='delete', query="delete from names where name = ?", values=('Mix',))
-        res = workbench_utils.sqlite_manager(self.config, operation='select', query="select * from names")
+        workbench_utils.sqlite_manager(self.config, operation='delete', db_file_path=self.db_file_path, query="delete from names where name = ?", values=('Mix',))
+        res = workbench_utils.sqlite_manager(self.config, operation='select', db_file_path=self.db_file_path, query="select * from names")
         self.assertEqual(len(res), 1)
 
     def tearDown(self):
@@ -685,6 +699,80 @@ class TestGetPageTitleFromTemplate(unittest.TestCase):
         for fixture in fixtures:
             page_title = workbench_utils.get_page_title_from_template(fixture['config'], fixture['parent_title'], fixture['weight'])
             self.assertEqual(fixture['control'], page_title)
+
+
+class TestGetPreprocessedFilePath(unittest.TestCase):
+    def test_get_preprocessed_file_path_with_extension(self):
+        node_csv_record = collections.OrderedDict()
+        node_csv_record['id'] = 'id_0001'
+        node_csv_record['file'] = 'https://example.com/somepathinfo/fullsize/test-filename.jpg'
+        node_csv_record['title'] = 'Test Title'
+        self.node_csv_record = node_csv_record
+
+        self.config = {'task': 'create',
+                       'id_field': 'id',
+                       'oembed_providers': [],
+                       'temp_dir': tempfile.gettempdir(),
+                       'field_for_remote_filename': False}
+
+        path = workbench_utils.get_preprocessed_file_path(self.config, 'file', self.node_csv_record)
+        expected_path = os.path.join(self.config['temp_dir'], self.node_csv_record['id'], 'test-filename.jpg')
+        self.assertEqual(path, expected_path)
+
+    def test_get_preprocessed_file_path_use_node_title_for_remote_filename(self):
+        node_csv_record = collections.OrderedDict()
+        node_csv_record['id'] = 'id_0001'
+        node_csv_record['file'] = 'https://example.com/somepathinfo/fullsize/test-filename.jpg'
+        node_csv_record['title'] = 'Test Title'
+        self.node_csv_record = node_csv_record
+
+        self.config = {'task': 'create',
+                       'id_field': 'id',
+                       'oembed_providers': [],
+                       'temp_dir': tempfile.gettempdir(),
+                       'field_for_remote_filename': False,
+                       'use_node_title_for_remote_filename': True}
+
+        path = workbench_utils.get_preprocessed_file_path(self.config, 'file', self.node_csv_record)
+        expected_path = os.path.join(self.config['temp_dir'], self.node_csv_record['id'], 'Test_Title.jpg')
+        self.assertEqual(path, expected_path)
+
+    def test_get_preprocessed_file_path_use_nid_in_remote_filename(self):
+        node_csv_record = collections.OrderedDict()
+        node_csv_record['id'] = 'id_0001'
+        node_csv_record['file'] = 'https://example.com/somepathinfo/fullsize/test-filename.jpg'
+        node_csv_record['title'] = 'Test Title'
+        self.node_csv_record = node_csv_record
+
+        self.config = {'task': 'create',
+                       'id_field': 'id',
+                       'oembed_providers': [],
+                       'temp_dir': tempfile.gettempdir(),
+                       'field_for_remote_filename': False,
+                       'use_nid_in_remote_filename': True}
+
+        path = workbench_utils.get_preprocessed_file_path(self.config, 'file', self.node_csv_record, node_id=456)
+        expected_path = os.path.join(self.config['temp_dir'], self.node_csv_record['id'], '456.jpg')
+        self.assertEqual(path, expected_path)
+
+    def test_get_preprocessed_file_path_field_for_remote_filename(self):
+        node_csv_record = collections.OrderedDict()
+        node_csv_record['id'] = 'id_0001'
+        node_csv_record['file'] = 'https://example.com/somepathinfo/fullsize/test-filename.jpg'
+        node_csv_record['title'] = 'Test Title'
+        node_csv_record['field_description'] = 'A description used for testing.'
+        self.node_csv_record = node_csv_record
+
+        self.config = {'task': 'create',
+                       'id_field': 'id',
+                       'oembed_providers': [],
+                       'temp_dir': tempfile.gettempdir(),
+                       'field_for_remote_filename': False,
+                       'field_for_remote_filename': 'field_description'}
+
+        path = workbench_utils.get_preprocessed_file_path(self.config, 'file', self.node_csv_record, node_id=456)
+        expected_path = os.path.join(self.config['temp_dir'], self.node_csv_record['id'], 'A_description_used_for_testing.jpg')
+        self.assertEqual(path, expected_path)
 
 
 class TestDeduplicateFieldValues(unittest.TestCase):
