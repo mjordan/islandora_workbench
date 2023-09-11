@@ -7152,3 +7152,27 @@ def get_term_field_values(config, term_id):
     response = issue_request(config, 'GET', url)
     term_fields = json.loads(response.text)
     return term_fields
+
+def preprocess_csv(config, row, field):
+    """Execute field preprocessor scripts, if any are configured. Note that these scripts
+       are applied to the entire value from the CSV field and not split field values,
+       e.g., if a field is multivalued, the preprocesor must split it and then reassemble
+       it back into a string before returning it. Note that preprocessor scripts work only
+       on string data and not on binary data like images, etc. and only on custom fields
+       (so not title).
+    """
+    if 'preprocessors' in config and field in config['preprocessors']:
+        command = config['preprocessors'][field]
+        output, return_code = preprocess_field_data(config['subdelimiter'], row[field], command)
+        if return_code == 0:
+            preprocessor_input = copy.deepcopy(row[field])
+            logging.info(
+                'Preprocess command %s executed, taking "%s" as input and returning "%s".',
+                command,
+                preprocessor_input,
+                output.decode().strip())
+            return output.decode().strip()
+        else:
+            message = 'Preprocess command ' + command + ' failed with return code ' + str(return_code)
+            logging.error(message)
+            return row[field]
