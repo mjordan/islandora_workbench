@@ -1,7 +1,11 @@
+import os
+import sys
 import unittest
 from unittest.mock import patch
 import argparse
 from collections import namedtuple
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from WorkbenchConfig import WorkbenchConfig
 
 
@@ -170,3 +174,6 @@ class TestWorkbenchConfig(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
                 test_config_obj = WorkbenchConfig(args)
 
+
+if __name__ == '__main__':
+    unittest.main()
