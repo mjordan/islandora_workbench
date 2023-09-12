@@ -3826,14 +3826,15 @@ def remove_media_and_file(config, media_id):
     media_bundle_name = get_media_response_body['bundle'][0]['target_id']
     if media_bundle_name in config['media_track_file_fields']:
         track_file_field = config['media_track_file_fields'][media_bundle_name]
-        for track_file in get_media_response_body[track_file_field]:
-            track_file_id = track_file['target_id']
-            track_file_endpoint = config['host'] + '/entity/file/' + str(track_file_id) + '?_format=json'
-            track_file_response = issue_request(config, 'DELETE', track_file_endpoint)
-            if track_file_response.status_code == 204:
-                logging.info("Media track file %s (from media %s) deleted.", track_file_id, media_id)
-            else:
-                logging.error("Media track file %s (from media %s) not deleted (HTTP response code %s).", track_file_id, media_id, track_file_response.status_code)
+        if 'field_track' in get_media_response_body[track_file_field]:
+            for track_file in get_media_response_body[track_file_field]:
+                track_file_id = track_file['target_id']
+                track_file_endpoint = config['host'] + '/entity/file/' + str(track_file_id) + '?_format=json'
+                track_file_response = issue_request(config, 'DELETE', track_file_endpoint)
+                if track_file_response.status_code == 204:
+                    logging.info("Media track file %s (from media %s) deleted.", track_file_id, media_id)
+                else:
+                    logging.error("Media track file %s (from media %s) not deleted (HTTP response code %s).", track_file_id, media_id, track_file_response.status_code)
 
     # Then the media.
     if file_id is None or file_response.status_code == 204:
