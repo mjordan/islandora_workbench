@@ -2464,17 +2464,18 @@ def check_input(config, args):
     preprocessor_scripts_present = False
     if 'preprocessors' in config and len(config['preprocessors']) > 0:
         preprocessor_scripts_present = True
-        for preprocessor_script in config['preprocessors']:
-            if not os.path.exists(preprocessor_script):
-                message = "Preprocessor script " + preprocessor_script + " not found."
+        # for preprocessor_script in config['preprocessors']:
+        for field, script_path in config['preprocessors'].items():
+            if not os.path.exists(script_path):
+                message = f'Preprocessor script "{script_path}" for field "{field}" not found.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
-            if os.access(preprocessor_script, os.X_OK) is False:
-                message = "Preprocessor script " + preprocessor_script + " is not executable."
+            if os.access(script_path, os.X_OK) is False:
+                message = f'Preprocessor script "{script_path}" for field "{field}" is not executable.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
         if preprocessor_scripts_present is True:
-            message = "OK, registered preprocessor scripts found and executable."
+            message = f'OK, registered preprocessor scripts found and executable.'
             logging.info(message)
             print(message)
 
