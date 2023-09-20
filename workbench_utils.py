@@ -3827,7 +3827,7 @@ def remove_media_and_file(config, media_id):
     media_bundle_name = get_media_response_body['bundle'][0]['target_id']
     if media_bundle_name in config['media_track_file_fields']:
         track_file_field = config['media_track_file_fields'][media_bundle_name]
-        if 'field_track' in get_media_response_body[track_file_field]:
+        if track_file_field in get_media_response_body[track_file_field]:
             for track_file in get_media_response_body[track_file_field]:
                 track_file_id = track_file['target_id']
                 track_file_endpoint = config['host'] + '/entity/file/' + str(track_file_id) + '?_format=json'
