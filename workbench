@@ -541,13 +541,7 @@ def update():
             if revisions_enabled:
                 # Add revision information to node
                 revision_log_message = row['revision_log'] if 'revision_log' in row and row['revision_log'] != '' else 'Updated by Islandora Workbench.'
-                revision_json = {
-                        "revision_log": [
-                            {
-                            "value": revision_log_message
-                            }
-                        ]
-                    }
+                revision_json = {"revision_log": [{"value": revision_log_message}]}
                 node.update(revision_json)
             node_response = issue_request(config, 'PATCH', node_endpoint, node_headers, node)
 
@@ -758,7 +752,7 @@ def update_media() -> None:
         try:
             return get_media_response.json()['bundle'][0]['target_id']
         except Exception as e:
-            logging.error("Unable to get media type for media ID %s. Reason %s", media_id, e)
+            logging.error('Unable to get media type for media ID "%s": %s', media_id, e)
 
     def get_media_parent_node_id(get_media_response_body: dict, media_csv_row: dict) -> Optional[str]:
         """Get the parent node ID of the media entity.
@@ -781,7 +775,7 @@ def update_media() -> None:
         try:
             return get_media_response_body['field_media_of'][0]['target_id']  # Return the first node ID in the list of nodes the media entity is attached to
         except Exception as e:
-            logging.error("Unable to get parent node ID for media ID %s. Reason %s", media_id, e)
+            logging.error("Unable to get parent node ID for media ID %s: %s", media_id, e)
             return None
 
     def patch_plain_text_fields(config: dict, media_type: str, media_csv_row: dict) -> dict:
@@ -859,7 +853,7 @@ def update_media() -> None:
                 try:
                     file_to_delete = str(get_media_response_body[file_field_name][0]['target_id'])
                 except Exception as e:
-                    logging.warning("Unable to get file ID for media %s (reason: %s). Assuming there was no file attached to this media in the first place.", media_id, e)
+                    logging.warning('Unable to get file ID for media "%s" (%s).', media_id, e)
                     return True
                 break
 
@@ -898,7 +892,7 @@ def update_media() -> None:
                 try:
                     file_to_delete = str(track_file['target_id'])
                 except Exception as e:  # There is a track file attached to this media, but we can't get its ID
-                    logging.warning("Unable to get track file ID for a track file attached to media ID %s (reason: %s).", media_id, e)
+                    logging.warning('Unable to get track file ID for a track file attached to media ID "%s" (%s).', media_id, e)
                     return False
 
                 if config['standalone_media_url'] is True:
@@ -1000,7 +994,7 @@ def update_media() -> None:
                 {'value': status}
             ]
         }
-    
+
     def is_revisions_enabled(config: dict, media_type: str):
         """Return True if the media type has revisions enabled, False otherwise.
 
@@ -1014,7 +1008,7 @@ def update_media() -> None:
         media_type_endpoint = f"{config['host']}/entity/media_type/{media_type}/?_format=json"
         response = issue_request(config, 'GET', media_type_endpoint).text
         return json.loads(response)['new_revision']
-    
+
     def patch_media_revision_log_message(revision_log_message) -> dict:
         """Return the JSON object for a PATCH request required to patch the media entity's revision log message.
 
