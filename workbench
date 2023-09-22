@@ -315,7 +315,7 @@ def create():
             pbar(row_position)
 
         # If there is no media file (and we're not creating paged content), move on to the next CSV row.
-        if config['nodes_only'] is False and config['allow_missing_files'] is False is True and 'file' in row and len(row['file'].strip()) == 0 and config['paged_content_from_directories'] is False:
+        if config['nodes_only'] is False and 'file' in row and len(row['file'].strip()) == 0 and config['paged_content_from_directories'] is False:
             if config['progress_bar'] is False:
                 print('- No media for ' + node_uri + ' created since its "file" field in the CSV is empty.')
             logging.warning("No media for %s created since its 'file' field in the CSV is empty.", node_uri)
@@ -675,8 +675,7 @@ def add_media():
                             logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
                     else:
                         message = "Warning: Media for node " + row['node_id'] + " not created since CSV column 'file' is empty."
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
+                        continue
                 else:
                     if check_file_exists(config, row['file']):
                         media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], row, media_use_tid_value)
@@ -690,14 +689,13 @@ def add_media():
                             logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
                     else:
                         message = "Warning: Media for node " + row['node_id'] + " not created since CSV column 'file' is empty."
-                        logging.error(message)
-                        sys.exit('Error: ' + message)
+                        continue
             if 'additional_files' in config:
                 additional_files_config = get_additional_files_config(config)
                 if len(additional_files_config) > 0:
                     for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
                         if config['allow_missing_files'] is False:
-                            if not check_file_exists(config, row['file']):
+                            if not check_file_exists(config, row[additional_file_field]):
                                 message = 'File ' + row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column in for node ID ' + row['node_id'] + ' not found.'
                                 logging.error(message)
                                 sys.exit('Error: ' + message)
