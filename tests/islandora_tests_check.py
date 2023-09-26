@@ -520,5 +520,52 @@ class TestParentsPrecedeChildren(unittest.TestCase):
             os.remove(preprocessed_csv_path)
 
 
+class TestAllowMissingFiles(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.temp_dir = tempfile.gettempdir()
+
+    def test_false(self):
+        config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_allow_missing_files_false.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = proc.communicate()
+        self.assertRegex(str(stdout), 'identified in CSV "file" column for record with ID field value "03" not found', '')
+
+    def test_true(self):
+        config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_allow_missing_files_true.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'Warning: "allow_missing_files" configuration setting is set to "true", and "file" column values containing')
+
+    def test_false_with_soft_checks(self):
+        config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_allow_missing_files_false_with_soft_checks.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        lines = output.splitlines()
+        self.assertRegex(output, 'Warning: "perform_soft_checks" config setting is set to "true" and some values in the "file" column were not found')
+
+    def tearDown(self):
+        false_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_false.log')
+        if os.path.exists(false_log_file_path):
+            os.remove(false_log_file_path)
+
+        true_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_true.log')
+        if os.path.exists(true_log_file_path):
+            os.remove(true_log_file_path)
+
+        false_with_soft_checks_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_false_with_soft_checks.log')
+        if os.path.exists(false_with_soft_checks_log_file_path):
+            os.remove(false_with_soft_checks_log_file_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'metadata_check.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+
 if __name__ == '__main__':
     unittest.main()
