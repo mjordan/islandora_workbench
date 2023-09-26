@@ -504,6 +504,9 @@ class TestAllowMissingFiles(unittest.TestCase):
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         self.temp_dir = tempfile.gettempdir()
+        self.false_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_false.log')
+        self.true_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_true.log')
+        self.false_with_soft_checks_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_false_with_soft_checks.log')
 
     def test_false(self):
         config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_allow_missing_files_false.yml')
@@ -512,12 +515,20 @@ class TestAllowMissingFiles(unittest.TestCase):
         stdout, stderr = proc.communicate()
         self.assertRegex(str(stdout), 'identified in CSV "file" column for record with ID field value "03" not found', '')
 
+        with open(self.false_log_file_path) as log_file_false:
+            log_data_false = log_file_false.read()
+            self.assertRegex(log_data_false, 'value "03" not found')
+
     def test_true(self):
         config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_allow_missing_files_true.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(output, 'Warning: "allow_missing_files" configuration setting is set to "true", and "file" column values containing')
+
+        with open(self.true_log_file_path) as log_file_true:
+            log_data_true = log_file_true.read()
+            self.assertRegex(log_data_true, 'record with ID "06" not found or not accessible')
 
     def test_false_with_soft_checks(self):
         config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_allow_missing_files_false_with_soft_checks.yml')
@@ -526,18 +537,23 @@ class TestAllowMissingFiles(unittest.TestCase):
         output = output.decode().strip()
         self.assertRegex(output, 'Warning: "perform_soft_checks" config setting is set to "true" and some values in the "file" column were not found')
 
+        with open(self.false_with_soft_checks_log_file_path) as log_file_false_with_soft_checks:
+            log_file_false_with_soft_checks_data = log_file_false_with_soft_checks.read()
+            self.assertRegex(log_file_false_with_soft_checks_data, 'record with ID field value "03" not found')
+
+        with open(self.false_with_soft_checks_log_file_path) as log_file_false_with_soft_checks:
+            log_file_false_with_soft_checks_data = log_file_false_with_soft_checks.read()
+            self.assertRegex(log_file_false_with_soft_checks_data, 'record with ID "06" not found or not accessible')
+
     def tearDown(self):
-        false_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_false.log')
-        if os.path.exists(false_log_file_path):
-            os.remove(false_log_file_path)
+        if os.path.exists(self.false_log_file_path):
+            os.remove(self.false_log_file_path)
 
-        true_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_true.log')
-        if os.path.exists(true_log_file_path):
-            os.remove(true_log_file_path)
+        if os.path.exists(self.true_log_file_path):
+            os.remove(self.true_log_file_path)
 
-        false_with_soft_checks_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'allow_missing_files_false_with_soft_checks.log')
-        if os.path.exists(false_with_soft_checks_log_file_path):
-            os.remove(false_with_soft_checks_log_file_path)
+        if os.path.exists(self.false_with_soft_checks_log_file_path):
+            os.remove(self.false_with_soft_checks_log_file_path)
 
         preprocessed_csv_path = os.path.join(self.temp_dir, 'metadata_check.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
