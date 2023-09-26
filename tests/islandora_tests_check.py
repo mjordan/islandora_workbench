@@ -32,7 +32,6 @@ class TestCreateCheck(unittest.TestCase):
         self.output = output.decode().strip()
 
     def test_create_check(self):
-        lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
 
@@ -50,7 +49,6 @@ class TestCheckFromGoogleSpreadsheetCheck(unittest.TestCase):
         self.output = output.decode().strip()
 
     def test_create_from_google_spreadsheet_check(self):
-        lines = self.output.splitlines()
         self.assertRegex(self.output, 'Extracting CSV data from https://docs.google.com', '')
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
@@ -67,7 +65,6 @@ class TestUpdateCheck(unittest.TestCase):
         self.output = output.decode().strip()
 
     def test_update_check(self):
-        lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
     def tearDown(self):
@@ -88,7 +85,6 @@ class TestDeleteCheck(unittest.TestCase):
         self.output = output.decode().strip()
 
     def test_delete_check(self):
-        lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
     def tearDown(self):
@@ -109,7 +105,6 @@ class TestAddMediaCheck(unittest.TestCase):
         self.output = output.decode().strip()
 
     def test_add_media_check(self):
-        lines = self.output.splitlines()
         self.assertRegex(self.output, 'Configuration and input data appear to be valid', '')
 
     def tearDown(self):
@@ -130,7 +125,6 @@ class TestTypedRelationBadRelatorCheck(unittest.TestCase):
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
-            lines = output.splitlines()
             self.assertRegex(output, 'does not use the pattern required for typed relation fields', '')
         except subprocess.CalledProcessError as err:
             pass
@@ -157,7 +151,6 @@ class TestTypedRelationBadUriCheck(unittest.TestCase):
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
-            lines = output.splitlines()
             self.assertRegex(output, 'example.com', '')
         except subprocess.CalledProcessError as err:
             pass
@@ -183,7 +176,6 @@ class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_new_typed_relation_check(self):
-        lines = self.output.splitlines()
         self.assertRegex(self.output, 'new terms will be created as noted', '')
 
     def tearDown(self):
@@ -208,7 +200,6 @@ class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
-            lines = output.splitlines()
             self.assertRegex(output, 'require a vocabulary namespace', '')
         except subprocess.CalledProcessError as err:
             pass
@@ -234,7 +225,6 @@ class TestDelimiterCheck(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_delimiter_check(self):
-        lines = self.output.splitlines()
         self.assertRegex(self.output, 'input data appear to be valid', '')
 
     def tearDown(self):
@@ -255,7 +245,6 @@ class TestGeolocationCheck(unittest.TestCase):
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
-            lines = output.splitlines()
             self.assertRegex(output, r'+43.45-123.17', '')
         except subprocess.CalledProcessError as err:
             pass
@@ -278,7 +267,6 @@ class TestHeaderColumnMismatchCheck(unittest.TestCase):
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
-            lines = output.splitlines()
             self.assertRegex(output, 'Row 2 of your CSV file does not', '')
         except subprocess.CalledProcessError as err:
             pass
@@ -304,7 +292,6 @@ class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_create_with_field_templates_check(self):
-        lines = self.output.splitlines()
         self.assertRegex(self.output, 'all 3 rows in the CSV file have the same number of columns as there are headers .6.', '')
 
     def tearDown(self):
@@ -322,7 +309,6 @@ class TestCommentedCsvs(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'all 3 rows in the CSV file', '')
         preprocessed_csv_file_path = os.path.join(self.temp_dir, "metadata.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
@@ -332,7 +318,6 @@ class TestCommentedCsvs(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'all 4 rows in the CSV file', '')
         csv_file_path = os.path.join(self.temp_dir, "excel.csv")
         if os.path.exists(csv_file_path):
@@ -345,7 +330,6 @@ class TestCommentedCsvs(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'all 5 rows in the CSV file', '')
         csv_file_path = os.path.join(current_dir, "assets", "commented_csvs_test", "google_sheet.csv")
         if os.path.exists(csv_file_path):
@@ -455,28 +439,24 @@ class TestGoogleGid(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'OK, all 2 rows in the CSV file')
 
         config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_1867618389.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'OK, all 3 rows in the CSV file')
 
         config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_390347846.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'OK, all 5 rows in the CSV file')
 
         config_file_path = os.path.join(current_dir, 'assets', 'google_gid_test', 'gid_953977578.yml')
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'OK, all 1 rows in the CSV file')
 
     def tearDown(self):
@@ -500,7 +480,6 @@ class TestParentsPrecedeChildren(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'Configuration and input data appear to be valid')
 
     def test_bad_csv(self):
@@ -538,7 +517,6 @@ class TestAllowMissingFiles(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'Warning: "allow_missing_files" configuration setting is set to "true", and "file" column values containing')
 
     def test_false_with_soft_checks(self):
@@ -546,7 +524,6 @@ class TestAllowMissingFiles(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        lines = output.splitlines()
         self.assertRegex(output, 'Warning: "perform_soft_checks" config setting is set to "true" and some values in the "file" column were not found')
 
     def tearDown(self):
