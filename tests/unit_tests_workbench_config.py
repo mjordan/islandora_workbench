@@ -108,7 +108,6 @@ class TestWorkbenchConfig(unittest.TestCase):
     def test_init_validate_invalid_content_type(self):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_02_01_create_short_invalid.yml'
 
-        args = self.parser.parse_args(['--config', test_file_name])
         self.parser.config = test_file_name
         args = self.parser
 
@@ -135,7 +134,6 @@ class TestWorkbenchConfig(unittest.TestCase):
     def test_init_validate_invalid_mutators_01(self):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_02_02_create_short_invalid.yml'
 
-        args = self.parser.parse_args(['--config', test_file_name])
         self.parser.config = test_file_name
         args = self.parser
 
@@ -149,9 +147,9 @@ class TestWorkbenchConfig(unittest.TestCase):
             mocked_issue_request.return_value = fake_response
 
             # Error text should only be this line, therefore use ^ and $ at the start and end of the message respectively
-            error_message = "^Error: You may only select one of \['use_node_title_for_media', "  \
-                + "'use_nid_in_media_title', 'field_for_media_title'\].\n  - This config  has selected " \
-                + "\['use_node_title_for_media', 'use_nid_in_media_title'\].\n$"
+            error_message = r"^Error: You may only select one of \['use_node_title_for_media', "  \
+                + r"'use_nid_in_media_title', 'field_for_media_title'\].\n  - This config  has selected " \
+                + r"\['use_node_title_for_media', 'use_nid_in_media_title'\].\n$"
 
             with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
                 test_config_obj = WorkbenchConfig(args)
@@ -172,9 +170,9 @@ class TestWorkbenchConfig(unittest.TestCase):
             mocked_issue_request.return_value = fake_response
 
             # Error text should only be this line, therefore use ^ and $ at the start and end of the message respectively
-            error_message = "^Error: You may only select one of \['use_node_title_for_media', "  \
-                + "'use_nid_in_media_title', 'field_for_media_title'\].\n  - This config  has selected " \
-                + "\['use_node_title_for_media', 'field_for_media_title'\].\n$"
+            error_message = r"^Error: You may only select one of \['use_node_title_for_media', "  \
+                + r"'use_nid_in_media_title', 'field_for_media_title'\].\n  - This config  has selected " \
+                + r"\['use_node_title_for_media', 'field_for_media_title'\].\n$"
 
             with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
                 test_config_obj = WorkbenchConfig(args)
