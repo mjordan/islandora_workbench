@@ -2,7 +2,7 @@ import os
 import sys
 import unittest
 from unittest.mock import patch
-import argparse
+from unittest.mock import MagicMock
 from collections import namedtuple
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -12,23 +12,20 @@ from WorkbenchConfig import WorkbenchConfig
 class TestWorkbenchConfig(unittest.TestCase):
 
     def setUp(self) -> None:
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--config', required=True, help='Configuration file to use.')
-        parser.add_argument('--check', help='Check input data and exit without creating/updating/etc.',
-                            action='store_true')
-        parser.add_argument('--get_csv_template',
-                            help='Generate a CSV template using the specified configuration file.', action='store_true')
-        parser.add_argument('--quick_delete_node',
-                            help='Delete the node (and all attached media) identified by the URL).')
-        parser.add_argument('--quick_delete_media', help='Delete the media (and attached file) identified by the URL).')
-        parser.add_argument('--contactsheet', help='Generate a contact sheet.', action='store_true')
-        parser.add_argument('--version', action='version', version='Islandora Workbench 0.0.0')
-        self.parser = parser
+        mock_argparse_parser = MagicMock()
+
+        mock_argparse_parser.config = ''
+        mock_argparse_parser.check = False
+        mock_argparse_parser.get_csv_template = False
+        mock_argparse_parser.contactsheet = False
+
+        self.parser = mock_argparse_parser
 
     def test_init_path_check_invalid_file(self):
         test_file_name = '/file/does/not/exist.yml'
 
-        args = self.parser.parse_args(['--config', test_file_name])
+        self.parser.config = test_file_name
+        args = self.parser
 
         with self.assertRaises(SystemExit) as exit_return, \
                 patch('WorkbenchConfig.logging') as mocked_logging:
@@ -45,7 +42,8 @@ class TestWorkbenchConfig(unittest.TestCase):
     def test_init_path_check_valid_file(self):
         test_file_name = 'tests/assets/execute_bootstrap_script_test/config.yml'
 
-        args = self.parser.parse_args(['--config', test_file_name])
+        self.parser.config = test_file_name
+        args = self.parser
 
         with patch('sys.exit', side_effect=lambda x: None) as mock_exit, \
                 patch('WorkbenchConfig.WorkbenchConfig.validate') as mocked_validate, \
@@ -63,7 +61,8 @@ class TestWorkbenchConfig(unittest.TestCase):
     def test_get_config_valid_config_file_01(self):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_01_create_short_valid.yml'
 
-        args = self.parser.parse_args(['--config', test_file_name])
+        self.parser.config = test_file_name
+        args = self.parser
 
         with patch('WorkbenchConfig.WorkbenchConfig.validate') as mocked_validate, \
                 patch('WorkbenchConfig.logging') as mocked_logging:
@@ -88,7 +87,8 @@ class TestWorkbenchConfig(unittest.TestCase):
     def test_init_validate_valid(self):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_01_create_short_valid.yml'
 
-        args = self.parser.parse_args(['--config', test_file_name])
+        self.parser.config = test_file_name
+        args = self.parser
 
         with patch('WorkbenchConfig.issue_request') as mocked_issue_request, \
                 patch('WorkbenchConfig.logging') as mocked_logging:
@@ -109,6 +109,8 @@ class TestWorkbenchConfig(unittest.TestCase):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_02_01_create_short_invalid.yml'
 
         args = self.parser.parse_args(['--config', test_file_name])
+        self.parser.config = test_file_name
+        args = self.parser
 
         with patch('WorkbenchConfig.issue_request') as mocked_issue_request, \
                 patch('WorkbenchConfig.logging') as mocked_logging, \
@@ -134,6 +136,8 @@ class TestWorkbenchConfig(unittest.TestCase):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_02_02_create_short_invalid.yml'
 
         args = self.parser.parse_args(['--config', test_file_name])
+        self.parser.config = test_file_name
+        args = self.parser
 
         with patch('WorkbenchConfig.issue_request') as mocked_issue_request, \
                 patch('WorkbenchConfig.logging') as mocked_logging:
@@ -155,7 +159,8 @@ class TestWorkbenchConfig(unittest.TestCase):
     def test_init_validate_invalid_mutators_02(self):
         test_file_name = 'tests/assets/WorkbenchConfig_test/config_02_03_create_short_invalid.yml'
 
-        args = self.parser.parse_args(['--config', test_file_name])
+        self.parser.config = test_file_name
+        args = self.parser
 
         with patch('WorkbenchConfig.issue_request') as mocked_issue_request, \
                 patch('WorkbenchConfig.logging') as mocked_logging:
