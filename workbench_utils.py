@@ -2215,7 +2215,7 @@ def check_input(config, args):
                     else:
                         file_path = os.path.join(config['input_dir'], file_check_row['file'])
                     if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                        message = 'File "' + file_path + '" identified in CSV "file" column for record with ID field value "' \
+                        message = 'File "' + file_path + '" identified in CSV "file" column for row with ID "' \
                             + file_check_row[config['id_field']] + '" not found.'
                         if config['allow_missing_files'] is False:
                             logging.error(message)
@@ -2233,7 +2233,7 @@ def check_input(config, args):
                     if len(file_check_row['file'].strip()) > 0:
                         http_response_code = ping_remote_file(config, file_check_row['file'])
                         if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
-                            message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID "' \
+                            message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for row with ID "' \
                                 + file_check_row[config['id_field']] + '" not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
                             if config['allow_missing_files'] is False:
                                 logging.error(message)
@@ -2317,20 +2317,21 @@ def check_input(config, args):
                 for additional_files_media_use_field, additional_files_media_use_tid in additional_files_entries.items():
                     validate_media_use_tid_in_additional_files_setting(config, additional_files_media_use_tid, additional_files_media_use_field)
 
+            # Check existence of files named in columns identified as 'additional_files' columns.
             missing_additional_files = False
             for count, file_check_row in enumerate(additional_files_check_csv_data, start=1):
                 for additional_file_field in additional_files_fields:
                     file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
                     if len(file_check_row[additional_file_field]) == 0:
                         missing_additional_files = True
-                        message = 'CVS row ' + file_check_row[config['id_field']] + ' contains an empty value in its "' + additional_file_field + '" column.'
+                        message = 'CVS row with ID ' + file_check_row[config['id_field']] + ' contains an empty value in its "' + additional_file_field + '" column.'
                         logging.warning(message)
 
                     if file_check_row[additional_file_field].startswith('http'):
                         http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
                         if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
                             missing_additional_files = True
-                            message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
+                            message = 'Additional file "' + file_check_row[additional_file_field] + '" in CSV column "' + additional_file_field + '" in row with ID ' \
                                 + file_check_row[config['id_field']] + ' not found or not accessible (HTTP response code ' + str(http_response_code) + ').'
                             if config['allow_missing_files'] is False:
                                 logging.error(message)
@@ -2342,7 +2343,7 @@ def check_input(config, args):
                         if len(file_check_row[additional_file_field]) > 0:
                             if check_file_exists(config, file_check_row[additional_file_field]) is False:
                                 missing_additional_files = True
-                                message = 'Additional file "' + file_check_row[additional_file_field] + '" in CSV column "' + additional_file_field + '" in row ' + \
+                                message = 'Additional file "' + file_check_row[additional_file_field] + '" in CSV column "' + additional_file_field + '" in row with ID ' + \
                                     file_check_row[config['id_field']] + ' not found.'
                                 if config['allow_missing_files'] is False:
                                     logging.error(message)
@@ -2353,7 +2354,7 @@ def check_input(config, args):
 
             if missing_additional_files is True:
                 if config['allow_missing_files'] is True:
-                    message = '"allow_missing_files" configuration setting is set to "true", and CSV columns containing missing files were detected.'
+                    message = '"allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns containing missing files were detected.'
                     print("Warning: " + message + " See the log for more information.")
                     logging.warning(message + " Details are logged above.")
             else:

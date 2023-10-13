@@ -513,11 +513,11 @@ class TestAllowMissingFiles(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
-        self.assertRegex(str(stdout), 'identified in CSV "file" column for record with ID field value "03" not found', '')
+        self.assertRegex(str(stdout), 'identified in CSV "file" column for row with ID "03" not found', '')
 
         with open(self.false_log_file_path) as log_file_false:
             log_data_false = log_file_false.read()
-            self.assertRegex(log_data_false, 'value "03" not found')
+            self.assertRegex(log_data_false, 'ID "03" not found')
 
     def test_true(self):
         config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_allow_missing_files_true.yml')
@@ -528,7 +528,7 @@ class TestAllowMissingFiles(unittest.TestCase):
 
         with open(self.true_log_file_path) as log_file_true:
             log_data_true = log_file_true.read()
-            self.assertRegex(log_data_true, 'record with ID "06" not found or not accessible')
+            self.assertRegex(log_data_true, 'row with ID "06" not found or not accessible')
 
     def test_false_with_soft_checks(self):
         config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_allow_missing_files_false_with_soft_checks.yml')
@@ -539,11 +539,11 @@ class TestAllowMissingFiles(unittest.TestCase):
 
         with open(self.false_with_soft_checks_log_file_path) as log_file_false_with_soft_checks:
             log_file_false_with_soft_checks_data = log_file_false_with_soft_checks.read()
-            self.assertRegex(log_file_false_with_soft_checks_data, 'record with ID field value "03" not found')
+            self.assertRegex(log_file_false_with_soft_checks_data, 'row with ID "03" not found')
 
         with open(self.false_with_soft_checks_log_file_path) as log_file_false_with_soft_checks:
             log_file_false_with_soft_checks_data = log_file_false_with_soft_checks.read()
-            self.assertRegex(log_file_false_with_soft_checks_data, 'record with ID "06" not found or not accessible')
+            self.assertRegex(log_file_false_with_soft_checks_data, 'row with ID "06" not found or not accessible')
 
     def tearDown(self):
         if os.path.exists(self.false_log_file_path):
@@ -556,6 +556,69 @@ class TestAllowMissingFiles(unittest.TestCase):
             os.remove(self.false_with_soft_checks_log_file_path)
 
         preprocessed_csv_path = os.path.join(self.temp_dir, 'metadata_check.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+
+class TestAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.temp_dir = tempfile.gettempdir()
+        self.false_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'additional_files_allow_missing_files_false.log')
+        self.true_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'additional_files_allow_missing_files_true.log')
+        self.false_with_soft_checks_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'additional_files_allow_missing_files_false_with_soft_checks.log')
+
+    def test_false(self):
+        config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_additional_files_allow_missing_files_false.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = proc.communicate()
+        self.assertRegex(str(stdout), 'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found', '')
+
+        with open(self.false_log_file_path) as log_file_false:
+            log_data_false = log_file_false.read()
+            self.assertRegex(log_data_false, 'CVS row with ID 003 contains an empty value in its "tn" column')
+            self.assertRegex(log_data_false, 'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found or not accessible')
+
+    def test_true(self):
+        config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_additional_files_allow_missing_files_true.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, '"allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns', '')
+
+        with open(self.true_log_file_path) as log_file_true:
+            log_data_true = log_file_true.read()
+            self.assertRegex(log_data_true, 'Additional file "additional_files_2_tn.jpg" in CSV column "tn" in row with ID 002 not found', '')
+            self.assertRegex(log_data_true, 'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found', '')
+
+    def test_false_with_soft_checks(self):
+        config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_additional_files_allow_missing_files_false_with_soft_checks.yml')
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, 'Also, the "perform_soft_checks" configuration seting is set to "true"')
+
+        with open(self.false_with_soft_checks_log_file_path) as log_file_false_with_soft_checks:
+            log_file_false_with_soft_checks_data = log_file_false_with_soft_checks.read()
+            self.assertRegex(log_file_false_with_soft_checks_data, 'Additional file "additional_files_2_tn.jpg" in CSV column "tn" in row with ID 002 not found')
+
+        with open(self.false_with_soft_checks_log_file_path) as log_file_false_with_soft_checks:
+            log_file_false_with_soft_checks_data = log_file_false_with_soft_checks.read()
+            self.assertRegex(log_file_false_with_soft_checks_data, ', no problems found')
+
+    def tearDown(self):
+        if os.path.exists(self.false_log_file_path):
+            os.remove(self.false_log_file_path)
+
+        if os.path.exists(self.true_log_file_path):
+            os.remove(self.true_log_file_path)
+
+        if os.path.exists(self.false_with_soft_checks_log_file_path):
+            os.remove(self.false_with_soft_checks_log_file_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'metadata_additional_files_check.csv.preprocessed')
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
