@@ -2215,8 +2215,7 @@ def check_input(config, args):
                     else:
                         file_path = os.path.join(config['input_dir'], file_check_row['file'])
                     if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                        message = 'File "' + file_path + '" identified in CSV "file" column for row with ID "' \
-                            + file_check_row[config['id_field']] + '" not found.'
+                        message = 'File "' + file_path + '" identified in CSV "file" column for row with ID "' + file_check_row[config['id_field']] + '" not found.'
                         if config['allow_missing_files'] is False:
                             logging.error(message)
                             if config['perform_soft_checks'] is False:
@@ -3245,14 +3244,13 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
             -------
             int|bool|None
                 The file ID (int) of the successfully created file; False if there is insufficient
-                information to create the file or file creation failed, or None if config['nodes_only'] or
-                config['allow_missing_files'] is True.
+                information to create the file or file creation failed, or None if config['nodes_only'].
     """
     if config['nodes_only'] is True:
         return None
 
     if config['task'] == 'add_media' or config['task'] == 'create':
-        if config['allow_missing_files'] and len(node_csv_row[file_fieldname].strip()) == 0:
+        if len(node_csv_row[file_fieldname].strip()) == 0:
             return None
 
     is_remote = False
@@ -3376,7 +3374,17 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                  if config['nodes_only'] is True.
     """
     if config['nodes_only'] is True:
-        return
+        return None
+
+    if len(filename.strip()) == 0:
+        message = 'Media not created because field "' + file_fieldname + '" in CSV row with ID "' + csv_row[config['id_field']] + '" is empty.'
+        logging.error(message)
+        return False
+
+    if check_file_exists(config, filename) is False:
+        message = 'Media not created because file "' + filename + '" identified in field "' + file_fieldname + '" in CSV row with ID "' + csv_row[config['id_field']] + '" could not be found.'
+        logging.error(message)
+        return False
 
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
