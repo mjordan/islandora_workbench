@@ -2250,7 +2250,7 @@ def check_input(config, args):
             # check_input() (to work with perform_soft_checks: True) in addition to at place of check (to work wit perform_soft_checks: False).
             if len(rows_with_missing_files) > 0:
                 if config['allow_missing_files'] is True:
-                    message = '"allow_missing_files" configuration setting is set to "true", and "file" column values containing missing files were detected.'
+                    message = '"allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing files were detected.'
                     print("Warning: " + message + " See the log for more information.")
                     logging.warning(message + " Details are logged above.")
             else:
@@ -2379,29 +2379,28 @@ def check_input(config, args):
 
                         # Check that each file's extension is allowed for the current media type.
                         additional_filenames = file_check_row[additional_file_field].split(config['subdelimiter'])
-                        # media_type_file_field = config['media_type_file_fields'][media_type]
+                        media_type_file_field = config['media_type_file_fields'][media_type]
                         for additional_filename in additional_filenames:
-                            if additional_filename.startswith('http'):
-                                # First check to see if the file has an extension.
-                                extension = os.path.splitext(additional_filename)[1]
-                                if len(extension) > 0:
-                                    extension = extension.lstrip('.')
-                                    extension = extension.lstrip('.')
+                            if check_file_exists(config, additional_filename):
+                                if additional_filename.startswith('http'):
+                                    # First check to see if the file has an extension.
+                                    extension = os.path.splitext(additional_filename)[1]
+                                    if len(extension) > 0:
+                                        extension = extension.lstrip('.')
+                                        extension = extension.lstrip('.')
+                                    else:
+                                        extension = get_remote_file_extension(config, additional_filename)
+                                        extension = extension.lstrip('.')
                                 else:
-                                    extension = get_remote_file_extension(config, additional_filename)
-                                    extension = extension.lstrip('.')
-                            else:
-                                if check_file_exists(config, additional_filename):
                                     extension = os.path.splitext(additional_filename)
                                     extension = extension[1].lstrip('.').lower()
 
-                            media_type_file_field = config['media_type_file_fields'][media_type]
-                            registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
-                            if extension not in registered_extensions[media_type_file_field]:
-                                message = 'File "' + additional_filename + '" in the "' + additional_file_field + '" field of row "' + file_check_row[config['id_field']] + \
-                                    '" has an extension (' + str(extension) + ') that is allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
-                                logging.error(message)
-                                sys.exit('Error: ' + message)
+                                registered_extensions = get_registered_media_extensions(config, media_type, media_type_file_field)
+                                if extension not in registered_extensions[media_type_file_field]:
+                                    message = 'File "' + additional_filename + '" in the "' + additional_file_field + '" field of row "' + file_check_row[config['id_field']] + \
+                                        '" has an extension (' + str(extension) + ') that is not allowed in the "' + media_type_file_field + '" field of the "' + media_type + '" media type.'
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
 
     if config['task'] == 'create' and config['paged_content_from_directories'] is True:
         if 'paged_content_page_model_tid' not in config:
@@ -2536,7 +2535,7 @@ def check_input(config, args):
         sys.exit('Error: Missing or empty CSV "file" column values detected. See the log for more information.')
 
     if len(rows_with_missing_files) > 0 and config['perform_soft_checks'] is True:
-        message = '"perform_soft_checks" config setting is set to "true" and some values in the "file" column were not found.'
+        message = '"perform_soft_checks" configuration setting is set to "true" and some values in the "file" column were not found.'
         logging.warning(message + " See log entries above.")
         print("Warning: " + message + " See the log for more information.")
 
@@ -2545,7 +2544,7 @@ def check_input(config, args):
             message = '"allow_missing_files" configuration setting is set to "true", and some files in fields configured as "additional_file" fields cannot be found.'
             if config['allow_missing_files'] is False:
                 if config['perform_soft_checks'] is True:
-                    message = message + ' Also, the "perform_soft_checks" configuration seting is set to "true", so Workbench did not exit after finding the first missing file.'
+                    message = message + ' Also, the "perform_soft_checks" configuration setting is set to "true", so Workbench did not exit after finding the first missing file.'
                     logging.warning(message + " See log entries above.")
                     print(message + " See the log for more information.")
                 else:
@@ -5520,7 +5519,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                         # First check the required patterns.
                         if not re.match("^[a-zA-Z]+:[a-zA-Z]+:.+$", field_value.strip()):
                             message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + \
-                                ' (' + field_value + ') does not use the pattern required for typed relation fields.'
+                                ' (' + field_value + ') does not use the structure required for typed relation fields.'
                             logging.error(message)
                             sys.exit('Error: ' + message)
 

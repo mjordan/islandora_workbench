@@ -6,4 +6,6 @@ input_dir: tests/assets/allow_missing_files_test
 input_csv: add_media_additional_files.csv
 standalone_media_url: true
 log_file_path: tests/assets/allow_missing_files_test/add_media_additional_files_allow_missing_files_false.log
-media_use_tid: http://pcdm.org/use#Transcript
+additional_files:
+ - preservation: http://pcdm.org/use#PreservationMasterFile
+ - transcript: http://pcdm.org/use#Transcript
