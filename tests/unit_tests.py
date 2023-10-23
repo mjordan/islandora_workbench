@@ -143,6 +143,14 @@ class TestSplitTypedRelationString(unittest.TestCase):
                               'rel_type': 'relators:pht',
                               'target_type': 'foo'})
 
+    def test_split_typed_relation_alpha_numeric_string_single(self):
+        config = {'subdelimiter': '|'}
+        res = workbench_utils.split_typed_relation_string(config, 'aat:300024987:5', 'foo')
+        self.assertDictEqual(res[0],
+                             {'target_id': int(5),
+                              'rel_type': 'aat:300024987',
+                              'target_type': 'foo'})
+
     def test_split_typed_relation_uri_single(self):
         config = {'subdelimiter': '|'}
         res = workbench_utils.split_typed_relation_string(config, 'relators:art:https://foo.bar/baz', 'foo')
