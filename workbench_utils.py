@@ -5488,7 +5488,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                         if len(field_value) == 0:
                             continue
                         # First check the required patterns.
-                        if not re.match("^[09-0a-zA-Z]+:[0-9a-zA-Z]+:.+$", field_value.strip()):
+                        if not re.match("^[0-9a-zA-Z]+:[0-9a-zA-Z]+:.+$", field_value.strip()):
                             message = 'Value in field "' + field_name + '" in row with ID ' + row[config['id_field']] + \
                                 ' (' + field_value + ') does not use the pattern required for typed relation fields.'
                             logging.error(message)
