@@ -4545,7 +4545,7 @@ def create_url_alias(config, node_id, url_alias):
             url_alias,
             config['host'] +
             '/node/' +
-            node_id,
+            str(node_id),
             response.status_code)
 
 
