@@ -2278,7 +2278,7 @@ def check_input(config, args):
                                 extension = os.path.splitext(file_check_row['file'])[1]
                                 if len(extension) > 0:
                                     extension = extension.lstrip('.')
-                                    extension = extension.lstrip('.')
+                                    extension = extension.lstrip('.').lower()
                                 else:
                                     extension = get_remote_file_extension(config, file_check_row['file'])
                                     extension = extension.lstrip('.')
