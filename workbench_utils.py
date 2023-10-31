@@ -2322,7 +2322,6 @@ def check_input(config, args):
                 for additional_file_field in additional_files_fields:
                     file_check_row[additional_file_field] = file_check_row[additional_file_field].strip()
                     if len(file_check_row[additional_file_field]) == 0:
-                        missing_additional_files = True
                         message = 'CVS row with ID ' + file_check_row[config['id_field']] + ' contains an empty value in its "' + additional_file_field + '" column.'
                         logging.warning(message)
 
@@ -2338,6 +2337,7 @@ def check_input(config, args):
                                     sys.exit('Error: ' + message)
                             else:
                                 logging.error(message)
+                                continue
                     else:
                         if len(file_check_row[additional_file_field]) > 0:
                             if check_file_exists(config, file_check_row[additional_file_field]) is False:
@@ -2350,12 +2350,16 @@ def check_input(config, args):
                                         sys.exit('Error: ' + message)
                                 else:
                                     logging.error(message)
+                                    continue
 
             if missing_additional_files is True:
                 if config['allow_missing_files'] is True:
                     message = '"allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns containing missing files were detected.'
                     print("Warning: " + message + " See the log for more information.")
                     logging.warning(message + " Details are logged above.")
+                else:
+                    if config['perform_soft_checks'] is False:
+                        sys.exit(message)
             else:
                 message = 'OK, files named in "additional_files" CSV columns are all present.'
                 print(message)
@@ -2541,11 +2545,13 @@ def check_input(config, args):
 
     if 'additional_files' in config and len(config['additional_files']) > 0 and config['nodes_only'] is False:
         if missing_additional_files is True:
-            message = '"allow_missing_files" configuration setting is set to "true", and some files in fields configured as "additional_file" fields cannot be found.'
             if config['allow_missing_files'] is False:
+                message = '"allow_missing_files" configuration setting is set to "false", and some files in fields configured as "additional_file" fields cannot be found.'
+                logging.error(message + " See log entries above.")
+                print(message + " See the log for more information.")
                 if config['perform_soft_checks'] is True:
-                    message = message + ' Also, the "perform_soft_checks" configuration setting is set to "true", so Workbench did not exit after finding the first missing file.'
-                    logging.warning(message + " See log entries above.")
+                    message = 'The "perform_soft_checks" configuration setting is set to "true", so Workbench did not exit after finding the first missing file.'
+                    logging.warning(message)
                     print(message + " See the log for more information.")
                 else:
                     sys.exit('Error: ' + message)

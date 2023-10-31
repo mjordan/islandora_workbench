@@ -598,7 +598,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        self.assertRegex(output, 'Also, the "perform_soft_checks" configuration setting is set to "true"')
+        self.assertRegex(output, 'The "perform_soft_checks" configuration setting is set to "true"')
 
         with open(self.false_with_soft_checks_log_file_path) as log_file_false_with_soft_checks:
             log_file_false_with_soft_checks_data = log_file_false_with_soft_checks.read()

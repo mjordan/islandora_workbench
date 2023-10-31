@@ -677,28 +677,25 @@ def add_media():
 
         if node_response.status_code == 200:
             if len(row['file'].strip()) == 0:
-                message = "Warning: Media for node " + row['node_id'] + " not created since CSV column 'file' is empty."
+                message = "Media for node " + row['node_id'] + ' not created since CSV column "file" is empty.'
                 logging.warning(message)
                 print("Warning: " + message)
-                continue
-
-            if check_file_exists(config, row['file']) is False:
-                message = 'File ' + row['file'] + ' identified in CSV "file" column in for node ID ' + row['node_id'] + ' not found.'
-                logging.error(message)
-                if config['allow_missing_files'] is False:
-                    sys.exit('Error: ' + message)
-                else:
-                    continue
             else:
-                media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], row, media_use_tid_value)
-                if media_response_status_code in allowed_media_response_codes:
-                    if config['progress_bar'] is False:
-                        print("Media for " + row['file'] + " created and added to " + node_uri)
-                    logging.info("Media for %s created and added to %s.", row['file'], node_uri)
+                if check_file_exists(config, row['file']) is False:
+                    message = 'File "' + row['file'] + '" identified in CSV "file" column for node ID ' + row['node_id'] + ' not found.'
+                    logging.error(message)
+                    if config['allow_missing_files'] is False:
+                        sys.exit('Error: ' + message)
                 else:
-                    if config['progress_bar'] is False:
-                        print("ERROR: Media for " + row['file'] + " not created. See log for more information.")
-                    logging.error("Media for %s not created (HTTP respone code %s).", row['file'], media_response_status_code)
+                    media_response_status_code = create_media(config, row['file'], 'file', row['node_id'], row, media_use_tid_value)
+                    if media_response_status_code in allowed_media_response_codes:
+                        if config['progress_bar'] is False:
+                            print('Media for "' + row['file'] + '" created and added to ' + node_uri)
+                        logging.info('Media for "%s" created and added to %s.', row['file'], node_uri)
+                    else:
+                        if config['progress_bar'] is False:
+                            print("Error: Media for " + row['file'] + " not created. See log for more information.")
+                        logging.error('Media for "%s" not created (HTTP respone code %s).', row['file'], media_response_status_code)
 
             # There are additional CSV columns naming files.
             if 'additional_files' in config:
@@ -707,25 +704,25 @@ def add_media():
                     for additional_file_field, additional_file_media_use_tid in additional_files_config.items():
                         if len(row[additional_file_field].strip()) == 0:
                             if config['progress_bar'] is False:
-                                print("Warning: Media for " + row['node_id'] + " not created since CSV column '" + additional_file_field + "' is empty.")
-                            logging.warning("Media for node %s not created since CSV column '" + additional_file_field + "' is empty", row['node_id'])
-                            continue
-
-                        if check_file_exists(config, row[additional_file_field]) is False:
-                            message = 'File ' + row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column in for node ID ' + row['node_id'] + ' not found.'
+                                print('Warning: Media for node "' + row['node_id'] + '" not created since CSV column "' + additional_file_field + '" is empty.')
+                            logging.warning('Media for node %s not created since CSV column "' + additional_file_field + '" is empty.', row['node_id'])
+                        elif check_file_exists(config, row[additional_file_field]) is False:
+                            message = 'Additional file "' + row[additional_file_field] + '" identified in CSV "' + additional_file_field + '" column for node ID ' + row['node_id'] + ' not found.'
                             logging.error(message)
                             if config['allow_missing_files'] is False:
                                 sys.exit('Error: ' + message)
+                            else:
+                                continue
                         else:
                             media_response_status_code = create_media(config, row[additional_file_field], additional_file_field, row['node_id'], row, additional_file_media_use_tid)
                             if media_response_status_code in allowed_media_response_codes:
+                                logging.info("Media for %s created and added to %s.", row[additional_file_field], node_uri)
                                 if config['progress_bar'] is False:
                                     print("Media for " + row[additional_file_field] + " created and added to " + node_uri + ".")
-                                logging.info("Media for %s created and added to %s.", row[additional_file_field], node_uri)
                             else:
+                                logging.error("Media for %s not created (HTTP response code %s).", row[additional_file_field], media_response_status_code)
                                 if config['progress_bar'] is False:
                                     print("ERROR: Media for " + row[additional_file_field] + " not created. See log for more information.")
-                                logging.error("Media for %s not created (HTTP response code %s).", row[additional_file_field], media_response_status_code)
         else:
             if config['progress_bar'] is False:
                 print("ERROR: Node at " + node_uri + " does not exist or is not accessible.")
