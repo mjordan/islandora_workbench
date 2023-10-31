@@ -1,0 +1,4 @@
+node_id,file,preservation,transcript
+,add_media_file_1.jpg,,add_media_transcript_1.txt
+,,add_media_preservation_2.tif,add_media_transcript_x.txt
+,add_media_file_3.jpg,add_media_preservation_3.tif,add_media_transcript_3.txt
