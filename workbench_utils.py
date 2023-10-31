@@ -79,7 +79,7 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     if oembed_media_type is not None:
         return oembed_media_type
 
-    if filepath.strip().startswith('http'):
+    if filepath.strip().lower().startswith('http'):
         preprocessed_file_path = get_preprocessed_file_path(config, file_fieldname, csv_row)
         filename = preprocessed_file_path.split('/')[-1]
         extension = filename.split('.')[-1]
@@ -124,7 +124,7 @@ def get_oembed_url_media_type(config, filepath):
     for oembed_provider in config['oembed_providers']:
         for mtype, provider_urls in oembed_provider.items():
             for provider_url in provider_urls:
-                if filepath.startswith(provider_url):
+                if filepath.lower().startswith(provider_url):
                     return mtype
 
     return None
@@ -2214,7 +2214,7 @@ def check_input(config, args):
                             rows_with_missing_files.append(file_check_row[config['id_field']])
                             logging.warning(message)
                 # Check for URLs.
-                elif file_check_row['file'].startswith('http'):
+                elif file_check_row['file'].lower().startswith('http'):
                     http_response_code = ping_remote_file(config, file_check_row['file'])
                     if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
                         message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID "' \
