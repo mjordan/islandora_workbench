@@ -3887,7 +3887,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
         if os.path.exists(input_csv_path):
             os.remove(input_csv_path)
         get_csv_from_google_sheet(config)
-    elif file_path.endswith('.xlsx') is True:
+    elif file_path.lower().endswith('.xlsx') is True:
         input_csv_path = get_extracted_csv_file_path(config)
         if os.path.exists(input_csv_path):
             os.remove(input_csv_path)
@@ -6037,7 +6037,7 @@ def get_extracted_csv_file_path(config):
     """
     if config['input_csv'].startswith('http'):
         exported_csv_filename = config['google_sheets_csv_filename']
-    elif config['input_csv'].endswith('xlsx'):
+    elif config['input_csv'].lower().endswith('xlsx'):
         exported_csv_filename = config['excel_csv_filename']
     else:
         return False
@@ -6563,7 +6563,7 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
             print(message)
             logging.info(message)
-        elif config['input_csv'].endswith('xlsx'):
+        elif config['input_csv'].lower().endswith('xlsx'):
             input_csv = get_extracted_csv_file_path(config)
             message = "Extracting CSV data from " + config['input_csv'] + " to " + input_csv + '.'
             print(message)
