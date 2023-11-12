@@ -3882,7 +3882,7 @@ def get_csv_data(config, csv_file_target='node_fields', file_path=None):
 
     if os.path.isabs(file_path):
         input_csv_path = file_path
-    elif file_path.startswith('http') is True:
+    elif file_path.lower().startswith('http') is True:
         input_csv_path = get_extracted_csv_file_path(config)
         if os.path.exists(input_csv_path):
             os.remove(input_csv_path)
@@ -6035,7 +6035,7 @@ def get_extracted_csv_file_path(config):
             A file path with the current config file's unique ID appended to it.
             False if config['input_csv'] is not a Google Sheet or Excel file.
     """
-    if config['input_csv'].startswith('http'):
+    if config['input_csv'].lower().startswith('http'):
         exported_csv_filename = config['google_sheets_csv_filename']
     elif config['input_csv'].lower().endswith('xlsx'):
         exported_csv_filename = config['excel_csv_filename']
@@ -6558,7 +6558,7 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
         if os.path.isabs(config['input_csv']):
             input_csv = config['input_csv']
         # For Google Sheets, the "extraction" is fired over in workbench.
-        elif config['input_csv'].startswith('http'):
+        elif config['input_csv'].lower().startswith('http'):
             input_csv = get_extracted_csv_file_path(config)
             message = "Extracting CSV data from " + config['input_csv'] + " (worksheet gid " + str(config['google_sheets_gid']) + ") to " + input_csv + '.'
             print(message)

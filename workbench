@@ -2120,7 +2120,7 @@ if config['check'] is False and 'bootstrap' in config and len(config['bootstrap'
         else:
             logging.error(f"Bootstrap script {command} failed with exit code {str(return_code)}.")
 
-if config['task'] != 'create_from_files' and config['input_csv'].startswith('http') is True:
+if config['task'] != 'create_from_files' and config['input_csv'].lower().startswith('http') is True:
     get_csv_from_google_sheet(config)
 if config['task'] != 'create_from_files' and config['input_csv'].lower().endswith('.xlsx') is True:
     get_csv_from_excel(config)
