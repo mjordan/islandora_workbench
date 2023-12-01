@@ -73,7 +73,7 @@ def create():
         logging.warning(message)
 
     if config['query_csv_id_to_node_id_map_for_parents'] is True and config['ignore_duplicate_parent_ids'] is True:
-        message = "Ingoring duplicate parent IDs in the CSV ID to node ID map; only the most recent entry will be used."
+        message = "Ignoring duplicate parent IDs in the CSV ID to node ID map; only the most recent entries will be used."
         print(message)
         logging.warning(message)
 
