@@ -609,8 +609,8 @@ def delete():
                         if media_delete_status_code == 204:
                             media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
             except Exception as e:
-                media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " not deleted. See log for more detail.")
-                logging.error("+ Media " + config['host'] + '/media/' + str(media_id) + " not deleted: " + e) 
+                media_messages.append("- ERROR: Media " + config['host'] + '/media/' + str(media_id) + " not deleted. See log for more detail.")
+                logging.error("Media " + config['host'] + '/media/' + str(media_id) + " not deleted: " + e) 
 
         node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
         node_response = issue_request(config, 'DELETE', node_endpoint)
