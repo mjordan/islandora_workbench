@@ -597,16 +597,20 @@ def delete():
 
         # Delete the node's media first.
         if config['delete_media_with_nodes'] is True:
-            media_endpoint = config['host'] + '/node/' + str(row['node_id']) + '/media?_format=json'
-            media_response = issue_request(config, 'GET', media_endpoint)
-            media_response_body = json.loads(media_response.text)
-            media_messages = []
-            for media in media_response_body:
-                if 'mid' in media:
-                    media_id = media['mid'][0]['value']
-                    media_delete_status_code = remove_media_and_file(config, media_id)
-                    if media_delete_status_code == 204:
-                        media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
+            try:
+                media_endpoint = config['host'] + '/node/' + str(row['node_id']) + '/media?_format=json'
+                media_response = issue_request(config, 'GET', media_endpoint)
+                media_response_body = json.loads(media_response.text)
+                media_messages = []
+                for media in media_response_body:
+                    if 'mid' in media:
+                        media_id = media['mid'][0]['value']
+                        media_delete_status_code = remove_media_and_file(config, media_id)
+                        if media_delete_status_code == 204:
+                            media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
+            except Exception as e:
+                media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " not deleted. See log for more detail.")
+                logging.error("+ Media " + config['host'] + '/media/' + str(media_id) + " not deleted: " + e) 
 
         node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
         node_response = issue_request(config, 'DELETE', node_endpoint)
@@ -614,6 +618,7 @@ def delete():
             if config['progress_bar'] is False:
                 print("Node " + config['host'] + '/node/' + str(row['node_id']) + " deleted.")
             logging.info("Node %s deleted.", config['host'] + '/node/' + str(row['node_id']))
+
         if config['delete_media_with_nodes'] is True and config['progress_bar'] is False:
             if len(media_messages):
                 for media_message in media_messages:
