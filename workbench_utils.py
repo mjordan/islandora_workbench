@@ -3273,16 +3273,15 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
         is_remote = True
     elif os.path.isabs(filename):
         # Validate that the file exists
-        if not os.path.isfile(filename):
+        if check_file_exists(config, filename) is False:
             logging.error('File not created for CSV row "%s": file "%s" does not exist.', node_csv_row[config['id_field']], filename)
             return False
         file_path = filename
     else:
+        if check_file_exists(config, filename) is False:
+            logging.error('File not created for CSV row "%s": file "%s" does not exist.', node_csv_row[config['id_field']], filename)
+            return False
         file_path = os.path.join(config['input_dir'], filename)
-
-    if check_file_exists(config, file_path) is False:
-        logging.error('File not created for CSV row "%s": file "%s" does not exist.', node_csv_row[config['id_field']], filename)
-        return False
 
     mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(config, file_path, file_fieldname, node_csv_row)

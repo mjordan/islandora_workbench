@@ -337,11 +337,11 @@ def create():
                 if config['progress_bar'] is False:
                     print('- ' + message)
                     logging.error(message)
-                continue
+            continue
 
         if node_response.status_code == 201:
             allowed_media_response_codes = [201, 204]
-            if config['nodes_only'] is False and 'file' in row and len(row['file']) != 0:
+            if config['nodes_only'] is False and 'file' in row and len(row['file'].strip()) != 0:
                 media_response_status_code = create_media(config, row['file'], 'file', node_id, row_for_media)
                 if media_response_status_code in allowed_media_response_codes:
                     if config['progress_bar'] is False:
@@ -627,7 +627,7 @@ def delete():
                             media_messages.append("+ Media " + config['host'] + '/media/' + str(media_id) + " deleted.")
             except Exception as e:
                 media_messages.append("- ERROR: Media " + config['host'] + '/media/' + str(media_id) + " not deleted. See log for more detail.")
-                logging.error("Media " + config['host'] + '/media/' + str(media_id) + " not deleted: " + e) 
+                logging.error("Media " + config['host'] + '/media/' + str(media_id) + " not deleted: " + e)
 
         node_endpoint = config['host'] + '/node/' + str(row['node_id']) + '?_format=json'
         node_response = issue_request(config, 'DELETE', node_endpoint)
