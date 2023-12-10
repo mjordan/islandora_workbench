@@ -1,0 +1,10 @@
+task: add_media
+host: https://islandora.traefik.me
+username: admin
+password: password
+input_dir: tests/assets/allow_missing_files_test
+input_csv: add_media.csv
+standalone_media_url: true
+log_file_path: tests/assets/allow_missing_files_test/add_media_allow_missing_files_false_with_soft_checks.log
+media_use_tid: http://pcdm.org/use#Transcript
+perform_soft_checks: true

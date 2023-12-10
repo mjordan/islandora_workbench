@@ -1,0 +1,10 @@
+task: create
+host: https://islandora.traefik.me
+username: admin
+password: password
+input_dir: tests/assets/allow_missing_files_test
+input_csv: metadata_additional_files_check.csv
+standalone_media_url: true
+log_file_path: tests/assets/allow_missing_files_test/additional_files_allow_missing_files_false.log
+additional_files:
+ - tn: "http://pcdm.org/use#ThumbnailImage"

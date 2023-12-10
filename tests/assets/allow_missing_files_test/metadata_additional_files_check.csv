@@ -1,0 +1,6 @@
+file,id,title,field_model,tn
+additional_files_1_file.jpg,001,Additional files row 1,http://purl.org/coar/resource_type/c_c513,additional_files_1_tn.jpg
+additional_files_3_file.jpg,003,Additional files row 3,http://purl.org/coar/resource_type/c_c513,
+additional_files_3_file.jpg,005,Additional files row 5,http://purl.org/coar/resource_type/c_c513,https://www.lib.sfu.ca/xxxtttuuu.jpg
+additional_files_2_file.jpg,002,Additional files row 2,http://purl.org/coar/resource_type/c_c513,additional_files_2_tn.jpg
+additional_files_4_file.jpg,004,Additional files row 4,http://purl.org/coar/resource_type/c_c513,additional_files_4_tn.jpg

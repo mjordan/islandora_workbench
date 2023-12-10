@@ -1,4 +1,4 @@
-"""unittest tests that require a live Drupal at https://islandora.traefik.me. In most cases, the host URL, 
+"""unittest tests that require a live Drupal at https://islandora.traefik.me. In most cases, the host URL,
    credentials, etc. are in a configuration file referenced in the test.
 
    Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
@@ -498,8 +498,8 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
 
-        # Write a file to the system's temp directory containing the node IDs of the
-        # nodes created during this test so they can be deleted in tearDown().
+        # Get the node IDs of the nodes created during this test
+        # so they can be deleted in tearDown().
         create_lines = create_output.splitlines()
         for line in create_lines:
             if 'created at' in line:
@@ -642,6 +642,314 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         response_body = json.loads(response.text)
         tid = response_body[0]['tid'][0]['value']
         return tid
+
+
+class TestAdditionalFilesCreateAllowMissingFilesFalse(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_additional_files_allow_missing_files_false.yml')
+        self.create_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'additional_files_allow_missing_files_false.log')
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'rollback.csv')
+        self.temp_dir = tempfile.gettempdir()
+        self.nids = list()
+
+        yaml = YAML()
+        with open(self.create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        self.config = {}
+        for k, v in config_data.items():
+            self.config[k] = v
+        self.islandora_host = self.config['host']
+        self.islandora_username = self.config['username']
+        self.islandora_password = self.config['password']
+
+    def test_create(self):
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        # Get the node IDs of the nodes created during this test
+        # so they can be deleted in tearDown().
+        create_lines = create_output.splitlines()
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
+
+        # Only three nodes will be created before workbench exits.
+        self.assertEqual(len(self.nids), 3)
+
+        with open(self.create_log_file_path) as log_file:
+            log_data = log_file.read()
+            self.assertRegex(log_data, 'Media for "additional_files" CSV column "tn" in row with ID "003" .* not created because CSV field is empty', '')
+            self.assertRegex(log_data, 'Media for file "https://www.lib.sfu.ca/xxxtttuuu.jpg" named in field "tn" of CSV row with ID "005" not created because file does not exist', '')
+            self.assertNotRegex(log_data, 'Islandora Workbench successfully completed', '')
+
+    def tearDown(self):
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.create_config_file_path, '--quick_delete_node', self.islandora_host + '/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'metadata_additional_files_check.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        if os.path.exists(self.create_log_file_path):
+            os.remove(self.create_log_file_path)
+
+
+class TestAdditionalFilesCreateAllowMissingFilesTrue(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'create_additional_files_allow_missing_files_true.yml')
+        self.create_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'additional_files_allow_missing_files_true.log')
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'rollback.csv')
+        self.temp_dir = tempfile.gettempdir()
+        self.nids = list()
+
+        yaml = YAML()
+        with open(self.create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        self.config = {}
+        for k, v in config_data.items():
+            self.config[k] = v
+        self.islandora_host = self.config['host']
+        self.islandora_username = self.config['username']
+        self.islandora_password = self.config['password']
+
+    def test_create(self):
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        # Get the node IDs of the nodes created during this test
+        # so they can be deleted in tearDown().
+        create_lines = create_output.splitlines()
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
+
+        self.assertEqual(len(self.nids), 5)
+
+        with open(self.create_log_file_path) as log_file:
+            log_data = log_file.read()
+            self.assertRegex(log_data, 'Media for "additional_files" CSV column "tn" in row with ID "003" .* not created because CSV field is empty', '')
+            self.assertRegex(log_data, 'Media for file "https://www.lib.sfu.ca/xxxtttuuu.jpg" named in field "tn" of CSV row with ID "005" not created because file does not exist', '')
+            self.assertRegex(log_data, 'Media for file "additional_files_2_tn.jpg" named in field "tn" of CSV row with ID "002" not created because file does not exist', '')
+            self.assertRegex(log_data, 'Islandora Workbench successfully completed', '')
+
+    def tearDown(self):
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.create_config_file_path, '--quick_delete_node', self.islandora_host + '/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'metadata_additional_files_check.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        if os.path.exists(self.create_log_file_path):
+            os.remove(self.create_log_file_path)
+
+
+class TestAdditionalFilesAddMediaAllowMissingFilesFalse(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_create_nodes.yml')
+        self.create_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_create_nodes.log')
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'rollback.csv')
+        self.add_media_csv_template_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_additional_files.csv.template')
+        self.add_media_config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_additional_files_allow_missing_files_false.yml')
+        self.add_media_csv_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_additional_files.csv')
+        self.false_with_additional_files_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_additional_files_allow_missing_files_false.log')
+        self.temp_dir = tempfile.gettempdir()
+        self.nids = list()
+
+        yaml = YAML()
+        with open(self.create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        self.config = {}
+        for k, v in config_data.items():
+            self.config[k] = v
+        self.islandora_host = self.config['host']
+        self.islandora_username = self.config['username']
+        self.islandora_password = self.config['password']
+
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        # Get the node IDs of the nodes created during this test
+        # so they can be deleted in tearDown().
+        create_lines = create_output.splitlines()
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
+
+        # Insert their node IDs in the input CSV file. First, open the CSV template.
+        with open(self.add_media_csv_template_file_path) as csv_template:
+            csv_template_lines = csv_template.readlines()
+
+        # Then add a node ID to the start of each line from the template
+        # and write out an add_media input CSV file.
+        template_line_index = 0
+        with open(self.add_media_csv_file_path, 'a+') as add_media_csv:
+            # The first line in the output CSV is the headers from the template.
+            add_media_csv.write(csv_template_lines[template_line_index])
+            # The subsequent lines should each start with a node ID from.
+            for node_id in self.nids:
+                template_line_index = template_line_index + 1
+                add_media_csv.write(f"{node_id}{csv_template_lines[template_line_index]}")
+
+    def test_false(self):
+        self.add_media_cmd = ["./workbench", "--config", self.add_media_config_file_path]
+        proc = subprocess.Popen(self.add_media_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = proc.communicate()
+        add_media_output = str(stdout.decode().strip())
+        self.assertRegex(add_media_output, 'Media for node .* not created since CSV column "preservation" is empty', '')
+        self.assertRegex(add_media_output, 'Media for node .* not created since CSV column "file" is empty', '')
+        self.assertRegex(add_media_output, 'Additional file "add_media_transcript_x.txt" identified in CSV "transcript" column for node ID .* not found', '')
+
+        with open(self.false_with_additional_files_log_file_path) as log_file_false:
+            log_data_false = log_file_false.read()
+            self.assertRegex(log_data_false, 'Media for node .* not created since CSV column "preservation" is empty', '')
+            self.assertRegex(log_data_false, 'Media for node .* not created since CSV column "file" is empty', '')
+            self.assertRegex(log_data_false, 'Additional file "add_media_transcript_x.txt" identified in CSV "transcript" column for node ID .* not found', '')
+
+    def tearDown(self):
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.create_config_file_path, '--quick_delete_node', self.islandora_host + '/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        if os.path.exists(self.add_media_csv_file_path):
+            os.remove(self.add_media_csv_file_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'add_media_create_nodes.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'add_media_additional_files.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        if os.path.exists(self.create_log_file_path):
+            os.remove(self.create_log_file_path)
+
+        if os.path.exists(self.false_with_additional_files_log_file_path):
+            os.remove(self.false_with_additional_files_log_file_path)
+
+
+class TestAdditionalFilesAddMediaAllowMissingFilesTrue(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_create_nodes.yml')
+        self.create_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_create_nodes.log')
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'rollback.csv')
+        self.add_media_csv_template_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_additional_files.csv.template')
+        self.add_media_config_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_additional_files_allow_missing_files_true.yml')
+        self.add_media_csv_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_additional_files.csv')
+        self.true_with_additional_files_log_file_path = os.path.join(self.current_dir, 'assets', 'allow_missing_files_test', 'add_media_additional_files_allow_missing_files_true.log')
+        self.temp_dir = tempfile.gettempdir()
+        self.nids = list()
+
+        yaml = YAML()
+        with open(self.create_config_file_path, 'r') as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        self.config = {}
+        for k, v in config_data.items():
+            self.config[k] = v
+        self.islandora_host = self.config['host']
+        self.islandora_username = self.config['username']
+        self.islandora_password = self.config['password']
+
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        # Get the node IDs of the nodes created during this test
+        # so they can be deleted in tearDown().
+        create_lines = create_output.splitlines()
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
+
+        # Insert their node IDs in the input CSV file. First, open the CSV template.
+        with open(self.add_media_csv_template_file_path) as csv_template:
+            csv_template_lines = csv_template.readlines()
+
+        # Then add a node ID to the start of each line from the template
+        # and write out an add_media input CSV file.
+        template_line_index = 0
+        with open(self.add_media_csv_file_path, 'a+') as add_media_csv:
+            # The first line in the output CSV is the headers from the template.
+            add_media_csv.write(csv_template_lines[template_line_index])
+            # The subsequent lines should each start with a node ID from.
+            for node_id in self.nids:
+                template_line_index = template_line_index + 1
+                add_media_csv.write(f"{node_id}{csv_template_lines[template_line_index]}")
+
+    def test_true(self):
+        self.add_media_cmd = ["./workbench", "--config", self.add_media_config_file_path]
+        add_media_output = subprocess.check_output(self.add_media_cmd)
+        add_media_output = add_media_output.decode().strip()
+
+        self.assertRegex(add_media_output, 'Media for node .* not created since CSV column "preservation" is empty', '')
+        self.assertRegex(add_media_output, 'Media for node .* not created since CSV column "file" is empty', '')
+
+        with open(self.true_with_additional_files_log_file_path) as log_file_true:
+            log_data_true = log_file_true.read()
+            self.assertRegex(log_data_true, 'Media for node .* not created since CSV column "preservation" is empty', '')
+            self.assertRegex(log_data_true, 'Media for node .* not created since CSV column "file" is empty', '')
+            self.assertRegex(log_data_true, 'Additional file "add_media_transcript_x.txt" identified in CSV "transcript" column for node ID .* not found', '')
+            self.assertRegex(log_data_true, 'Islandora Workbench successfully completed', '')
+
+    def tearDown(self):
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.create_config_file_path, '--quick_delete_node', self.islandora_host + '/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        if os.path.exists(self.add_media_csv_file_path):
+            os.remove(self.add_media_csv_file_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'add_media_create_nodes.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        preprocessed_csv_path = os.path.join(self.temp_dir, 'add_media_additional_files.csv.preprocessed')
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        if os.path.exists(self.create_log_file_path):
+            os.remove(self.create_log_file_path)
+
+        if os.path.exists(self.true_with_additional_files_log_file_path):
+            os.remove(self.true_with_additional_files_log_file_path)
 
 
 if __name__ == '__main__':
