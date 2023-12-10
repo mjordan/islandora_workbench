@@ -79,7 +79,7 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     if oembed_media_type is not None:
         return oembed_media_type
 
-    if filepath.strip().startswith('http'):
+    if filepath.strip().lower().startswith('http'):
         preprocessed_file_path = get_preprocessed_file_path(config, file_fieldname, csv_row)
         filename = preprocessed_file_path.split('/')[-1]
         extension = filename.split('.')[-1]
@@ -185,7 +185,7 @@ def set_model_from_extension(file_name, config):
     normalized_extension = extension.lower()
     for model_tids in config['models']:
         for tid, extensions in model_tids.items():
-            if str(tid).startswith('http'):
+            if str(tid).lower().startswith('http'):
                 tid = get_term_id_from_uri(config, tid)
             if normalized_extension in extensions:
                 return tid
@@ -2214,7 +2214,7 @@ def check_input(config, args):
                             rows_with_missing_files.append(file_check_row[config['id_field']])
                             logging.warning(message)
                 # Check for URLs.
-                elif file_check_row['file'].startswith('http'):
+                elif file_check_row['file'].lower().startswith('http'):
                     http_response_code = ping_remote_file(config, file_check_row['file'])
                     if http_response_code != 200 or ping_remote_file(config, file_check_row['file']) is False:
                         message = 'Remote file "' + file_check_row['file'] + '" identified in CSV "file" column for record with ID "' \
@@ -2273,7 +2273,7 @@ def check_input(config, args):
 
                             # Check that each file's extension is allowed for the current media type. 'file' is the only
                             # CSV field to check here. Files added using the 'additional_files' setting are checked below.
-                            if file_check_row['file'].startswith('http'):
+                            if file_check_row['file'].lower().startswith('http'):
                                 # First check to see if the file has an extension.
                                 extension = os.path.splitext(file_check_row['file'])[1]
                                 if len(extension) > 0:
@@ -2325,7 +2325,7 @@ def check_input(config, args):
                         else:
                             logging.warning(message)
 
-                    if file_check_row[additional_file_field].startswith('http'):
+                    if file_check_row[additional_file_field].lower().startswith('http'):
                         http_response_code = ping_remote_file(config, file_check_row[additional_file_field])
                         if http_response_code != 200 or ping_remote_file(config, file_check_row[additional_file_field]) is False:
                             message = 'Remote file ' + file_check_row[additional_file_field] + ' identified in CSV "' + additional_file_field + '" column for record with ID ' \
@@ -2372,7 +2372,7 @@ def check_input(config, args):
                         additional_filenames = file_check_row[additional_file_field].split(config['subdelimiter'])
                         media_type_file_field = config['media_type_file_fields'][media_type]
                         for additional_filename in additional_filenames:
-                            if additional_filename.startswith('http'):
+                            if additional_filename.lower().startswith('http'):
                                 # First check to see if the file has an extension.
                                 extension = os.path.splitext(additional_filename)[1]
                                 if len(extension) > 0:
@@ -2967,9 +2967,9 @@ def validate_media_use_tid_in_additional_files_setting(config, media_use_tid_val
         media_use_tids.append(media_use_tid_value)
 
     for media_use_tid in media_use_tids:
-        if not value_is_numeric(media_use_tid) and media_use_tid.strip().startswith('http'):
+        if not value_is_numeric(media_use_tid) and media_use_tid.strip().lower().startswith('http'):
             media_use_tid = get_term_id_from_uri(config, media_use_tid.strip())
-        if not value_is_numeric(media_use_tid) and not media_use_tid.strip().startswith('http'):
+        if not value_is_numeric(media_use_tid) and not media_use_tid.strip().lower().startswith('http'):
             media_use_tid = find_term_in_vocab(config, 'islandora_media_use', media_use_tid.strip())
 
         term_endpoint = config['host'] + '/taxonomy/term/' + str(media_use_tid).strip() + '?_format=json'
@@ -3016,7 +3016,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
 
     media_use_terms = str(media_use_tid_value).split(config['subdelimiter'])
     for media_use_term in media_use_terms:
-        if value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http'):
+        if value_is_numeric(media_use_term) is not True and media_use_term.strip().lower().startswith('http'):
             media_use_tid = get_term_id_from_uri(config, media_use_term.strip())
             if csv_row_id is None:
                 if media_use_tid is False:
@@ -3041,7 +3041,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                         "derivative media. You should temporarily disable the Context or Action that generates those derivatives."
                     logging.warning(message)
 
-        elif value_is_numeric(media_use_term) is not True and media_use_term.strip().startswith('http') is not True:
+        elif value_is_numeric(media_use_term) is not True and media_use_term.strip().lower().startswith('http') is not True:
             media_use_tid = find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip())
             if csv_row_id is None:
                 if media_use_tid is False:
@@ -3235,7 +3235,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     is_remote = False
     filename = filename.strip()
 
-    if filename.startswith('http'):
+    if filename.lower().startswith('http'):
         remote_file_http_response_code = ping_remote_file(config, filename)
         if remote_file_http_response_code != 200:
             return False
@@ -3371,7 +3371,7 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
     else:
         file_result = create_file(config, filename, file_fieldname, csv_row, node_id)
 
-    if filename.startswith('http'):
+    if filename.lower().startswith('http'):
         if file_result > 0:
             filename = get_preprocessed_file_path(config, file_fieldname, csv_row, node_id, False)
 
@@ -3389,9 +3389,9 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
         for media_use_term in media_use_terms:
             if value_is_numeric(media_use_term):
                 media_use_tids.append(media_use_term)
-            if not value_is_numeric(media_use_term) and media_use_term.strip().startswith('http'):
+            if not value_is_numeric(media_use_term) and media_use_term.strip().lower().startswith('http'):
                 media_use_tids.append(get_term_id_from_uri(config, media_use_term))
-            if not value_is_numeric(media_use_term) and not media_use_term.strip().startswith('http'):
+            if not value_is_numeric(media_use_term) and not media_use_term.strip().lower().startswith('http'):
                 media_use_tids.append(find_term_in_vocab(config, 'islandora_media_use', media_use_term.strip()))
 
         media_bundle_response_code = ping_media_bundle(config, media_type)
@@ -4580,7 +4580,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
         return None
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
-    elif term.startswith('http'):
+    elif term.lower().startswith('http'):
         # Note: get_term_id_from_uri() will return False if the URI doesn't match a term.
         tid_from_uri = get_term_id_from_uri(config, term)
         if value_is_numeric(tid_from_uri):
@@ -4949,7 +4949,7 @@ def validate_media_track_fields(config, csv_data):
 
                                 # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
                                 if 'media_use_tid' in row:
-                                    if row['media_use_tid'].startswith('http') and row['media_use_tid'] != 'http://pcdm.org/use#ServiceFile':
+                                    if row['media_use_tid'].lower().startswith('http') and row['media_use_tid'] != 'http://pcdm.org/use#ServiceFile':
                                         message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
                                         logging.error(message)
                                         sys.exit('Error: ' + message)
@@ -5545,7 +5545,7 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
         # If this is a multi-taxonomy field, all term names (not IDs or URIs) must be namespaced using the vocab_id:term_name pattern,
         # regardless of whether config['allow_adding_terms'] is True. Also, we need to accommodate terms that are namespaced
         # and also contain a ':'.
-        if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is False and not field_value.startswith('http'):
+        if len(this_fields_vocabularies) > 1 and value_is_numeric(field_value) is False and not field_value.lower().startswith('http'):
             split_field_values = field_value.split(config['subdelimiter'])
             for split_field_value in split_field_values:
                 if ':' in field_value:
@@ -5583,7 +5583,7 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
                 logging.error(message + message_2)
                 sys.exit('Error: ' + message + message_2)
         # Then check values that are URIs.
-        elif field_value.strip().startswith('http'):
+        elif field_value.strip().lower().startswith('http'):
             field_value = field_value.strip()
             tid_from_uri = get_term_id_from_uri(config, field_value)
             if value_is_numeric(tid_from_uri):
@@ -5775,7 +5775,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         # Add field_model if that field exists in the child's content type.
         entity_fields = get_entity_fields(config, 'node', config['paged_content_page_content_type'])
         if 'field_model' in entity_fields:
-            if not value_is_numeric(config['paged_content_page_model_tid'].strip()) and config['paged_content_page_model_tid'].strip().startswith('http'):
+            if not value_is_numeric(config['paged_content_page_model_tid'].strip()) and config['paged_content_page_model_tid'].strip().lower().startswith('http'):
                 paged_content_model_tid = get_term_id_from_uri(config, config['paged_content_page_model_tid'].strip())
             else:
                 paged_content_model_tid = config['paged_content_page_model_tid'].strip()
@@ -6135,7 +6135,7 @@ def check_file_exists(config, filename):
             True if the file exists, false if not.
     """
     # It's a remote file.
-    if filename.startswith('http'):
+    if filename.lower().startswith('http'):
         try:
             head_response = requests.head(filename, allow_redirects=True, verify=config['secure_ssl_only'])
             if head_response.status_code == 200:
@@ -6201,7 +6201,7 @@ def get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id=Non
                 return file_path_from_csv
 
     # It's a remote file.
-    if file_path_from_csv.startswith('http'):
+    if file_path_from_csv.lower().startswith('http'):
         if config['task'] == 'add_media':
             subdir = os.path.join(config['temp_dir'], re.sub('[^A-Za-z0-9]+', '_', str(node_csv_row['node_id'])))
         elif config['task'] == 'update_media':
@@ -6418,7 +6418,7 @@ def download_file_from_drupal(config, node_id):
             logging.warning(f'Node {node_id} has no media.')
             return False
 
-        if str(config['export_file_media_use_term_id']).startswith('http'):
+        if str(config['export_file_media_use_term_id']).lower().startswith('http'):
             config['export_file_media_use_term_id'] = get_term_id_from_uri(config, config['export_file_media_use_term_id'])
 
         if config['export_file_media_use_term_id'] is False:
