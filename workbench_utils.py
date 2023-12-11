@@ -28,6 +28,7 @@ import shutil
 import itertools
 import http.client
 import sqlite3
+import requests_cache
 
 from rich.traceback import install
 install()
@@ -6314,7 +6315,10 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
 def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     sections = urllib.parse.urlparse(url)
     try:
-        response = requests.get(url, allow_redirects=True, stream=True, verify=config['secure_ssl_only'])
+        # do not cache the responses for downloaded files in requests_cache
+        with requests_cache.CachedSession() as session:
+            session.cache_disabled()
+            response = requests.get(url, allow_redirects=True, stream=True, verify=config['secure_ssl_only'])
     except requests.exceptions.Timeout as err_timeout:
         message = 'Workbench timed out trying to reach ' + \
             sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
