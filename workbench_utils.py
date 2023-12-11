@@ -6331,7 +6331,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
         return False
 
     downloaded_file_path = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id)
-    with open(downloaded_file_path, 'wb') as output_file:
+    with open(downloaded_file_path, 'wb+') as output_file:
         for chunk in response.iter_content(chunk_size=8192):
             if chunk:
                 output_file.write(chunk)
