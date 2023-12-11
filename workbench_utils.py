@@ -289,6 +289,7 @@ def issue_request(
         response = requests.post(
             url,
             allow_redirects=config['allow_redirects'],
+            stream=True,
             verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
@@ -303,6 +304,7 @@ def issue_request(
         response = requests.put(
             url,
             allow_redirects=config['allow_redirects'],
+            stream=True,
             verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
@@ -317,6 +319,7 @@ def issue_request(
         response = requests.patch(
             url,
             allow_redirects=config['allow_redirects'],
+            stream=True,
             verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
