@@ -28,6 +28,7 @@ import shutil
 import itertools
 import http.client
 import sqlite3
+import requests_cache
 
 from rich.traceback import install
 install()
@@ -288,6 +289,7 @@ def issue_request(
         response = requests.post(
             url,
             allow_redirects=config['allow_redirects'],
+            stream=True,
             verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
@@ -302,6 +304,7 @@ def issue_request(
         response = requests.put(
             url,
             allow_redirects=config['allow_redirects'],
+            stream=True,
             verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
@@ -316,6 +319,7 @@ def issue_request(
         response = requests.patch(
             url,
             allow_redirects=config['allow_redirects'],
+            stream=True,
             verify=config['secure_ssl_only'],
             auth=(config['username'], config['password']),
             headers=headers,
@@ -6352,7 +6356,9 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
 def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     sections = urllib.parse.urlparse(url)
     try:
-        response = requests.get(url, allow_redirects=True, verify=config['secure_ssl_only'])
+        # do not cache the responses for downloaded files in requests_cache
+        with requests_cache.disabled():
+            response = requests.get(url, allow_redirects=True, stream=True, verify=config['secure_ssl_only'])
     except requests.exceptions.Timeout as err_timeout:
         message = 'Workbench timed out trying to reach ' + \
             sections.netloc + ' while connecting to ' + url + '. Please verify that URL and check your network connection.'
@@ -6369,10 +6375,10 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
         return False
 
     downloaded_file_path = get_preprocessed_file_path(config, file_fieldname, node_csv_row, node_id)
-
-    f = open(downloaded_file_path, 'wb+')
-    f.write(response.content)
-    f.close()
+    with open(downloaded_file_path, 'wb+') as output_file:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                output_file.write(chunk)
 
     return downloaded_file_path
 
