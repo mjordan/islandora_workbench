@@ -6316,8 +6316,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     sections = urllib.parse.urlparse(url)
     try:
         # do not cache the responses for downloaded files in requests_cache
-        with requests_cache.CachedSession() as session:
-            session.cache_disabled()
+        with requests_cache.disabled():
             response = requests.get(url, allow_redirects=True, stream=True, verify=config['secure_ssl_only'])
     except requests.exceptions.Timeout as err_timeout:
         message = 'Workbench timed out trying to reach ' + \
