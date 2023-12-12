@@ -36,7 +36,6 @@ logging.basicConfig(
     filemode='a',
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%d-%b-%y %H:%M:%S')
-utils.print_config()
 if args.metadata_solr_request:
     metadata_solr_request = utils.get_metadata_solr_request(args.metadata_solr_request)
 else:
