@@ -30,8 +30,8 @@ class i7ImportUtilities:
         'obj_directory': '/tmp/objs',
         'failure_report': 'failure_report.txt',
         'log_file_path': 'islandora_content.log',
-        'fetch_files': True,
-        'get_file_url': False,
+        'fetch_files': False,
+        'get_file_url': True,
         'namespace': '*',
         'standard_fields': ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms',
                             'RELS_EXT_isMemberOf_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms',
@@ -44,8 +44,11 @@ class i7ImportUtilities:
         'debug': False,
         'deep_debug': False,
         'collection': False,
+        'collections': False,
         'content_model': False,
-        'solr_filters': False
+        'solr_filters': False,
+        'start': 0,
+        'rows': 100000
     }
 
     def get_config(self):
@@ -136,17 +139,26 @@ class i7ImportUtilities:
         for standard_field in self.config['standard_fields']:
             filtered_field_list.insert(0, standard_field)
         fields_param = ','.join(filtered_field_list)
-        query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
+        query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&start={self.config['start']}&rows={self.config['rows']}&fl={fields_param}"
+
         if self.config['collection']:
             collection = self.config['collection']
-            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/{collection}"'
+            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
         if self.config['content_model']:
             model = self.config['content_model']
-            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info\:fedora/{model}"'
+            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
         if self.config['solr_filters']:
-            for filter in self.config['solr_filters']:
-                for key, value in filter.items():
-                    query = f'{query}&fq={key}:"{value}"'
+            for key, value in self.config['solr_filters'].items():
+                query = f'{query}&fq={key}:"{value}"'
+        fedora_prefix = 'RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/'
+        if self.config['collections']:
+            collections = self.config['collections']
+            fedora_collections = []
+            for collection in collections:
+                fedora_collections.append(f'{fedora_prefix}"{collection}"')
+            fq_string = "&fq=" + ' or '.join(fedora_collections)
+            query = f'{query}{fq_string}'
+
 
         # Get the populated CSV from Solr, with the object namespace and field list filters applied.
         return query
@@ -196,6 +208,11 @@ class i7ImportUtilities:
         table.add_column("Parameter", justify="left")
         table.add_column("Value", justify="left")
         for key, value in self.config.items():
+            if str(type(value)) == '<class \'ruamel.yaml.comments.CommentedMap\'>':
+                new_value = ''
+                for k, v in value.items():
+                    new_value += f"{k}: {v}\n"
+                value = new_value
             table.add_row(key, str(value))
         console = Console()
         console.print(table)
