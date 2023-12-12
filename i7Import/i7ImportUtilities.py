@@ -140,17 +140,18 @@ class i7ImportUtilities:
         for standard_field in self.config['standard_fields']:
             filtered_field_list.insert(0, standard_field)
         fields_param = ','.join(filtered_field_list)
-        query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000&fl={fields_param}"
+        query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&start={self.config['start']}&rows={self.config['rows']}&fl={fields_param}"
         if self.config['collection']:
             collection = self.config['collection']
-            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/{collection}"'
+            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
         if self.config['content_model']:
             model = self.config['content_model']
-            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info\:fedora/{model}"'
+            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
         if self.config['solr_filters']:
-            for filter in self.config['solr_filters']:
-                for key, value in filter.items():
-                    query = f'{query}&fq={key}:"{value}"'
+            keys = list(self.config['solr_filters'].keys())
+            for key in keys:
+                value = urllib.parse.quote(self.config['solr_filters'][key])
+                query = f'{query}&fq={key}:{value}'
         fedora_prefix = 'RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/'
         if self.config['collections']:
             collections = self.config['collections']
@@ -226,10 +227,10 @@ class i7ImportUtilities:
         query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&rows=1000000"
         if self.config['collection']:
             collection = self.config['collection']
-            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/{collection}"'
+            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
         if self.config['content_model']:
             model = self.config['content_model']
-            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info\:fedora/{model}"'
+            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
         if self.config['solr_filters']:
             keys = list(self.config['solr_filters'].keys())
             for key in keys:
