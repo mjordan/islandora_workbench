@@ -568,6 +568,10 @@ def update():
                 if config['progress_bar'] is False:
                     print("Node " + config['host'] + '/node/' + row['node_id'] + " updated.")
                 logging.info("Node %s updated.", config['host'] + '/node/' + row['node_id'])
+            else:
+                if config['progress_bar'] is False:
+                    print("Error: Node " + config['host'] + '/node/' + row['node_id'] + " not updated. See log for more detail.")
+                logging.error("Node %s not updated (server response code was '%s').", config['host'] + '/node/' + row['node_id'], node_response.status_code)
 
             # Execute node-specific post-create scripts, if any are configured.
             if 'node_post_update' in config and len(config['node_post_update']) > 0:
