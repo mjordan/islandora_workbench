@@ -2772,7 +2772,7 @@ def clean_csv_values(config, row):
 
 
 def truncate_csv_value(field_name, record_id, field_config, value):
-    """Drupal will not accept field values that have a length that
+    """Drupal will not accept text field values that have a length that
        exceeds the configured maximum length for that field. 'value'
        here is a field subvalue.
     """

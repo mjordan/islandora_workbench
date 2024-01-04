@@ -113,6 +113,28 @@ class TestAddMediaCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
+class TestMaxNodeTitleLengthCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'create.yml')
+        self.temp_dir = tempfile.gettempdir()
+
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        self.output = output.decode().strip()
+
+    def test_add_media_check(self):
+        self.assertRegex(self.output, 'CSV field "title" in record with ID 03 contains a value that is longer .32 characters', '')
+        self.assertRegex(self.output, 'CSV field "title" in record with ID 04 contains a value that is longer .34 characters', '')
+        self.assertRegex(self.output, 'CSV field "title" in record with ID 05 contains a value that is longer .36 characters', '')
+
+    def tearDown(self):
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "max_node_title_length.csv.preprocessed")
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
+
 class TestTypedRelationBadRelatorCheck(unittest.TestCase):
 
     def setUp(self):

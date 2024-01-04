@@ -17,6 +17,7 @@ import json
 import urllib.parse
 import unittest
 import time
+import copy
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
@@ -88,6 +89,48 @@ class TestCreateFromFiles(unittest.TestCase):
 
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
+
+
+class TestCreateWithMaxNodeTitleLength(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'create.yml')
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.nids = list()
+        self.output_lines = ''
+
+    def test_create(self):
+        create_output = subprocess.check_output(self.create_cmd)
+        self.create_output = create_output.decode().strip()
+        self.output_lines = copy.copy(self.create_output)
+
+        self.assertRegex(self.output_lines, '"This here title is 32 chars lo" .record 03', '')
+        self.assertRegex(self.output_lines, '"This here title is 34 chars lo" .record 04', '')
+        self.assertRegex(self.output_lines, '"This here title is 36 chars lo" .record 05', '')
+        self.assertRegex(self.output_lines, '"This title is 28 chars long." .record 06', '')
+
+        create_lines = self.create_output.splitlines()
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
+
+        self.assertEqual(len(self.nids), 6)
+
+    def tearDown(self):
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.create_config_file_path, '--quick_delete_node', 'https://islandora.traefik.me/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'max_node_title_length.csv.preprocessed')
+        if os.path.exists(self.preprocessed_file_path):
+            os.remove(self.preprocessed_file_path)
 
 
 class TestCreateWithNewTypedRelation(unittest.TestCase):

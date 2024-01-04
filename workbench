@@ -101,6 +101,7 @@ def create():
         unpopulated_member_of_log_message = None
 
         # Add required fields.
+        row['title'] = truncate_csv_value('title', row[config['id_field']], field_definitions['title'], row['title'])
         node = {
             'type': [
                 {'target_id': config['content_type'],

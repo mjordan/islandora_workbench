@@ -1,0 +1,8 @@
+task: create
+host: https://islandora.traefik.me
+username: admin
+password: password
+input_dir: "tests/assets/max_node_title_length_test"
+input_csv: max_node_title_length.csv
+nodes_only: True
+max_node_title_length: 30
