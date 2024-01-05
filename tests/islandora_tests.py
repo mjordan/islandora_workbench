@@ -135,6 +135,82 @@ class TestCreateWithMaxNodeTitleLength(unittest.TestCase):
             os.remove(self.preprocessed_file_path)
 
 
+class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'create.yml')
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.nids = list()
+
+        self.update_csv_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'update_max_node_title_length.csv')
+        self.update_config_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'update.yml')
+        self.update_cmd = ["./workbench", "--config", self.update_config_file_path]
+
+        self.temp_dir = tempfile.gettempdir()
+
+    def test_create(self):
+        create_output = subprocess.check_output(self.create_cmd)
+        self.create_output = create_output.decode().strip()
+
+        create_lines = self.create_output.splitlines()
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
+
+        self.assertEqual(len(self.nids), 6)
+
+        # Write out an update CSV file using the node IDs in self.nids.
+        update_csv_file_rows = list()
+        test_titles = ['This title is 37 chars___________long',
+                       'This title is 39 chars_____________long',
+                       'This title is 29 _ chars long',
+                       'This title is 42 chars________________long',
+                       'This title is 44 chars__________________long',
+                       'This title is 28 chars long.']
+        update_csv_file_rows.append('node_id,title')
+        i = 0
+        while i <= 5:
+            update_csv_file_rows.append(f'{self.nids[i]},{test_titles[i]}')
+            i = i + 1
+        with open(self.update_csv_file_path, mode='wt') as update_csv_file:
+            update_csv_file.write('\n'.join(update_csv_file_rows))
+
+        # Run the update command.
+        check_output = subprocess.check_output(self.update_cmd)
+
+        # Fetch each node in self.nids and check to see if its title is <= 30 chars long. All should be.
+        for nid_to_update in self.nids:
+            node_url = 'https://islandora.traefik.me/node/' + str(self.nids[0]) + '?_format=json'
+            node_response = requests.get(node_url)
+            node = json.loads(node_response.text)
+            updated_title = str(node['title'][0]['value'])
+            self.assertLessEqual(len(updated_title), 30, '')
+
+    def tearDown(self):
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.create_config_file_path, '--quick_delete_node', 'https://islandora.traefik.me/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        self.preprocessed_file_path = os.path.join(self.temp_dir, 'create_max_node_title_length.csv.preprocessed')
+        if os.path.exists(self.preprocessed_file_path):
+            os.remove(self.preprocessed_file_path)
+
+        # Update test: 1) delete the update CSV file, 2) delete the update .preprocessed file.
+        if os.path.exists(self.update_csv_file_path):
+            os.remove(self.update_csv_file_path)
+
+        self.preprocessed_update_file_path = os.path.join(self.temp_dir, 'update_max_node_title_length.csv.preprocessed')
+        if os.path.exists(self.preprocessed_update_file_path):
+            os.remove(self.preprocessed_update_file_path)
+
+
 class TestCreateWithNewTypedRelation(unittest.TestCase):
     # Note: You can't run this test class on its own, e.g., python3 tests/islandora_tests.py TestCreateWithNewTypedRelation
     # because passing "TestCreateWithNewTypedRelation" as an argument will cause the argparse parser to fail.
