@@ -26,6 +26,8 @@ class SimpleField():
        Note: this class assumes that the entity has the field identified in 'field_name'.
        Callers should pre-emptively confirm that. For an example, see code near the top
        of workbench.update().
+
+       Also note: the required Drupal field 'title' is not processed by this class.
     """
     def create(self, config, field_definitions, entity, row, field_name):
         """Parameters

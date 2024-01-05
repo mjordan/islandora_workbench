@@ -100,6 +100,8 @@ class TestCreateWithMaxNodeTitleLength(unittest.TestCase):
         self.nids = list()
         self.output_lines = ''
 
+        self.temp_dir = tempfile.gettempdir()
+
     def test_create(self):
         create_output = subprocess.check_output(self.create_cmd)
         self.create_output = create_output.decode().strip()
@@ -128,7 +130,7 @@ class TestCreateWithMaxNodeTitleLength(unittest.TestCase):
         if os.path.exists(self.rollback_file_path):
             os.remove(self.rollback_file_path)
 
-        self.preprocessed_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'max_node_title_length.csv.preprocessed')
+        self.preprocessed_file_path = os.path.join(self.temp_dir, 'create_max_node_title_length.csv.preprocessed')
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
 

@@ -113,7 +113,7 @@ class TestAddMediaCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestMaxNodeTitleLengthCheck(unittest.TestCase):
+class TestCreateMaxNodeTitleLengthCheck(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -124,15 +124,91 @@ class TestMaxNodeTitleLengthCheck(unittest.TestCase):
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
-    def test_add_media_check(self):
+    def test_for_too_long_titles(self):
         self.assertRegex(self.output, 'CSV field "title" in record with ID 03 contains a value that is longer .32 characters', '')
         self.assertRegex(self.output, 'CSV field "title" in record with ID 04 contains a value that is longer .34 characters', '')
         self.assertRegex(self.output, 'CSV field "title" in record with ID 05 contains a value that is longer .36 characters', '')
 
     def tearDown(self):
-        preprocessed_csv_file_path = os.path.join(self.temp_dir, "max_node_title_length.csv.preprocessed")
+        preprocessed_csv_file_path = os.path.join(self.temp_dir, "create_max_node_title_length.csv.preprocessed")
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
+
+
+class TestUpdateWithMaxNodeTitleLengthCheck(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # First, we create some nodes so we have the node IDs for the update CSV file. We are
+        # reusing the CSV data used by the TestCreateWithMaxNodeTitleLength test class.
+        self.create_config_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'create.yml')
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.nids = list()
+
+        self.update_csv_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'update_max_node_title_length.csv')
+        self.update_config_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'update.yml')
+        self.update_cmd = ["./workbench", "--config", self.update_config_file_path, "--check"]
+
+        self.temp_dir = tempfile.gettempdir()
+
+    def test_for_too_long_titles(self):
+        create_output = subprocess.check_output(self.create_cmd)
+        self.create_output = create_output.decode().strip()
+
+        create_lines = self.create_output.splitlines()
+        for line in create_lines:
+            if 'created at' in line:
+                nid = line.rsplit('/', 1)[-1]
+                nid = nid.strip('.')
+                self.nids.append(nid)
+
+        self.assertEqual(len(self.nids), 6)
+
+        # Now that we have our node IDs, we write out the CSV file used in --check.
+        update_csv_file_rows = list()
+        test_titles = ['This title is 37 chars___________long',
+                       'This title is 39 chars_____________long',
+                       'This title is 29 _ chars long',
+                       'This title is 42 chars________________long',
+                       'This title is 44 chars__________________long',
+                       'This title is 28 chars long.']
+        update_csv_file_rows.append('node_id,title')
+        i = 0
+        while i <= 5:
+            update_csv_file_rows.append(f'{self.nids[i]},{test_titles[i]}')
+            i = i + 1
+        with open(self.update_csv_file_path, mode='wt') as update_csv_file:
+            update_csv_file.write('\n'.join(update_csv_file_rows))
+
+        check_output = subprocess.check_output(self.update_cmd)
+        self.check_output = check_output.decode().strip()
+
+        self.assertRegex(self.check_output, 'contains a value that is longer .37 characters.', '')
+        self.assertRegex(self.check_output, 'contains a value that is longer .39 characters.', '')
+        self.assertRegex(self.check_output, 'contains a value that is longer .42 characters.', '')
+        self.assertRegex(self.check_output, 'contains a value that is longer .44 characters.', '')
+
+    def tearDown(self):
+        # Delete our test nodes we created.
+        for nid in self.nids:
+            quick_delete_cmd = ["./workbench", "--config", self.create_config_file_path, '--quick_delete_node', 'https://islandora.traefik.me/node/' + nid]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        self.rollback_file_path = os.path.join(self.current_dir, 'assets', 'max_node_title_length_test', 'rollback.csv')
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        self.preprocessed_create_file_path = os.path.join(self.temp_dir, 'create_max_node_title_length.csv.preprocessed')
+        if os.path.exists(self.preprocessed_create_file_path):
+            os.remove(self.preprocessed_create_file_path)
+
+        self.preprocessed_create_file_path = os.path.join(self.temp_dir, 'update_max_node_title_length.csv.preprocessed')
+        if os.path.exists(self.preprocessed_create_file_path):
+            os.remove(self.preprocessed_create_file_path)
+
+        if os.path.exists(self.update_csv_file_path):
+            os.remove(self.update_csv_file_path)
 
 
 class TestTypedRelationBadRelatorCheck(unittest.TestCase):

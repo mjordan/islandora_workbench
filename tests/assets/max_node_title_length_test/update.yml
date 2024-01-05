@@ -1,8 +1,7 @@
-task: create
+task: update
 host: https://islandora.traefik.me
 username: admin
 password: password
 input_dir: "tests/assets/max_node_title_length_test"
-input_csv: create_max_node_title_length.csv
-nodes_only: True
+input_csv: update_max_node_title_length.csv
 max_node_title_length: 30
