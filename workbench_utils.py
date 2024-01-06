@@ -752,7 +752,7 @@ def ping_media_bundle(config, bundle_name):
     return response.status_code
 
 
-def ping_media(config, media_id):
+def _ping_media(config, media_id):
     """Ping the Media to see if it exists. Return the status code,
        a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
        is not enabled on the target Drupal.
@@ -775,6 +775,49 @@ def ping_media(config, media_id):
         media_json_url = config['host'] + '/media/' + media_id + '/edit?_format=json'
     response = issue_request(config, 'GET', media_json_url)
     return response.status_code
+
+
+def ping_media(config, mid, method='HEAD', return_json=False, warn=True):
+    """Ping the media to see if it exists.
+
+       Note that HEAD requests do not return a response body.
+
+       Parameters
+       ----------
+       config : dict
+           The configuration settings defined by workbench_config.get_config().
+       mid :
+           Media ID of the media to be pinged.
+       method: string, optional
+           Either 'HEAD' or 'GET'.
+       return_json: boolean, optional
+       warn: boolean, optional
+
+       Returns
+       ------
+        boolean|str
+           True if method is HEAD and node was found, the response JSON response
+           body if method was GET. False if request returns a non-allowed status code.
+    """
+    # if value_is_numeric(nid) is False:
+        # nid = get_nid_from_url_alias(config, nid)
+
+    if config['standalone_media_url'] is True:
+        url = config['host'] + '/media/' + mid + '?_format=json'
+    else:
+        url = config['host'] + '/media/' + mid + '/edit?_format=json'
+
+    response = issue_request(config, method.upper(), url)
+    allowed_status_codes = [200, 301, 302]
+    if response.status_code in allowed_status_codes:
+        if return_json is True:
+            return response.text
+        else:
+            return True
+    else:
+        if warn is True:
+            logging.warning("Media ping (%s) on %s returned a %s status code.", method.upper(), url, response.status_code)
+        return False
 
 
 def extract_media_id(config: dict, media_csv_row: dict):

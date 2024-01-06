@@ -788,6 +788,8 @@ def update_media() -> None:
             logging.error("Unable to get parent node ID for media ID %s: %s", media_id, e)
             return None
 
+    '''
+    # Deprecated as of #606.
     def patch_plain_text_fields(config: dict, media_type: str, media_csv_row: dict) -> dict:
         """Create the JSON request to be sent to the media entity's PATCH endpoint for updating plain-text fields.
 
@@ -812,6 +814,7 @@ def update_media() -> None:
                                     field_name,
                                     media_type)
         return media_json
+    '''
 
     def extract_media_id(config: dict, media_csv_row: dict) -> Optional[str]:
         """Extract the media entity's ID from the CSV row.
@@ -840,7 +843,7 @@ def update_media() -> None:
                 return str(media_id)
 
         else:  # If media ID is numeric, use it as is, if it is a valid media ID
-            if ping_media(config, media_csv_row['media_id']) != 200:  # Invalid media ID
+            if ping_media(config, media_csv_row['media_id']) is not True:  # Invalid media ID
                 logging.error('Media ID %s does not exist.', media_csv_row['media_id'])
                 return None
             else:
@@ -1066,7 +1069,7 @@ def update_media() -> None:
                 pbar(row_position)
             continue
 
-        # At this point, the media ID is valid and stored in the media_id variable.
+        ping_media_result = ping_media(config, row['media_id'], 'GET', True)
 
         # Now, the user may want to update one or more of the following
         # - Media File
@@ -1086,7 +1089,8 @@ def update_media() -> None:
 
         # From this we can get the media type, which we'll need as well
         media_type = get_media_type(media_id, get_media_response)
-        if media_type is None:  # If the media type is invalid, skip this row.
+        # If the media type is invalid, skip this row.
+        if media_type is None:
             row_count += 1
             print('Media at ' + config['host'] + '/media/' + media_id + ' could not be updated. Please check the log for more details.')
             if config['progress_bar'] is True:
@@ -1096,10 +1100,10 @@ def update_media() -> None:
 
         field_definitions = get_field_definitions(config, 'media', media_type)
 
-        # We'll store the JSON for the patch request in this dictionary (which will grow as we add more fields to update).
+        # Populate the media JSON that we PATCH with, which gets added to below.
         patch_request_json = {'bundle': [{'target_id': media_type}]}
 
-        # Update media file
+        # Update media file.
         if 'file' in row and row['file'] != '':
             # We need to first get the parent node ID of this media.
             node_id = get_media_parent_node_id(get_media_response_body, row)
@@ -1135,7 +1139,7 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
-        # Update track file
+        # Update track file.
         invalid_track_file = False
         if media_type in config['media_track_file_fields'] and config['media_track_file_fields'][media_type] in row and row[config['media_track_file_fields'][media_type]] != '':
             # Get the node id of the parent node of the media, which is required for uploading the file.
@@ -1194,7 +1198,7 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
-        # Update media use tid
+        # Update media use tid.
         invalid_media_use_tid = False
         if 'media_use_tid' in row:
             if row['media_use_tid'] != '':  # User expects us to update media use tid to the one provided in the CSV.
@@ -1229,7 +1233,7 @@ def update_media() -> None:
             # By this point we have a valid media ID and media use tid, so we can update the media use tid.
             patch_request_json.update(patch_media_use_terms_update_media(media_use_tids))  # This call returns a dict with the JSON for the PATCH request to update the media use tid
 
-        # Update media status
+        # Update media status.
         if 'status' in row and row['status'] != '':
             if row['status'] == '1' or row['status'].lower() == 'true':
                 patch_request_json.update(patch_media_status(True))
@@ -1251,20 +1255,17 @@ def update_media() -> None:
 
         # Add custom (non-required) fields.
         required_fields = ['media_id']
-        # 606: @todo for now, let's define custom_fields as those that start with `field_`
         custom_fields = list(set(csv_column_headers) - set(required_fields))
         for custom_field in custom_fields:
-            '''
-            node_has_all_fields = True
-            # If node doesn't have the field, log that fact and skip updating the field.
+            media_has_all_fields = True
+            # If media doesn't have the field, log that fact and skip updating the field.
             reserved_fields = ['published', 'url_alias']
-            if custom_field not in json.loads(node_ping_result) and custom_field not in reserved_fields:
-                message = f'Node {row["node_id"]} does not have a "{custom_field}" field, skipping update.'
+            if custom_field not in json.loads(ping_media_result) and custom_field not in reserved_fields:
+                message = f'Media {row["media_id"]} does not have a "{custom_field}" field, skipping update.'
                 print(f'ERROR: ' + message)
                 logging.warning(message)
-                node_has_all_fields = False
+                media_has_all_fields = False
                 break
-            '''
 
             media_field_values = get_media_field_values(config, row['media_id'])
 
@@ -1313,15 +1314,10 @@ def update_media() -> None:
                 simple_field = workbench_fields.SimpleField()
                 patch_request_json = simple_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
 
-
-
-
-
         ### WIP on issue 606 ends.
 
-        # Before the patch requests, let's delete the existing media/track files if the user wants to replace them.
-
-        # Delete the old media file
+        # Before the patch requests, we delete the existing media/track files if the user wants to replace them.
+        # Delete the old media file.
         if 'file' in row and row['file'] != '':
             # Delete the old file which was attached to this media from the server.
             if not delete_media_file(config, media_id, get_media_response_body):
@@ -1332,7 +1328,7 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
-        # Delete the old track files
+        # Delete the old track files.
         if media_type in config['media_track_file_fields'] and config['media_track_file_fields'][media_type] in row and row[config['media_track_file_fields'][media_type]] != '':
             # Delete the old track files which were attached to this media from the server.
             if not delete_media_track_files(config, media_id, media_type, get_media_response_body):
