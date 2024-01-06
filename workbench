@@ -1046,6 +1046,7 @@ def update_media() -> None:
     logging.info(message)
 
     csv_data = get_csv_data(config)
+    csv_column_headers = csv_data.fieldnames
 
     if config['id_field'] not in csv_data.fieldnames:  # If the CSV file does not contain the ID field, we use the media ID field by default
         config['id_field'] = 'media_id'
@@ -1092,6 +1093,8 @@ def update_media() -> None:
                 row_position = get_percentage(row_count, num_csv_records)
                 pbar(row_position)
             continue
+
+        field_definitions = get_field_definitions(config, 'media', media_type)
 
         # We'll store the JSON for the patch request in this dictionary (which will grow as we add more fields to update).
         patch_request_json = {'bundle': [{'target_id': media_type}]}
@@ -1242,7 +1245,79 @@ def update_media() -> None:
                 continue
 
         # Update plain text fields
-        patch_request_json.update(patch_plain_text_fields(config, media_type, row))
+        # patch_request_json.update(patch_plain_text_fields(config, media_type, row))
+
+        #### WIP on issue 606 starts.
+
+        # Add custom (non-required) fields.
+        required_fields = ['media_id']
+        # 606: @todo for now, let's define custom_fields as those that start with `field_`
+        custom_fields = list(set(csv_column_headers) - set(required_fields))
+        for custom_field in custom_fields:
+            '''
+            node_has_all_fields = True
+            # If node doesn't have the field, log that fact and skip updating the field.
+            reserved_fields = ['published', 'url_alias']
+            if custom_field not in json.loads(node_ping_result) and custom_field not in reserved_fields:
+                message = f'Node {row["node_id"]} does not have a "{custom_field}" field, skipping update.'
+                print(f'ERROR: ' + message)
+                logging.warning(message)
+                node_has_all_fields = False
+                break
+            '''
+
+            media_field_values = get_media_field_values(config, row['media_id'])
+
+            # Skip updating field if CSV field is empty (other than for 'delete' update mode).
+            # For 'delete' update mode it doesn't matter if there's anything in the CSV field,
+            # but users expect to be able to supply empty values for this operation.
+            if len(row[custom_field].strip()) == 0:
+                if config['update_mode'] != 'delete':
+                    continue
+
+            if custom_field == 'revision_log':
+                continue
+
+            # Entity reference fields (taxonomy term and node).
+            if field_definitions[custom_field]['field_type'] == 'entity_reference':
+                entity_reference_field = workbench_fields.EntityReferenceField()
+                patch_request_json = entity_reference_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+
+            # Entity reference revisions fields (paragraphs).
+            elif field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
+                entity_reference_revisions_field = workbench_fields.EntityReferenceRevisionsField()
+                patch_request_json = entity_reference_revisions_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+
+            # Typed relation fields (currently, only taxonomy term).
+            elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                typed_relation_field = workbench_fields.TypedRelationField()
+                patch_request_json = typed_relation_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+
+            # Geolocation fields.
+            elif field_definitions[custom_field]['field_type'] == 'geolocation':
+                geolocation_field = workbench_fields.GeolocationField()
+                patch_request_json = geolocation_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+
+            # Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'link':
+                link_field = workbench_fields.LinkField()
+                patch_request_json = link_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+
+            # Authority Link fields.
+            elif field_definitions[custom_field]['field_type'] == 'authority_link':
+                link_field = workbench_fields.AuthorityLinkField()
+                patch_request_json = link_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+
+            # For non-entity reference and non-typed relation fields (text, etc.).
+            else:
+                simple_field = workbench_fields.SimpleField()
+                patch_request_json = simple_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+
+
+
+
+
+        ### WIP on issue 606 ends.
 
         # Before the patch requests, let's delete the existing media/track files if the user wants to replace them.
 

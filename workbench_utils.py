@@ -2813,13 +2813,25 @@ def deduplicate_field_values(values):
 
 
 def get_node_field_values(config, nid):
-    """Get a node's field data so we can use it during PATCH updates,
-       which replace a field's values.
+    """Get a node's field data so we can use it during PATCH updates, which replace a field's values.
     """
     node_url = config['host'] + '/node/' + nid + '?_format=json'
     response = issue_request(config, 'GET', node_url)
     node_fields = json.loads(response.text)
     return node_fields
+
+
+def get_media_field_values(config, media_id):
+    """Get a media's field data so we can use it during PATCH updates, which replace a field's values.
+    """
+    if config['standalone_media_url'] is True:
+        media_url = config['host'] + '/media/' + media_id + '?_format=json'
+    else:
+        media_url = config['host'] + '/media/' + media_id + '/edit?_format=json'
+
+    get_media_response = issue_request(config, 'GET', media_url)
+    media_fields = json.loads(get_media_response.text)
+    return media_fields
 
 
 def get_target_ids(node_field_values):

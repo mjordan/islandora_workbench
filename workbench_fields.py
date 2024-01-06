@@ -145,6 +145,8 @@ class SimpleField():
             entity_id_field = 'term_id'
         if config['task'] == 'update':
             entity_id_field = 'node_id'
+        if config['task'] == 'update_media':
+            entity_id_field = 'media_id'
 
         # Cardinality has a limit.
         if field_definitions[field_name]['cardinality'] > 0:
@@ -431,6 +433,8 @@ class GeolocationField():
             entity_id_field = 'term_id'
         if config['task'] == 'update':
             entity_id_field = 'node_id'
+        if config['task'] == 'update_media':
+            entity_id_field = 'media_id'
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -652,6 +656,8 @@ class LinkField():
             entity_id_field = 'term_id'
         if config['task'] == 'update':
             entity_id_field = 'node_id'
+        if config['task'] == 'update_media':
+            entity_id_field = 'media_id'
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
@@ -916,6 +922,8 @@ class EntityReferenceField():
             entity_id_field = 'term_id'
         if config['task'] == 'update':
             entity_id_field = 'node_id'
+        if config['task'] == 'update_media':
+            entity_id_field = 'media_id'
 
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
             target_type = 'taxonomy_term'
@@ -1202,6 +1210,8 @@ class TypedRelationField():
             entity_id_field = 'term_id'
         if config['task'] == 'update':
             entity_id_field = 'node_id'
+        if config['task'] == 'update_media':
+            entity_id_field = 'media_id'
 
         # Currently only supports Typed Relation taxonomy entities.
         if field_definitions[field_name]['target_type'] == 'taxonomy_term':
@@ -1453,6 +1463,8 @@ class AuthorityLinkField():
             entity_id_field = 'term_id'
         if config['task'] == 'update':
             entity_id_field = 'node_id'
+        if config['task'] == 'update_media':
+            entity_id_field = 'media_id'
 
         # Cardinality is unlimited.
         if field_definitions[field_name]['cardinality'] == -1:
