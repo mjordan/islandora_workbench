@@ -1073,5 +1073,20 @@ class TestAdditionalFilesAddMediaAllowMissingFilesTrue(unittest.TestCase):
             os.remove(self.true_with_additional_files_log_file_path)
 
 
+class TestUpdateMediaFields(unittest.TestCase):
+    """Create a couple nodes plus image media, update the media's field_original_name
+       and field_width fields, then confirm they were updated by GETting the media's JSON.
+    """
+
+    def SetUp():
+        pass
+
+    def TestUpdateMediaFields():
+        pass
+
+    def tearDown():
+        pass
+
+
 if __name__ == '__main__':
     unittest.main()

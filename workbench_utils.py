@@ -1419,6 +1419,9 @@ def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
 def replace_field_labels_with_names(config, csv_headers):
     """Replace field labels in a list of CSV column headers with their machine name equivalents.
 
+       Note: we can't use this feature for add_media or update_media tasks since the fieldnames
+       vary by media type, and each row in the CSV can have a different media type.
+
         Parameters
         ----------
         config : dict
@@ -1430,7 +1433,6 @@ def replace_field_labels_with_names(config, csv_headers):
         list
             The list of CSV headers with any labels replaced with field names.
     """
-    # @todo: account for other entity types. @todo #572 add media (where do we get media type from?).
     if config['task'] == 'create_terms' or config['task'] == 'update_terms':
         field_map = get_fieldname_map(config, 'taxonomy_term', config['vocab_id'], 'labels')
     else:
@@ -1464,6 +1466,7 @@ def check_input(config, args):
 
     rows_with_missing_files = list()
 
+    # @todo #606: break out node entity and reserved field, media entity and reserved field, and term entity and reserved fields?
     base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created', 'published']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
     # but it doesn't show up in any field configs.
@@ -1503,7 +1506,6 @@ def check_input(config, args):
             message = '"nodes_only" option in effect. Media files will not be checked/validated.'
             print(message)
             logging.info(message)
-
         create_required_options = [
             'task',
             'host',
@@ -1708,7 +1710,7 @@ def check_input(config, args):
 
     check_csv_file_exists(config, 'node_fields')
 
-    # Check column headers in CSV file.
+    # Check column headers in CSV file. Does not apply to add_media or update_media tasks.
     csv_data = get_csv_data(config)
     if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms', 'update_terms']:
         if config['task'] == 'create_terms' or config['task'] == 'update_terms':
@@ -2054,6 +2056,7 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit('Error: ' + message)
 
+    # @todo: #606 add a similar check for update_media?
     if config['task'] == 'update_terms':
         if 'term_id' not in csv_column_headers:
             message = 'For "update_terms" tasks, your CSV file must contain a "term_id" column.'
