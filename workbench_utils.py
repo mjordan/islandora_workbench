@@ -752,6 +752,7 @@ def ping_media_bundle(config, bundle_name):
     return response.status_code
 
 
+# Note: deprecated with #606.
 def _ping_media(config, media_id):
     """Ping the Media to see if it exists. Return the status code,
        a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
