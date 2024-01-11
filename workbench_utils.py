@@ -774,9 +774,6 @@ def ping_media(config, mid, method='HEAD', return_json=False, warn=True):
            True if method is HEAD and node was found, the response JSON response
            body if method was GET. False if request returns a non-allowed status code.
     """
-    # if value_is_numeric(nid) is False:
-        # nid = get_nid_from_url_alias(config, nid)
-
     if config['standalone_media_url'] is True:
         url = config['host'] + '/media/' + mid + '?_format=json'
     else:
@@ -818,20 +815,25 @@ def extract_media_id(config: dict, media_csv_row: dict):
         logging.error('Row with empty media_id column detected in CSV file.')
         return None
 
-    if not value_is_numeric(media_csv_row['media_id']):  # If media ID is not numeric, assume it is a media URL alias
-        media_id = get_mid_from_media_url_alias(config, media_csv_row['media_id'])  # Note that this function returns False if the media URL alias does not exist
-        if media_id is False:  # Media URL alias does not exist
+    # If media ID is not numeric, assume it is a media URL alias.
+    if not value_is_numeric(media_csv_row['media_id']):
+        # Note that this function returns False if the media URL alias does not exist.
+        media_id = get_mid_from_media_url_alias(config, media_csv_row['media_id'])
+        # Media URL alias does not exist.
+        if media_id is False:
             logging.error('Media URL alias %s does not exist.', media_csv_row['media_id'])
             return None
         else:
             return str(media_id)
-
-    else:  # If media ID is numeric, use it as is, if it is a valid media ID
-        if ping_media(config, media_csv_row['media_id']) != 200:  # Invalid media ID
+    # If media ID is numeric, use it as is, if it is a valid media ID
+    else:
+        media_response_code = ping_media(config, media_csv_row['media_id'])
+        if media_response_code is not True:
             logging.error('Media ID %s does not exist.', media_csv_row['media_id'])
             return None
+        # If media ID exists, use it as is (since this is a string)
         else:
-            return media_csv_row['media_id']  # If media ID exists, use it as is (since this is a string)
+            return media_csv_row['media_id']
 
 
 def ping_remote_file(config, url):
@@ -1952,8 +1954,8 @@ def check_input(config, args):
         csv_data = get_csv_data(config)
         row_number = 1
         for row in csv_data:
-            media_id = extract_media_id(config, row)  # Extract the media ID from the CSV row.
-            if media_id is None:  # If the media ID is invalid, this is an error and we stop.
+            media_id = extract_media_id(config, row)
+            if media_id is None:
                 message = 'Error: Invalid media ID in row ' + str(row_number) + ' of the CSV file.'
                 logging.error(message)
                 sys.exit(message)
@@ -2030,12 +2032,7 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit('Error: ' + message)
 
-    # @todo: #606 add a similar check for update_media?
     if config['task'] == 'update_terms':
-        if 'term_id' not in csv_column_headers:
-            message = 'For "update_terms" tasks, your CSV file must contain a "term_id" column.'
-            logging.error(message)
-            sys.exit('Error: ' + message)
         field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
@@ -2067,6 +2064,22 @@ def check_input(config, args):
                 message = "The 'term_name' column in row for term '" + row['term_name'] + "' of your CSV file exceeds Drupal's maximum length of 255 characters."
                 logging.error(message)
                 sys.exit('Error: ' + message)
+
+    if config['task'] == 'update_media':
+        field_definitions = get_field_definitions(config, 'media', config['media_type'])
+        drupal_fieldnames = []
+        for drupal_fieldname in field_definitions:
+            drupal_fieldnames.append(drupal_fieldname)
+
+        for csv_column_header in csv_column_headers:
+            # #606 What are the base fields for media?
+            # if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+            if csv_column_header not in drupal_fieldnames and csv_column_header != 'media_id':
+                logging.error('CSV column header %s does not match any Drupal field names in the %s media type', csv_column_header, config['media_type'])
+                sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names in the "' + config['media_type'] + '" media type.')
+        message = 'OK, CSV column headers match Drupal field names.'
+        print(message)
+        logging.info(message)
 
     if config['task'] == 'create_terms' or config['task'] == 'update_terms':
         # Check that all required fields are present in the CSV.
@@ -2213,6 +2226,11 @@ def check_input(config, args):
     if config['task'] == 'delete_media_by_node':
         if 'node_id' not in csv_column_headers:
             message = 'For "delete_media_by_node" tasks, your CSV file must contain a "node_id" column.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
+    if config['task'] == 'update_terms':
+        if 'term_id' not in csv_column_headers:
+            message = 'For "update_terms" tasks, your CSV file must contain a "term_id" column.'
             logging.error(message)
             sys.exit('Error: ' + message)
 

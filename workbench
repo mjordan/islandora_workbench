@@ -788,7 +788,6 @@ def update_media() -> None:
             logging.error("Unable to get parent node ID for media ID %s: %s", media_id, e)
             return None
 
-
     def extract_media_id(config: dict, media_csv_row: dict) -> Optional[str]:
         """Extract the media entity's ID from the CSV row.
 
@@ -1060,7 +1059,7 @@ def update_media() -> None:
         get_media_response = issue_request(config, 'GET', media_json_url)
         get_media_response_body = json.loads(get_media_response.text)
 
-        # From this we can get the media type, which we'll need as well
+        # From this we can get the media type, which we'll need as well.
         media_type = get_media_type(media_id, get_media_response)
         # If the media type is invalid, skip this row.
         if media_type is None:

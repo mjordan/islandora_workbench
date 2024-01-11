@@ -6,3 +6,4 @@ input_dir: "tests/assets/update_media_test"
 input_csv: update_media.csv
 standalone_media_url: true
 allow_adding_terms: true
+media_type: 'file'
