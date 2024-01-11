@@ -788,33 +788,6 @@ def update_media() -> None:
             logging.error("Unable to get parent node ID for media ID %s: %s", media_id, e)
             return None
 
-    '''
-    # Deprecated as of #606.
-    def patch_plain_text_fields(config: dict, media_type: str, media_csv_row: dict) -> dict:
-        """Create the JSON request to be sent to the media entity's PATCH endpoint for updating plain-text fields.
-
-        Parameters:
-            - config (dict): The global configuration object.
-            - media_type (str): The media entity's type (e.g., 'image').
-            - media_csv_row (dict): The CSV row containing the media entity's field names and values.
-
-        Returns:
-            - The JSON request (dict) to be sent to the media entity's PATCH endpoint.
-        """
-        media_json = {}
-        media_field_definitions = get_field_definitions(config, 'media', media_type)  # This will return a dict of field definitions keyed by field name.
-        for field_name, field_value in media_csv_row.items():  # Iterate through the CSV row's field names and values and find the fields that are plain-text.
-            if field_name in media_field_definitions:  # If the field name is a valid field name for the media entity's type
-                if 'string' in media_field_definitions[field_name]['field_type']:  # If field_name corresponds to a plain-text field. In Drupal 8, plain-text fields contain 'string' in their type.
-                    if field_value != '':  # If the field value is not empty
-                        media_json[field_name] = [{'value': field_value}]
-            else:
-                if field_name != 'media_id' and field_name != 'media_use_tid':  # Don't log a warning for media_id or media_use_tid, since they definitely exist.
-                    logging.warning("Field %s is not a valid plain-text field for media %s. This may be intended, but if not, please check the spelling of this field name.",
-                                    field_name,
-                                    media_type)
-        return media_json
-    '''
 
     def extract_media_id(config: dict, media_csv_row: dict) -> Optional[str]:
         """Extract the media entity's ID from the CSV row.
@@ -1248,11 +1221,6 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
-        # Update plain text fields
-        # patch_request_json.update(patch_plain_text_fields(config, media_type, row))
-
-        #### WIP on issue 606 starts.
-
         # Add custom (non-required) fields.
         required_fields = ['media_id']
         custom_fields = list(set(csv_column_headers) - set(required_fields))
@@ -1313,8 +1281,6 @@ def update_media() -> None:
             else:
                 simple_field = workbench_fields.SimpleField()
                 patch_request_json = simple_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
-
-        ### WIP on issue 606 ends.
 
         # Before the patch requests, we delete the existing media/track files if the user wants to replace them.
         # Delete the old media file.

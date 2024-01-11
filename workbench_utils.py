@@ -752,32 +752,6 @@ def ping_media_bundle(config, bundle_name):
     return response.status_code
 
 
-# Note: deprecated with #606.
-def _ping_media(config, media_id):
-    """Ping the Media to see if it exists. Return the status code,
-       a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
-       is not enabled on the target Drupal.
-
-       Parameters
-       ----------
-       config : dict
-           The configuration settings defined by workbench_config.get_config().
-       media_id : str
-            Media ID to be pinged.
-       Returns
-       -------
-       int
-           The HTTP response code.
-    """
-
-    if config['standalone_media_url'] is True:
-        media_json_url = config['host'] + '/media/' + media_id + '?_format=json'
-    else:
-        media_json_url = config['host'] + '/media/' + media_id + '/edit?_format=json'
-    response = issue_request(config, 'GET', media_json_url)
-    return response.status_code
-
-
 def ping_media(config, mid, method='HEAD', return_json=False, warn=True):
     """Ping the media to see if it exists.
 
