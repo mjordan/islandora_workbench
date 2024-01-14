@@ -141,6 +141,13 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row['published'] = ''
 
+        if 'promote' in csv_column_headers:
+            if len(row['promote']) > 0:
+                node['promote'] = [{'value': row['promote']}]
+            # Reset it to empty so it doesn't throw a key error in the code
+            # in the "Assemble Drupal field structures..." section below.
+            row['promote'] = ''
+
         # We want to collect the node IDs of items that are parents in-session
         # to accommodate users who have 'query_csv_id_to_node_id_map_for_parents: false'
         # in their config files. Note: this will not work with secondary tasks, if
@@ -461,6 +468,10 @@ def update():
             if len(row['published']) > 0:
                 node['status'] = [{'value': row['published']}]
 
+        if 'promote' in csv_column_headers:
+            if len(row['promote']) > 0:
+                node['promote'] = [{'value': row['promote']}]
+
         # Add custom (non-required) fields.
         required_fields = ['node_id']
         custom_fields = list(set(csv_column_headers) - set(required_fields))
@@ -505,6 +516,10 @@ def update():
 
             # 'uid' is a base field.
             if custom_field == 'uid':
+                continue
+
+            # 'promote' is a base field.
+            if custom_field == 'promote':
                 continue
 
             if 'preprocessors' in config and custom_field in config['preprocessors']:
