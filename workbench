@@ -328,24 +328,20 @@ def create():
 
         write_rollback_config(config, path_to_rollback_csv_file)
 
-        # If there is no media file (and we're not creating paged content), move on to the next CSV row.
-        if config['nodes_only'] is False and 'file' in row and len(row['file'].strip()) == 0 and config['paged_content_from_directories'] is False:
-            message = 'No media for ' + node_uri + ' created since its "file" column in the input CSV (row with ID "' + id_field + '") is empty.'
-            if config['progress_bar'] is False:
-                print('- ' + message)
-            logging.warning(message)
-            continue
-
         # If the file named in 'file' can't be found.
-        if config['nodes_only'] is False and config['paged_content_from_directories'] is False and check_file_exists(config, row['file'].strip()) is False:
-            message = 'No media for ' + node_uri + ' created since the file named the input CSV\'s "file" column (row with ID "' + id_field + '") could not be found.'
-            if config['allow_missing_files'] is False:
-                sys.exit('Error: ' + message)
-            else:
-                if config['progress_bar'] is False:
-                    print('- ' + message)
+        if 'file' in row and len(row['file'].strip()) > 0:
+            if config['nodes_only'] is False and config['paged_content_from_directories'] is False and check_file_exists(config, row['file'].strip()) is False:
+                message = 'No media for ' + node_uri + ' created since the file named the input CSV\'s "file" column (row with ID "' + id_field + '") could not be found.'
+                if config['allow_missing_files'] is False:
                     logging.error(message)
-            continue
+                    sys.exit('Error: ' + message)
+                else:
+                    if config['progress_bar'] is False:
+                        logging.warning(message)
+                continue
+        else:
+            message = 'No media for ' + node_uri + ' created since its "file" column in the input CSV (row with ID "' + id_field + '") is empty.'
+            logging.warning(message)
 
         if node_response.status_code == 201:
             allowed_media_response_codes = [201, 204]
