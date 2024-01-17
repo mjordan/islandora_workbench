@@ -1543,6 +1543,11 @@ def check_input(config, args):
                 message = 'Please check your config file for required values: ' + joiner.join(update_media_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
+        update_mode_options = ['replace', 'append', 'delete']
+        if config['update_mode'] not in update_mode_options:
+            message = 'Your "update_mode" config option must be one of the following: ' + joiner.join(update_mode_options) + '.'
+            logging.error(message)
+            sys.exit('Error: ' + message)
     if config['task'] == 'delete_media':
         delete_media_required_options = [
             'task',

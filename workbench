@@ -1027,7 +1027,7 @@ def update_media() -> None:
 
     # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
 
-    message = '"Update media" task started using config file ' + args.config + '.'
+    message = '"Update media" (' + config['update_mode'] + ') task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
