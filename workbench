@@ -112,7 +112,7 @@ def create():
             ]
         }
 
-        # Some optional base fields.
+        # Some optional node base fields.
         if 'uid' in csv_column_headers:
             if len(row['uid']) > 0:
                 node['uid'] = [{'target_id': row['uid']}]
@@ -447,7 +447,7 @@ def update():
 
         node_field_values = get_node_field_values(config, row['node_id'])
 
-        # Some optional base fields.
+        # Some optional node base fields.
         if 'uid' in csv_column_headers:
             if len(row['uid']) > 0:
                 node['uid'] = [{'target_id': row['uid']}]
@@ -2029,7 +2029,7 @@ def update_terms():
             if len(row['term_name'].strip()) != 0:
                 term['name'] = [{'value': row['term_name']}]
 
-        # Some optional base fields.
+        # Some optional term base fields.
         if 'parent' in csv_column_headers:
             if len(row['parent'].strip()) != 0:
                 if not value_is_numeric(row['parent']):

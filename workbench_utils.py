@@ -1443,7 +1443,7 @@ def check_input(config, args):
     rows_with_missing_files = list()
 
     # @todo #606: break out node entity and reserved field, media entity and reserved field, and term entity and reserved fields?
-    base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created', 'published']
+    node_base_fields = ['title', 'status', 'promote', 'sticky', 'uid', 'created', 'published']
     # Any new reserved columns introduced into the CSV need to be removed here. 'langcode' is a standard Drupal field
     # but it doesn't show up in any field configs.
     reserved_fields = ['file', 'media_use_tid', 'checksum', 'node_id', 'url_alias', 'image_alt_text', 'parent_id', 'langcode', 'revision_log']
@@ -1800,7 +1800,7 @@ def check_input(config, args):
         if config['list_missing_drupal_fields'] is True:
             missing_drupal_fields = []
             for csv_column_header in csv_column_headers:
-                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in node_base_fields:
                     if csv_column_header not in reserved_fields and csv_column_header not in get_additional_files_config(config).keys():
                         if csv_column_header != config['id_field']:
                             missing_drupal_fields.append(csv_column_header)
@@ -1864,7 +1864,7 @@ def check_input(config, args):
                                     'https://mjordan.github.io/islandora_workbench_docs/fields/#entity-reference-views-fields for more info.')
 
             if len(get_additional_files_config(config)) > 0:
-                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header not in get_additional_files_config(config).keys():
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in node_base_fields and csv_column_header not in get_additional_files_config(config).keys():
                     if csv_column_header in config['ignore_csv_columns']:
                         continue
                     additional_files_entries = get_additional_files_config(config)
@@ -1873,7 +1873,7 @@ def check_input(config, args):
                     logging.error('CSV column header %s does not match any Drupal, reserved, or "additional_files" field names.', csv_column_header)
                     sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal, reserved, or "additional_files" field names.')
             else:
-                if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields and csv_column_header:
+                if csv_column_header not in drupal_fieldnames and csv_column_header not in node_base_fields and csv_column_header:
                     if csv_column_header in config['ignore_csv_columns']:
                         continue
                     logging.error("CSV column header %s does not match any Drupal or reserved field names.", csv_column_header)
@@ -1945,7 +1945,7 @@ def check_input(config, args):
             langcode_was_present = True
 
         for csv_column_header in csv_column_headers:
-            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+            if csv_column_header not in drupal_fieldnames and csv_column_header not in node_base_fields:
                 if csv_column_header in config['ignore_csv_columns']:
                     continue
                 logging.error('CSV column header %s does not match any Drupal field names in the %s content type.', csv_column_header, config['content_type'])
@@ -2039,6 +2039,7 @@ def check_input(config, args):
 
     if config['task'] == 'update_terms':
         field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
+        term_base_fields = ['status', 'langcode', 'term_name', 'parent', 'weight', 'description']
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
@@ -2054,7 +2055,7 @@ def check_input(config, args):
             csv_column_headers.remove('term_id')
 
         for csv_column_header in csv_column_headers:
-            if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
+            if csv_column_header not in drupal_fieldnames and csv_column_header != 'term_id' and csv_column_header not in term_base_fields:
                 logging.error('CSV column header %s does not match any Drupal field names in the %s taxonomy term.', csv_column_header, config['vocab_id'])
                 sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names in the ' + config['vocab_id'] + ' taxonomy term.')
         message = 'OK, CSV column headers match Drupal field names.'
@@ -2072,14 +2073,13 @@ def check_input(config, args):
 
     if config['task'] == 'update_media':
         field_definitions = get_field_definitions(config, 'media', config['media_type'])
+        base_media_fields = ['status', 'uid', 'langcode']
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
 
         for csv_column_header in csv_column_headers:
-            # #606 What are the base fields for media?
-            # if csv_column_header not in drupal_fieldnames and csv_column_header not in base_fields:
-            if csv_column_header not in drupal_fieldnames and csv_column_header != 'media_id':
+            if csv_column_header not in drupal_fieldnames and csv_column_header != 'media_id' and csv_column_header not in base_media_fields:
                 logging.error('CSV column header %s does not match any Drupal field names in the %s media type', csv_column_header, config['media_type'])
                 sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names in the "' + config['media_type'] + '" media type.')
         message = 'OK, CSV column headers match Drupal field names.'
