@@ -64,7 +64,8 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
        filepath: string
            The value of the CSV 'file' column.
        file_fieldname: string
-            The name of the CSV column containing the filename (usually 'file').
+            The name of the CSV column containing the filename (usually 'file'). None if the file
+            isn't in a CSV field (e.g., when config['paged_content_from_directories'] is True).
        csv_row : OrderedDict
             The CSV row for the current item.
        Returns
@@ -80,7 +81,7 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     if oembed_media_type is not None:
         return oembed_media_type
 
-    if filepath.strip().startswith('http'):
+    if file_fieldname is not None and filepath.strip().startswith('http'):
         preprocessed_file_path = get_preprocessed_file_path(config, file_fieldname, csv_row)
         filename = preprocessed_file_path.split('/')[-1]
         extension = filename.split('.')[-1]
@@ -3299,7 +3300,8 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
             filename : string
                 The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
             file_fieldname: string
-                The name of the CSV column containing the filename.
+                The name of the CSV column containing the filename. None if the file isn't
+                in a CSV field (e.g., when config['paged_content_from_directories'] is True).
             node_csv_row: OrderedDict
                 E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
             node_id: string
@@ -3314,7 +3316,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
         return None
 
     if config['task'] == 'add_media' or config['task'] == 'create':
-        if len(node_csv_row[file_fieldname].strip()) == 0:
+        if file_fieldname is not None and len(node_csv_row[file_fieldname].strip()) == 0:
             return None
 
     is_remote = False
@@ -3325,7 +3327,6 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
         if remote_file_http_response_code != 200:
             return False
 
-        filename_parts = urllib.parse.urlparse(filename)
         file_path = download_remote_file(config, filename, file_fieldname, node_csv_row, node_id)
         if file_path is False:
             return False
@@ -3343,8 +3344,8 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
             return False
         file_path = os.path.join(config['input_dir'], filename)
 
-    mimetype = mimetypes.guess_type(file_path)
     media_type = set_media_type(config, file_path, file_fieldname, node_csv_row)
+
     if media_type in config['media_type_file_fields']:
         media_file_field = config['media_type_file_fields'][media_type]
     else:
@@ -3424,7 +3425,8 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
             filename : string
                 The value of the CSV 'file' field for the current node.
             file_fieldname: string
-                The name of the CSV column containing the filename.
+                The name of the CSV column containing the filename. None if the file isn't
+                in a CSV field (e.g., when config['paged_content_from_directories'] is True).
             node_id: string
                 The ID of the node to attach the media to. This is False if file creation failed.
             csv_row: OrderedDict
@@ -3444,12 +3446,16 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
         return None
 
     if len(filename.strip()) == 0:
-        message = 'Media not created because field "' + file_fieldname + '" in CSV row with ID "' + csv_row[config['id_field']] + '" is empty.'
-        logging.error(message)
-        return False
+        if file_fieldname is None:
+            message = 'Media not created because field "' + file_fieldname + '" in CSV row with ID "' + csv_row[config['id_field']] + '" is empty.'
+            logging.error(message)
+            return False
 
     if check_file_exists(config, filename) is False:
-        message = 'Media not created because file "' + filename + '" identified in field "' + file_fieldname + '" in CSV row with ID "' + csv_row[config['id_field']] + '" could not be found.'
+        if file_fieldname is None:
+            message = 'Media not created because file "' + filename + '" could not be found.'
+        else:
+            message = 'Media not created because file "' + filename + '" identified in field "' + file_fieldname + '" in CSV row with ID "' + csv_row[config['id_field']] + '" could not be found.'
         logging.error(message)
         return False
 
@@ -5842,8 +5848,15 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     # character defined in the 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config['id_field']]
     page_dir_path = os.path.join(config['input_dir'], str(parent_id).strip())
-    page_files = os.listdir(page_dir_path)
-    page_file_return_dict = dict()
+
+    if 'paged_content_additional_page_media' in config:
+        if 'paged_content_image_file_extension' in config:
+            page_files = [f for f in os.listdir(page_dir_path) if f.endswith(config['paged_content_image_file_extension'].lstrip('.').strip())]
+        else:
+            page_files = os.listdir(page_dir_path)
+    else:
+        page_files = os.listdir(page_dir_path)
+
     for page_file_name in page_files:
         filename_without_extension = os.path.splitext(page_file_name)[0]
         filename_segments = filename_without_extension.split(config['paged_content_sequence_separator'])
@@ -5956,6 +5969,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             fake_csv_record = collections.OrderedDict()
             fake_csv_record['title'] = page_title
             fake_csv_record['file'] = page_file_path
+            fake_csv_record[config['id_field']] = parent_csv_record[config['id_field']]
             media_response_status_code = create_media(config, page_file_path, 'file', node_nid, fake_csv_record)
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
@@ -5966,6 +5980,31 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 else:
                     logging.info("Media for %s created.", page_file_path)
                     print(f"+ Media for {page_file_path} created.")
+
+            if config['paged_content_from_directories'] is True:
+                if 'paged_content_additional_page_media' in config:
+                    for extension_mapping in config['paged_content_additional_page_media']:
+                        for additional_page_media_use_term, additional_page_media_extension in extension_mapping.items():
+                            if str(additional_page_media_use_term).startswith('http'):
+                                additional_page_media_use_tid = get_term_id_from_uri(config, additional_page_media_use_term)
+                            else:
+                                additional_page_media_use_tid = additional_page_media_use_term
+                            page_file_base_path = os.path.splitext(page_file_path)[0]
+                            additional_page_media_file_path = page_file_base_path + '.' + additional_page_media_extension.strip()
+                            if check_file_exists(config, additional_page_media_file_path):
+                                media_response_status_code = create_media(config, additional_page_media_file_path, None, node_nid, fake_csv_record, media_use_tid=additional_page_media_use_tid)
+                                if media_response_status_code in allowed_media_response_codes:
+                                    if media_response_status_code is False:
+                                        print(f"- ERROR: Media for {additional_page_media_file_path} not created. See log for more information.")
+                                        logging.error("Media for %s not created. HTTP response code was %s.",
+                                                      page_file_base_path + '.' + additional_page_media_extension, media_response_status_code)
+                                        continue
+                                    else:
+                                        logging.info("Media for %s created.", additional_page_media_file_path)
+                                        print(f"+ Media for {additional_page_media_file_path} created.")
+                            else:
+                                logging.warning(f"{additional_page_media_file_path} not found.")
+
         else:
             print(f"Error: Node for page {page_identifier} not created. See log for more information.")
             logging.error('Node for page "%s" not created, HTTP response code was %s, response body was %s', page_identifier, node_response.status_code, node_response.text)

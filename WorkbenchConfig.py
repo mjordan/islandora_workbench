@@ -130,7 +130,7 @@ class WorkbenchConfig:
     def get_media_track_file_fields(self):
         return {'audio': 'field_track', 'video': 'field_track'}
 
-    # Gets the field->text output format mapping dict from the opional 'field_text_format_ids'
+    # Gets the field->text output format mapping dict from the optional 'field_text_format_ids'
     # config setting. If the setting is absent, returns an empty dict.
     def get_field_level_text_output_formats(self):
         user_config = self.get_user_config()
