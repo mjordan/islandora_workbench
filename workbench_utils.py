@@ -5788,6 +5788,10 @@ def validate_taxonomy_reference_value(config, field_definitions, csv_field_name,
 def write_to_output_csv(config, id, node_json, input_csv_row=None):
     """Appends a row to the CVS file located at config['output_csv'].
     """
+    # Importing the workbench_fields module at the top of this module with the
+    # rest of the imports causes a circular import exception, so we do it here.
+    import workbench_fields
+
     if config['task'] == 'create_from_files':
         config['id_field'] = 'ID'
 
@@ -5804,6 +5808,8 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         'langcode',
         'default_langcode',
         'uid',
+        'promote',
+        'sticky',
         'type',
         'revision_timestamp',
         'revision_translation_affected',
@@ -5813,18 +5819,18 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         'content_translation_outdated']
     for field_to_remove in fields_to_remove:
         if field_to_remove in node_field_names:
+            # print("DEBUG", field_to_remove)
             node_field_names.remove(field_to_remove)
+
+    reserved_fields = ['file', 'parent_id', 'url_alias', 'image_alt_text', 'checksum']
 
     csvfile = open(config['output_csv'], 'a+', encoding='utf-8')
 
     if input_csv_row is not None and config['output_csv_include_input_csv'] is True:
-        # Remove fields from the input CSV that would overwrite field data from the new node.
         input_csv_row_fieldnames = list(input_csv_row.keys())
-        if 'title' in input_csv_row:
-            input_csv_row_fieldnames.remove('title')
-        if 'status' in input_csv_row:
-            input_csv_row_fieldnames.remove('status')
-        node_field_names.extend(input_csv_row_fieldnames)
+        for reserved_field in reserved_fields:
+            if reserved_field in input_csv_row:
+                input_csv_row_fieldnames.remove(reserved_field)
 
     writer = csv.DictWriter(csvfile, fieldnames=node_field_names, lineterminator="\n")
 
@@ -5842,12 +5848,16 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     row['title'] = node_dict['title'][0]['value']
     row['status'] = node_dict['status'][0]['value']
     if input_csv_row is not None and config['output_csv_include_input_csv'] is True:
-        # Remove columns from the input CSV that would overwrite field data from the new node.
-        if 'title' in input_csv_row:
-            del input_csv_row['title']
-        if 'status' in input_csv_row:
-            del input_csv_row['status']
+        field_definitions = get_field_definitions(config, 'node')
+
+        for reserved_field in reserved_fields:
+            if reserved_field in input_csv_row:
+                del input_csv_row[reserved_field]
+
         # Then append the input row to the new node data.
+        for field_name in node_dict:
+            if field_name.startswith('field_'):
+                row[field_name] = serialize_field_json(config, field_definitions, field_name, node_dict[field_name])
         row.update(input_csv_row)
     writer.writerow(row)
     csvfile.close()
