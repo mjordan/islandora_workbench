@@ -7616,3 +7616,34 @@ def preprocess_csv(config, row, field):
             message = 'Preprocess command ' + command + ' failed with return code ' + str(return_code)
             logging.error(message)
             return row[field]
+
+
+def get_node_media_summary(config, nid):
+    """Generates a formatted summary of what media a node has.
+
+    Params
+    ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        nid : string
+            Node ID of the node being linked to by the media.
+
+    Return
+    ------
+        str
+            The summary.
+    """
+    media_use_terms = []
+    url = f"/node/{nid}/media?_format=json"
+    response = issue_request(config, 'GET', url)
+    media_list = json.loads(response.text)
+    for media in media_list:
+        for media_use_term in media['field_media_use']:
+            # term_name = get_term_name(config, media_use_term['target_id'])
+            # @todo: if config contained a list of media use term URIs, we could
+            # compare that list to the one generated here for a media and report
+            # discrepancies.
+            term_info = get_all_representations_of_term(config, term_id=media_use_term['target_id'])
+            media_use_terms.append(term_info['name'])
+
+    return '; '.join(media_use_terms).strip()
