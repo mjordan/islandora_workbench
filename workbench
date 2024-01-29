@@ -1923,6 +1923,10 @@ def get_media_report_from_view():
             row['Islandora model'] = get_term_name(config, node['field_model'][0]['target_id'])
             row['Media'] = get_node_media_summary(config, node['nid'][0]['value'])
 
+            message = f"Exporting media report for node {node['nid'][0]['value']} \"{node['title'][0]['value']}\"."
+            logging.info(message)
+            print(message)
+
             writer.writerow(row)
 
     # Loop through the remaining pages of the View output, until we encounter an empty page.
@@ -1948,6 +1952,10 @@ def get_media_report_from_view():
                 row['Content type'] = node['type'][0]['target_id']
                 row['Islandora model'] = get_term_name(config, node['field_model'][0]['target_id'])
                 row['Media'] = get_node_media_summary(config, node['nid'][0]['value'])
+
+                message = f"Exporting media report for node {node['nid'][0]['value']} \"{node['title'][0]['value']}\"."
+                logging.info(message)
+                print(message)
 
                 writer.writerow(row)
 
