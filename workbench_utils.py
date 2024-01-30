@@ -7633,13 +7633,18 @@ def get_node_media_summary(config, nid):
         str
             The summary.
     """
-    media_use_terms = []
-    url = f"/node/{nid}/media?_format=json"
-    response = issue_request(config, 'GET', url)
-    media_list = json.loads(response.text)
-    for media in media_list:
-        for media_use_term in media['field_media_use']:
-            term_name = get_term_name(config, media_use_term['target_id'])
-            media_use_terms.append(term_name)
-    media_use_terms.sort()
-    return '; '.join(media_use_terms).strip()
+    try:
+        media_use_terms = []
+        url = f"/node/{nid}/media?_format=json"
+        response = issue_request(config, 'GET', url)
+        media_list = json.loads(response.text)
+        for media in media_list:
+            for media_use_term in media['field_media_use']:
+                term_name = get_term_name(config, media_use_term['target_id'])
+                media_use_terms.append(term_name)
+        media_use_terms.sort()
+        return '; '.join(media_use_terms).strip()
+    except Exception as e:
+        message = f"Getting media list for \"{config['host']}{url}\" returned an error. See log for more detail."
+        print(f"Error: {message}")
+        logging.error(f"{message}: {e}")
