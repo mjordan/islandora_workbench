@@ -7645,6 +7645,6 @@ def get_node_media_summary(config, nid):
         media_use_terms.sort()
         return '; '.join(media_use_terms).strip()
     except Exception as e:
-        message = f"Getting media list for \"{config['host']}{url}\" returned an error. See log for more detail."
-        print(f"Error: {message}")
-        logging.error(f"{message}: {e}")
+        message = f"Getting media list for \"{config['host']}{url}\" returned an error."
+        print(f"Error: {message} See log for more detail.")
+        logging.error(f"{message} Detail: {e}")
