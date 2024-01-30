@@ -1873,11 +1873,7 @@ def get_media_report_from_view():
        https://www.drupal.org/project/drupal/issues/2982729 is resolved, since
        we have no way of knowing how many items are in the View output til then.
     """
-    if 'expected_media' in config:
-        report_type_message = ' Report will list Media Use terms not registered in the "expected_media" config setting.'
-    else:
-        report_type_message = ' Report will list all Media Use terms used in all media for each node.'
-    message = '"Get media report from View" task started using config file ' + args.config + '.' + report_type_message
+    message = '"Get media report from View" task started using config file ' + args.config + '.'
     print(message)
     logging.info(message)
 
@@ -1889,8 +1885,8 @@ def get_media_report_from_view():
         logging.error(message + " HTTP status code is " + str(view_path_status_code) + ".")
         sys.exit("Error: " + message + " See log for more information.")
 
-    if config['media_report_csv_file_path'] is not None:
-        csv_file_path = config['media_report_csv_file_path']
+    if config['export_csv_file_path'] is not None:
+        csv_file_path = config['export_csv_file_path']
     else:
         csv_file_path = os.path.join(config['input_dir'], os.path.basename(args.config).split('.')[0] + '.csv_file_with_media_report_from_view')
     if os.path.exists(csv_file_path):

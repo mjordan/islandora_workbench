@@ -1465,6 +1465,7 @@ def check_input(config, args):
         'create_terms',
         'export_csv',
         'get_data_from_view',
+        'get_media_report_from_view',
         'update_terms'
     ]
     joiner = ', '
@@ -1597,7 +1598,7 @@ def check_input(config, args):
                 message = 'Please check your config file for required values: ' + joiner.join(create_terms_required_options) + '.'
                 logging.error(message)
                 sys.exit('Error: ' + message)
-    if config['task'] == 'get_data_from_view':
+    if config['task'] == 'get_data_from_view' or config['task'] == 'get_media_report_from_view':
         get_data_from_view_required_options = [
             'task',
             'host',
@@ -1630,7 +1631,7 @@ def check_input(config, args):
 
     # Perform checks on get_data_from_view tasks. Since this task doesn't use input_dir, input_csv, etc.,
     # we exit immediately after doing these checks.
-    if config['task'] == 'get_data_from_view':
+    if config['task'] == 'get_data_from_view' or config['task'] == 'get_media_report_from_view':
         # First, ping the View.
         view_parameters = '&'.join(config['view_parameters']) if 'view_parameters' in config else ''
         view_url = config['host'] + '/' + config['view_path'].lstrip('/') + '?page=0&' + view_parameters
