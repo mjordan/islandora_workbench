@@ -1873,7 +1873,11 @@ def get_media_report_from_view():
        https://www.drupal.org/project/drupal/issues/2982729 is resolved, since
        we have no way of knowing how many items are in the View output til then.
     """
-    message = '"Get media report from View" task started using config file ' + args.config + '.'
+    if 'expected_media' in config:
+        report_type_message = ' Report will list Media Use terms not registered in the "expected_media" config setting.'
+    else:
+        report_type_message = ' Report will list all Media Use terms used in all media for each node.'
+    message = '"Get media report from View" task started using config file ' + args.config + '.' + report_type_message
     print(message)
     logging.info(message)
 

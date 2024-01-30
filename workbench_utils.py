@@ -4378,7 +4378,7 @@ def get_all_representations_of_term(config, vocab_id=None, name=None, term_id=No
     Returns
     -------
     dict/False
-        A dictionary containing keys 'term_id', 'name', and 'uri. False if there is insufficient
+        A dictionary containing keys 'term_id', 'name', and 'uri'. False if there is insufficient
         information to get all representations of the term.
     """
     if term_id is not None and value_is_numeric(term_id):
@@ -7627,7 +7627,6 @@ def get_node_media_summary(config, nid):
             The configuration settings defined by workbench_config.get_config().
         nid : string
             Node ID of the node being linked to by the media.
-
     Return
     ------
         str
@@ -7639,11 +7638,7 @@ def get_node_media_summary(config, nid):
     media_list = json.loads(response.text)
     for media in media_list:
         for media_use_term in media['field_media_use']:
-            # term_name = get_term_name(config, media_use_term['target_id'])
-            # @todo: if config contained a list of media use term URIs, we could
-            # compare that list to the one generated here for a media and report
-            # discrepancies.
-            term_info = get_all_representations_of_term(config, term_id=media_use_term['target_id'])
-            media_use_terms.append(term_info['name'])
-
+            term_name = get_term_name(config, media_use_term['target_id'])
+            media_use_terms.append(term_name)
+    media_use_terms.sort()
     return '; '.join(media_use_terms).strip()
