@@ -122,7 +122,7 @@ class WorkbenchConfig:
             {'document': ['pdf', 'doc', 'docx', 'ppt', 'pptx']},
             {'file': ['tif', 'tiff', 'jp2', 'zip', 'tar']},
             {'audio': ['mp3', 'wav', 'aac']},
-            {'video': ['mp4']},
+            {'video': ['mp4', 'mov', 'wmv', 'avi', 'mts', 'flv', 'f4v', 'swf', 'mkv', 'webm', 'ogv', 'mpeg']},
             {'extracted_text': ['txt']}
         ]
 
