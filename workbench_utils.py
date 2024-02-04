@@ -5067,45 +5067,45 @@ def validate_media_track_fields(config, csv_data):
                                         logging.error(message)
                                         sys.exit('Error: ' + message)
 
-                                # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
-                                if 'media_use_tid' in row:
-                                    if row['media_use_tid'].startswith('http') and row['media_use_tid'] != 'http://pcdm.org/use#ServiceFile':
-                                        message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
-                                        logging.error(message)
-                                        sys.exit('Error: ' + message)
-                                    elif value_is_numeric(row['media_use_tid']):
-                                        media_use_uri = get_term_uri(config, row['media_use_tid'])
-                                        if media_use_uri != 'http://pcdm.org/use#ServiceFile':
+                                    # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
+                                    if 'media_use_tid' in row:
+                                        if row['media_use_tid'].startswith('http') and row['media_use_tid'] != 'http://pcdm.org/use#ServiceFile':
                                             message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
                                             logging.error(message)
                                             sys.exit('Error: ' + message)
-                                    else:
-                                        # It's a term name.
-                                        media_use_term_data = get_all_representations_of_term(config, vocab_id='islandora_media_use', name=row['media_use_tid'])
-                                        if media_use_term_data['uri'] != 'http://pcdm.org/use#ServiceFile':
-                                            message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" in your CSV value when creating media tracks."
-                                            logging.error(message)
-                                            sys.exit('Error: ' + message)
-                                else:
-                                    media_use_term_data = get_all_representations_of_term(config, uri='http://pcdm.org/use#ServiceFile')
-                                    if config['media_use_tid'] not in media_use_term_data.values():
-                                        message = f"{config['media_use_tid']} cannot be used as a value in your configuaration's \"media_use_tid\" setting when creating media tracks."
-                                        logging.error(message)
-                                        sys.exit('Error: ' + message)
-
-                                if config['nodes_only'] is False:
-                                    if len(field_value.strip()):
-                                        media_track_field_value_parts = field_value.split(':')
-                                        media_track_file_path_in_csv = media_track_field_value_parts[3]
-                                        if os.path.isabs(media_track_file_path_in_csv):
-                                            media_track_file_path = media_track_file_path_in_csv
+                                        elif value_is_numeric(row['media_use_tid']):
+                                            media_use_uri = get_term_uri(config, row['media_use_tid'])
+                                            if media_use_uri != 'http://pcdm.org/use#ServiceFile':
+                                                message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
+                                                logging.error(message)
+                                                sys.exit('Error: ' + message)
                                         else:
-                                            media_track_file_path = os.path.join(config['input_dir'], media_track_file_path_in_csv)
-                                        if not os.path.exists(media_track_file_path) or not os.path.isfile(media_track_file_path):
-                                            message = 'Media track file "' + media_track_file_path_in_csv + '" in row with ID "' + \
-                                                row[config['id_field']] + '" not found.'
+                                            # It's a term name.
+                                            media_use_term_data = get_all_representations_of_term(config, vocab_id='islandora_media_use', name=row['media_use_tid'])
+                                            if media_use_term_data['uri'] != 'http://pcdm.org/use#ServiceFile':
+                                                message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" in your CSV value when creating media tracks."
+                                                logging.error(message)
+                                                sys.exit('Error: ' + message)
+                                    else:
+                                        media_use_term_data = get_all_representations_of_term(config, uri='http://pcdm.org/use#ServiceFile')
+                                        if config['media_use_tid'] not in media_use_term_data.values():
+                                            message = f"{config['media_use_tid']} cannot be used as a value in your configuaration's \"media_use_tid\" setting when creating media tracks."
                                             logging.error(message)
                                             sys.exit('Error: ' + message)
+
+                                    if config['nodes_only'] is False:
+                                        if len(field_value.strip()):
+                                            media_track_field_value_parts = field_value.split(':')
+                                            media_track_file_path_in_csv = media_track_field_value_parts[3]
+                                            if os.path.isabs(media_track_file_path_in_csv):
+                                                media_track_file_path = media_track_file_path_in_csv
+                                            else:
+                                                media_track_file_path = os.path.join(config['input_dir'], media_track_file_path_in_csv)
+                                            if not os.path.exists(media_track_file_path) or not os.path.isfile(media_track_file_path):
+                                                message = 'Media track file "' + media_track_file_path_in_csv + '" in row with ID "' + \
+                                                    row[config['id_field']] + '" not found.'
+                                                logging.error(message)
+                                                sys.exit('Error: ' + message)
 
     if media_track_fields_present is True:
         message = "OK, media track field values in the CSV file validate."
