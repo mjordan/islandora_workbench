@@ -5024,7 +5024,7 @@ def validate_media_track_fields(config, csv_data):
     """Validate values in fields that are of type 'media_track'.
     """
     media_track_fields_present = False
-    # Must accommodate multiple media track fields in the same CSV (e.g. audio and vidoe media in the
+    # Must accommodate multiple media track fields in the same CSV (e.g. audio and video media in the
     # same CSV, each with its own track column). Therefore, we'll need to get the field definitions
     # for more than one media bundle.
     media_track_field_definitions = dict()
@@ -5045,7 +5045,7 @@ def validate_media_track_fields(config, csv_data):
                 for field_name in media_track_field_definitions[media_bundle_name].keys():
                     if media_track_field_definitions[media_bundle_name][field_name]['field_type'] == 'media_track':
                         fully_qualified_field_name = f"media:{media_bundle_name}:{field_name}"
-                        if fully_qualified_field_name in row:
+                        if fully_qualified_field_name in row and row[fully_qualified_field_name]:
                             media_track_fields_present = True
                             delimited_field_values = row[fully_qualified_field_name].split(config['subdelimiter'])
                             for field_value in delimited_field_values:
@@ -5068,30 +5068,11 @@ def validate_media_track_fields(config, csv_data):
                                         sys.exit('Error: ' + message)
 
                                 # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
-                                if 'media_use_tid' in row:
-                                    if row['media_use_tid'].startswith('http') and row['media_use_tid'] != 'http://pcdm.org/use#ServiceFile':
-                                        message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
-                                        logging.error(message)
-                                        sys.exit('Error: ' + message)
-                                    elif value_is_numeric(row['media_use_tid']):
-                                        media_use_uri = get_term_uri(config, row['media_use_tid'])
-                                        if media_use_uri != 'http://pcdm.org/use#ServiceFile':
-                                            message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
-                                            logging.error(message)
-                                            sys.exit('Error: ' + message)
-                                    else:
-                                        # It's a term name.
-                                        media_use_term_data = get_all_representations_of_term(config, vocab_id='islandora_media_use', name=row['media_use_tid'])
-                                        if media_use_term_data['uri'] != 'http://pcdm.org/use#ServiceFile':
-                                            message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" in your CSV value when creating media tracks."
-                                            logging.error(message)
-                                            sys.exit('Error: ' + message)
-                                else:
-                                    media_use_term_data = get_all_representations_of_term(config, uri='http://pcdm.org/use#ServiceFile')
-                                    if config['media_use_tid'] not in media_use_term_data.values():
-                                        message = f"{config['media_use_tid']} cannot be used as a value in your configuaration's \"media_use_tid\" setting when creating media tracks."
-                                        logging.error(message)
-                                        sys.exit('Error: ' + message)
+                                service_file_exists = service_file_present(config, row['media_use_tid'])
+                                if service_file_exists == False:
+                                    message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
+                                    logging.error(message)
+                                    sys.exit('Error: ' + message)
 
                                 if config['nodes_only'] is False:
                                     if len(field_value.strip()):
@@ -7648,3 +7629,18 @@ def get_node_media_summary(config, nid):
         message = f"Getting media list for \"{config['host']}{url}\" returned an error."
         print(f"Error: {message} See log for more detail.")
         logging.error(f"{message} Detail: {e}")
+
+def service_file_present(config, input):
+    service_uri = 'http://pcdm.org/use#ServiceFile'
+    candidates = input.split('|')
+    for candidate in candidates:
+        candidate = candidate.strip()
+        if candidate == service_uri:
+            return True
+        if candidate.isnumeric():
+            if get_term_uri(config, candidate) == service_uri:
+                return True
+        name_data = get_all_representations_of_term(config,  vocab_id = 'islandora_media_use', name = candidate)
+        if name_data['uri'] and name_data['uri'] == service_uri:
+            return True
+    return False
