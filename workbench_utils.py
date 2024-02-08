@@ -14,6 +14,7 @@ import copy
 import logging
 import datetime
 import requests
+requests.packages.urllib3.disable_warnings()
 import subprocess
 import hashlib
 import mimetypes
@@ -29,7 +30,6 @@ import itertools
 import http.client
 import sqlite3
 import requests_cache
-
 from rich.traceback import install
 install()
 
@@ -3732,7 +3732,7 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                 media_track_entries = split_media_track_string(config, csv_row[fully_qualified_media_track_field_name])
                 for media_track_entry in media_track_entries:
                     media_track_field_name_parts = fully_qualified_media_track_field_name.split(':')
-                    create_track_file_result = create_file(config, media_track_entry['file_path'], media_track_field_name_parts[2], csv_row, node_id)
+                    create_track_file_result = create_file(config, media_track_entry['file_path'], fully_qualified_media_track_field_name, csv_row, node_id)
                     if create_track_file_result is not False and isinstance(create_track_file_result, int):
                         # /entity/file/663?_format=json will return JSON containing the file's 'uri'.
                         track_file_info_response = issue_request(config, 'GET', f"/entity/file/{create_track_file_result}?_format=json")
@@ -3751,9 +3751,10 @@ def create_media(config, filename, file_fieldname, node_id, csv_row, media_use_t
                         # If there are any failures, proceed with creating the parent media.
                         logging.error(f"Media track using {media_track_entry['file_path']} not created; create_file returned {create_track_file_result}.")
 
-                # Set the "default" attribute of the first media track.
-                media_track_field_data[0]['default'] = True
-                media_json[media_track_field_name_parts[2]] = media_track_field_data
+                    # Set the "default" attribute of the first media track.
+                    if media_track_field_data:
+                        media_track_field_data[0]['default'] = True
+                        media_json[media_track_field_name_parts[2]] = media_track_field_data
 
         media_endpoint_path = '/entity/media?_format=json' if config['standalone_media_url'] else '/entity/media'
         media_headers = {
