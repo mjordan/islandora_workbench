@@ -14,7 +14,6 @@ import copy
 import logging
 import datetime
 import requests
-requests.packages.urllib3.disable_warnings()
 import subprocess
 import hashlib
 import mimetypes
@@ -32,6 +31,9 @@ import sqlite3
 import requests_cache
 from rich.traceback import install
 install()
+
+## Uncomment to supress SSL warnings
+# requests.packages.urllib3.disable_warnings()
 
 # Set some global variables.
 yaml = YAML()
