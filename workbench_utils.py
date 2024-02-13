@@ -5070,6 +5070,7 @@ def validate_media_track_fields(config, csv_data):
                                         logging.error(message)
                                         sys.exit('Error: ' + message)
 
+
                                 # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
                                 service_file_exists = service_file_present(config, row['media_use_tid'])
                                 if service_file_exists == False:
@@ -5077,19 +5078,20 @@ def validate_media_track_fields(config, csv_data):
                                     logging.error(message)
                                     sys.exit('Error: ' + message)
 
-                                if config['nodes_only'] is False:
-                                    if len(field_value.strip()):
-                                        media_track_field_value_parts = field_value.split(':')
-                                        media_track_file_path_in_csv = media_track_field_value_parts[3]
-                                        if os.path.isabs(media_track_file_path_in_csv):
-                                            media_track_file_path = media_track_file_path_in_csv
-                                        else:
-                                            media_track_file_path = os.path.join(config['input_dir'], media_track_file_path_in_csv)
-                                        if not os.path.exists(media_track_file_path) or not os.path.isfile(media_track_file_path):
-                                            message = 'Media track file "' + media_track_file_path_in_csv + '" in row with ID "' + \
-                                                row[config['id_field']] + '" not found.'
-                                            logging.error(message)
-                                            sys.exit('Error: ' + message)
+
+                                    if config['nodes_only'] is False:
+                                        if len(field_value.strip()):
+                                            media_track_field_value_parts = field_value.split(':')
+                                            media_track_file_path_in_csv = media_track_field_value_parts[3]
+                                            if os.path.isabs(media_track_file_path_in_csv):
+                                                media_track_file_path = media_track_file_path_in_csv
+                                            else:
+                                                media_track_file_path = os.path.join(config['input_dir'], media_track_file_path_in_csv)
+                                            if not os.path.exists(media_track_file_path) or not os.path.isfile(media_track_file_path):
+                                                message = 'Media track file "' + media_track_file_path_in_csv + '" in row with ID "' + \
+                                                    row[config['id_field']] + '" not found.'
+                                                logging.error(message)
+                                                sys.exit('Error: ' + message)
 
     if media_track_fields_present is True:
         message = "OK, media track field values in the CSV file validate."
