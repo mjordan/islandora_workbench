@@ -1538,7 +1538,8 @@ def check_input(config, args):
             'host',
             'username',
             'password',
-            'input_csv']
+            'input_csv',
+            'media_type']
         for update_media_required_option in update_media_required_options:
             if update_media_required_option not in config_keys:
                 message = 'Please check your config file for required values: ' + joiner.join(update_media_required_options) + '.'
