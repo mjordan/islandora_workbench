@@ -32,9 +32,6 @@ import requests_cache
 from rich.traceback import install
 install()
 
-## Uncomment to supress SSL warnings
-# requests.packages.urllib3.disable_warnings()
-
 # Set some global variables.
 yaml = YAML()
 
@@ -1695,7 +1692,7 @@ def check_input(config, args):
 
     check_csv_file_exists(config, 'node_fields')
 
-    # Check column headers in CSV file. Does not apply to add_media or update_media tasks.
+    # Check column headers in CSV file. Does not apply to add_media or update_media tasks (handled just below).
     csv_data = get_csv_data(config)
     if config['csv_headers'] == 'labels' and config['task'] in ['create', 'update', 'create_terms', 'update_terms']:
         if config['task'] == 'create_terms' or config['task'] == 'update_terms':
@@ -1707,6 +1704,21 @@ def check_input(config, args):
         csv_column_headers = replace_field_labels_with_names(config, csv_data.fieldnames)
     else:
         csv_column_headers = csv_data.fieldnames
+
+    if config['task'] in ['add_media', 'update_media']:
+        field_definitions = get_field_definitions(config, 'media', config['media_type'])
+        base_media_fields = ['status', 'uid', 'langcode']
+        drupal_fieldnames = []
+        for drupal_fieldname in field_definitions:
+            drupal_fieldnames.append(drupal_fieldname)
+
+        for csv_column_header in csv_column_headers:
+            if csv_column_header not in drupal_fieldnames and csv_column_header != 'media_id' and csv_column_header != 'file' and csv_column_header not in base_media_fields:
+                logging.error('CSV column header %s does not match any Drupal field names in the %s media type', csv_column_header, config['media_type'])
+                sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names in the "' + config['media_type'] + '" media type.')
+        message = 'OK, CSV column headers match Drupal field names.'
+        print(message)
+        logging.info(message)
 
     # Check whether each row contains the same number of columns as there are headers.
     row_count = 0
@@ -2074,21 +2086,6 @@ def check_input(config, args):
                 message = "The 'term_name' column in row for term '" + row['term_name'] + "' of your CSV file exceeds Drupal's maximum length of 255 characters."
                 logging.error(message)
                 sys.exit('Error: ' + message)
-
-    if config['task'] == 'update_media':
-        field_definitions = get_field_definitions(config, 'media', config['media_type'])
-        base_media_fields = ['status', 'uid', 'langcode']
-        drupal_fieldnames = []
-        for drupal_fieldname in field_definitions:
-            drupal_fieldnames.append(drupal_fieldname)
-
-        for csv_column_header in csv_column_headers:
-            if csv_column_header not in drupal_fieldnames and csv_column_header != 'media_id' and csv_column_header not in base_media_fields:
-                logging.error('CSV column header %s does not match any Drupal field names in the %s media type', csv_column_header, config['media_type'])
-                sys.exit('Error: CSV column header "' + csv_column_header + '" does not match any Drupal field names in the "' + config['media_type'] + '" media type.')
-        message = 'OK, CSV column headers match Drupal field names.'
-        print(message)
-        logging.info(message)
 
     if config['task'] == 'create_terms' or config['task'] == 'update_terms':
         # Check that all required fields are present in the CSV.
@@ -5070,14 +5067,12 @@ def validate_media_track_fields(config, csv_data):
                                         logging.error(message)
                                         sys.exit('Error: ' + message)
 
-
                                 # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
                                 service_file_exists = service_file_present(config, row['media_use_tid'])
-                                if service_file_exists == False:
+                                if service_file_exists is False:
                                     message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
                                     logging.error(message)
                                     sys.exit('Error: ' + message)
-
 
                                     if config['nodes_only'] is False:
                                         if len(field_value.strip()):
@@ -7635,6 +7630,7 @@ def get_node_media_summary(config, nid):
         print(f"Error: {message} See log for more detail.")
         logging.error(f"{message} Detail: {e}")
 
+
 def service_file_present(config, input):
     service_uri = 'http://pcdm.org/use#ServiceFile'
     candidates = input.split('|')
@@ -7645,7 +7641,7 @@ def service_file_present(config, input):
         if candidate.isnumeric():
             if get_term_uri(config, candidate) == service_uri:
                 return True
-        name_data = get_all_representations_of_term(config,  vocab_id = 'islandora_media_use', name = candidate)
+        name_data = get_all_representations_of_term(config, vocab_id='islandora_media_use', name=candidate)
         if name_data['uri'] and name_data['uri'] == service_uri:
             return True
     return False

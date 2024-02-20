@@ -418,7 +418,7 @@ def update():
     field_definitions = get_field_definitions(config, 'node')
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
-    invalid_target_ids = []
+    # invalid_target_ids = []
 
     if config['log_term_creation'] is False:
         logging.info("'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged.")
@@ -1237,7 +1237,7 @@ def update_media() -> None:
         for custom_field in custom_fields:
             media_has_all_fields = True
             # If media doesn't have the field, log that fact and skip updating the field.
-            reserved_fields = ['published', 'url_alias']
+            reserved_fields = ['published', 'url_alias', 'file', 'revision_log']
             if custom_field not in json.loads(ping_media_result) and custom_field not in reserved_fields:
                 message = f'Media {row["media_id"]} does not have a "{custom_field}" field, skipping update.'
                 print(f'ERROR: ' + message)
@@ -1254,43 +1254,41 @@ def update_media() -> None:
                 if config['update_mode'] != 'delete':
                     continue
 
-            if custom_field == 'revision_log':
-                continue
+            if custom_field not in reserved_fields:
+                # Entity reference fields (taxonomy term and node).
+                if field_definitions[custom_field]['field_type'] == 'entity_reference':
+                    entity_reference_field = workbench_fields.EntityReferenceField()
+                    patch_request_json = entity_reference_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
 
-            # Entity reference fields (taxonomy term and node).
-            if field_definitions[custom_field]['field_type'] == 'entity_reference':
-                entity_reference_field = workbench_fields.EntityReferenceField()
-                patch_request_json = entity_reference_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+                # Entity reference revisions fields (paragraphs).
+                elif field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
+                    entity_reference_revisions_field = workbench_fields.EntityReferenceRevisionsField()
+                    patch_request_json = entity_reference_revisions_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
 
-            # Entity reference revisions fields (paragraphs).
-            elif field_definitions[custom_field]['field_type'] == 'entity_reference_revisions':
-                entity_reference_revisions_field = workbench_fields.EntityReferenceRevisionsField()
-                patch_request_json = entity_reference_revisions_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+                # Typed relation fields (currently, only taxonomy term).
+                elif field_definitions[custom_field]['field_type'] == 'typed_relation':
+                    typed_relation_field = workbench_fields.TypedRelationField()
+                    patch_request_json = typed_relation_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
 
-            # Typed relation fields (currently, only taxonomy term).
-            elif field_definitions[custom_field]['field_type'] == 'typed_relation':
-                typed_relation_field = workbench_fields.TypedRelationField()
-                patch_request_json = typed_relation_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+                # Geolocation fields.
+                elif field_definitions[custom_field]['field_type'] == 'geolocation':
+                    geolocation_field = workbench_fields.GeolocationField()
+                    patch_request_json = geolocation_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
 
-            # Geolocation fields.
-            elif field_definitions[custom_field]['field_type'] == 'geolocation':
-                geolocation_field = workbench_fields.GeolocationField()
-                patch_request_json = geolocation_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+                # Link fields.
+                elif field_definitions[custom_field]['field_type'] == 'link':
+                    link_field = workbench_fields.LinkField()
+                    patch_request_json = link_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
 
-            # Link fields.
-            elif field_definitions[custom_field]['field_type'] == 'link':
-                link_field = workbench_fields.LinkField()
-                patch_request_json = link_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+                # Authority Link fields.
+                elif field_definitions[custom_field]['field_type'] == 'authority_link':
+                    link_field = workbench_fields.AuthorityLinkField()
+                    patch_request_json = link_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
 
-            # Authority Link fields.
-            elif field_definitions[custom_field]['field_type'] == 'authority_link':
-                link_field = workbench_fields.AuthorityLinkField()
-                patch_request_json = link_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
-
-            # For non-entity reference and non-typed relation fields (text, etc.).
-            else:
-                simple_field = workbench_fields.SimpleField()
-                patch_request_json = simple_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
+                # For non-entity reference and non-typed relation fields (text, etc.).
+                else:
+                    simple_field = workbench_fields.SimpleField()
+                    patch_request_json = simple_field.update(config, field_definitions, patch_request_json, row, custom_field, media_field_values[custom_field])
 
         # Before the patch requests, we delete the existing media/track files if the user wants to replace them.
         # Delete the old media file.
@@ -2090,7 +2088,7 @@ def update_terms():
     field_definitions = get_field_definitions(config, 'taxonomy_term', config['vocab_id'])
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
-    invalid_target_ids = []
+    # invalid_target_ids = []
 
     if config['log_term_creation'] is False:
         logging.info("'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged.")
