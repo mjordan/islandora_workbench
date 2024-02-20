@@ -39,6 +39,12 @@ Metadata, files, and Drupal configurations are, in the real world, extremly comp
 
 Using Workbench and reporting problems is the best way you can help make it better!
 
+### Linting
+
+All code must be formatted using [black](https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html)
+
+You can automatically style your code [using black in your IDE of choice](https://black.readthedocs.io/en/stable/integrations/editors.html).
+
 ### Documentation and code
 
 * If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
