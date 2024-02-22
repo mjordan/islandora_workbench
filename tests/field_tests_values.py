@@ -16,21 +16,19 @@ class TestSimpleField(unittest.TestCase):
 
     def test_simple_field_edtf_validate(self):
         config = dict()
-        field_definitions = {
-            'field_foo': {
-                'field_type': 'edtf'
-            }
-        }
+        field_definitions = {"field_foo": {"field_type": "edtf"}}
 
         with self.assertLogs() as message:
-            input = ['1900', '1xxx', '1901', '1902']
+            input = ["1900", "1xxx", "1901", "1902"]
             field = workbench_fields.SimpleField()
-            output = field.remove_invalid_values(config, field_definitions, 'field_foo', input)
-            self.assertEqual(output, ['1900', '1901', '1902'])
-            self.assertRegex(str(message.output), r'is not a valid EDTF field value.')
+            output = field.remove_invalid_values(
+                config, field_definitions, "field_foo", input
+            )
+            self.assertEqual(output, ["1900", "1901", "1902"])
+            self.assertRegex(str(message.output), r"is not a valid EDTF field value.")
 
 
-'''
+"""
 class TestGeolocationField(unittest.TestCase):
 
     def test_simple_field_geolocation_validate(self):
@@ -65,25 +63,34 @@ class TestLinkField(unittest.TestCase):
             output = field.remove_invalid_values(config, field_definitions, 'field_foo', input)
             self.assertEqual(output, ['https://example.com/foo', 'http://example.com%%bar'])
             self.assertRegex(str(message.output), r'is not a valid Link field value')
-'''
+"""
+
 
 class TestAuthorityLinkField(unittest.TestCase):
 
     def test_authority_link_field_validate(self):
         config = dict()
         field_definitions = {
-            'field_foo': {
-                'field_type': 'authority_link',
-                'authority_sources': ['foo', 'bar']
+            "field_foo": {
+                "field_type": "authority_link",
+                "authority_sources": ["foo", "bar"],
             }
         }
 
         with self.assertLogs() as message:
-            input = ['foo%%https://foo.com%%Foo authority record', 'xxx%%https://xxx.com']
+            input = [
+                "foo%%https://foo.com%%Foo authority record",
+                "xxx%%https://xxx.com",
+            ]
             field = workbench_fields.AuthorityLinkField()
-            output = field.remove_invalid_values(config, field_definitions, 'field_foo', input)
-            self.assertEqual(output, ['foo%%https://foo.com%%Foo authority record'])
-            self.assertRegex(str(message.output), r'xxx.*not a valid Authority Link field value')
+            output = field.remove_invalid_values(
+                config, field_definitions, "field_foo", input
+            )
+            self.assertEqual(output, ["foo%%https://foo.com%%Foo authority record"])
+            self.assertRegex(
+                str(message.output), r"xxx.*not a valid Authority Link field value"
+            )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

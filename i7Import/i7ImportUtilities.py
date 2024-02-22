@@ -17,58 +17,64 @@ class i7ImportUtilities:
         self.config = self.get_config()
         self.validate()
         logging.basicConfig(
-            filename=self.config['log_file_path'],
+            filename=self.config["log_file_path"],
             level=logging.INFO,
-            filemode='a',
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%d-%b-%y %H:%M:%S')
+            filemode="a",
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            datefmt="%d-%b-%y %H:%M:%S",
+        )
 
     default_config = {
-        'solr_base_url': 'http://localhost:8080/solr',
-        'islandora_base_url': 'http://localhost:8000',
-        'csv_output_path': 'islandora7_metadata.csv',
-        'obj_directory': '/tmp/objs',
-        'failure_report': 'failure_report.txt',
-        'log_file_path': 'islandora_content.log',
-        'fetch_files': False,
-        'get_file_url': True,
-        'namespace': '*',
-        'standard_fields': ['PID', 'RELS_EXT_hasModel_uri_s', 'RELS_EXT_isMemberOfCollection_uri_ms',
-                            'RELS_EXT_isMemberOf_uri_ms', 'RELS_EXT_isConstituentOf_uri_ms',
-                            'RELS_EXT_isPageOf_uri_ms'],
-        'field_pattern': 'mods_.*(_s|_ms)$',
-        'field_pattern_do_not_want': '(marcrelator|isSequenceNumberOf)',
-        'id_field': 'PID',
-        'id_start_number': 1,
-        'datastreams': ['OBJ', 'PDF'],
-        'debug': False,
-        'deep_debug': False,
-        'collection': False,
-        'collections': False,
-        'content_model': False,
-        'solr_filters': False,
-        'start': 0,
-        'rows': 100000
+        "solr_base_url": "http://localhost:8080/solr",
+        "islandora_base_url": "http://localhost:8000",
+        "csv_output_path": "islandora7_metadata.csv",
+        "obj_directory": "/tmp/objs",
+        "failure_report": "failure_report.txt",
+        "log_file_path": "islandora_content.log",
+        "fetch_files": False,
+        "get_file_url": True,
+        "namespace": "*",
+        "standard_fields": [
+            "PID",
+            "RELS_EXT_hasModel_uri_s",
+            "RELS_EXT_isMemberOfCollection_uri_ms",
+            "RELS_EXT_isMemberOf_uri_ms",
+            "RELS_EXT_isConstituentOf_uri_ms",
+            "RELS_EXT_isPageOf_uri_ms",
+        ],
+        "field_pattern": "mods_.*(_s|_ms)$",
+        "field_pattern_do_not_want": "(marcrelator|isSequenceNumberOf)",
+        "id_field": "PID",
+        "id_start_number": 1,
+        "datastreams": ["OBJ", "PDF"],
+        "debug": False,
+        "deep_debug": False,
+        "collection": False,
+        "collections": False,
+        "content_model": False,
+        "solr_filters": False,
+        "start": 0,
+        "rows": 100000,
     }
 
     def get_config(self):
         yaml = YAML()
         config = self.default_config
-        with open(self.config_location, 'r') as stream:
+        with open(self.config_location, "r") as stream:
             try:
                 loaded = yaml.load(stream)
             except OSError:
-                print('Failed')
+                print("Failed")
         for key, value in loaded.items():
             config[key] = value
-        if 'get_file_url' in loaded.keys() and 'fetch_files' not in loaded.keys():
-            config['fetch_files'] = False
-        if config['deep_debug']:
-            config['debug'] = True
+        if "get_file_url" in loaded.keys() and "fetch_files" not in loaded.keys():
+            config["fetch_files"] = False
+        if config["deep_debug"]:
+            config["debug"] = True
         return config
 
     def get_metadata_solr_request(self, location):
-        with open(location, 'r') as file:
+        with open(location, "r") as file:
             solr_metadata_request = file.read()
         return solr_metadata_request
 
@@ -76,10 +82,7 @@ class i7ImportUtilities:
         # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
         # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
         # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
-        map = {'image/jpeg': '.jpg',
-               'image/jp2': '.jp2',
-               'image/png': '.png'
-               }
+        map = {"image/jpeg": ".jpg", "image/jp2": ".jp2", "image/png": ".png"}
         if mimetype in map:
             return map[mimetype]
         else:
@@ -90,75 +93,89 @@ class i7ImportUtilities:
 
     def parse_rels_ext(self, pid):
         rels_ext_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/RELS-EXT/download"
-        if self.config['deep_debug']:
+        if self.config["deep_debug"]:
             print(f"\n{rels_ext_url}")
         try:
-            rels_ext_download_response = requests.get(url=rels_ext_url, allow_redirects=True)
+            rels_ext_download_response = requests.get(
+                url=rels_ext_url, allow_redirects=True
+            )
             if rels_ext_download_response.ok:
                 rel_ext = {}
                 rels_ext_xml = rels_ext_download_response.content.decode()
-                if self.config['deep_debug']:
+                if self.config["deep_debug"]:
                     print(rels_ext_xml)
                 root = ET.fromstring(rels_ext_xml)
-                description = root.find('.//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description')
+                description = root.find(
+                    ".//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description"
+                )
                 for x in description:
-                    tag = x.tag[x.tag.find('}') + 1:]
+                    tag = x.tag[x.tag.find("}") + 1 :]
                     text = x.text
                     if x.attrib.items():
                         text = next(iter(x.attrib.items()))[1]
-                        text = text[text.find('/') + 1:]
+                        text = text[text.find("/") + 1 :]
                     rel_ext[tag] = text
                 return rel_ext
             else:
                 message = f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}"
-                logging.error(f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}")
-                if self.config['debug']:
+                logging.error(
+                    f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}"
+                )
+                if self.config["debug"]:
                     print(message)
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
 
     def get_default_metadata_solr_request(self):
         # This query gets all fields in the index. Does not need to be user-configurable.
-        fields_solr_url = f"{self.config['solr_base_url']}/select?q=*:*&wt=csv&rows=0&fl=*"
+        fields_solr_url = (
+            f"{self.config['solr_base_url']}/select?q=*:*&wt=csv&rows=0&fl=*"
+        )
 
         # Get the complete field list from Solr and filter it. The filtered field list is
         # then used in another query to get the populated CSV data.
         try:
-            field_list_response = requests.get(url=fields_solr_url, allow_redirects=True)
+            field_list_response = requests.get(
+                url=fields_solr_url, allow_redirects=True
+            )
             raw_field_list = field_list_response.content.decode()
         except requests.exceptions.RequestException as e:
             raise SystemExit(e)
 
-        field_list = raw_field_list.split(',')
-        filtered_field_list = [keep for keep in field_list if re.search(self.config['field_pattern'], keep)]
-        filtered_field_list = [discard for discard in filtered_field_list if
-                               not re.search(self.config['field_pattern_do_not_want'], discard)]
+        field_list = raw_field_list.split(",")
+        filtered_field_list = [
+            keep for keep in field_list if re.search(self.config["field_pattern"], keep)
+        ]
+        filtered_field_list = [
+            discard
+            for discard in filtered_field_list
+            if not re.search(self.config["field_pattern_do_not_want"], discard)
+        ]
 
         # Add required fieldnames.
-        self.config['standard_fields'].reverse()
-        for standard_field in self.config['standard_fields']:
+        self.config["standard_fields"].reverse()
+        for standard_field in self.config["standard_fields"]:
             filtered_field_list.insert(0, standard_field)
-        fields_param = ','.join(filtered_field_list)
+        fields_param = ",".join(filtered_field_list)
         query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&start={self.config['start']}&rows={self.config['rows']}&fl={fields_param}"
 
-        if self.config['collection']:
-            collection = self.config['collection']
+        if self.config["collection"]:
+            collection = self.config["collection"]
             query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
-        if self.config['content_model']:
-            model = self.config['content_model']
+        if self.config["content_model"]:
+            model = self.config["content_model"]
             query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
-        if self.config['solr_filters']:
-            for key, value in self.config['solr_filters'].items():
+        if self.config["solr_filters"]:
+            for key, value in self.config["solr_filters"].items():
                 query = f'{query}&fq={key}:"{value}"'
         fedora_prefix = 'RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/'
-        if self.config['collections']:
-            collections = self.config['collections']
+        if self.config["collections"]:
+            collections = self.config["collections"]
             fedora_collections = []
             for collection in collections:
                 fedora_collections.append(f'{fedora_prefix}"{collection}"')
-            fq_string = "&fq=" + ' or '.join(fedora_collections)
-            query = f'{query}{fq_string}'
-
+            fq_string = "&fq=" + " or ".join(fedora_collections)
+            query = f"{query}{fq_string}"
 
         # Get the populated CSV from Solr, with the object namespace and field list filters applied.
         return query
@@ -166,33 +183,35 @@ class i7ImportUtilities:
     # Validates config.
     def validate(self):
         error_messages = []
-        if self.config['get_file_url'] and self.config['fetch_files']:
+        if self.config["get_file_url"] and self.config["fetch_files"]:
             message = f"'get_file_url' and 'fetch_files' cannot both be selected."
             error_messages.append(message)
         if error_messages:
-            sys.exit('Error: ' + message)
+            sys.exit("Error: " + message)
 
     # Gets file from i7 installation
     def get_i7_asset(self, pid, datastream):
         try:
             obj_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/{datastream}/download"
-            if self.config['get_file_url']:
+            if self.config["get_file_url"]:
                 obj_download_response = requests.head(url=obj_url, allow_redirects=True)
             else:
                 obj_download_response = requests.get(url=obj_url, allow_redirects=True)
             if obj_download_response.status_code == 200:
                 # Get MIMETYPE from 'Content-Type' header
-                obj_mimetype = obj_download_response.headers['content-type']
+                obj_mimetype = obj_download_response.headers["content-type"]
                 obj_extension = self.get_extension_from_mimetype(obj_mimetype)
-                if self.config['fetch_files'] and obj_extension:
-                    obj_filename = pid.replace(':', '_')
+                if self.config["fetch_files"] and obj_extension:
+                    obj_filename = pid.replace(":", "_")
                     obj_basename = obj_filename + obj_extension
                     # Save to file with name based on PID and extension based on MIMETYPE
-                    obj_file_path = os.path.join(self.config['obj_directory'], obj_basename)
-                    open(obj_file_path, 'wb+').write(obj_download_response.content)
+                    obj_file_path = os.path.join(
+                        self.config["obj_directory"], obj_basename
+                    )
+                    open(obj_file_path, "wb+").write(obj_download_response.content)
                     return obj_basename
 
-                if self.config['get_file_url'] and obj_extension:
+                if self.config["get_file_url"] and obj_extension:
                     return obj_url
                 if obj_download_response.status_code == 404:
                     logging.warning(f"{obj_url} not found.")
@@ -208,8 +227,8 @@ class i7ImportUtilities:
         table.add_column("Parameter", justify="left")
         table.add_column("Value", justify="left")
         for key, value in self.config.items():
-            if str(type(value)) == '<class \'ruamel.yaml.comments.CommentedMap\'>':
-                new_value = ''
+            if str(type(value)) == "<class 'ruamel.yaml.comments.CommentedMap'>":
+                new_value = ""
                 for k, v in value.items():
                     new_value += f"{k}: {v}\n"
                 value = new_value
