@@ -31,24 +31,13 @@ Complete documentation is [available](https://mjordan.github.io/islandora_workbe
 
 ## Contributing to Workbench
 
-Contributions to Islandora Workbench are welcome, but please open an issue before opening a pull request.
-
-### Testing
-
 Metadata, files, and Drupal configurations are, in the real world, extremly complex and varied. Testing Islandora Workbench in the wild is best way to help make it better for everyone. If you encouter a difficulty, an unexpected behavior, or Workbench crashes on you, reach out on the #islandoraworkbench Slack channel or open an issue in this Github repo.
 
+If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
+
+If you want to contribute code (bug fixes, optimizations, new features, etc.), consult the [developer's guide](https://mjordan.github.io/islandora_workbench_docs/development_guide/).
+
 Using Workbench and reporting problems is the best way you can help make it better!
-
-### Linting
-
-All code must be formatted using [black](https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html)
-
-You can automatically style your code [using black in your IDE of choice](https://black.readthedocs.io/en/stable/integrations/editors.html).
-
-### Documentation and code
-
-* If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
-* If you want to contribute code (bug fixes, optimizations, new features, etc.), consult the [developer's guide](https://mjordan.github.io/islandora_workbench_docs/development_guide/).
 
 ## Current maintainer
 
