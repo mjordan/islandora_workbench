@@ -722,7 +722,6 @@ def update():
             if custom_field == "revision_log":
                 continue
 
-
             # Assemble Drupal field structures from CSV data. If new field types are added to
             # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
