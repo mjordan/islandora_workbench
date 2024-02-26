@@ -262,7 +262,9 @@ def create():
             if "preprocessors" in config and custom_field in config["preprocessors"]:
                 row[custom_field] = preprocess_csv(config, row, custom_field)
 
-            # Assemble Drupal field structures for entity reference fields from CSV data.
+            # Assemble Drupal field structures from CSV data. If new field types are added to
+            # workbench_fields.py, they need to be registered in the following if/elif/else block.
+
             # Entity reference fields (taxonomy_term and node).
             if field_definitions[custom_field]["field_type"] == "entity_reference":
                 entity_reference_field = workbench_fields.EntityReferenceField()
@@ -719,6 +721,10 @@ def update():
 
             if custom_field == "revision_log":
                 continue
+
+
+            # Assemble Drupal field structures from CSV data. If new field types are added to
+            # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
             # Entity reference fields (taxonomy term and node).
             if field_definitions[custom_field]["field_type"] == "entity_reference":
@@ -1896,6 +1902,9 @@ def update_media() -> None:
                     continue
 
             if custom_field not in reserved_fields:
+                # Assemble Drupal field structures from CSV data. If new field types are added to
+                # workbench_fields.py, they need to be registered in the following if/elif/else block.
+
                 # Entity reference fields (taxonomy term and node).
                 if field_definitions[custom_field]["field_type"] == "entity_reference":
                     entity_reference_field = workbench_fields.EntityReferenceField()
@@ -3160,6 +3169,9 @@ def update_terms():
             # 'description' is a reserved CSV field.
             if custom_field == "description":
                 continue
+
+            # Assemble Drupal field structures from CSV data. If new field types are added to
+            # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
             # Entity reference fields (taxonomy term and node).
             if field_definitions[custom_field]["field_type"] == "entity_reference":

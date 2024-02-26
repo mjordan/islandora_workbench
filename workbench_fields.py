@@ -5,7 +5,16 @@
 
    Note: If new field types are added to this class, corresponding logic must be
    added to functions in other Workbench modules (e.g. workbench_utils, workbench)
-   that create or update nodes.
+   that create, update, or export Drupal entities. Those places are commented in the
+   code with either:
+
+   # Assemble Drupal field structures from CSV data. If new field types are added to
+   # workbench_fields.py, they need to be registered in the following if/elif/else block.
+
+   or
+
+   # Assemble CSV output Drupal field data. If new field types are added to
+   # workbench_fields.py, they need to be registered in the following if/elif/else block.
 """
 
 import json

@@ -4944,7 +4944,9 @@ def create_media(
                 if custom_field.startswith('media:'):
                     continue
 
-                # Assemble Drupal field structures for entity reference fields from CSV data.
+                # Assemble Drupal field structures from CSV data. If new field types are added to
+                # workbench_fields.py, they need to be registered in the following if/elif/else block.
+
                 # Entity reference fields (taxonomy_term and node).
                 if field_definitions[custom_field]['field_type'] == 'entity_reference':
                     entity_reference_field = workbench_fields.EntityReferenceField()
@@ -6121,7 +6123,9 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             if field_name == "description":
                 continue
 
-            # Assemble additional Drupal field structures for entity reference fields from CSV data.
+            # Assemble Drupal field structures from CSV data. If new field types are added to
+            # workbench_fields.py, they need to be registered in the following if/elif/else block.
+
             # Entity reference fields (taxonomy_term and node)
             if vocab_field_definitions[field_name]["field_type"] == "entity_reference":
                 entity_reference_field = workbench_fields.EntityReferenceField()
@@ -8020,7 +8024,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 ]:
                     continue
 
-                # Assemble Drupal field structures for entity reference fields from CSV data.
+                # Assemble Drupal field structures from CSV data. If new field types are added to
+                # workbench_fields.py, they need to be registered in the following if/elif/else block.
+
                 # Entity reference fields (taxonomy_term and node).
                 if (
                     field_definitions[required_field]["field_type"]
@@ -9328,6 +9334,9 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
     import workbench_fields
+
+    # Assemble CSV output Drupal field data. If new field types are added to
+    # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
     # Entity reference fields (taxonomy term and node).
     if field_definitions[field_name]["field_type"] == "entity_reference":
