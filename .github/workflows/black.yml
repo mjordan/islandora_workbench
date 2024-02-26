@@ -9,4 +9,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: psf/black@stable
         with:
-          options: "--check --verbose"
+          options: "--check --verbose --include '(\\.pyi?|\\.ipynb|workbench)$'"
