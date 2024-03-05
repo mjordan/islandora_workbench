@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:  
       matrix:  
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"] 
+        python-version: ["3.8", "3.9", "3.10", "3.11"] 
 
     steps:  
       - uses: actions/checkout@v4
@@ -23,3 +23,4 @@ jobs:
         run: |  
           python tests/unit_tests.py
           python tests/field_tests.py
+          python tests/csv_id_to_node_id_map_tests.py
