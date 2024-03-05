@@ -22,3 +22,4 @@ jobs:
       - name: Run unittests  
         run: |  
           python tests/unit_tests.py
+          python tests/field_tests.py
