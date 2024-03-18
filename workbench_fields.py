@@ -66,54 +66,30 @@ class SimpleField:
             text_format = config["text_format_id"]
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            field_values = []
-            subvalues = row[field_name].split(config["subdelimiter"])
-            subvalues = self.remove_invalid_values(
-                config, field_definitions, field_name, subvalues
+        field_values = []
+        subvalues = row[field_name].split(config["subdelimiter"])
+        subvalues = self.remove_invalid_values(
+            config, field_definitions, field_name, subvalues
+        )
+        subvalues = self.dedupe_values(subvalues)
+
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if -1 < cardinality < len(subvalues):
+            log_field_cardinality_violation(field_name, id_field, str(cardinality))
+            subvalues = subvalues[:cardinality]
+        for subvalue in subvalues:
+            subvalue = truncate_csv_value(
+                field_name, id_field, field_definitions[field_name], subvalue
             )
-            subvalues = self.dedupe_values(subvalues)
-            for subvalue in subvalues:
-                subvalue = truncate_csv_value(
-                    field_name, id_field, field_definitions[field_name], subvalue
-                )
-                if (
-                    "formatted_text" in field_definitions[field_name]
-                    and field_definitions[field_name]["formatted_text"] is True
-                ):
-                    field_values.append({"value": subvalue, "format": text_format})
-                else:
-                    field_values.append({"value": subvalue})
-            entity[field_name] = field_values
-        # Cardinality has a limit, including 1.
-        else:
-            field_values = []
-            subvalues = row[field_name].split(config["subdelimiter"])
-            subvalues = self.remove_invalid_values(
-                config, field_definitions, field_name, subvalues
-            )
-            subvalues = self.dedupe_values(subvalues)
-            if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                log_field_cardinality_violation(
-                    field_name,
-                    id_field,
-                    field_definitions[field_name]["cardinality"],
-                )
-            subvalues = subvalues[: field_definitions[field_name]["cardinality"]]
-            for subvalue in subvalues:
-                subvalue = truncate_csv_value(
-                    field_name, id_field, field_definitions[field_name], subvalue
-                )
-                if (
-                    "formatted_text" in field_definitions[field_name]
-                    and field_definitions[field_name]["formatted_text"] is True
-                ):
-                    field_values.append({"value": subvalue, "format": text_format})
-                else:
-                    field_values.append({"value": subvalue})
-            field_values = self.dedupe_values(field_values)
-            entity[field_name] = field_values
+            if (
+                "formatted_text" in field_definitions[field_name]
+                and field_definitions[field_name]["formatted_text"] is True
+            ):
+                field_values.append({"value": subvalue, "format": text_format})
+            else:
+                field_values.append({"value": subvalue})
+        field_values = self.dedupe_values(field_values)
+        entity[field_name] = field_values
 
         return entity
 
@@ -163,120 +139,62 @@ class SimpleField:
         if config["task"] == "update_media":
             entity_id_field = "media_id"
 
-        # Cardinality has a limit.
-        if field_definitions[field_name]["cardinality"] > 0:
-            if config["update_mode"] == "append":
-                subvalues = row[field_name].split(config["subdelimiter"])
-                subvalues = self.remove_invalid_values(
-                    config, field_definitions, field_name, subvalues
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "append":
+            subvalues = row[field_name].split(config["subdelimiter"])
+            subvalues = self.remove_invalid_values(
+                config, field_definitions, field_name, subvalues
+            )
+            for subvalue in subvalues:
+                subvalue = truncate_csv_value(
+                    field_name,
+                    row[entity_id_field],
+                    field_definitions[field_name],
+                    subvalue,
                 )
-                for subvalue in subvalues:
-                    subvalue = truncate_csv_value(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name],
-                        subvalue,
-                    )
-                    if (
-                        "formatted_text" in field_definitions[field_name]
-                        and field_definitions[field_name]["formatted_text"] is True
-                    ):
-                        entity[field_name].append(
-                            {"value": subvalue, "format": text_format}
-                        )
-                    else:
-                        entity[field_name].append({"value": subvalue})
-                entity[field_name] = self.dedupe_values(entity[field_name])
-                if len(entity[field_name]) > int(
-                    field_definitions[field_name]["cardinality"]
+                if (
+                    "formatted_text" in field_definitions[field_name]
+                    and field_definitions[field_name]["formatted_text"] is True
                 ):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
+                    entity[field_name].append(
+                        {"value": subvalue, "format": text_format}
                     )
-                    entity[field_name] = entity[field_name][
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = row[field_name].split(config["subdelimiter"])
-                subvalues = self.remove_invalid_values(
-                    config, field_definitions, field_name, subvalues
+                else:
+                    entity[field_name].append({"value": subvalue})
+            entity[field_name] = self.dedupe_values(entity[field_name])
+            if -1 < cardinality < len(entity[field_name]):
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
                 )
-                subvalues = self.dedupe_values(subvalues)
-                if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                    subvalues = subvalues[
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-                for subvalue in subvalues:
-                    subvalue = truncate_csv_value(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name],
-                        subvalue,
-                    )
-                    if (
-                        "formatted_text" in field_definitions[field_name]
-                        and field_definitions[field_name]["formatted_text"] is True
-                    ):
-                        field_values.append({"value": subvalue, "format": text_format})
-                    else:
-                        field_values.append({"value": subvalue})
-                field_values = self.dedupe_values(field_values)
-                entity[field_name] = field_values
-
-        # Cardinatlity is unlimited.
-        else:
-            if config["update_mode"] == "append":
-                field_values = []
-                subvalues = row[field_name].split(config["subdelimiter"])
-                subvalues = self.remove_invalid_values(
-                    config, field_definitions, field_name, subvalues
+                entity[field_name] = entity[field_name][:cardinality]
+        if config["update_mode"] == "replace":
+            field_values = []
+            subvalues = row[field_name].split(config["subdelimiter"])
+            subvalues = self.remove_invalid_values(
+                config, field_definitions, field_name, subvalues
+            )
+            subvalues = self.dedupe_values(subvalues)
+            if -1 < cardinality < len(subvalues):
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
                 )
-                for subvalue in subvalues:
-                    subvalue = truncate_csv_value(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name],
-                        subvalue,
-                    )
-                    if (
-                        "formatted_text" in field_definitions[field_name]
-                        and field_definitions[field_name]["formatted_text"] is True
-                    ):
-                        field_values.append({"value": subvalue, "format": text_format})
-                    else:
-                        field_values.append({"value": subvalue})
-                entity[field_name] = entity_field_values + field_values
-                entity[field_name] = self.dedupe_values(entity[field_name])
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = row[field_name].split(config["subdelimiter"])
-                subvalues = self.remove_invalid_values(
-                    config, field_definitions, field_name, subvalues
+                subvalues = subvalues[:cardinality]
+            for subvalue in subvalues:
+                subvalue = truncate_csv_value(
+                    field_name,
+                    row[entity_id_field],
+                    field_definitions[field_name],
+                    subvalue,
                 )
-                for subvalue in subvalues:
-                    subvalue = truncate_csv_value(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name],
-                        subvalue,
-                    )
-                    if (
-                        "formatted_text" in field_definitions[field_name]
-                        and field_definitions[field_name]["formatted_text"] is True
-                    ):
-                        field_values.append({"value": subvalue, "format": text_format})
-                    else:
-                        field_values.append({"value": subvalue})
-                entity[field_name] = field_values
-                entity[field_name] = self.dedupe_values(entity[field_name])
+                if (
+                    "formatted_text" in field_definitions[field_name]
+                    and field_definitions[field_name]["formatted_text"] is True
+                ):
+                    field_values.append({"value": subvalue, "format": text_format})
+                else:
+                    field_values.append({"value": subvalue})
+            field_values = self.dedupe_values(field_values)
+            entity[field_name] = field_values
 
         return entity
 
@@ -422,26 +340,18 @@ class GeolocationField:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            field_values = []
-            subvalues = split_geolocation_string(config, row[field_name])
-            subvalues = self.dedupe_values(subvalues)
-            for subvalue in subvalues:
-                field_values.append(subvalue)
-            entity[field_name] = field_values
-        # Cardinality has a limit.
-        else:
-            subvalues = split_geolocation_string(config, row[field_name])
-            subvalues = self.dedupe_values(subvalues)
-            if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                subvalues = subvalues[: field_definitions[field_name]["cardinality"]]
-                log_field_cardinality_violation(
-                    field_name,
-                    id_field,
-                    field_definitions[field_name]["cardinality"],
-                )
-            entity[field_name] = subvalues
+        subvalues = split_geolocation_string(config, row[field_name])
+        subvalues = self.dedupe_values(subvalues)
+
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if -1 < cardinality < len(subvalues):
+            subvalues = subvalues[:cardinality]
+            log_field_cardinality_violation(
+                field_name,
+                id_field,
+                cardinality,
+            )
+        entity[field_name] = subvalues
 
         return entity
 
@@ -486,59 +396,31 @@ class GeolocationField:
         if config["task"] == "update_media":
             entity_id_field = "media_id"
 
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = split_geolocation_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                field_values = self.dedupe_values(field_values)
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                field_values = split_geolocation_string(config, row[field_name])
-                if field_name in entity:
-                    for field_value in field_values:
-                        entity_field_values.append(field_value)
-                    entity[field_name] = self.dedupe_values(entity_field_values)
-        # Cardinality has a limit.
-        else:
-            if config["update_mode"] == "replace":
-                subvalues = split_geolocation_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                field_values = []
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                if len(field_values) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                    field_values = field_values[
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-                entity[field_name] = field_values
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "replace":
+            subvalues = split_geolocation_string(config, row[field_name])
+            subvalues = self.dedupe_values(subvalues)
+            field_values = []
+            for subvalue in subvalues:
+                field_values.append(subvalue)
+            if -1 < cardinality < len(field_values):
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+                field_values = field_values[:cardinality]
+            entity[field_name] = field_values
 
-            if config["update_mode"] == "append":
-                subvalues = split_geolocation_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                for subvalue in subvalues:
-                    entity_field_values.append(subvalue)
-                if len(entity[field_name]) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    entity[field_name] = entity_field_values[
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
+        if config["update_mode"] == "append":
+            subvalues = split_geolocation_string(config, row[field_name])
+            subvalues = self.dedupe_values(subvalues)
+            for subvalue in subvalues:
+                entity_field_values.append(subvalue)
+            if -1 < cardinality < len(entity_field_values):
+                entity_field_values = entity_field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+            entity[field_name] = entity_field_values
 
         return entity
 
@@ -652,23 +534,19 @@ class LinkField:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            subvalues = split_link_string(config, row[field_name])
-            subvalues = self.dedupe_values(subvalues)
-            entity[field_name] = subvalues
-        # Cardinality has a limit, including 1.
-        else:
-            subvalues = split_link_string(config, row[field_name])
-            subvalues = self.dedupe_values(subvalues)
-            if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                subvalues = subvalues[: field_definitions[field_name]["cardinality"]]
-                log_field_cardinality_violation(
-                    field_name,
-                    id_field,
-                    field_definitions[field_name]["cardinality"],
-                )
-            entity[field_name] = subvalues
+
+        subvalues = split_link_string(config, row[field_name])
+        subvalues = self.dedupe_values(subvalues)
+
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if -1 < cardinality < len(subvalues):
+            subvalues = subvalues[:cardinality]
+            log_field_cardinality_violation(
+                field_name,
+                id_field,
+                cardinality,
+            )
+        entity[field_name] = subvalues
 
         return entity
 
@@ -713,59 +591,30 @@ class LinkField:
         if config["task"] == "update_media":
             entity_id_field = "media_id"
 
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = split_link_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                field_values = []
-                subvalues = split_link_string(config, row[field_name])
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                if field_name in entity:
-                    for field_subvalue in field_values:
-                        entity_field_values.append(field_subvalue)
-                    entity_field_values = subvalues = self.dedupe_values(
-                        entity_field_values
-                    )
-                    entity[field_name] = entity_field_values
-
-        # Cardinality has a limit.
-        else:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = split_link_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                subvalues = subvalues[: field_definitions[field_name]["cardinality"]]
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                subvalues = split_link_string(config, row[field_name])
-                for subvalue in subvalues:
-                    entity_field_values.append(subvalue)
-                entity[field_name] = entity_field_values[
-                    : field_definitions[field_name]["cardinality"]
-                ]
-                if len(entity[field_name]) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "replace":
+            field_values = []
+            subvalues = split_link_string(config, row[field_name])
+            subvalues = self.dedupe_values(subvalues)
+            if -1 < cardinality < len(subvalues):
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+                subvalues = subvalues[:cardinality]
+            for subvalue in subvalues:
+                field_values.append(subvalue)
+            entity[field_name] = field_values
+        if config["update_mode"] == "append":
+            subvalues = split_link_string(config, row[field_name])
+            subvalues = self.dedupe_values(subvalues)
+            for subvalue in subvalues:
+                entity_field_values.append(subvalue)
+            if -1 < cardinality < len(entity_field_values):
+                entity_field_values = entity_field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+            entity[field_name] = entity_field_values
 
         return entity
 
@@ -906,43 +755,19 @@ class EntityReferenceField:
         if field_definitions[field_name]["target_type"] == "media":
             target_type = "media_type"
 
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            field_values = []
-            subvalues = row[field_name].split(config["subdelimiter"])
-            subvalues = self.dedupe_values(subvalues)
-            for subvalue in subvalues:
-                subvalue = str(subvalue)
-                field_values.append({"target_id": subvalue, "target_type": target_type})
-            entity[field_name] = field_values
+        field_values = []
+        subvalues = row[field_name].split(config["subdelimiter"])
+        subvalues = self.dedupe_values(subvalues)
+        for subvalue in subvalues:
+            subvalue = str(subvalue)
+            field_values.append({"target_id": subvalue, "target_type": target_type})
 
-        # Cardinality has a limit.
-        elif field_definitions[field_name]["cardinality"] > 0:
-            field_values = []
-            subvalues = row[field_name].split(config["subdelimiter"])
-            subvalues = self.dedupe_values(subvalues)
-            for subvalue in subvalues:
-                subvalue = str(subvalue)
-                field_values.append({"target_id": subvalue, "target_type": target_type})
-            if len(field_values) > int(field_definitions[field_name]["cardinality"]):
-                entity[field_name] = field_values[
-                    : field_definitions[field_name]["cardinality"]
-                ]
-                log_field_cardinality_violation(
-                    field_name,
-                    id_field,
-                    field_definitions[field_name]["cardinality"],
-                )
-            else:
-                entity[field_name] = field_values
-        # Cardinality is 1.
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if -1 < cardinality < len(field_values):
+            entity[field_name] = field_values[:cardinality]
+            log_field_cardinality_violation(field_name, id_field, str(cardinality))
         else:
-            subvalues = row[field_name].split(config["subdelimiter"])
-            entity[field_name] = [
-                {"target_id": str(subvalues[0]), "target_type": target_type}
-            ]
-            if len(subvalues) > 1:
-                log_field_cardinality_violation(field_name, id_field, "1")
+            entity[field_name] = field_values
 
         return entity
 
@@ -1004,71 +829,37 @@ class EntityReferenceField:
         if field_definitions[field_name]["target_type"] == "node":
             target_type = "node_type"
 
-        # Cardinality has a limit.
-        if field_definitions[field_name]["cardinality"] > 0:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = row[field_name].split(config["subdelimiter"])
-                subvalues = self.dedupe_values(subvalues)
-                for subvalue in subvalues:
-                    field_values.append(
-                        {"target_id": str(subvalue), "target_type": target_type}
-                    )
-                if len(field_values) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    entity[field_name] = field_values[
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                else:
-                    entity[field_name] = field_values
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "replace":
+            field_values = []
+            subvalues = row[field_name].split(config["subdelimiter"])
+            subvalues = self.dedupe_values(subvalues)
+            for subvalue in subvalues:
+                field_values.append(
+                    {"target_id": str(subvalue), "target_type": target_type}
+                )
+            if -1 < cardinality < len(field_values):
+                entity[field_name] = field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+            else:
+                entity[field_name] = field_values
 
-            if config["update_mode"] == "append":
-                subvalues = row[field_name].split(config["subdelimiter"])
-                for subvalue in subvalues:
-                    entity_field_values.append(
-                        {"target_id": str(subvalue), "target_type": target_type}
-                    )
-                entity_field_values = self.dedupe_values(entity_field_values)
-                if len(entity_field_values) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    entity[field_name] = entity_field_values[
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                else:
-                    entity[field_name] = entity_field_values
-
-        # Cardinality is unlimited.
-        else:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = row[field_name].split(config["subdelimiter"])
-                subvalues = self.dedupe_values(subvalues)
-                for subvalue in subvalues:
-                    field_values.append(
-                        {"target_id": str(subvalue), "target_type": target_type}
-                    )
-                    entity[field_name] = field_values
-
-            if config["update_mode"] == "append":
-                field_values = []
-                subvalues = row[field_name].split(config["subdelimiter"])
-                for subvalue in subvalues:
-                    entity_field_values.append(
-                        {"target_id": str(subvalue), "target_type": target_type}
-                    )
-                entity[field_name] = self.dedupe_values(entity_field_values)
+        if config["update_mode"] == "append":
+            subvalues = row[field_name].split(config["subdelimiter"])
+            for subvalue in subvalues:
+                entity_field_values.append(
+                    {"target_id": str(subvalue), "target_type": target_type}
+                )
+            entity_field_values = self.dedupe_values(entity_field_values)
+            if -1 < cardinality < len(entity_field_values):
+                entity[field_name] = entity_field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+            else:
+                entity[field_name] = entity_field_values
 
         return entity
 
@@ -1198,53 +989,21 @@ class TypedRelationField:
         if field_definitions[field_name]["target_type"] == "taxonomy_term":
             target_type = "taxonomy_term"
             field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
-            # Cardinality is unlimited.
-            if field_definitions[field_name]["cardinality"] == -1:
-                field_values = []
-                subvalues = split_typed_relation_string(
-                    config, row[field_name], target_type
+            field_values = []
+            subvalues = split_typed_relation_string(
+                config, row[field_name], target_type
+            )
+            subvalues = self.dedupe_values(subvalues)
+            cardinality = int(field_definitions[field_name].get("cardinality", -1))
+            if -1 < cardinality < len(subvalues):
+                log_field_cardinality_violation(field_name, id_field, str(cardinality))
+                subvalues = subvalues[:cardinality]
+            for subvalue in subvalues:
+                subvalue["target_id"] = prepare_term_id(
+                    config, field_vocabs, field_name, subvalue["target_id"]
                 )
-                subvalues = self.dedupe_values(subvalues)
-                for subvalue in subvalues:
-                    subvalue["target_id"] = prepare_term_id(
-                        config, field_vocabs, field_name, subvalue["target_id"]
-                    )
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            # Cardinality has a limit.
-            elif field_definitions[field_name]["cardinality"] > 1:
-                field_values = []
-                subvalues = split_typed_relation_string(
-                    config, row[field_name], target_type
-                )
-                subvalues = self.dedupe_values(subvalues)
-                if len(subvalues) > field_definitions[field_name]["cardinality"]:
-                    log_field_cardinality_violation(
-                        field_name,
-                        id_field,
-                        field_definitions[field_name]["cardinality"],
-                    )
-                    subvalues = subvalues[
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-                for subvalue in subvalues:
-                    subvalue["target_id"] = prepare_term_id(
-                        config, field_vocabs, field_name, subvalue["target_id"]
-                    )
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            # Cardinality is 1.
-            else:
-                subvalues = split_typed_relation_string(
-                    config, row[field_name], target_type
-                )
-                subvalues = self.dedupe_values(subvalues)
-                subvalues[0]["target_id"] = prepare_term_id(
-                    config, field_vocabs, field_name, subvalues[0]["target_id"]
-                )
-                entity[field_name] = [subvalues[0]]
-                if len(subvalues) > 1:
-                    log_field_cardinality_violation(field_name, id_field, "1")
+                field_values.append(subvalue)
+            entity[field_name] = field_values
 
         return entity
 
@@ -1294,81 +1053,42 @@ class TypedRelationField:
             target_type = "taxonomy_term"
             field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
 
-        # Cardinality has a limit.
-        if field_definitions[field_name]["cardinality"] > 0:
-            if config["update_mode"] == "replace":
-                subvalues = split_typed_relation_string(
-                    config, row[field_name], target_type
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "replace":
+            subvalues = split_typed_relation_string(
+                config, row[field_name], target_type
+            )
+            subvalues = self.dedupe_values(subvalues)
+            field_values = []
+            for subvalue in subvalues:
+                subvalue["target_id"] = prepare_term_id(
+                    config, field_vocabs, field_name, subvalue["target_id"]
                 )
-                subvalues = self.dedupe_values(subvalues)
-                field_values = []
-                for subvalue in subvalues:
-                    subvalue["target_id"] = prepare_term_id(
-                        config, field_vocabs, field_name, subvalue["target_id"]
-                    )
-                    field_values.append(subvalue)
-                if len(field_values) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    field_values = field_values[
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                field_values = []
-                subvalues = split_typed_relation_string(
-                    config, row[field_name], target_type
+                field_values.append(subvalue)
+            if -1 < cardinality < len(field_values):
+                field_values = field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
                 )
-                for subvalue in subvalues:
-                    subvalue["target_id"] = prepare_term_id(
-                        config, field_vocabs, field_name, subvalue["target_id"]
-                    )
-                    entity_field_values.append(subvalue)
-                entity_field_values = self.dedupe_values(entity_field_values)
-                if len(entity_field_values) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    entity[field_name] = entity_field_values[
-                        : field_definitions[field_name]["cardinality"]
-                    ]
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                else:
-                    entity[field_name] = entity_field_values
-
-        # Cardinality is unlimited.
-        else:
-            if config["update_mode"] == "replace":
-                subvalues = split_typed_relation_string(
-                    config, row[field_name], target_type
+            entity[field_name] = field_values
+        if config["update_mode"] == "append":
+            field_values = []
+            subvalues = split_typed_relation_string(
+                config, row[field_name], target_type
+            )
+            for subvalue in subvalues:
+                subvalue["target_id"] = prepare_term_id(
+                    config, field_vocabs, field_name, subvalue["target_id"]
                 )
-                subvalues = self.dedupe_values(subvalues)
-                field_values = []
-                for subvalue in subvalues:
-                    subvalue["target_id"] = prepare_term_id(
-                        config, field_vocabs, field_name, subvalue["target_id"]
-                    )
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                subvalues = split_typed_relation_string(
-                    config, row[field_name], target_type
+                entity_field_values.append(subvalue)
+            entity_field_values = self.dedupe_values(entity_field_values)
+            if -1 < cardinality < len(entity_field_values):
+                entity[field_name] = entity_field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
                 )
-                field_values = []
-                for subvalue in subvalues:
-                    subvalue["target_id"] = prepare_term_id(
-                        config, field_vocabs, field_name, subvalue["target_id"]
-                    )
-                    entity_field_values.append(subvalue)
-                entity[field_name] = self.dedupe_values(entity_field_values)
+            else:
+                entity[field_name] = entity_field_values
 
         return entity
 
@@ -1489,23 +1209,14 @@ class AuthorityLinkField:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            subvalues = split_authority_link_string(config, row[field_name])
-            subvalues = self.dedupe_values(subvalues)
-            entity[field_name] = subvalues
-        # Cardinality has a limit, including 1.
-        else:
-            subvalues = split_authority_link_string(config, row[field_name])
-            subvalues = self.dedupe_values(subvalues)
-            if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                subvalues = subvalues[: field_definitions[field_name]["cardinality"]]
-                log_field_cardinality_violation(
-                    field_name,
-                    id_field,
-                    field_definitions[field_name]["cardinality"],
-                )
-            entity[field_name] = subvalues
+        subvalues = split_authority_link_string(config, row[field_name])
+        subvalues = self.dedupe_values(subvalues)
+
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if -1 < cardinality < len(subvalues):
+            subvalues = subvalues[:cardinality]
+            log_field_cardinality_violation(field_name, id_field, str(cardinality))
+        entity[field_name] = subvalues
 
         return entity
 
@@ -1550,56 +1261,30 @@ class AuthorityLinkField:
         if config["task"] == "update_media":
             entity_id_field = "media_id"
 
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = split_authority_link_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                field_values = []
-                subvalues = split_authority_link_string(config, row[field_name])
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                if field_name in entity:
-                    for field_subvalue in field_values:
-                        entity_field_values.append(field_subvalue)
-                    entity_field_values = self.dedupe_values(entity_field_values)
-                    entity[field_name] = entity_field_values
-        # Cardinality has a limit.
-        else:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = split_authority_link_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                subvalues = subvalues[: field_definitions[field_name]["cardinality"]]
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                subvalues = split_authority_link_string(config, row[field_name])
-                for subvalue in subvalues:
-                    entity_field_values.append(subvalue)
-                entity[field_name] = entity_field_values[
-                    : field_definitions[field_name]["cardinality"]
-                ]
-                if len(entity[field_name]) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row[entity_id_field],
-                        field_definitions[field_name]["cardinality"],
-                    )
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "replace":
+            field_values = []
+            subvalues = split_authority_link_string(config, row[field_name])
+            subvalues = self.dedupe_values(subvalues)
+            if -1 < cardinality < len(subvalues):
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+                subvalues = subvalues[:cardinality]
+            for subvalue in subvalues:
+                field_values.append(subvalue)
+            entity[field_name] = field_values
+        if config["update_mode"] == "append":
+            subvalues = split_authority_link_string(config, row[field_name])
+            for subvalue in subvalues:
+                entity_field_values.append(subvalue)
+            if -1 < cardinality < len(entity_field_values):
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+                entity[field_name] = entity_field_values[:cardinality]
+            else:
+                entity[field_name] = entity_field_values
 
         return entity
 
@@ -1727,23 +1412,17 @@ class MediaTrackField:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            subvalues = split_media_track_string(config, row[field_name])
-            subvalues = self.dedupe_values(subvalues)
-            entity[field_name] = subvalues
-        # Cardinality has a limit, including 1.
-        else:
-            subvalues = split_media_track_string(config, row[field_name])
-            subvalues = self.dedupe_values(subvalues)
-            if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                subvalues = subvalues[: field_definitions[field_name]["cardinality"]]
-                log_field_cardinality_violation(
-                    field_name,
-                    id_field,
-                    field_definitions[field_name]["cardinality"],
-                )
-            entity[field_name] = subvalues
+        subvalues = split_media_track_string(config, row[field_name])
+        subvalues = self.dedupe_values(subvalues)
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if -1 < cardinality < len(subvalues):
+            subvalues = subvalues[:cardinality]
+            log_field_cardinality_violation(
+                field_name,
+                id_field,
+                cardinality,
+            )
+        entity[field_name] = subvalues
 
         return entity
 
@@ -1781,57 +1460,30 @@ class MediaTrackField:
         if row[field_name] is None:
             return entity
 
-        # Cardinality is unlimited.
-        if field_definitions[field_name]["cardinality"] == -1:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = split_media_track_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                field_values = []
-                subvalues = split_media_track_string(config, row[field_name])
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                if field_name in entity:
-                    for field_subvalue in field_values:
-                        entity_field_values.append(field_subvalue)
-                    entity_field_values = self.dedupe_values(entity_field_values)
-                    entity[field_name] = entity_field_values
-        # Cardinality has a limit.
-        else:
-            if config["update_mode"] == "replace":
-                field_values = []
-                subvalues = split_media_track_string(config, row[field_name])
-                subvalues = self.dedupe_values(subvalues)
-                if len(subvalues) > int(field_definitions[field_name]["cardinality"]):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row["node_id"],
-                        field_definitions[field_name]["cardinality"],
-                    )
-                subvalues = subvalues[: field_definitions[field_name]["cardinality"]]
-                for subvalue in subvalues:
-                    field_values.append(subvalue)
-                entity[field_name] = field_values
-            if config["update_mode"] == "append":
-                subvalues = split_media_track_string(config, row[field_name])
-                for subvalue in subvalues:
-                    entity_field_values.append(subvalue)
-                entity[field_name] = entity_field_values[
-                    : field_definitions[field_name]["cardinality"]
-                ]
-                if len(entity[field_name]) > int(
-                    field_definitions[field_name]["cardinality"]
-                ):
-                    log_field_cardinality_violation(
-                        field_name,
-                        row["node_id"],
-                        field_definitions[field_name]["cardinality"],
-                    )
-
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "replace":
+            field_values = []
+            subvalues = split_media_track_string(config, row[field_name])
+            subvalues = self.dedupe_values(subvalues)
+            if -1 < cardinality < len(subvalues):
+                log_field_cardinality_violation(
+                    field_name, row["node_id"], str(cardinality)
+                )
+                subvalues = subvalues[:cardinality]
+            for subvalue in subvalues:
+                field_values.append(subvalue)
+            entity[field_name] = field_values
+        if config["update_mode"] == "append":
+            subvalues = split_media_track_string(config, row[field_name])
+            for subvalue in subvalues:
+                entity_field_values.append(subvalue)
+            if -1 < cardinality < len(entity_field_values):
+                entity[field_name] = entity_field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row["node_id"], str(cardinality)
+                )
+            else:
+                entity[field_name] = entity_field_values
         return entity
 
     def dedupe_values(self, values):
@@ -1986,10 +1638,10 @@ class EntityReferenceRevisionsField:
         # @todo self.dedup_values
 
         # Enforce cardinality.
-        cardinality = field_definitions[field_name].get("cardinality", -1)
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if -1 < cardinality < len(subvalues):
             log_field_cardinality_violation(field_name, id_field, str(cardinality))
-            subvalues = subvalues[slice(0, cardinality)]
+            subvalues = subvalues[:cardinality]
 
         # Paragraphs are essentially field bundles, like any other entity,
         # the difference is that this node "owns" the entity rather
@@ -2211,7 +1863,7 @@ class EntityReferenceRevisionsField:
             entity = self.create(config, field_definitions, entity, row, field_name)
             entity[field_name] = entity_field_values + entity[field_name]
             # Enforce cardinality
-            cardinality = field_definitions[field_name].get("cardinality", -1)
+            cardinality = int(field_definitions[field_name].get("cardinality", -1))
             if -1 < cardinality < len(entity[field_name]):
                 log_field_cardinality_violation(
                     field_name,
