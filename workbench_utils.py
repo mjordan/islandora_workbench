@@ -225,6 +225,9 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
     -------
     requests.Response
     """
+    if config["secure_ssl_only"] is False:
+        requests.packages.urllib3.disable_warnings()
+
     if not config["password"]:
         message = (
             'Password for Drupal user not found. Please add the "password" option to your configuration '
