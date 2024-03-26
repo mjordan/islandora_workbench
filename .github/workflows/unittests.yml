@@ -5,9 +5,10 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:  
-      matrix:  
-        python-version: ["3.8", "3.9", "3.10", "3.11"] 
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:  
       - uses: actions/checkout@v4
@@ -17,10 +18,11 @@ jobs:
           python-version: ${{ matrix.python-version }}  
       - name: Install dependencies  
         run: |  
-          python -m pip install --upgrade pip  
-          python setup.py install
+          python -m pip install --upgrade pip
+          pip install pytest
+          pip install --editable .
       - name: Run unittests  
-        run: |  
-          python tests/unit_tests.py
-          python tests/field_tests.py
-          python tests/csv_id_to_node_id_map_tests.py
+        run: pytest --ignore=tests/test_islandora.py
+                    --ignore=tests/test_islandora_check.py
+                    --ignore=tests/test_islandora_hooks.py
+                    --ignore=tests/test_islandora_paged_content.py
