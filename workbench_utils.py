@@ -8763,7 +8763,9 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
 def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     sections = urllib.parse.urlparse(url)
     try:
-        # do not cache the responses for downloaded files in requests_cache
+        if config["secure_ssl_only"] is False:
+            requests.packages.urllib3.disable_warnings()
+        # Do not cache the responses for downloaded files in requests_cache
         with requests_cache.disabled():
             response = requests.get(
                 url, allow_redirects=True, stream=True, verify=config["secure_ssl_only"]
