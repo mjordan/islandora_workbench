@@ -1794,7 +1794,6 @@ def check_input(config, args):
             )
             logging.error(message)
             sys.exit("Error: " + message)
-
     if config["task"] == "delete":
         delete_required_options = ["task", "host", "username", "password"]
         for delete_required_option in delete_required_options:
@@ -1807,7 +1806,7 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit("Error: " + message)
     if config["task"] == "add_media":
-        add_media_required_options = ["task", "host", "username", "password"]
+        add_media_required_options = ["task", "host", "username", "password", "media_type"]
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
                 message = (
@@ -7873,7 +7872,6 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     ]
     for field_to_remove in fields_to_remove:
         if field_to_remove in node_field_names:
-            # print("DEBUG", field_to_remove)
             node_field_names.remove(field_to_remove)
 
     reserved_fields = ["file", "parent_id", "url_alias", "image_alt_text", "checksum"]

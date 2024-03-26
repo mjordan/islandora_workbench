@@ -1,4 +1,4 @@
-task: update_media
+ask: update_media
 host: https://islandora.traefik.me
 username: admin
 password: password
