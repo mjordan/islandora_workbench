@@ -394,7 +394,8 @@ def create():
                 node_uri,
             )
             if "output_csv" in config.keys():
-                write_to_output_csv(config, id_field, node_response.text, row)
+                # We pass a copy of the row into this function because Python.
+                write_to_output_csv(config, id_field, node_response.text, copy.deepcopy(row))
         else:
             message = "Node for CSV record " + id_field + " not created"
             print("ERROR: " + message + ".")
@@ -495,7 +496,6 @@ def create():
                         row["file"],
                         media_response_status_code,
                     )
-
             if config["nodes_only"] is False and "additional_files" in config:
                 additional_files_config = get_additional_files_config(config)
                 if len(additional_files_config) > 0:
@@ -504,6 +504,9 @@ def create():
                         additional_file_media_use_tid,
                     ) in additional_files_config.items():
                         # If there is no additional media file, move on to the next "additional_files" column.
+                        if additional_file_field not in row:
+                            continue
+
                         if (
                             additional_file_field in row
                             and len(row[additional_file_field].strip()) == 0

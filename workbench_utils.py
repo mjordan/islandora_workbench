@@ -7844,6 +7844,22 @@ def validate_taxonomy_reference_value(
 
 def write_to_output_csv(config, id, node_json, input_csv_row=None):
     """Appends a row to the CVS file located at config['output_csv']."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        id : str
+            The value of the CSV row's ID field.
+        node_json : str
+            The JSON representation of the node just created, provided by Drupal.
+        input_csv_row : dict
+            The CSV Reader representation of the current input CSV row. Note that
+            this is copy.deepcopy() of the CSV row since passing the row in as is
+            modifies it in global scope.
+        Returns
+        -------
+        None
+    """
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
     import workbench_fields
@@ -7876,10 +7892,12 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     ]
     for field_to_remove in fields_to_remove:
         if field_to_remove in node_field_names:
-            # print("DEBUG", field_to_remove)
             node_field_names.remove(field_to_remove)
 
     reserved_fields = ["file", "parent_id", "url_alias", "image_alt_text", "checksum"]
+    additional_files_columns = list(get_additional_files_config(config).keys())
+    if len(additional_files_columns) > 0:
+        reserved_fields = reserved_fields + additional_files_columns
 
     csvfile = open(config["output_csv"], "a+", encoding="utf-8")
 
