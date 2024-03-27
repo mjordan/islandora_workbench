@@ -395,7 +395,9 @@ def create():
             )
             if "output_csv" in config.keys():
                 # We pass a copy of the row into this function because Python.
-                write_to_output_csv(config, id_field, node_response.text, copy.deepcopy(row))
+                write_to_output_csv(
+                    config, id_field, node_response.text, copy.deepcopy(row)
+                )
         else:
             message = "Node for CSV record " + id_field + " not created"
             print("ERROR: " + message + ".")
