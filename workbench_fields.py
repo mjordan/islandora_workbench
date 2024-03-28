@@ -829,6 +829,9 @@ class EntityReferenceField:
         if field_definitions[field_name]["target_type"] == "node":
             target_type = "node_type"
 
+        if field_definitions[field_name]["target_type"] == "media":
+            target_type = "media_type"
+
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "replace":
             field_values = []
