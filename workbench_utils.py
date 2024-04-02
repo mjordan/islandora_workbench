@@ -3138,7 +3138,7 @@ def check_input(config, args):
                         message = (
                             "CVS row with ID "
                             + file_check_row[config["id_field"]]
-                            + ' contains an empty value in its "'
+                            + ' contains an empty value in its additional file "'
                             + additional_file_field
                             + '" column.'
                         )
@@ -4719,7 +4719,7 @@ def create_media(
                 + csv_row[config["id_field"]]
                 + '" is empty.'
             )
-            logging.error(message)
+            logging.warning(message)
             return False
 
     if check_file_exists(config, filename) is False:

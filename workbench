@@ -451,22 +451,21 @@ def create():
                 message = (
                     "No media for "
                     + node_uri
-                    + ' created since the file named the input CSV\'s "file" column (row with ID "'
+                    + ' created since the file named the input CSV\'s "file" column ("' + row["file"] + '" in row with ID "'
                     + id_field
                     + '") could not be found.'
                 )
                 if config["allow_missing_files"] is False:
                     logging.error(message)
                     sys.exit("Error: " + message)
-                else:
-                    if config["progress_bar"] is False:
-                        logging.warning(message)
-                continue
+                # else:
+                    # if config["progress_bar"] is False:
+                        # logging.error(message)
         else:
             message = (
                 "No media for "
                 + node_uri
-                + ' created since its "file" column in the input CSV (row with ID "'
+                + ' not created since its "file" column in the input CSV (row with ID "'
                 + id_field
                 + '") is empty.'
             )
@@ -489,15 +488,17 @@ def create():
                 else:
                     if config["progress_bar"] is False:
                         print(
-                            "- ERROR: Media for "
+                            '- ERROR: Media for "'
                             + row["file"]
-                            + " not created. See log for more information."
+                            + '" not created. See log for more information.'
                         )
+                    '''
                     logging.error(
                         "Media for %s not created (HTTP respone code %s).",
                         row["file"],
                         media_response_status_code,
                     )
+                    '''
             if config["nodes_only"] is False and "additional_files" in config:
                 additional_files_config = get_additional_files_config(config)
                 if len(additional_files_config) > 0:
@@ -505,10 +506,9 @@ def create():
                         additional_file_field,
                         additional_file_media_use_tid,
                     ) in additional_files_config.items():
-                        # If there is no additional media file, move on to the next "additional_files" column.
+                        # If the column is not in row, move on to the next "additional_files" column.
                         if additional_file_field not in row:
                             continue
-
                         if (
                             additional_file_field in row
                             and len(row[additional_file_field].strip()) == 0
@@ -516,20 +516,17 @@ def create():
                             if config["progress_bar"] is False:
                                 message = (
                                     f'Media for "additional_files" CSV column "{additional_file_field}" in row with ID "{row[config["id_field"]]}" '
-                                    + f'(node URL "{node_uri}") not created'
+                                    + f'(node URL "{node_uri}") not created because CSV field is empty.'
                                 )
-                                print(
-                                    "- " + message + ". See log for more information."
-                                )
-                            logging.error(message + " because CSV field is empty.")
+                            logging.warning(message)
                             continue
                         filename = row[additional_file_field].strip()
                         file_exists = check_file_exists(config, filename)
                         if file_exists is False:
                             if config["progress_bar"] is False:
-                                message = f'Media for file "{filename}" named in field "{additional_file_field}" of CSV row with ID "{row[config["id_field"]]}" not created'
+                                message = f'Media for "{filename}" named in field "{additional_file_field}" of CSV row with ID "{row[config["id_field"]]}" not created'
                                 print(
-                                    "- " + message + ". See log for more information."
+                                    "- ERROR: " + message + ". See log for more information."
                                 )
                             logging.error(message + " because file does not exist.")
                             if config["allow_missing_files"] is False:
@@ -1046,7 +1043,7 @@ def add_media():
                     + ' not created since CSV column "file" is empty.'
                 )
                 logging.warning(message)
-                print("Warning: " + message)
+                print("WARNING: " + message)
             else:
                 if check_file_exists(config, row["file"]) is False:
                     message = (
@@ -1084,7 +1081,7 @@ def add_media():
                     else:
                         if config["progress_bar"] is False:
                             print(
-                                "Error: Media for "
+                                "ERROR: Media for "
                                 + row["file"]
                                 + " not created. See log for more information."
                             )
@@ -1105,7 +1102,7 @@ def add_media():
                         if len(row[additional_file_field].strip()) == 0:
                             if config["progress_bar"] is False:
                                 print(
-                                    'Warning: Media for node "'
+                                    'WARNING: Media for node "'
                                     + row["node_id"]
                                     + '" not created since CSV column "'
                                     + additional_file_field
@@ -3330,7 +3327,8 @@ logging.basicConfig(
     filename=config["log_file_path"],
     level=logging.INFO,
     filemode=config["log_file_mode"],
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    # format="%(asctime)s - %(levelname)s - %(message)s",
+    format="{%(pathname)s:%(lineno)d} - %(asctime)s - %(levelname)s - %(message)s",
     datefmt="%d-%b-%y %H:%M:%S",
 )
 
