@@ -14,3 +14,5 @@ media_types_override:
  - video: ['ogg']
  - foomedia: ['foo']
  - sometextmedia: ['txt']
+
+secure_ssl_only: false

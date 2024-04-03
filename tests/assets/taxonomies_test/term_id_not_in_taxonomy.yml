@@ -7,3 +7,4 @@ password: password
 input_dir: tests/assets/taxonomies_test
 input_csv: term_id_not_in_taxonomy.csv
 media_type: image
+secure_ssl_only: false

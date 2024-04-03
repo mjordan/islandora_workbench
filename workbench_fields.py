@@ -67,7 +67,7 @@ class SimpleField:
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
         field_values = []
-        subvalues = row[field_name].split(config["subdelimiter"])
+        subvalues = str(row[field_name]).split(config["subdelimiter"])
         subvalues = self.remove_invalid_values(
             config, field_definitions, field_name, subvalues
         )
@@ -141,7 +141,7 @@ class SimpleField:
 
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "append":
-            subvalues = row[field_name].split(config["subdelimiter"])
+            subvalues = str(row[field_name]).split(config["subdelimiter"])
             subvalues = self.remove_invalid_values(
                 config, field_definitions, field_name, subvalues
             )
@@ -169,7 +169,7 @@ class SimpleField:
                 entity[field_name] = entity[field_name][:cardinality]
         if config["update_mode"] == "replace":
             field_values = []
-            subvalues = row[field_name].split(config["subdelimiter"])
+            subvalues = str(row[field_name]).split(config["subdelimiter"])
             subvalues = self.remove_invalid_values(
                 config, field_definitions, field_name, subvalues
             )
@@ -739,7 +739,7 @@ class EntityReferenceField:
             target_type = "taxonomy_term"
             field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
             prepared_tids = []
-            delimited_values = row[field_name].split(config["subdelimiter"])
+            delimited_values = str(row[field_name]).split(config["subdelimiter"])
             for delimited_value in delimited_values:
                 tid = prepare_term_id(config, field_vocabs, field_name, delimited_value)
                 if value_is_numeric(tid):
@@ -756,7 +756,7 @@ class EntityReferenceField:
             target_type = "media_type"
 
         field_values = []
-        subvalues = row[field_name].split(config["subdelimiter"])
+        subvalues = str(row[field_name]).split(config["subdelimiter"])
         subvalues = self.dedupe_values(subvalues)
         for subvalue in subvalues:
             subvalue = str(subvalue)
@@ -816,7 +816,7 @@ class EntityReferenceField:
             target_type = "taxonomy_term"
             field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
             prepared_tids = []
-            delimited_values = row[field_name].split(config["subdelimiter"])
+            delimited_values = str(row[field_name]).split(config["subdelimiter"])
             for delimited_value in delimited_values:
                 tid = prepare_term_id(config, field_vocabs, field_name, delimited_value)
                 if value_is_numeric(tid):
@@ -835,7 +835,7 @@ class EntityReferenceField:
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "replace":
             field_values = []
-            subvalues = row[field_name].split(config["subdelimiter"])
+            subvalues = str(row[field_name]).split(config["subdelimiter"])
             subvalues = self.dedupe_values(subvalues)
             for subvalue in subvalues:
                 field_values.append(
@@ -850,7 +850,7 @@ class EntityReferenceField:
                 entity[field_name] = field_values
 
         if config["update_mode"] == "append":
-            subvalues = row[field_name].split(config["subdelimiter"])
+            subvalues = str(row[field_name]).split(config["subdelimiter"])
             for subvalue in subvalues:
                 entity_field_values.append(
                     {"target_id": str(subvalue), "target_type": target_type}
@@ -1636,7 +1636,7 @@ class EntityReferenceRevisionsField:
             paragraph_configs.get("subdelimiter", None) or config["subdelimiter"]
         )
 
-        subvalues = row[field_name].split(subdelimiter)
+        subvalues = str(row[field_name]).split(subdelimiter)
 
         # @todo self.dedup_values
 
