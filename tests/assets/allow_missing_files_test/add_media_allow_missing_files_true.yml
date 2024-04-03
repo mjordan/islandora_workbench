@@ -8,3 +8,4 @@ standalone_media_url: true
 log_file_path: tests/assets/allow_missing_files_test/add_media_allow_missing_files_true.log
 media_use_tid: http://pcdm.org/use#Transcript
 allow_missing_files: true
+secure_ssl_only: false

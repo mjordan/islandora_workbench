@@ -5,3 +5,4 @@ password: password
 input_dir: "tests/assets/commented_csvs_test"
 input_csv: test_excel_file_commented_row.xlsx
 nodes_only: true
+secure_ssl_only: false

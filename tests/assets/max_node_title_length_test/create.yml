@@ -6,3 +6,4 @@ input_dir: "tests/assets/max_node_title_length_test"
 input_csv: create_max_node_title_length.csv
 nodes_only: True
 max_node_title_length: 30
+secure_ssl_only: false

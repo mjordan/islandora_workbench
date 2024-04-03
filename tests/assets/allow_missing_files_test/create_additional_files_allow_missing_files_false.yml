@@ -8,3 +8,4 @@ standalone_media_url: true
 log_file_path: tests/assets/allow_missing_files_test/additional_files_allow_missing_files_false.log
 additional_files:
  - tn: "http://pcdm.org/use#ThumbnailImage"
+secure_ssl_only: false

@@ -684,6 +684,7 @@ class TestTaxonomies(unittest.TestCase):
         self.assertRegex(str(stdout), "1000000", "")
 
     def tearDown(self):
+        requests.packages.urllib3.disable_warnings()
         # Delete all terms in the genre taxonomy created by these tests.
         terms_to_delete = [
             "XNewspapers",
@@ -700,7 +701,9 @@ class TestTaxonomies(unittest.TestCase):
                 + "&_format=json"
             )
             get_tid_response = requests.get(
-                get_tid_url, auth=(self.islandora_username, self.islandora_password)
+                get_tid_url,
+                auth=(self.islandora_username, self.islandora_password),
+                verify=False,
             )
             term_data = json.loads(get_tid_response.text)
             if len(term_data):
@@ -714,6 +717,7 @@ class TestTaxonomies(unittest.TestCase):
                 term_delete_response = requests.delete(
                     delete_term_url,
                     auth=(self.islandora_username, self.islandora_password),
+                    verify=False,
                 )
 
         for nid in self.nids:

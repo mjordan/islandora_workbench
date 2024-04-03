@@ -42,6 +42,7 @@ class TestCreatePagedContent(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_create_paged_content(self):
+        requests.packages.urllib3.disable_warnings()
         self.nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -71,7 +72,7 @@ class TestCreatePagedContent(unittest.TestCase):
         node_url = (
             self.islandora_host + "/node/" + child_node_id_to_test + "?_format=json"
         )
-        response = requests.get(node_url)
+        response = requests.get(node_url, verify=False)
         node_json = json.loads(response.text)
         field_member_of = node_json["field_member_of"][0]["target_id"]
 
@@ -126,6 +127,7 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_create_paged_content_from_directories(self):
+        requests.packages.urllib3.disable_warnings()
         self.nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -158,7 +160,9 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
         )
         # Need to provide credentials for this REST export.
         members_response = requests.get(
-            members_url, auth=(self.islandora_username, self.islandora_password)
+            members_url,
+            auth=(self.islandora_username, self.islandora_password),
+            verify=False,
         )
         members = json.loads(members_response.text)
 

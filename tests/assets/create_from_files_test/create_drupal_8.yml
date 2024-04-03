@@ -11,3 +11,4 @@ models:
  - 26: ['mp4']
 log_json: true
 drupal_8: true
+secure_ssl_only: false

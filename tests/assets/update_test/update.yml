@@ -5,3 +5,4 @@ password: password
 input_dir: "tests/assets/update_test"
 input_csv: workbenchupdatetest.csv
 validate_title_length: false
+secure_ssl_only: false

@@ -8,3 +8,4 @@ csv_field_templates:
  - field_rights: This test is in the public domain.
  - field_description: Testing CSV field templates.
  - field_model: Image
+secure_ssl_only: false

@@ -11,3 +11,4 @@ models:
  - 'http://purl.org/coar/resource_type/c_12ce': ['mp4']
 # log_json: true
 standalone_media_url: true
+secure_ssl_only: false

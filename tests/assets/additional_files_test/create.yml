@@ -8,3 +8,4 @@ additional_files:
  - preservation: "http://pcdm.org/use#PreservationMasterFile"
  - transcript: "http://pcdm.org/use#Transcript"
 standalone_media_url: true
+secure_ssl_only: false
