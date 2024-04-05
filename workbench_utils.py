@@ -5477,7 +5477,10 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             row_num += 1
 
             # Skip rows specified not in config['csv_rows_to_process'].
-            if "csv_rows_to_process" in config and len(config["csv_rows_to_process"]) > 0:
+            if (
+                "csv_rows_to_process" in config
+                and len(config["csv_rows_to_process"]) > 0
+            ):
                 if row[config["id_field"]] not in config["csv_rows_to_process"]:
                     continue
 
