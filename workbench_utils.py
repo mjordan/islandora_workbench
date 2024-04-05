@@ -5476,6 +5476,11 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
 
+            # Skip rows specified not in config['csv_rows_to_process'].
+            if "csv_rows_to_process" in config and len(config["csv_rows_to_process"]) > 0:
+                if row[config["id_field"]] not in config["csv_rows_to_process"]:
+                    continue
+
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config["ignore_csv_columns"]) > 0:
                 for column_to_ignore in config["ignore_csv_columns"]:
