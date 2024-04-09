@@ -6268,7 +6268,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
     term = term.strip()
     if value_is_numeric(term):
         return term
-    if not config.get('entity_reference_view_endpoints', {}) and vocab_ids is False:
+    if not config.get("entity_reference_view_endpoints", {}) and vocab_ids is False:
         return None
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
@@ -6278,33 +6278,53 @@ def prepare_term_id(config, vocab_ids, field_name, term):
         if value_is_numeric(tid_from_uri):
             return tid_from_uri
     else:
-        if config.get('entity_reference_view_endpoints', {}).get(field_name, False):
-            headers = {'Content-Type': 'application/json'}
-            endpoint = config.get('entity_reference_view_endpoints', {}).get(field_name, False)
-            if ':' in term:
-                [tentative_vocab_id, term_name] = term.split(':', maxsplit=1)
+        if config.get("entity_reference_view_endpoints", {}).get(field_name, False):
+            headers = {"Content-Type": "application/json"}
+            endpoint = config.get("entity_reference_view_endpoints", {}).get(
+                field_name, False
+            )
+            if ":" in term:
+                [tentative_vocab_id, term_name] = term.split(":", maxsplit=1)
                 tentative_vocab_id = tentative_vocab_id.strip()
                 term_name = term_name.strip()
-                response = issue_request(config, 'GET', endpoint + '?name=' + term_name + '&vid=' + tentative_vocab_id, headers)
+                response = issue_request(
+                    config,
+                    "GET",
+                    endpoint + "?name=" + term_name + "&vid=" + tentative_vocab_id,
+                    headers,
+                )
                 if response.status_code == 200:
                     term_response_body = json.loads(response.text)
                     if term_response_body:
-                        return term_response_body[0]['tid'][0]['value']
+                        return term_response_body[0]["tid"][0]["value"]
                     tid = create_term(config, tentative_vocab_id, term_name)
                     return tid
                 else:
-                    logging.warning("Term '%s' not found, HTTP response code was %s.", term, response.status_code)
+                    logging.warning(
+                        "Term '%s' not found, HTTP response code was %s.",
+                        term,
+                        response.status_code,
+                    )
                     return None
             else:
-                response = issue_request(config, 'GET', endpoint + '?name=' + term, headers)
+                response = issue_request(
+                    config, "GET", endpoint + "?name=" + term, headers
+                )
                 if response.status_code == 200:
                     term_response_body = json.loads(response.text)
                     if term_response_body:
-                        return term_response_body[0]['tid'][0]['value']
-                    logging.warning("Term '%s' not found. Cannot create it using entity_reference_view_endpoints without a provided vocabulary.", term)
+                        return term_response_body[0]["tid"][0]["value"]
+                    logging.warning(
+                        "Term '%s' not found. Cannot create it using entity_reference_view_endpoints without a provided vocabulary.",
+                        term,
+                    )
                     return None
                 else:
-                    logging.warning("Term '%s' not found, HTTP response code was %s.", term, response.status_code)
+                    logging.warning(
+                        "Term '%s' not found, HTTP response code was %s.",
+                        term,
+                        response.status_code,
+                    )
                     return None
         elif len(vocab_ids) == 1:
             # A namespace is not needed but it might be present. If there is,
