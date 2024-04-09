@@ -70,9 +70,9 @@ def create():
         ):
             prepare_csv_id_to_node_id_map(config)
             # Register the start time of the primary task so we can access it in secondary tasks.
-            os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME"] = (
-                "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
-            )
+            os.environ[
+                "ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME"
+            ] = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
 
     node_ids = dict()
     csv_path = os.path.join(config["input_dir"], config["input_csv"])
@@ -415,13 +415,14 @@ def create():
         # Execute node-specific post-create scripts, if any are configured.
         if "node_post_create" in config and len(config["node_post_create"]) > 0:
             for command in config["node_post_create"]:
-                post_task_output, post_task_return_code = (
-                    execute_entity_post_task_script(
-                        command,
-                        args.config,
-                        node_response.status_code,
-                        node_response.text,
-                    )
+                (
+                    post_task_output,
+                    post_task_return_code,
+                ) = execute_entity_post_task_script(
+                    command,
+                    args.config,
+                    node_response.status_code,
+                    node_response.text,
                 )
                 if post_task_return_code == 0:
                     logging.info(
@@ -876,13 +877,14 @@ def update():
             # Execute node-specific post-create scripts, if any are configured.
             if "node_post_update" in config and len(config["node_post_update"]) > 0:
                 for command in config["node_post_update"]:
-                    post_task_output, post_task_return_code = (
-                        execute_entity_post_task_script(
-                            command,
-                            args.config,
-                            node_response.status_code,
-                            node_response.text,
-                        )
+                    (
+                        post_task_output,
+                        post_task_return_code,
+                    ) = execute_entity_post_task_script(
+                        command,
+                        args.config,
+                        node_response.status_code,
+                        node_response.text,
                     )
                     if post_task_return_code == 0:
                         logging.info(
@@ -1727,9 +1729,12 @@ def update_media() -> None:
                     )
                     invalid_track_file = True
                     break
-                track_label, track_type, track_language, track_filepath = (
-                    track_file.split(":")
-                )
+                (
+                    track_label,
+                    track_type,
+                    track_language,
+                    track_filepath,
+                ) = track_file.split(":")
                 track_files_info["track_labels"].append(track_label)
                 track_files_info["track_types"].append(track_type)
                 track_files_info["track_languages"].append(track_language)
@@ -2307,13 +2312,14 @@ def create_from_files():
             # Execute node-specific post-create scripts, if any are configured.
             if "node_post_create" in config and len(config["node_post_create"]) > 0:
                 for command in config["node_post_create"]:
-                    post_task_output, post_task_return_code = (
-                        execute_entity_post_task_script(
-                            command,
-                            args.config,
-                            node_response.status_code,
-                            node_response.text,
-                        )
+                    (
+                        post_task_output,
+                        post_task_return_code,
+                    ) = execute_entity_post_task_script(
+                        command,
+                        args.config,
+                        node_response.status_code,
+                        node_response.text,
                     )
                     if post_task_return_code == 0:
                         logging.info(
@@ -2428,9 +2434,9 @@ def export_csv():
     writer.writerow(field_labels)
 
     cardinality = collections.OrderedDict()
-    cardinality["REMOVE THIS COLUMN (KEEP THIS ROW)"] = (
-        "NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)"
-    )
+    cardinality[
+        "REMOVE THIS COLUMN (KEEP THIS ROW)"
+    ] = "NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)"
     cardinality["node_id"] = "1"
     cardinality["uid"] = "1"
     cardinality["langcode"] = "1"
@@ -2673,13 +2679,14 @@ def get_data_from_view():
                 # Execute node-specific post-export scripts, if any are configured.
                 if "node_post_export" in config and len(config["node_post_export"]) > 0:
                     for command in config["node_post_export"]:
-                        post_task_output, post_task_return_code = (
-                            execute_entity_post_task_script(
-                                command,
-                                args.config,
-                                response.status_code,
-                                json.dumps(node),
-                            )
+                        (
+                            post_task_output,
+                            post_task_return_code,
+                        ) = execute_entity_post_task_script(
+                            command,
+                            args.config,
+                            response.status_code,
+                            json.dumps(node),
                         )
                         if post_task_return_code == 0:
                             logging.info(
@@ -2751,13 +2758,14 @@ def get_data_from_view():
                         and len(config["node_post_export"]) > 0
                     ):
                         for command in config["node_post_export"]:
-                            post_task_output, post_task_return_code = (
-                                execute_entity_post_task_script(
-                                    command,
-                                    args.config,
-                                    response.status_code,
-                                    json.dumps(node),
-                                )
+                            (
+                                post_task_output,
+                                post_task_return_code,
+                            ) = execute_entity_post_task_script(
+                                command,
+                                args.config,
+                                response.status_code,
+                                json.dumps(node),
                             )
                             if post_task_return_code == 0:
                                 logging.info(
@@ -3306,7 +3314,14 @@ parser.add_argument(
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
 
-workbench_config = WorkbenchConfig(args)
+try:
+    workbench_config = WorkbenchConfig(args)
+except Exception as e:
+    print(
+        f"Oops, Workbench can't connect to the Drupal website identified in the 'host' setting in your config file."
+    )
+    print("Confirm the URL is correct and that the website is running, and try again.")
+    sys.exit()
 config = workbench_config.get_config()
 
 create_temp_dir(config)
