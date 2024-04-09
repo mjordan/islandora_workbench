@@ -1,7 +1,7 @@
 task: create
-host: http://localhost:8000
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 nodes_only: true
 secondary_tasks: ['tests/assets/secondary_task_with_google_sheets_and_excel_test/excel_secondary.yml']
 csv_field_templates:
@@ -10,5 +10,4 @@ id_field: field_local_identifier
 input_dir: tests/assets/secondary_task_with_google_sheets_and_excel_test
 input_csv: secondary_task_with_excel.xlsx
 excel_worksheet: primary
-
-
+secure_ssl_only: false

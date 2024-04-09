@@ -1,4 +1,4 @@
 file,id,title,field_model,field_genre
-,02,Taxo test 2,25,1000000
-,01,Taxo test 1,25,Newspapers
-,03,Taxo test 4,25,Postcards
+,02,Taxo test 2,Image,1000000
+,01,Taxo test 1,Image,Newspapers
+,03,Taxo test 4,Image,Postcards

@@ -1,0 +1,10 @@
+task: create
+host: https://islandora.traefik.me
+username: admin
+password: password
+input_dir: tests/assets/allow_missing_files_test
+input_csv: add_media_create_nodes.csv
+standalone_media_url: true
+allow_missing_files: true
+log_file_path: tests/assets/allow_missing_files_test/add_media_create_nodes.log
+secure_ssl_only: false

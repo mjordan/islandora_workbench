@@ -1,7 +1,8 @@
 task: create
-host: http://localhost:8000
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: tests/assets/parents_precede_children_test
 input_csv: bad.csv 
 nodes_only: true
+secure_ssl_only: false

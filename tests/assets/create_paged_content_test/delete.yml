@@ -1,6 +1,0 @@
-task: delete
-host: "http://localhost:8000"
-username: admin
-password: islandora
-input_dir: tests/assets/create_paged_content_test
-input_csv: /tmp/workbenchcreatepagedcontenttestnids.txt

@@ -1,0 +1,7 @@
+task: create
+host: https://islandora.traefik.me
+username: admin
+password: password
+use_node_title_for_media: true
+field_for_media_title: true
+secure_ssl_only: false

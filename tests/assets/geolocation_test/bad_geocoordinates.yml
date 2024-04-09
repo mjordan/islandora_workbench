@@ -1,7 +1,8 @@
 task: create
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: tests/assets/geolocation_test/input_data
 input_csv: bad_geocoorindates_fail.csv
 nodes_only: true
+secure_ssl_only: false

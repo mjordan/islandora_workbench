@@ -1,7 +1,7 @@
 task: create_from_files
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: tests/assets/create_from_files_test/files
 models:
  - 'http://purl.org/coar/resource_type/c_1843': ['zip', 'tar', '']
@@ -9,4 +9,6 @@ models:
  - 'http://purl.org/coar/resource_type/c_c513': ['tif', 'tiff', 'jp2', 'png', 'gif', 'jpg', 'jpeg']
  - 'http://purl.org/coar/resource_type/c_18cc': ['mp3', 'wav', 'aac']
  - 'http://purl.org/coar/resource_type/c_12ce': ['mp4']
-log_json: true
+# log_json: true
+standalone_media_url: true
+secure_ssl_only: false

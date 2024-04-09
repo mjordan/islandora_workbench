@@ -1,0 +1,6 @@
+task: add_media
+host: https://islandora.traefik.me
+username: admin
+password: password
+input_csv: add_media.csv
+secure_ssl_only: false

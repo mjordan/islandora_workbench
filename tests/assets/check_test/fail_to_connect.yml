@@ -1,0 +1,6 @@
+task: create
+host: https://somebadhost.org
+username: admin
+password: password
+nodes_only: true
+secure_ssl_only: false

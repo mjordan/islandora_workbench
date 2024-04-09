@@ -1,7 +1,8 @@
 task: update
-host: "http://localhost:8000"
+host: https://islandora.traefik.me
 username: admin
-password: islandora
+password: password
 input_dir: "tests/assets/update_test"
 input_csv: workbenchupdatetest.csv
 validate_title_length: false
+secure_ssl_only: false

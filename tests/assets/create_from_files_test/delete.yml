@@ -1,6 +1,0 @@
-task: delete
-host: "http://localhost:8000"
-username: admin
-password: islandora
-input_dir: "tests/assets/create_from_files_test"
-input_csv: /tmp/workbenchcreatefromfilestestnids.txt
