@@ -15,6 +15,7 @@ import collections
 import subprocess
 import requests_cache
 from progress_bar import InitBar
+from ruamel.yaml import YAML
 from workbench_utils import *
 import workbench_fields
 from WorkbenchConfig import WorkbenchConfig
@@ -70,9 +71,9 @@ def create():
         ):
             prepare_csv_id_to_node_id_map(config)
             # Register the start time of the primary task so we can access it in secondary tasks.
-            os.environ[
-                "ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME"
-            ] = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+            os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME"] = (
+                "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+            )
 
     node_ids = dict()
     csv_path = os.path.join(config["input_dir"], config["input_csv"])
@@ -2434,9 +2435,9 @@ def export_csv():
     writer.writerow(field_labels)
 
     cardinality = collections.OrderedDict()
-    cardinality[
-        "REMOVE THIS COLUMN (KEEP THIS ROW)"
-    ] = "NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)"
+    cardinality["REMOVE THIS COLUMN (KEEP THIS ROW)"] = (
+        "NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)"
+    )
     cardinality["node_id"] = "1"
     cardinality["uid"] = "1"
     cardinality["langcode"] = "1"
@@ -3317,10 +3318,14 @@ args = parser.parse_args()
 try:
     workbench_config = WorkbenchConfig(args)
 except Exception as e:
+    # Workbench wouldn't get this far is the YAML config file has syntax errors or is not found.
+    yaml = YAML()
+    with open(args.config, "r") as stream:
+        config_to_get_host_value = yaml.load(stream)
+    print(f"Oops, Workbench can't connect to {config_to_get_host_value['host']}.")
     print(
-        f"Oops, Workbench can't connect to the Drupal website identified in the 'host' setting in your config file."
+        'Confirm your "host" configuration setting is correct and that the website is running, and try again.'
     )
-    print("Confirm the URL is correct and that the website is running, and try again.")
     sys.exit()
 config = workbench_config.get_config()
 
