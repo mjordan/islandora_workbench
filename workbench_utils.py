@@ -6268,7 +6268,8 @@ def prepare_term_id(config, vocab_ids, field_name, term):
     term = term.strip()
     if value_is_numeric(term):
         return term
-    if not config.get("entity_reference_view_endpoints", {}) and vocab_ids is False:
+    entity_reference_view_endpoints = get_entity_reference_view_endpoints(config)
+    if not entity_reference_view_endpoints and vocab_ids is False:
         return None
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
@@ -6278,11 +6279,9 @@ def prepare_term_id(config, vocab_ids, field_name, term):
         if value_is_numeric(tid_from_uri):
             return tid_from_uri
     else:
-        if config.get("entity_reference_view_endpoints", {}).get(field_name, False):
+        if entity_reference_view_endpoints.get(field_name, False):
             headers = {"Content-Type": "application/json"}
-            endpoint = config.get("entity_reference_view_endpoints", {}).get(
-                field_name, False
-            )
+            endpoint = entity_reference_view_endpoints.get(field_name, False)
             if ":" in term:
                 [tentative_vocab_id, term_name] = term.split(":", maxsplit=1)
                 tentative_vocab_id = tentative_vocab_id.strip()
