@@ -106,6 +106,17 @@ def create():
 
     row_count = 0
     for row in csv_data:
+        if (
+            "node_exists_verification_view_endpoint" in config
+            and len(get_node_exists_verification_view_endpoint(config)) > 0
+        ):
+            candidate_node_id = verify_node_exists_by_key(config, copy.copy(row))
+            if candidate_node_id is not False:
+                message = f"Item in row {row[config['id_field']]} appears to already be in Drupal ({config['host']}/node/{candidate_node_id}), skipping it."
+                logging.warning(message)
+                print(message)
+                continue
+
         # Delete expired items from request_cache before processing a row.
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)

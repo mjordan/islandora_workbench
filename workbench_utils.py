@@ -584,6 +584,52 @@ def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
         return False
 
 
+def verify_node_exists_by_key(config, csv_row):
+    """Query a View using a value from CSV (the "key") to see if the node exists.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    csv_row :
+        A copy of the CSV row that represents the node we are interested in.
+
+    Returns
+    ------
+     str|False
+        The node ID if the node exists, False if the node doesn't exist or if there was a problem.
+    """
+    ####### @todo: 1: test if query returns more than one node; 2) support multivalue identifier fields; 3: add --check code.
+
+
+    endpoint_mapping = get_node_exists_verification_view_endpoint(config)
+    if len(csv_row[endpoint_mapping[0]]) == 0:
+        row_id = csv_row[config["id_field"]]
+        logging.warning(
+            f'Can\'t verify node exists for item in row "{row_id}" since it has no value in its "{endpoint_mapping[0]}" column.'
+        )
+        return False
+
+    view_url = f'{config["host"]}/{endpoint_mapping[1].lstrip("/")}?{endpoint_mapping[0]}={csv_row[endpoint_mapping[0]]}'
+    headers = {"Content-Type": "application/json"}
+    response = issue_request(config, "GET", view_url, headers)
+    if response.status_code == 200:
+        body = json.loads(response.text)
+        if len(body) == 1:
+            return body[0]["nid"]
+        elif len(body) > 1:
+            logging.warning(
+                f"Query to View {view_url} found more than one node ({body})."
+            )
+        else:
+            return False
+    else:
+        logging.warning(
+            f"Query to View {view_url} encountered a problem: HTTP status code was {response.status_code}"
+        )
+        return False
+
+
 def ping_url_alias(config, url_alias):
     """Ping the URL alias to see if it exists. Return the status code.
 
@@ -9496,6 +9542,28 @@ def get_entity_reference_view_endpoints(config):
             endpoint_mappings[field_name] = endpoint
 
     return endpoint_mappings
+
+
+def get_node_exists_verification_view_endpoint(config):
+    """Gets from conifig the View endpoints and CSV field to match to determine if a matching node already exists."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        Returns
+        -------
+        tuple
+            Tuple containing Drupal field name and View REST endpoints as values.
+    """
+    # endpoint_mapping = tuple()
+    if "node_exists_verification_view_endpoint" not in config:
+        return endpoint_mappings
+
+    for endpoint_mapping in config["node_exists_verification_view_endpoint"]:
+        for field_name, endpoint in endpoint_mapping.items():
+            endpoint_mapping = (field_name, endpoint)
+
+    return endpoint_mapping
 
 
 def get_percentage(part, whole):
