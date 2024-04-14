@@ -597,20 +597,24 @@ def verify_node_exists_by_key(config, csv_row):
     Returns
     ------
      str|False
-        The node ID if the node exists, False if the node doesn't exist or if there was a problem.
+        The node ID if the node exists, False if the node doesn't exist, there are more than 1 node exists,
+        or if there was a non-200 HTTP response.
     """
-    ####### @todo: 1: test if query returns more than one node; 2) support multivalue identifier fields; 3: add --check code.
-
-
     endpoint_mapping = get_node_exists_verification_view_endpoint(config)
     if len(csv_row[endpoint_mapping[0]]) == 0:
         row_id = csv_row[config["id_field"]]
         logging.warning(
-            f'Can\'t verify node exists for item in row "{row_id}" since it has no value in its "{endpoint_mapping[0]}" column.'
+            f'Can\'t verify node exists for item in row "{row_id}" since it has no value in its "{endpoint_mapping[0]}" CSV column.'
         )
         return False
 
-    view_url = f'{config["host"]}/{endpoint_mapping[1].lstrip("/")}?{endpoint_mapping[0]}={csv_row[endpoint_mapping[0]]}'
+    csv_value = copy.copy(csv_row[endpoint_mapping[0]])
+    if config["subdelimiter"] in csv_value:
+        csv_value_for_url = csv_value.replace(config["subdelimiter"], "%20")
+    else:
+        csv_value_for_url = csv_value
+
+    view_url = f'{config["host"]}/{endpoint_mapping[1].lstrip("/")}?{endpoint_mapping[0]}={csv_value_for_url}'
     headers = {"Content-Type": "application/json"}
     response = issue_request(config, "GET", view_url, headers)
     if response.status_code == 200:
@@ -619,7 +623,7 @@ def verify_node_exists_by_key(config, csv_row):
             return body[0]["nid"]
         elif len(body) > 1:
             logging.warning(
-                f"Query to View {view_url} found more than one node ({body})."
+                f'Query to View "{view_url}" found more than one node ({body}). CSV "{endpoint_mapping[0]}" value was {csv_row[endpoint_mapping[0]]}. Workbench skipped this CSV row.'
             )
         else:
             return False
@@ -2336,6 +2340,25 @@ def check_input(config, args):
                 )
                 logging.error(message)
                 sys.exit("Error: " + message)
+
+        # Check the configuration that is necessary for verifying nodes already exist in the target Drupal.
+        if "node_exists_verification_view_endpoint" in config:
+            node_exists_config = get_node_exists_verification_view_endpoint(config)
+            if node_exists_config is not False:
+                if node_exists_config[0] not in csv_column_headers:
+                    message = f'CSV column identified in "node_exists_verification_view_endpoint" is not in your CSV file.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                view_url = f'{config["host"]}/{node_exists_config[1].lstrip("/")}'
+                view_path_status_code = ping_view_endpoint(config, view_url)
+                if view_path_status_code != 200:
+                    message = f'Cannot access View REST export configured in "node_exists_verification_view_endpoint" ({view_url}).'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                else:
+                    message = f'View REST export configured in "node_exists_verification_view_endpoint" ({view_url}) is accessible. Values in the "{node_exists_config[0]}" CSV column will be used to check whether nodes already exist.'
+                    logging.info(message)
+                    print("OK, " + message)
 
         # Check for the View that is necessary for entity reference fields configured
         # as "Views: Filter by an entity reference View" (issue 452).
@@ -9552,18 +9575,19 @@ def get_node_exists_verification_view_endpoint(config):
             The configuration settings defined by workbench_config.get_config().
         Returns
         -------
-        tuple
-            Tuple containing Drupal field name and View REST endpoints as values.
+        tuple|False
+            Tuple containing Drupal field name and View REST endpoints as values. If there are multiple mappings,
+            the returned tuple will contain the field_name and endpoint values of only the last mapping. If the config
+            can't be loaded into a tuple, returns False.
     """
-    # endpoint_mapping = tuple()
-    if "node_exists_verification_view_endpoint" not in config:
-        return endpoint_mappings
-
     for endpoint_mapping in config["node_exists_verification_view_endpoint"]:
         for field_name, endpoint in endpoint_mapping.items():
             endpoint_mapping = (field_name, endpoint)
 
-    return endpoint_mapping
+    if type(endpoint_mapping) is tuple:
+        return endpoint_mapping
+    else:
+        return False
 
 
 def get_percentage(part, whole):

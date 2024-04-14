@@ -108,7 +108,7 @@ def create():
     for row in csv_data:
         if (
             "node_exists_verification_view_endpoint" in config
-            and len(get_node_exists_verification_view_endpoint(config)) > 0
+            and get_node_exists_verification_view_endpoint(config) is not False
         ):
             candidate_node_id = verify_node_exists_by_key(config, copy.copy(row))
             if candidate_node_id is not False:
