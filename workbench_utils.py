@@ -2367,7 +2367,10 @@ def check_input(config, args):
                 csv_column_header in field_definitions
                 and field_definitions[csv_column_header]["handler"] == "views"
             ):
-                if config["require_entity_reference_views"] is True:
+                if (
+                    config["require_entity_reference_views"] is True
+                    and "entity_reference_view_endpoints" not in config
+                ):
                     entity_reference_view_exists = ping_entity_reference_view_endpoint(
                         config,
                         csv_column_header,
@@ -2897,6 +2900,32 @@ def check_input(config, args):
                 + 'will result in 422 errors in "create" and "update" tasks.'
             )
             logging.warning(message)
+
+        # Check the configuration that is necessary for enabling use of term names in Entity Reference Views fields.
+        if "entity_reference_view_endpoints" in config:
+            entity_reference_view_endpoints = get_entity_reference_view_endpoints(
+                config
+            )
+            for (
+                entity_reference_view_field_name,
+                entity_reference_view_endpoint,
+            ) in entity_reference_view_endpoints.items():
+                if entity_reference_view_field_name not in csv_column_headers:
+                    message = f'CSV column {entity_reference_view_field_name} identified in "entity_reference_view_endpoints" is not in your CSV file.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                view_url = (
+                    f'{config["host"]}/{entity_reference_view_endpoint.lstrip("/")}'
+                )
+                view_path_status_code = ping_view_endpoint(config, view_url)
+                if view_path_status_code != 200:
+                    message = f'Cannot access View REST export configured in "entity_reference_view_endpoints" ({view_url}).'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                else:
+                    message = f'View REST export configured in "entity_reference_view_endpoints" ({view_url}) is accessible.'
+                    logging.info(message)
+                    print("OK, " + message)
 
         # Validate 'langcode' values if that field exists in the CSV.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
