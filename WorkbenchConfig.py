@@ -208,6 +208,7 @@ class WorkbenchConfig:
             "log_response_status_code": False,
             "log_headers": False,
             "log_term_creation": True,
+            "log_file_name_and_line_number": False,
             "progress_bar": False,
             "user_agent": "Islandora Workbench",
             "allow_redirects": True,
