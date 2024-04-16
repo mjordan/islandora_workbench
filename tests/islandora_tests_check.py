@@ -20,6 +20,24 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
 
 
+class TestFailToConnect(unittest.TestCase):
+
+    def test_failed_to_connect(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(
+            self.current_dir, "assets", "check_test", "fail_to_connect.yml"
+        )
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        try:
+            output = subprocess.check_output(cmd)
+            output = output.decode().strip()
+            self.assertRegex(
+                output, "Workbench can't connect to https://somebadhost.org", ""
+            )
+        except subprocess.CalledProcessError as err:
+            pass
+
+
 class TestCreateCheck(unittest.TestCase):
 
     def setUp(self):

@@ -584,6 +584,56 @@ def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
         return False
 
 
+def verify_node_exists_by_key(config, csv_row):
+    """Query a View using a value from CSV (the "key") to see if the node exists.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    csv_row :
+        A copy of the CSV row that represents the node we are interested in.
+
+    Returns
+    ------
+     str|False
+        The node ID if the node exists, False if the node doesn't exist, there are more than 1 node exists,
+        or if there was a non-200 HTTP response.
+    """
+    endpoint_mapping = get_node_exists_verification_view_endpoint(config)
+    if len(csv_row[endpoint_mapping[0]]) == 0:
+        row_id = csv_row[config["id_field"]]
+        logging.warning(
+            f'Can\'t verify node exists for item in row "{row_id}" since it has no value in its "{endpoint_mapping[0]}" CSV column.'
+        )
+        return False
+
+    csv_value = copy.copy(csv_row[endpoint_mapping[0]])
+    if config["subdelimiter"] in csv_value:
+        csv_value_for_url = csv_value.replace(config["subdelimiter"], "%20")
+    else:
+        csv_value_for_url = csv_value
+
+    view_url = f'{config["host"]}/{endpoint_mapping[1].lstrip("/")}?{endpoint_mapping[0]}={csv_value_for_url}'
+    headers = {"Content-Type": "application/json"}
+    response = issue_request(config, "GET", view_url, headers)
+    if response.status_code == 200:
+        body = json.loads(response.text)
+        if len(body) == 1:
+            return body[0]["nid"]
+        elif len(body) > 1:
+            logging.warning(
+                f'Query to View "{view_url}" found more than one node ({body}). CSV "{endpoint_mapping[0]}" value was {csv_row[endpoint_mapping[0]]}. Workbench skipped this CSV row.'
+            )
+        else:
+            return False
+    else:
+        logging.warning(
+            f"Query to View {view_url} encountered a problem: HTTP status code was {response.status_code}"
+        )
+        return False
+
+
 def ping_url_alias(config, url_alias):
     """Ping the URL alias to see if it exists. Return the status code.
 
@@ -2291,6 +2341,25 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit("Error: " + message)
 
+        # Check the configuration that is necessary for verifying nodes already exist in the target Drupal.
+        if "node_exists_verification_view_endpoint" in config:
+            node_exists_config = get_node_exists_verification_view_endpoint(config)
+            if node_exists_config is not False:
+                if node_exists_config[0] not in csv_column_headers:
+                    message = f'CSV column identified in "node_exists_verification_view_endpoint" is not in your CSV file.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                view_url = f'{config["host"]}/{node_exists_config[1].lstrip("/")}'
+                view_path_status_code = ping_view_endpoint(config, view_url)
+                if view_path_status_code != 200:
+                    message = f'Cannot access View REST export configured in "node_exists_verification_view_endpoint" ({view_url}).'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                else:
+                    message = f'View REST export configured in "node_exists_verification_view_endpoint" ({view_url}) is accessible. Values in the "{node_exists_config[0]}" CSV column will be used to check whether nodes already exist.'
+                    logging.info(message)
+                    print("OK, " + message)
+
         # Check for the View that is necessary for entity reference fields configured
         # as "Views: Filter by an entity reference View" (issue 452).
         for csv_column_header in csv_column_headers:
@@ -2298,7 +2367,10 @@ def check_input(config, args):
                 csv_column_header in field_definitions
                 and field_definitions[csv_column_header]["handler"] == "views"
             ):
-                if config["require_entity_reference_views"] is True:
+                if (
+                    config["require_entity_reference_views"] is True
+                    and "entity_reference_view_endpoints" not in config
+                ):
                     entity_reference_view_exists = ping_entity_reference_view_endpoint(
                         config,
                         csv_column_header,
@@ -2828,6 +2900,32 @@ def check_input(config, args):
                 + 'will result in 422 errors in "create" and "update" tasks.'
             )
             logging.warning(message)
+
+        # Check the configuration that is necessary for enabling use of term names in Entity Reference Views fields.
+        if "entity_reference_view_endpoints" in config:
+            entity_reference_view_endpoints = get_entity_reference_view_endpoints(
+                config
+            )
+            for (
+                entity_reference_view_field_name,
+                entity_reference_view_endpoint,
+            ) in entity_reference_view_endpoints.items():
+                if entity_reference_view_field_name not in csv_column_headers:
+                    message = f'CSV column {entity_reference_view_field_name} identified in "entity_reference_view_endpoints" is not in your CSV file.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                view_url = (
+                    f'{config["host"]}/{entity_reference_view_endpoint.lstrip("/")}'
+                )
+                view_path_status_code = ping_view_endpoint(config, view_url)
+                if view_path_status_code != 200:
+                    message = f'Cannot access View REST export configured in "entity_reference_view_endpoints" ({view_url}).'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                else:
+                    message = f'View REST export configured in "entity_reference_view_endpoints" ({view_url}) is accessible.'
+                    logging.info(message)
+                    print("OK, " + message)
 
         # Validate 'langcode' values if that field exists in the CSV.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -5476,6 +5574,14 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
 
+            # Skip rows specified not in config['csv_rows_to_process'].
+            if (
+                "csv_rows_to_process" in config
+                and len(config["csv_rows_to_process"]) > 0
+            ):
+                if row[config["id_field"]] not in config["csv_rows_to_process"]:
+                    continue
+
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config["ignore_csv_columns"]) > 0:
                 for column_to_ignore in config["ignore_csv_columns"]:
@@ -6260,7 +6366,8 @@ def prepare_term_id(config, vocab_ids, field_name, term):
     term = term.strip()
     if value_is_numeric(term):
         return term
-    if vocab_ids is False:
+    entity_reference_view_endpoints = get_entity_reference_view_endpoints(config)
+    if not entity_reference_view_endpoints and vocab_ids is False:
         return None
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
@@ -6270,7 +6377,53 @@ def prepare_term_id(config, vocab_ids, field_name, term):
         if value_is_numeric(tid_from_uri):
             return tid_from_uri
     else:
-        if len(vocab_ids) == 1:
+        if entity_reference_view_endpoints.get(field_name, False):
+            headers = {"Content-Type": "application/json"}
+            endpoint = entity_reference_view_endpoints.get(field_name, False)
+            if ":" in term:
+                [tentative_vocab_id, term_name] = term.split(":", maxsplit=1)
+                tentative_vocab_id = tentative_vocab_id.strip()
+                term_name = term_name.strip()
+                response = issue_request(
+                    config,
+                    "GET",
+                    endpoint + "?name=" + term_name + "&vid=" + tentative_vocab_id,
+                    headers,
+                )
+                if response.status_code == 200:
+                    term_response_body = json.loads(response.text)
+                    if term_response_body:
+                        return term_response_body[0]["tid"][0]["value"]
+                    tid = create_term(config, tentative_vocab_id, term_name)
+                    return tid
+                else:
+                    logging.warning(
+                        "Term '%s' not found, HTTP response code was %s.",
+                        term,
+                        response.status_code,
+                    )
+                    return None
+            else:
+                response = issue_request(
+                    config, "GET", endpoint + "?name=" + term, headers
+                )
+                if response.status_code == 200:
+                    term_response_body = json.loads(response.text)
+                    if term_response_body:
+                        return term_response_body[0]["tid"][0]["value"]
+                    logging.warning(
+                        "Term '%s' not found. Cannot create it using entity_reference_view_endpoints without a provided vocabulary.",
+                        term,
+                    )
+                    return None
+                else:
+                    logging.warning(
+                        "Term '%s' not found, HTTP response code was %s.",
+                        term,
+                        response.status_code,
+                    )
+                    return None
+        elif len(vocab_ids) == 1:
             # A namespace is not needed but it might be present. If there is,
             # since this vocabulary is the only one linked to its field,
             # we remove it before sending it to create_term().
@@ -9441,6 +9594,29 @@ def get_entity_reference_view_endpoints(config):
             endpoint_mappings[field_name] = endpoint
 
     return endpoint_mappings
+
+
+def get_node_exists_verification_view_endpoint(config):
+    """Gets from conifig the View endpoints and CSV field to match to determine if a matching node already exists."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        Returns
+        -------
+        tuple|False
+            Tuple containing Drupal field name and View REST endpoints as values. If there are multiple mappings,
+            the returned tuple will contain the field_name and endpoint values of only the last mapping. If the config
+            can't be loaded into a tuple, returns False.
+    """
+    for endpoint_mapping in config["node_exists_verification_view_endpoint"]:
+        for field_name, endpoint in endpoint_mapping.items():
+            endpoint_mapping = (field_name, endpoint)
+
+    if type(endpoint_mapping) is tuple:
+        return endpoint_mapping
+    else:
+        return False
 
 
 def get_percentage(part, whole):
