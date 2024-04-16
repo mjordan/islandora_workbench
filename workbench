@@ -3327,8 +3327,7 @@ logging.basicConfig(
     filename=config["log_file_path"],
     level=logging.INFO,
     filemode=config["log_file_mode"],
-    # format="%(asctime)s - %(levelname)s - %(message)s",
-    format="{%(pathname)s:%(lineno)d} - %(asctime)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%d-%b-%y %H:%M:%S",
 )
 
