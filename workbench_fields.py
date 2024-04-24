@@ -944,6 +944,8 @@ class EntityReferenceField:
                 # Output term IDs.
                 if ping_term(config, subvalue["target_id"]) is True:
                     subvalues.append(str(subvalue["target_id"]))
+                else:
+                    return None
 
         if len(subvalues) > 1:
             return config["subdelimiter"].join(subvalues)
