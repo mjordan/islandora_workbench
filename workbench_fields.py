@@ -294,10 +294,11 @@ class SimpleField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -498,10 +499,11 @@ class GeolocationField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -693,9 +695,10 @@ class LinkField:
             -------
             string
                 A string structured same as the Workbench CSV field data for this field type.
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -937,10 +940,11 @@ class EntityReferenceField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -1166,10 +1170,11 @@ class TypedRelationField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -1370,10 +1375,11 @@ class AuthorityLinkField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -1568,10 +1574,11 @@ class MediaTrackField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -1918,10 +1925,11 @@ class EntityReferenceRevisionsField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return field_data
+            return None
 
         # We allow fields to overide the global subdelimiter.
         paragraph_configs = (
