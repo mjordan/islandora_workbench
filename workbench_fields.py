@@ -87,6 +87,10 @@ class SimpleField:
             ):
                 field_values.append({"value": subvalue, "format": text_format})
             else:
+                if field_definitions[field_name]["field_type"] == "integer":
+                    subvalue = int(subvalue)
+                if field_definitions[field_name]["field_type"] == "float":
+                    subvalue = float(subvalue)
                 field_values.append({"value": subvalue})
         field_values = self.dedupe_values(field_values)
         entity[field_name] = field_values
@@ -160,6 +164,10 @@ class SimpleField:
                         {"value": subvalue, "format": text_format}
                     )
                 else:
+                    if field_definitions[field_name]["field_type"] == "integer":
+                        subvalue = int(subvalue)
+                    if field_definitions[field_name]["field_type"] == "float":
+                        subvalue = float(subvalue)
                     entity[field_name].append({"value": subvalue})
             entity[field_name] = self.dedupe_values(entity[field_name])
             if -1 < cardinality < len(entity[field_name]):
@@ -192,6 +200,11 @@ class SimpleField:
                 ):
                     field_values.append({"value": subvalue, "format": text_format})
                 else:
+                    if field_definitions[field_name]["type"] == "integer":
+                        subvalue = int(subvalue)
+                    if field_definitions[field_name]["type"] == "float":
+                        subvalue = float(subvalue)
+                    entity[field_name].append({"value": subvalue})
                     field_values.append({"value": subvalue})
             field_values = self.dedupe_values(field_values)
             entity[field_name] = field_values
