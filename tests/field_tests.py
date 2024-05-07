@@ -3,7 +3,6 @@
 
 import sys
 import os
-import io
 import unittest
 import collections
 
@@ -34,7 +33,11 @@ class TestSimpleField(unittest.TestCase):
 
         # Create a node with a simple field of cardinality 1, no subdelimiters.
         self.field_definitions = {
-            "field_foo": {"cardinality": 1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         field = workbench_fields.SimpleField()
@@ -79,7 +82,11 @@ class TestSimpleField(unittest.TestCase):
 
         # Create a node with a simple field of cardinality unlimited, no subdelimiters.
         self.field_definitions = {
-            "field_foo": {"cardinality": -1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": -1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         field = workbench_fields.SimpleField()
@@ -115,7 +122,11 @@ class TestSimpleField(unittest.TestCase):
 
         # Create a node with a simple field of cardinality limited, no subdelimiters.
         self.field_definitions = {
-            "field_foo": {"cardinality": 2, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 2,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         field = workbench_fields.SimpleField()
@@ -164,6 +175,72 @@ class TestSimpleField(unittest.TestCase):
                 r"simple_006 would exceed maximum number of allowed values \(2\)",
             )
 
+    def test_create_with_simple_integer_field(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+        }
+
+        # Create a node with a simple integer field of cardinality 1, no subdelimiters.
+        self.field_definitions = {
+            "field_int": {
+                "cardinality": 1,
+                "formatted_text": False,
+                "field_type": "integer",
+            }
+        }
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record["id"] = "simple_001_int"
+        csv_record["field_int"] = "5"
+        node = field.create(
+            self.config, self.field_definitions, existing_node, csv_record, "field_int"
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_int": [{"value": 5}],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_create_with_simple_float_field(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+        }
+
+        # Create a node with a simple integer field of cardinality 1, no subdelimiters.
+        self.field_definitions = {
+            "field_float": {
+                "cardinality": 1,
+                "formatted_text": False,
+                "field_type": "float",
+            }
+        }
+
+        field = workbench_fields.SimpleField()
+        csv_record = collections.OrderedDict()
+        csv_record["id"] = "simple_001_int"
+        csv_record["field_float"] = "6.0"
+        node = field.create(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_float",
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_float": [{"value": 6.0}],
+        }
+        self.assertDictEqual(node, expected_node)
+
     def test_simple_field_title_update_replace(self):
         # Update the node title, first with an 'update_mode' of replace.
         existing_node = {
@@ -172,7 +249,9 @@ class TestSimpleField(unittest.TestCase):
             "status": [{"value": 1}],
         }
 
-        self.field_definitions = {"title": {"cardinality": 1, "formatted_text": False}}
+        self.field_definitions = {
+            "title": {"cardinality": 1, "formatted_text": False, "field_type": "text"}
+        }
 
         self.config["task"] = "update"
         self.config["update_mode"] = "replace"
@@ -204,7 +283,9 @@ class TestSimpleField(unittest.TestCase):
             "status": [{"value": 1}],
         }
 
-        self.field_definitions = {"title": {"cardinality": 1, "formatted_text": False}}
+        self.field_definitions = {
+            "title": {"cardinality": 1, "formatted_text": False, "field_type": "text"}
+        }
 
         self.config["task"] = "update"
         self.config["update_mode"] = "append"
@@ -242,7 +323,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": 1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -277,7 +362,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": 1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -317,7 +406,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": 1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -358,7 +451,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": -1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": -1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -394,7 +491,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": -1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": -1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -422,7 +523,11 @@ class TestSimpleField(unittest.TestCase):
 
     def test_simple_field_update_append_cardinality_unlimited_no_subdelims(self):
         self.field_definitions = {
-            "field_foo": {"cardinality": -1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": -1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -500,7 +605,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": -1, "formatted_text": False}
+            "field_foo": {
+                "cardinality": -1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -539,7 +648,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": 2, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 2,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -577,7 +690,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": 2, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 2,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -623,7 +740,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": 2, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 2,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -668,7 +789,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": 3, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 3,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["task"] = "update"
@@ -717,7 +842,11 @@ class TestSimpleField(unittest.TestCase):
         }
 
         self.field_definitions = {
-            "field_foo": {"cardinality": 3, "formatted_text": False}
+            "field_foo": {
+                "cardinality": 3,
+                "formatted_text": False,
+                "field_type": "text",
+            }
         }
 
         self.config["update_mode"] = "delete"
@@ -941,7 +1070,9 @@ class TestSimpleFieldFormatted(unittest.TestCase):
             "status": [{"value": 1}],
         }
 
-        self.field_definitions = {"title": {"cardinality": 1, "formatted_text": False}}
+        self.field_definitions = {
+            "title": {"cardinality": 1, "formatted_text": False, "field_type": "text"}
+        }
 
         self.config["task"] = "update"
         self.config["update_mode"] = "replace"

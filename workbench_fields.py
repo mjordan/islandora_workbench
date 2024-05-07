@@ -18,7 +18,6 @@
 """
 
 import json
-import copy
 from workbench_utils import *
 
 
@@ -200,9 +199,9 @@ class SimpleField:
                 ):
                     field_values.append({"value": subvalue, "format": text_format})
                 else:
-                    if field_definitions[field_name]["type"] == "integer":
+                    if field_definitions[field_name]["field_type"] == "integer":
                         subvalue = int(subvalue)
-                    if field_definitions[field_name]["type"] == "float":
+                    if field_definitions[field_name]["field_type"] == "float":
                         subvalue = float(subvalue)
                     entity[field_name].append({"value": subvalue})
                     field_values.append({"value": subvalue})
