@@ -2868,6 +2868,10 @@ def check_input(config, args):
                 "Warning: Issues detected with validating typed relation field values in the CSV file. See the log for more detail."
             )
 
+        validate_numeric_fields_data = get_csv_data(config)
+        # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+        validate_numeric_fields(config, field_definitions, validate_numeric_fields_data)
+
         validate_media_track_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         validate_media_track_fields(config, validate_media_track_csv_data)
@@ -6497,13 +6501,11 @@ def value_is_numeric(value, allow_decimals=False):
     -------
     boolean
     """
-    if allow_decimals is True:
-        if "." in str(value):
-            var = str(value).replace(".", "")
+    var = str(value)
+    if allow_decimals is True and "." in str(value):
+        var = str(value).replace(".", "")
     else:
-        var = str(value)
-
-    var = var.strip()
+        var = var.strip()
     if var.isnumeric():
         return True
     else:
@@ -6763,6 +6765,62 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                         )
                         print("Warning: " + message + message_2)
                         logging.warning(message + message_2)
+
+
+def validate_numeric_fields(config, field_definitions, csv_data):
+    """Validate integer, decimal, and float fields."""
+    numeric_fields_present = False
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]["field_type"] == "integer":
+                if field_name in row:
+                    numeric_fields_present = True
+                    delimited_field_values = row[field_name].split(
+                        config["subdelimiter"]
+                    )
+                    for field_value in delimited_field_values:
+                        if len(field_value.strip()):
+                            if not value_is_numeric(field_value.strip()):
+                                message = (
+                                    'Value in field "'
+                                    + field_name
+                                    + '" in row with ID '
+                                    + row[config["id_field"]]
+                                    + " ("
+                                    + field_value
+                                    + ") is not a valid integer value."
+                                )
+                                logging.error(message)
+                                sys.exit("Error: " + message)
+            if field_definitions[field_name]["field_type"] in ["decimal", "float"]:
+                if field_name in row:
+                    numeric_fields_present = True
+                    delimited_field_values = row[field_name].split(
+                        config["subdelimiter"]
+                    )
+                    for field_value in delimited_field_values:
+                        if len(field_value.strip()):
+                            if not value_is_numeric(
+                                field_value.strip(), allow_decimals=True
+                            ):
+                                message = (
+                                    'Value in field "'
+                                    + field_name
+                                    + '" in row with ID '
+                                    + row[config["id_field"]]
+                                    + " ("
+                                    + field_value
+                                    + ") is not a valid "
+                                    + field_definitions[field_name]["field_type"]
+                                    + " value."
+                                )
+                                logging.error(message)
+                                sys.exit("Error: " + message)
+
+    if numeric_fields_present is True:
+        message = "OK, numeric field values in the CSV file validate."
+        print(message)
+        logging.info(message)
 
 
 def validate_geolocation_fields(config, field_definitions, csv_data):
