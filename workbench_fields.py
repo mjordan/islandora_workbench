@@ -86,9 +86,13 @@ class SimpleField:
             ):
                 field_values.append({"value": subvalue, "format": text_format})
             else:
-                if field_definitions[field_name]["field_type"] == "integer":
+                if field_definitions[field_name][
+                    "field_type"
+                ] == "integer" and value_is_numeric(subvalue):
                     subvalue = int(subvalue)
-                if field_definitions[field_name]["field_type"] == "float":
+                if field_definitions[field_name][
+                    "field_type"
+                ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
                     subvalue = float(subvalue)
                 field_values.append({"value": subvalue})
         field_values = self.dedupe_values(field_values)
@@ -163,9 +167,13 @@ class SimpleField:
                         {"value": subvalue, "format": text_format}
                     )
                 else:
-                    if field_definitions[field_name]["field_type"] == "integer":
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "integer" and value_is_numeric(subvalue):
                         subvalue = int(subvalue)
-                    if field_definitions[field_name]["field_type"] == "float":
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
                         subvalue = float(subvalue)
                     entity[field_name].append({"value": subvalue})
             entity[field_name] = self.dedupe_values(entity[field_name])
@@ -199,9 +207,13 @@ class SimpleField:
                 ):
                     field_values.append({"value": subvalue, "format": text_format})
                 else:
-                    if field_definitions[field_name]["field_type"] == "integer":
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "integer" and value_is_numeric(subvalue):
                         subvalue = int(subvalue)
-                    if field_definitions[field_name]["field_type"] == "float":
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
                         subvalue = float(subvalue)
                     entity[field_name].append({"value": subvalue})
                     field_values.append({"value": subvalue})
@@ -256,6 +268,38 @@ class SimpleField:
                         + '" in field "'
                         + field_name
                         + '" is not a valid EDTF field value.'
+                    )
+                    logging.warning(message)
+            return valid_values
+        elif field_definitions[field_name]["field_type"] == "integer":
+            valid_values = list()
+            for subvalue in values:
+                if value_is_numeric(subvalue) is True:
+                    valid_values.append(subvalue)
+                else:
+                    message = (
+                        'Value "'
+                        + subvalue
+                        + '" in field "'
+                        + field_name
+                        + '" is not a valid integer field value.'
+                    )
+                    logging.warning(message)
+            return valid_values
+        elif field_definitions[field_name]["field_type"] in ["decimal", "float"]:
+            valid_values = list()
+            for subvalue in values:
+                if value_is_numeric(subvalue, allow_decimals=True) is True:
+                    valid_values.append(subvalue)
+                else:
+                    message = (
+                        'Value "'
+                        + subvalue
+                        + '" in field "'
+                        + field_name
+                        + '" is not a valid '
+                        + field_definitions[field_name]["field_type"]
+                        + " field value."
                     )
                     logging.warning(message)
             return valid_values

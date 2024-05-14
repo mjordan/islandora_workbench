@@ -6483,9 +6483,26 @@ def get_field_vocabularies(config, field_definitions, field_name):
         return False
 
 
-def value_is_numeric(value):
-    """Tests to see if value is numeric."""
-    var = str(value)
+def value_is_numeric(value, allow_decimals=False):
+    """Tests to see if value  is numeric."""
+
+    """Parameters
+    ----------
+    value : varies
+        The value to check. By design, we don't know what data type it is.
+    allow_decimals: boolean
+        Whether or not to allow '.' in the value. Decimal and float number types have decimals.
+
+    Returns
+    -------
+    boolean
+    """
+    if allow_decimals is True:
+        if "." in str(value):
+            var = str(value).replace(".", "")
+    else:
+        var = str(value)
+
     var = var.strip()
     if var.isnumeric():
         return True
