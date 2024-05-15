@@ -57,7 +57,7 @@ class SimpleField:
          dictionary
              A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         if field_name in config["field_text_format_ids"]:
@@ -124,7 +124,7 @@ class SimpleField:
             entity[field_name] = []
             return entity
 
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         if field_name in config["field_text_format_ids"]:
@@ -336,7 +336,7 @@ class GeolocationField:
          dictionary
              A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
@@ -386,7 +386,7 @@ class GeolocationField:
             entity[field_name] = []
             return entity
 
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         if config["task"] == "update_terms":
@@ -530,7 +530,7 @@ class LinkField:
          dictionary
              A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
@@ -581,7 +581,7 @@ class LinkField:
             entity[field_name] = []
             return entity
 
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         if config["task"] == "update_terms":
@@ -731,7 +731,7 @@ class EntityReferenceField:
          dictionary
              A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
@@ -802,7 +802,7 @@ class EntityReferenceField:
             entity[field_name] = []
             return entity
 
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         if config["task"] == "update_terms":
@@ -984,7 +984,7 @@ class TypedRelationField:
          dictionary
              A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
@@ -1041,7 +1041,7 @@ class TypedRelationField:
             entity[field_name] = []
             return entity
 
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         if config["task"] == "update_terms":
@@ -1208,7 +1208,7 @@ class AuthorityLinkField:
          dictionary
              A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
@@ -1254,7 +1254,7 @@ class AuthorityLinkField:
             entity[field_name] = []
             return entity
 
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         if config["task"] == "update_terms":
@@ -1411,7 +1411,7 @@ class MediaTrackField:
          dictionary
              A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
@@ -1460,7 +1460,7 @@ class MediaTrackField:
             entity[field_name] = []
             return entity
 
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
@@ -1616,7 +1616,7 @@ class EntityReferenceRevisionsField:
          dictionary
              A dictionary represeting the entity that is POSTed to Drupal as JSON.
         """
-        if row[field_name] is None:
+        if not row[field_name]:
             logging.warning(f'Did not find "{field_name}" in row.')
             return entity
         id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
@@ -1855,7 +1855,7 @@ class EntityReferenceRevisionsField:
             entity[field_name] = []
             return entity
 
-        if row[field_name] is None:
+        if not row[field_name]:
             return entity
 
         if config["update_mode"] == "replace":
