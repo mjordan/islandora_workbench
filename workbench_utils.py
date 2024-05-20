@@ -1859,7 +1859,13 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit("Error: " + message)
     if config["task"] == "add_media":
-        add_media_required_options = ["task", "host", "username", "password", "media_type"]
+        add_media_required_options = [
+            "task",
+            "host",
+            "username",
+            "password",
+            "media_type",
+        ]
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
                 message = (
