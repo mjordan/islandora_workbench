@@ -15,6 +15,7 @@ import collections
 import subprocess
 import requests_cache
 from progress_bar import InitBar
+from ruamel.yaml import YAML
 from workbench_utils import *
 import workbench_fields
 from WorkbenchConfig import WorkbenchConfig
@@ -105,6 +106,17 @@ def create():
 
     row_count = 0
     for row in csv_data:
+        if (
+            "node_exists_verification_view_endpoint" in config
+            and get_node_exists_verification_view_endpoint(config) is not False
+        ):
+            candidate_node_id = verify_node_exists_by_key(config, copy.copy(row))
+            if candidate_node_id is not False:
+                message = f"Item in row {row[config['id_field']]} appears to already be in Drupal ({config['host']}/node/{candidate_node_id}), skipping it."
+                logging.warning(message)
+                print(message)
+                continue
+
         # Delete expired items from request_cache before processing a row.
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)
@@ -394,7 +406,10 @@ def create():
                 node_uri,
             )
             if "output_csv" in config.keys():
-                write_to_output_csv(config, id_field, node_response.text, row)
+                # We pass a copy of the row into this function because Python.
+                write_to_output_csv(
+                    config, id_field, node_response.text, copy.deepcopy(row)
+                )
         else:
             message = "Node for CSV record " + id_field + " not created"
             print("ERROR: " + message + ".")
@@ -412,13 +427,14 @@ def create():
         # Execute node-specific post-create scripts, if any are configured.
         if "node_post_create" in config and len(config["node_post_create"]) > 0:
             for command in config["node_post_create"]:
-                post_task_output, post_task_return_code = (
-                    execute_entity_post_task_script(
-                        command,
-                        args.config,
-                        node_response.status_code,
-                        node_response.text,
-                    )
+                (
+                    post_task_output,
+                    post_task_return_code,
+                ) = execute_entity_post_task_script(
+                    command,
+                    args.config,
+                    node_response.status_code,
+                    node_response.text,
                 )
                 if post_task_return_code == 0:
                     logging.info(
@@ -495,7 +511,6 @@ def create():
                         row["file"],
                         media_response_status_code,
                     )
-
             if config["nodes_only"] is False and "additional_files" in config:
                 additional_files_config = get_additional_files_config(config)
                 if len(additional_files_config) > 0:
@@ -504,6 +519,9 @@ def create():
                         additional_file_media_use_tid,
                     ) in additional_files_config.items():
                         # If there is no additional media file, move on to the next "additional_files" column.
+                        if additional_file_field not in row:
+                            continue
+
                         if (
                             additional_file_field in row
                             and len(row[additional_file_field].strip()) == 0
@@ -871,13 +889,14 @@ def update():
             # Execute node-specific post-create scripts, if any are configured.
             if "node_post_update" in config and len(config["node_post_update"]) > 0:
                 for command in config["node_post_update"]:
-                    post_task_output, post_task_return_code = (
-                        execute_entity_post_task_script(
-                            command,
-                            args.config,
-                            node_response.status_code,
-                            node_response.text,
-                        )
+                    (
+                        post_task_output,
+                        post_task_return_code,
+                    ) = execute_entity_post_task_script(
+                        command,
+                        args.config,
+                        node_response.status_code,
+                        node_response.text,
                     )
                     if post_task_return_code == 0:
                         logging.info(
@@ -1722,9 +1741,12 @@ def update_media() -> None:
                     )
                     invalid_track_file = True
                     break
-                track_label, track_type, track_language, track_filepath = (
-                    track_file.split(":")
-                )
+                (
+                    track_label,
+                    track_type,
+                    track_language,
+                    track_filepath,
+                ) = track_file.split(":")
                 track_files_info["track_labels"].append(track_label)
                 track_files_info["track_types"].append(track_type)
                 track_files_info["track_languages"].append(track_language)
@@ -2302,13 +2324,14 @@ def create_from_files():
             # Execute node-specific post-create scripts, if any are configured.
             if "node_post_create" in config and len(config["node_post_create"]) > 0:
                 for command in config["node_post_create"]:
-                    post_task_output, post_task_return_code = (
-                        execute_entity_post_task_script(
-                            command,
-                            args.config,
-                            node_response.status_code,
-                            node_response.text,
-                        )
+                    (
+                        post_task_output,
+                        post_task_return_code,
+                    ) = execute_entity_post_task_script(
+                        command,
+                        args.config,
+                        node_response.status_code,
+                        node_response.text,
                     )
                     if post_task_return_code == 0:
                         logging.info(
@@ -2668,13 +2691,14 @@ def get_data_from_view():
                 # Execute node-specific post-export scripts, if any are configured.
                 if "node_post_export" in config and len(config["node_post_export"]) > 0:
                     for command in config["node_post_export"]:
-                        post_task_output, post_task_return_code = (
-                            execute_entity_post_task_script(
-                                command,
-                                args.config,
-                                response.status_code,
-                                json.dumps(node),
-                            )
+                        (
+                            post_task_output,
+                            post_task_return_code,
+                        ) = execute_entity_post_task_script(
+                            command,
+                            args.config,
+                            response.status_code,
+                            json.dumps(node),
                         )
                         if post_task_return_code == 0:
                             logging.info(
@@ -2746,13 +2770,14 @@ def get_data_from_view():
                         and len(config["node_post_export"]) > 0
                     ):
                         for command in config["node_post_export"]:
-                            post_task_output, post_task_return_code = (
-                                execute_entity_post_task_script(
-                                    command,
-                                    args.config,
-                                    response.status_code,
-                                    json.dumps(node),
-                                )
+                            (
+                                post_task_output,
+                                post_task_return_code,
+                            ) = execute_entity_post_task_script(
+                                command,
+                                args.config,
+                                response.status_code,
+                                json.dumps(node),
                             )
                             if post_task_return_code == 0:
                                 logging.info(
@@ -3301,7 +3326,18 @@ parser.add_argument(
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
 
-workbench_config = WorkbenchConfig(args)
+try:
+    workbench_config = WorkbenchConfig(args)
+except Exception as e:
+    # Workbench wouldn't get this far is the YAML config file has syntax errors or is not found.
+    yaml = YAML()
+    with open(args.config, "r") as stream:
+        config_to_get_host_value = yaml.load(stream)
+    print(f"Oops, Workbench can't connect to {config_to_get_host_value['host']}.")
+    print(
+        'Confirm your "host" configuration setting is correct and that the website is running, and try again.'
+    )
+    sys.exit()
 config = workbench_config.get_config()
 
 create_temp_dir(config)
@@ -3321,13 +3357,22 @@ if config["secondary_tasks"] is not None and len(config["secondary_tasks"]) > 0:
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 
-logging.basicConfig(
-    filename=config["log_file_path"],
-    level=logging.INFO,
-    filemode=config["log_file_mode"],
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%d-%b-%y %H:%M:%S",
-)
+if config["log_file_name_and_line_number"] is True:
+    logging.basicConfig(
+        filename=config["log_file_path"],
+        level=logging.INFO,
+        filemode=config["log_file_mode"],
+        format="%(asctime)s - %(levelname)s - %(filename)s - %(lineno)d - %(message)s",
+        datefmt="%d-%b-%y %H:%M:%S",
+    )
+else:
+    logging.basicConfig(
+        filename=config["log_file_path"],
+        level=logging.INFO,
+        filemode=config["log_file_mode"],
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%d-%b-%y %H:%M:%S",
+    )
 
 if "check" in config.keys():
     tasks_to_skip = ["create_from_files", "get_data_from_view"]

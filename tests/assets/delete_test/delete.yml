@@ -4,3 +4,4 @@ username: admin
 password: password
 input_dir: "tests/assets/delete_test"
 input_csv: /tmp/workbenchdeletetesttnids.txt
+secure_ssl_only: false

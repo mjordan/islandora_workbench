@@ -7,3 +7,4 @@ input_csv: add_media.csv
 standalone_media_url: true
 log_file_path: tests/assets/allow_missing_files_test/add_media_allow_missing_files_false.log
 media_use_tid: http://pcdm.org/use#Transcript
+secure_ssl_only: false

@@ -5,3 +5,4 @@ password: password
 input_dir: tests/assets/parents_precede_children_test
 input_csv: good.csv 
 nodes_only: true
+secure_ssl_only: false

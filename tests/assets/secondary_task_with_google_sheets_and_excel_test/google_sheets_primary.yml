@@ -8,5 +8,4 @@ csv_field_templates:
  - field_model: https://schema.org/DigitalDocument
 id_field: field_local_identifier
 input_csv: https://docs.google.com/spreadsheets/d/19AxFWEFuwEoNqH8ciUo0PRAroIpNE9BuBhE5tIE6INQ/edit#gid=0
-
-
+secure_ssl_only: false

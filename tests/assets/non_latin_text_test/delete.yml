@@ -4,3 +4,4 @@ username: admin
 password: password
 input_dir: "tests/assets/non_latin_text_test"
 input_csv: /tmp/workbenchcreatenonlatintestnids.txt
+secure_ssl_only: false

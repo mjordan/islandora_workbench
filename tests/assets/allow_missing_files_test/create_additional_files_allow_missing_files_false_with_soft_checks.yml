@@ -9,3 +9,4 @@ log_file_path: tests/assets/allow_missing_files_test/additional_files_allow_miss
 additional_files:
  - tn: "http://pcdm.org/use#ThumbnailImage"
 perform_soft_checks: true
+secure_ssl_only: false

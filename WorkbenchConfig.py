@@ -93,7 +93,11 @@ class WorkbenchConfig:
             try:
                 loaded = yaml.load(stream)
             except YAMLError as exc:
-                print(exc)
+                print(
+                    f"There appears to be a YAML syntax error in your configuration file, {self.args.config}. Remove the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ or your YAML validator of choice."
+                )
+                sys.exit()
+
         # 'media_file_fields' has been replaced with 'media_fields' and 'media_type_file_fields'.
         # This is aliasing code that can be removed at some point in the future.
         if "media_file_fields" in loaded:
@@ -204,6 +208,7 @@ class WorkbenchConfig:
             "log_response_status_code": False,
             "log_headers": False,
             "log_term_creation": True,
+            "log_file_name_and_line_number": False,
             "progress_bar": False,
             "user_agent": "Islandora Workbench",
             "allow_redirects": True,

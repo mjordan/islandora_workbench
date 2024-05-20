@@ -4,3 +4,4 @@ username: admin
 password: password
 input_dir: "tests/assets/header_column_mismatch_test"
 nodes_only: true
+secure_ssl_only: false
