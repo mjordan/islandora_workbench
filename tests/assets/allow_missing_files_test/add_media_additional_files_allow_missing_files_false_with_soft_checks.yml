@@ -11,3 +11,4 @@ additional_files:
  - transcript: http://pcdm.org/use#Transcript
 perform_soft_checks: true
 secure_ssl_only: false
+media_type: file

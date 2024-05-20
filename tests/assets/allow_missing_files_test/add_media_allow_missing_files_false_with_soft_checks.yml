@@ -9,3 +9,4 @@ log_file_path: tests/assets/allow_missing_files_test/add_media_allow_missing_fil
 media_use_tid: http://pcdm.org/use#Transcript
 perform_soft_checks: true
 secure_ssl_only: false
+media_type: file

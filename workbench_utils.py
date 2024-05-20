@@ -2122,6 +2122,7 @@ def check_input(config, args):
                 csv_column_header not in drupal_fieldnames
                 and csv_column_header != "media_id"
                 and csv_column_header != "file"
+                and csv_column_header != "node_id"
                 and csv_column_header not in base_media_fields
             ):
                 logging.error(

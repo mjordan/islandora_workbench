@@ -215,7 +215,6 @@ class SimpleField:
                         "field_type"
                     ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
                         subvalue = float(subvalue)
-                    entity[field_name].append({"value": subvalue})
                     field_values.append({"value": subvalue})
             field_values = self.dedupe_values(field_values)
             entity[field_name] = field_values
