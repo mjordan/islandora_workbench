@@ -18,7 +18,6 @@
 """
 
 import json
-import copy
 from workbench_utils import *
 
 
@@ -87,6 +86,14 @@ class SimpleField:
             ):
                 field_values.append({"value": subvalue, "format": text_format})
             else:
+                if field_definitions[field_name][
+                    "field_type"
+                ] == "integer" and value_is_numeric(subvalue):
+                    subvalue = int(subvalue)
+                if field_definitions[field_name][
+                    "field_type"
+                ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
+                    subvalue = float(subvalue)
                 field_values.append({"value": subvalue})
         field_values = self.dedupe_values(field_values)
         entity[field_name] = field_values
@@ -160,6 +167,14 @@ class SimpleField:
                         {"value": subvalue, "format": text_format}
                     )
                 else:
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "integer" and value_is_numeric(subvalue):
+                        subvalue = int(subvalue)
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
+                        subvalue = float(subvalue)
                     entity[field_name].append({"value": subvalue})
             entity[field_name] = self.dedupe_values(entity[field_name])
             if -1 < cardinality < len(entity[field_name]):
@@ -192,6 +207,15 @@ class SimpleField:
                 ):
                     field_values.append({"value": subvalue, "format": text_format})
                 else:
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "integer" and value_is_numeric(subvalue):
+                        subvalue = int(subvalue)
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
+                        subvalue = float(subvalue)
+                    entity[field_name].append({"value": subvalue})
                     field_values.append({"value": subvalue})
             field_values = self.dedupe_values(field_values)
             entity[field_name] = field_values
@@ -247,6 +271,38 @@ class SimpleField:
                     )
                     logging.warning(message)
             return valid_values
+        elif field_definitions[field_name]["field_type"] == "integer":
+            valid_values = list()
+            for subvalue in values:
+                if value_is_numeric(subvalue) is True:
+                    valid_values.append(subvalue)
+                else:
+                    message = (
+                        'Value "'
+                        + subvalue
+                        + '" in field "'
+                        + field_name
+                        + '" is not a valid integer field value.'
+                    )
+                    logging.warning(message)
+            return valid_values
+        elif field_definitions[field_name]["field_type"] in ["decimal", "float"]:
+            valid_values = list()
+            for subvalue in values:
+                if value_is_numeric(subvalue, allow_decimals=True) is True:
+                    valid_values.append(subvalue)
+                else:
+                    message = (
+                        'Value "'
+                        + subvalue
+                        + '" in field "'
+                        + field_name
+                        + '" is not a valid '
+                        + field_definitions[field_name]["field_type"]
+                        + " field value."
+                    )
+                    logging.warning(message)
+            return valid_values
         elif field_definitions[field_name]["field_type"] == "list_string":
             valid_values = list()
             for subvalue in values:
@@ -281,10 +337,11 @@ class SimpleField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -485,10 +542,11 @@ class GeolocationField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -680,9 +738,10 @@ class LinkField:
             -------
             string
                 A string structured same as the Workbench CSV field data for this field type.
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -924,10 +983,11 @@ class EntityReferenceField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -1153,10 +1213,11 @@ class TypedRelationField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -1357,10 +1418,11 @@ class AuthorityLinkField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -1555,10 +1617,11 @@ class MediaTrackField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return values
+            return None
 
         subvalues = list()
         for subvalue in field_data:
@@ -1905,10 +1968,11 @@ class EntityReferenceRevisionsField:
             Returns
             -------
             string
-                A string structured same as the Workbench CSV field data for this field type.
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
         """
         if "field_type" not in field_definitions[field_name]:
-            return field_data
+            return None
 
         # We allow fields to overide the global subdelimiter.
         paragraph_configs = (

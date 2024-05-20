@@ -844,6 +844,11 @@ class TestValueIsNumeric(unittest.TestCase):
             res = workbench_utils.value_is_numeric(value)
             self.assertTrue(res, "Value " + str(value) + " is not numeric.")
 
+        values = ["200.23", "0.5", 999.999]
+        for value in values:
+            res = workbench_utils.value_is_numeric(value, allow_decimals=True)
+            self.assertTrue(res, "Value " + str(value) + " is not numeric.")
+
     def test_value_is_not_numeric(self):
         values = ["n200", False, "999-1000"]
         for value in values:
