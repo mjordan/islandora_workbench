@@ -833,7 +833,11 @@ def update():
                 )
 
         if node_has_all_fields is True:
-            node_endpoint = config["host"] + "/node/" + row["node_id"] + "?_format=json"
+            if value_is_numeric(row["node_id"]) is False:
+                row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+            node_endpoint = (
+                config["host"] + "/node/" + str(row["node_id"]) + "?_format=json"
+            )
             node_headers = {"Content-Type": "application/json"}
             # Make a GET request to the content type
             content_type_endpoint = f"{config['host']}/entity/node_type/{config['content_type']}?_format=json"
@@ -865,11 +869,11 @@ def update():
                         "Node "
                         + config["host"]
                         + "/node/"
-                        + row["node_id"]
+                        + str(row["node_id"])
                         + " updated."
                     )
                 logging.info(
-                    "Node %s updated.", config["host"] + "/node/" + row["node_id"]
+                    "Node %s updated.", config["host"] + "/node/" + str(row["node_id"])
                 )
             else:
                 if config["progress_bar"] is False:
@@ -877,7 +881,7 @@ def update():
                         "Error: Node "
                         + config["host"]
                         + "/node/"
-                        + row["node_id"]
+                        + str(row["node_id"])
                         + " not updated. See log for more detail."
                     )
                 logging.error(

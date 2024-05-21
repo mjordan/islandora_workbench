@@ -4014,7 +4014,9 @@ def deduplicate_field_values(values):
 
 def get_node_field_values(config, nid):
     """Get a node's field data so we can use it during PATCH updates, which replace a field's values."""
-    node_url = config["host"] + "/node/" + nid + "?_format=json"
+    if value_is_numeric(nid) is False:
+        nid = get_nid_from_url_alias(config, nid)
+    node_url = config["host"] + "/node/" + str(nid) + "?_format=json"
     response = issue_request(config, "GET", node_url)
     node_fields = json.loads(response.text)
     return node_fields
@@ -5615,6 +5617,18 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     ):
                         row = apply_csv_value_templates(config, row)
 
+                    # Convert node URLs into node IDs.
+                    if config["task"] in [
+                        "update",
+                        "delete",
+                        "add_media",
+                        "delete_media_by_node",
+                    ]:
+                        if value_is_numeric(row["node_id"]) is False:
+                            row["node_id"] = get_nid_from_url_alias(
+                                config, row["node_id"]
+                            )
+
                     row = clean_csv_values(config, row)
                     csv_writer.writerow(row)
                 except ValueError:
@@ -5694,6 +5708,16 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     )
                     logging.error(message)
                     sys.exit("Error: " + message)
+
+            # Convert node URLs into node IDs.
+            if config["task"] in [
+                "update",
+                "delete",
+                "add_media",
+                "delete_media_by_node",
+            ]:
+                if value_is_numeric(row["node_id"]) is False:
+                    row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(
