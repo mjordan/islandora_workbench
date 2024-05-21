@@ -5537,6 +5537,29 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
     else:
         csv_reader_fieldnames = csv_reader.fieldnames
 
+    # Even though we check for the columrespective ID column n in the incoming CSV in check_input(),
+    # we need to check it here as well since check_input() reads the CSV prior to those checks.
+    id_columns = {
+        "create": config["id_field"],
+        "update": "node_id",
+        "delete": "node_id",
+        "add_media": "node_id",
+        "delete_media": "media_id",
+        "delete_media_by_node": "node_id",
+        "update_media": "media_id",
+        "create_terms": "term_name",
+        "update_terms": "term_id",
+        "export_csv": "node_id",
+    }
+    for task, id_column in id_columns.items():
+        if (
+            task == config["task"]
+            and id_columns[config["task"]] not in csv_reader_fieldnames
+        ):
+            message = f'"{task}" tasks require a "{id_columns[task]}" CSV column. Please check your input CSV file and try again.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
     confirmed = []
     duplicates = []
     for item in csv_reader_fieldnames:
