@@ -904,7 +904,7 @@ def ping_media(config, mid, method="HEAD", return_json=False, warn=True):
     config : dict
         The configuration settings defined by workbench_config.get_config().
     mid :
-        Media ID of the media to be pinged.
+        Media ID of the media to be pinged. Could be a numeric media ID or a full URL to the media.
     method: string, optional
         Either 'HEAD' or 'GET'.
     return_json: boolean, optional
@@ -916,10 +916,13 @@ def ping_media(config, mid, method="HEAD", return_json=False, warn=True):
         True if method is HEAD and node was found, the response JSON response
         body if method was GET. False if request returns a non-allowed status code.
     """
+    if value_is_numeric(mid) is False:
+        mid = get_mid_from_media_url_alias(config, mid)
+
     if config["standalone_media_url"] is True:
-        url = config["host"] + "/media/" + mid + "?_format=json"
+        url = config["host"] + "/media/" + str(mid) + "?_format=json"
     else:
-        url = config["host"] + "/media/" + mid + "/edit?_format=json"
+        url = config["host"] + "/media/" + str(mid) + "/edit?_format=json"
 
     response = issue_request(config, method.upper(), url)
     allowed_status_codes = [200, 301, 302]
@@ -1075,8 +1078,8 @@ def get_mid_from_media_url_alias(config, url_alias):
     if response.status_code != 200:
         return False
     else:
-        node = json.loads(response.text)
-        return node["mid"][0]["value"]
+        media = json.loads(response.text)
+        return media["mid"][0]["value"]
 
 
 def get_node_title_from_nid(config, node_id):
