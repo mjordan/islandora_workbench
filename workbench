@@ -3108,6 +3108,13 @@ def update_terms():
             "'log_term_creation' configuration setting is False. Creation of new taxonomy terms will not be logged."
         )
 
+    if "term_id" not in csv_column_headers:
+        message = (
+            'For "update_terms" tasks, your CSV file must contain a "term_id" column.'
+        )
+        logging.error(message)
+        sys.exit("Error: " + message)
+
     method = "GET"
     row_count = 0
     for row in csv_data:

@@ -2714,6 +2714,7 @@ def check_input(config, args):
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
+        """
         if "term_name" in csv_column_headers:
             csv_column_headers.remove("term_name")
         if "parent" in csv_column_headers:
@@ -2724,6 +2725,7 @@ def check_input(config, args):
             csv_column_headers.remove("description")
         if "term_id" in csv_column_headers:
             csv_column_headers.remove("term_id")
+        """
 
         for csv_column_header in csv_column_headers:
             if (
@@ -2731,18 +2733,9 @@ def check_input(config, args):
                 and csv_column_header != "term_id"
                 and csv_column_header not in term_base_fields
             ):
-                logging.error(
-                    "CSV column header %s does not match any Drupal field names in the %s taxonomy term.",
-                    csv_column_header,
-                    config["vocab_id"],
-                )
-                sys.exit(
-                    'Error: CSV column header "'
-                    + csv_column_header
-                    + '" does not match any Drupal field names in the '
-                    + config["vocab_id"]
-                    + " taxonomy term."
-                )
+                message = f'CSV column header "{csv_column_header}" does not match any Drupal field names in the {config["vocab_id"]} vocabulary.'
+                logging.error(message)
+                sys.exit("Error: " + message)
         message = "OK, CSV column headers match Drupal field names."
         print(message)
         logging.info(message)
