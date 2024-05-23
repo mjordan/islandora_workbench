@@ -8938,7 +8938,7 @@ def get_preprocessed_file_path(
             except Exception as e:
                 # This can happen if subdirectories from previous runs of Workbench exist.
                 message = f'Subdirectory "{subdir}" could not be deleted. See log for more info.'
-                logging.warning(f'Subdictory "{subdir}" could not be deleted: {e}.')
+                logging.warning(f'Subdirectory "{subdir}" could not be deleted: {e}.')
 
         remote_extension_with_dot = get_remote_file_extension(
             config, file_path_from_csv
