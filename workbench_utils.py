@@ -550,12 +550,14 @@ def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
-    nid :
+    nid : string
         Node ID of the node to be pinged.
     method: string, optional
         Either 'HEAD' or 'GET'.
     return_json: boolean, optional
+        If True, return the entire response body to the caller.
     warn: boolean, optional
+       If True, write a log entry.
 
     Returns
     ------
@@ -5602,6 +5604,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             csv_start_row = config["csv_start_row"] - 1
         else:
             csv_start_row = config["csv_start_row"]
+
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
 
@@ -5643,10 +5646,15 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         "add_media",
                         "delete_media_by_node",
                     ]:
+                        incoming_node_id = copy.copy(row["node_id"])
                         if value_is_numeric(row["node_id"]) is False:
                             row["node_id"] = get_nid_from_url_alias(
                                 config, row["node_id"]
                             )
+                            if row["node_id"] is False:
+                                logging.warning(
+                                    f'URL "{incoming_node_id}" not found or is not accessible, skipping update.'
+                                )
 
                     row = clean_csv_values(config, row)
                     csv_writer.writerow(row)
@@ -5669,6 +5677,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     logging.error(message)
                     print("Error: " + message)
                     sys.exit(message)
+
         repeats = set(
             ([x for x in unique_identifiers if unique_identifiers.count(x) > 1])
         )
@@ -5682,6 +5691,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             )
             logging.error(message)
             sys.exit("Error: " + message)
+    # "if" applies to create and update tasks for nodes; "else" applies to everything else.
     else:
         csv_writer = csv.DictWriter(
             csv_writer_file_handle,

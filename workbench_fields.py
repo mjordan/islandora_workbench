@@ -134,6 +134,9 @@ class SimpleField:
         if not row[field_name]:
             return entity
 
+        if field_name not in entity:
+            entity[field_name] = []
+
         if field_name in config["field_text_format_ids"]:
             text_format = config["field_text_format_ids"][field_name]
         else:
@@ -445,6 +448,9 @@ class GeolocationField:
         if not row[field_name]:
             return entity
 
+        if field_name not in entity:
+            entity[field_name] = []
+
         if config["task"] == "update_terms":
             entity_id_field = "term_id"
         if config["task"] == "update":
@@ -478,6 +484,7 @@ class GeolocationField:
                 )
             entity[field_name] = entity_field_values
 
+        entity[field_name] = self.dedupe_values(entity[field_name])
         return entity
 
     def dedupe_values(self, values):
@@ -640,6 +647,9 @@ class LinkField:
 
         if not row[field_name]:
             return entity
+
+        if field_name not in entity:
+            entity[field_name] = []
 
         if config["task"] == "update_terms":
             entity_id_field = "term_id"
@@ -862,6 +872,9 @@ class EntityReferenceField:
 
         if not row[field_name]:
             return entity
+
+        if field_name not in entity:
+            entity[field_name] = []
 
         if config["task"] == "update_terms":
             entity_id_field = "term_id"
@@ -1103,6 +1116,9 @@ class TypedRelationField:
         if not row[field_name]:
             return entity
 
+        if field_name not in entity:
+            entity[field_name] = []
+
         if config["task"] == "update_terms":
             entity_id_field = "term_id"
         if config["task"] == "update":
@@ -1317,6 +1333,9 @@ class AuthorityLinkField:
         if not row[field_name]:
             return entity
 
+        if field_name not in entity:
+            entity[field_name] = []
+
         if config["task"] == "update_terms":
             entity_id_field = "term_id"
         if config["task"] == "update":
@@ -1523,6 +1542,9 @@ class MediaTrackField:
 
         if not row[field_name]:
             return entity
+
+        if field_name not in entity:
+            entity[field_name] = []
 
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "replace":
@@ -1919,6 +1941,9 @@ class EntityReferenceRevisionsField:
 
         if not row[field_name]:
             return entity
+
+        if field_name not in entity:
+            entity[field_name] = []
 
         if config["update_mode"] == "replace":
             return self.create(config, field_definitions, entity, row, field_name)

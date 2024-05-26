@@ -633,23 +633,25 @@ def update():
 
     row_count = 0
     for row in csv_data:
+        # WIP on #785: print("DEBUG from within update()", row)
         # Delete expired items from request_cache before processing a row.
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)
 
-        if not value_is_numeric(row["node_id"]):
-            row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
-        node_ping_result = ping_node(config, row["node_id"], "GET", True)
-        if node_ping_result is False:
+        node_id_to_ping = copy.copy(row["node_id"])
+        if not value_is_numeric(node_id_to_ping):
+            node_id_to_ping = get_nid_from_url_alias(config, node_id_to_ping)
+        node_ping_result = ping_node(config, node_id_to_ping, "GET", True)
+        if node_id_to_ping is False or node_ping_result is False:
             if config["progress_bar"] is False:
                 print(
                     "Node "
-                    + row["node_id"]
+                    + str(node_id_to_ping)
                     + " not found or not accessible, skipping update."
                 )
             logging.warning(
                 "Node "
-                + row["node_id"]
+                + str(node_id_to_ping)
                 + " not found or not accessible, skipping update."
             )
             continue
