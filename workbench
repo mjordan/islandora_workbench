@@ -1343,18 +1343,9 @@ def update_media() -> None:
 
         if file_to_delete:
             # Now we delete the file
-            if config["standalone_media_url"] is True:
-                file_endpoint = (
-                    config["host"] + "/entity/file/" + file_to_delete + "?_format=json"
-                )
-            else:
-                file_endpoint = (
-                    config["host"]
-                    + "/entity/file/"
-                    + file_to_delete
-                    + "/edit?_format=json"
-                )
-
+            file_endpoint = (
+                config["host"] + "/entity/file/" + file_to_delete + "?_format=json"
+            )
             file_response = issue_request(config, "DELETE", file_endpoint)
             if file_response.status_code == 204:
                 logging.info(
@@ -1363,9 +1354,9 @@ def update_media() -> None:
                 return True
             else:
                 logging.error(
-                    "File %s (from media %s) not deleted (HTTP response code %s). Assuming there was no file and attempting to add new file.",
+                    "File %s (from media %s) not deleted (HTTP response code %s).",
                     file_to_delete,
-                    media_id,
+                    file_endpoint,
                     file_response.status_code,
                 )
                 return False
