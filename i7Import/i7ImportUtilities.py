@@ -112,11 +112,11 @@ class i7ImportUtilities:
                     ".//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description"
                 )
                 for x in description:
-                    tag = x.tag[x.tag.find("}") + 1 :]
+                    tag = x.tag[x.tag.find("}") + 1:]
                     text = x.text
                     if x.attrib.items():
                         text = next(iter(x.attrib.items()))[1]
-                        text = text[text.find("/") + 1 :]
+                        text = text[text.find("/") + 1:]
                     rel_ext[tag] = text
                 return rel_ext
             else:

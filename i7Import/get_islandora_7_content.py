@@ -85,7 +85,7 @@ if config["fetch_files"] is True:
 row_count = 0
 pbar = InitBar()
 num_csv_rows = len(rows)
-print(f"Processing {num_csv_rows -1}.")
+print(f"Processing {num_csv_rows - 1}.")
 with open(config["csv_output_path"], "w", newline="") as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=headers)
     writer.writeheader()
