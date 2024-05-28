@@ -22,7 +22,9 @@ import csv
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", required=True, help="Configuration file to use.")
 parser.add_argument(
-    "--metadata_solr_request", required=False, help="Option to supply solr metadata request."
+    "--metadata_solr_request",
+    required=False,
+    help="Option to supply solr metadata request.",
 )
 args = parser.parse_args()
 utils = i7ImportUtilities(args.config)
@@ -44,7 +46,7 @@ if args.metadata_solr_request:
     metadata_solr_request = utils.get_metadata_solr_request(args.metadata_solr_request)
 else:
     metadata_solr_request = utils.get_default_metadata_solr_request()
-if config['secure_ssl_only']:
+if config["secure_ssl_only"]:
     requests.packages.urllib3.disable_warnings()
 if config["debug"]:
     pretty_print = metadata_solr_request.replace("&", "\n&")

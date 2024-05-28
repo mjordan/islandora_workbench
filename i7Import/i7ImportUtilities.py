@@ -100,7 +100,7 @@ class i7ImportUtilities:
             rels_ext_download_response = requests.get(
                 verify=self.config["secure_ssl_only"],
                 url=rels_ext_url,
-                allow_redirects=True
+                allow_redirects=True,
             )
             if rels_ext_download_response.ok:
                 rel_ext = {}
@@ -112,11 +112,11 @@ class i7ImportUtilities:
                     ".//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description"
                 )
                 for x in description:
-                    tag = x.tag[x.tag.find("}") + 1:]
+                    tag = x.tag[x.tag.find("}") + 1 :]
                     text = x.text
                     if x.attrib.items():
                         text = next(iter(x.attrib.items()))[1]
-                        text = text[text.find("/") + 1:]
+                        text = text[text.find("/") + 1 :]
                     rel_ext[tag] = text
                 return rel_ext
             else:
@@ -141,7 +141,7 @@ class i7ImportUtilities:
             field_list_response = requests.get(
                 verify=self.config["secure_ssl_only"],
                 url=fields_solr_url,
-                allow_redirects=True
+                allow_redirects=True,
             )
             raw_field_list = field_list_response.content.decode()
         except requests.exceptions.RequestException as e:
@@ -204,7 +204,8 @@ class i7ImportUtilities:
                 obj_download_response = requests.get(
                     verify=self.config["secure_ssl_only"],
                     url=obj_url,
-                    allow_redirects=True)
+                    allow_redirects=True,
+                )
             if obj_download_response.status_code == 200:
                 # Get MIMETYPE from 'Content-Type' header
                 obj_mimetype = obj_download_response.headers["content-type"]
