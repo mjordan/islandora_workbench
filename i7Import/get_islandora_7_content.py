@@ -46,7 +46,7 @@ if args.metadata_solr_request:
     metadata_solr_request = utils.get_metadata_solr_request(args.metadata_solr_request)
 else:
     metadata_solr_request = utils.get_default_metadata_solr_request()
-if config["secure_ssl_only"]:
+if config["secure_ssl_only"] is False:
     requests.packages.urllib3.disable_warnings()
 if config["debug"]:
     pretty_print = metadata_solr_request.replace("&", "\n&")
