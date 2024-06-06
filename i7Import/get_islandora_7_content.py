@@ -89,6 +89,8 @@ with open(config["csv_output_path"], "w", newline="") as csvfile:
     writer.writeheader()
     failed_pids = []
     for row in reader:
+        if row["PID"] in config["pids_to_skip"]:
+            continue
         rels_ext = utils.parse_rels_ext(row["PID"])
         if rels_ext:
             for key, value in rels_ext.items():
