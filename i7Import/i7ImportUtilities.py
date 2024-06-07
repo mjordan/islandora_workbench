@@ -55,6 +55,7 @@ class i7ImportUtilities:
         "solr_filters": False,
         "start": 0,
         "rows": 100000,
+        "secure_ssl_only": True,
     }
 
     def get_config(self):
@@ -97,7 +98,9 @@ class i7ImportUtilities:
             print(f"\n{rels_ext_url}")
         try:
             rels_ext_download_response = requests.get(
-                url=rels_ext_url, allow_redirects=True
+                verify=self.config["secure_ssl_only"],
+                url=rels_ext_url,
+                allow_redirects=True,
             )
             if rels_ext_download_response.ok:
                 rel_ext = {}
@@ -136,7 +139,9 @@ class i7ImportUtilities:
         # then used in another query to get the populated CSV data.
         try:
             field_list_response = requests.get(
-                url=fields_solr_url, allow_redirects=True
+                verify=self.config["secure_ssl_only"],
+                url=fields_solr_url,
+                allow_redirects=True,
             )
             raw_field_list = field_list_response.content.decode()
         except requests.exceptions.RequestException as e:
@@ -196,7 +201,11 @@ class i7ImportUtilities:
             if self.config["get_file_url"]:
                 obj_download_response = requests.head(url=obj_url, allow_redirects=True)
             else:
-                obj_download_response = requests.get(url=obj_url, allow_redirects=True)
+                obj_download_response = requests.get(
+                    verify=self.config["secure_ssl_only"],
+                    url=obj_url,
+                    allow_redirects=True,
+                )
             if obj_download_response.status_code == 200:
                 # Get MIMETYPE from 'Content-Type' header
                 obj_mimetype = obj_download_response.headers["content-type"]
