@@ -225,6 +225,9 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
     -------
     requests.Response
     """
+    if config["secure_ssl_only"] is False:
+        requests.packages.urllib3.disable_warnings()
+
     if not config["password"]:
         message = (
             'Password for Drupal user not found. Please add the "password" option to your configuration '
@@ -547,12 +550,14 @@ def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
-    nid :
+    nid : string
         Node ID of the node to be pinged.
     method: string, optional
         Either 'HEAD' or 'GET'.
     return_json: boolean, optional
+        If True, return the entire response body to the caller.
     warn: boolean, optional
+       If True, write a log entry.
 
     Returns
     ------
@@ -578,6 +583,56 @@ def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
                 url,
                 response.status_code,
             )
+        return False
+
+
+def verify_node_exists_by_key(config, csv_row):
+    """Query a View using a value from CSV (the "key") to see if the node exists.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    csv_row :
+        A copy of the CSV row that represents the node we are interested in.
+
+    Returns
+    ------
+     str|False
+        The node ID if the node exists, False if the node doesn't exist, there are more than 1 node exists,
+        or if there was a non-200 HTTP response.
+    """
+    endpoint_mapping = get_node_exists_verification_view_endpoint(config)
+    if len(csv_row[endpoint_mapping[0]]) == 0:
+        row_id = csv_row[config["id_field"]]
+        logging.warning(
+            f'Can\'t verify node exists for item in row "{row_id}" since it has no value in its "{endpoint_mapping[0]}" CSV column.'
+        )
+        return False
+
+    csv_value = copy.copy(csv_row[endpoint_mapping[0]])
+    if config["subdelimiter"] in csv_value:
+        csv_value_for_url = csv_value.replace(config["subdelimiter"], "%20")
+    else:
+        csv_value_for_url = csv_value
+
+    view_url = f'{config["host"]}/{endpoint_mapping[1].lstrip("/")}?{endpoint_mapping[0]}={csv_value_for_url}'
+    headers = {"Content-Type": "application/json"}
+    response = issue_request(config, "GET", view_url, headers)
+    if response.status_code == 200:
+        body = json.loads(response.text)
+        if len(body) == 1:
+            return body[0]["nid"]
+        elif len(body) > 1:
+            logging.warning(
+                f'Query to View "{view_url}" found more than one node ({body}). CSV "{endpoint_mapping[0]}" value was {csv_row[endpoint_mapping[0]]}. Workbench skipped this CSV row.'
+            )
+        else:
+            return False
+    else:
+        logging.warning(
+            f"Query to View {view_url} encountered a problem: HTTP status code was {response.status_code}"
+        )
         return False
 
 
@@ -851,7 +906,7 @@ def ping_media(config, mid, method="HEAD", return_json=False, warn=True):
     config : dict
         The configuration settings defined by workbench_config.get_config().
     mid :
-        Media ID of the media to be pinged.
+        Media ID of the media to be pinged. Could be a numeric media ID or a full URL to the media.
     method: string, optional
         Either 'HEAD' or 'GET'.
     return_json: boolean, optional
@@ -863,10 +918,13 @@ def ping_media(config, mid, method="HEAD", return_json=False, warn=True):
         True if method is HEAD and node was found, the response JSON response
         body if method was GET. False if request returns a non-allowed status code.
     """
+    if value_is_numeric(mid) is False:
+        mid = get_mid_from_media_url_alias(config, mid)
+
     if config["standalone_media_url"] is True:
-        url = config["host"] + "/media/" + mid + "?_format=json"
+        url = config["host"] + "/media/" + str(mid) + "?_format=json"
     else:
-        url = config["host"] + "/media/" + mid + "/edit?_format=json"
+        url = config["host"] + "/media/" + str(mid) + "/edit?_format=json"
 
     response = issue_request(config, method.upper(), url)
     allowed_status_codes = [200, 301, 302]
@@ -1022,8 +1080,8 @@ def get_mid_from_media_url_alias(config, url_alias):
     if response.status_code != 200:
         return False
     else:
-        node = json.loads(response.text)
-        return node["mid"][0]["value"]
+        media = json.loads(response.text)
+        return media["mid"][0]["value"]
 
 
 def get_node_title_from_nid(config, node_id):
@@ -1794,7 +1852,6 @@ def check_input(config, args):
             )
             logging.error(message)
             sys.exit("Error: " + message)
-
     if config["task"] == "delete":
         delete_required_options = ["task", "host", "username", "password"]
         for delete_required_option in delete_required_options:
@@ -1807,7 +1864,13 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit("Error: " + message)
     if config["task"] == "add_media":
-        add_media_required_options = ["task", "host", "username", "password"]
+        add_media_required_options = [
+            "task",
+            "host",
+            "username",
+            "password",
+            "media_type",
+        ]
         for add_media_required_option in add_media_required_options:
             if add_media_required_option not in config_keys:
                 message = (
@@ -2070,6 +2133,7 @@ def check_input(config, args):
                 csv_column_header not in drupal_fieldnames
                 and csv_column_header != "media_id"
                 and csv_column_header != "file"
+                and csv_column_header != "node_id"
                 and csv_column_header not in base_media_fields
             ):
                 logging.error(
@@ -2288,6 +2352,25 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit("Error: " + message)
 
+        # Check the configuration that is necessary for verifying nodes already exist in the target Drupal.
+        if "node_exists_verification_view_endpoint" in config:
+            node_exists_config = get_node_exists_verification_view_endpoint(config)
+            if node_exists_config is not False:
+                if node_exists_config[0] not in csv_column_headers:
+                    message = f'CSV column identified in "node_exists_verification_view_endpoint" is not in your CSV file.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                view_url = f'{config["host"]}/{node_exists_config[1].lstrip("/")}'
+                view_path_status_code = ping_view_endpoint(config, view_url)
+                if view_path_status_code != 200:
+                    message = f'Cannot access View REST export configured in "node_exists_verification_view_endpoint" ({view_url}).'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                else:
+                    message = f'View REST export configured in "node_exists_verification_view_endpoint" ({view_url}) is accessible. Values in the "{node_exists_config[0]}" CSV column will be used to check whether nodes already exist.'
+                    logging.info(message)
+                    print("OK, " + message)
+
         # Check for the View that is necessary for entity reference fields configured
         # as "Views: Filter by an entity reference View" (issue 452).
         for csv_column_header in csv_column_headers:
@@ -2295,7 +2378,10 @@ def check_input(config, args):
                 csv_column_header in field_definitions
                 and field_definitions[csv_column_header]["handler"] == "views"
             ):
-                if config["require_entity_reference_views"] is True:
+                if (
+                    config["require_entity_reference_views"] is True
+                    and "entity_reference_view_endpoints" not in config
+                ):
                     entity_reference_view_exists = ping_entity_reference_view_endpoint(
                         config,
                         csv_column_header,
@@ -2630,6 +2716,7 @@ def check_input(config, args):
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
             drupal_fieldnames.append(drupal_fieldname)
+        """
         if "term_name" in csv_column_headers:
             csv_column_headers.remove("term_name")
         if "parent" in csv_column_headers:
@@ -2640,6 +2727,7 @@ def check_input(config, args):
             csv_column_headers.remove("description")
         if "term_id" in csv_column_headers:
             csv_column_headers.remove("term_id")
+        """
 
         for csv_column_header in csv_column_headers:
             if (
@@ -2647,18 +2735,9 @@ def check_input(config, args):
                 and csv_column_header != "term_id"
                 and csv_column_header not in term_base_fields
             ):
-                logging.error(
-                    "CSV column header %s does not match any Drupal field names in the %s taxonomy term.",
-                    csv_column_header,
-                    config["vocab_id"],
-                )
-                sys.exit(
-                    'Error: CSV column header "'
-                    + csv_column_header
-                    + '" does not match any Drupal field names in the '
-                    + config["vocab_id"]
-                    + " taxonomy term."
-                )
+                message = f'CSV column header "{csv_column_header}" does not match any Drupal field names in the {config["vocab_id"]} vocabulary.'
+                logging.error(message)
+                sys.exit("Error: " + message)
         message = "OK, CSV column headers match Drupal field names."
         print(message)
         logging.info(message)
@@ -2793,6 +2872,10 @@ def check_input(config, args):
                 "Warning: Issues detected with validating typed relation field values in the CSV file. See the log for more detail."
             )
 
+        validate_numeric_fields_data = get_csv_data(config)
+        # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+        validate_numeric_fields(config, field_definitions, validate_numeric_fields_data)
+
         validate_media_track_csv_data = get_csv_data(config)
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
         validate_media_track_fields(config, validate_media_track_csv_data)
@@ -2825,6 +2908,32 @@ def check_input(config, args):
                 + 'will result in 422 errors in "create" and "update" tasks.'
             )
             logging.warning(message)
+
+        # Check the configuration that is necessary for enabling use of term names in Entity Reference Views fields.
+        if "entity_reference_view_endpoints" in config:
+            entity_reference_view_endpoints = get_entity_reference_view_endpoints(
+                config
+            )
+            for (
+                entity_reference_view_field_name,
+                entity_reference_view_endpoint,
+            ) in entity_reference_view_endpoints.items():
+                if entity_reference_view_field_name not in csv_column_headers:
+                    message = f'CSV column {entity_reference_view_field_name} identified in "entity_reference_view_endpoints" is not in your CSV file.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                view_url = (
+                    f'{config["host"]}/{entity_reference_view_endpoint.lstrip("/")}'
+                )
+                view_path_status_code = ping_view_endpoint(config, view_url)
+                if view_path_status_code != 200:
+                    message = f'Cannot access View REST export configured in "entity_reference_view_endpoints" ({view_url}).'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                else:
+                    message = f'View REST export configured in "entity_reference_view_endpoints" ({view_url}) is accessible.'
+                    logging.info(message)
+                    print("OK, " + message)
 
         # Validate 'langcode' values if that field exists in the CSV.
         # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
@@ -3903,7 +4012,9 @@ def deduplicate_field_values(values):
 
 def get_node_field_values(config, nid):
     """Get a node's field data so we can use it during PATCH updates, which replace a field's values."""
-    node_url = config["host"] + "/node/" + nid + "?_format=json"
+    if value_is_numeric(nid) is False:
+        nid = get_nid_from_url_alias(config, nid)
+    node_url = config["host"] + "/node/" + str(nid) + "?_format=json"
     response = issue_request(config, "GET", node_url)
     node_fields = json.loads(response.text)
     return node_fields
@@ -5428,6 +5539,29 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
     else:
         csv_reader_fieldnames = csv_reader.fieldnames
 
+    # Even though we check for the columrespective ID column n in the incoming CSV in check_input(),
+    # we need to check it here as well since check_input() reads the CSV prior to those checks.
+    id_columns = {
+        "create": config["id_field"],
+        "update": "node_id",
+        "delete": "node_id",
+        "add_media": "node_id",
+        "delete_media": "media_id",
+        "delete_media_by_node": "node_id",
+        "update_media": "media_id",
+        "create_terms": "term_name",
+        "update_terms": "term_id",
+        "export_csv": "node_id",
+    }
+    for task, id_column in id_columns.items():
+        if (
+            task == config["task"]
+            and id_columns[config["task"]] not in csv_reader_fieldnames
+        ):
+            message = f'"{task}" tasks require a "{id_columns[task]}" CSV column. Please check your input CSV file and try again.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
     confirmed = []
     duplicates = []
     for item in csv_reader_fieldnames:
@@ -5470,8 +5604,17 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             csv_start_row = config["csv_start_row"] - 1
         else:
             csv_start_row = config["csv_start_row"]
+
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
+
+            # Skip rows specified not in config['csv_rows_to_process'].
+            if (
+                "csv_rows_to_process" in config
+                and len(config["csv_rows_to_process"]) > 0
+            ):
+                if row[config["id_field"]] not in config["csv_rows_to_process"]:
+                    continue
 
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config["ignore_csv_columns"]) > 0:
@@ -5496,6 +5639,23 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     ):
                         row = apply_csv_value_templates(config, row)
 
+                    # Convert node URLs into node IDs.
+                    if config["task"] in [
+                        "update",
+                        "delete",
+                        "add_media",
+                        "delete_media_by_node",
+                    ]:
+                        incoming_node_id = copy.copy(row["node_id"])
+                        if value_is_numeric(row["node_id"]) is False:
+                            row["node_id"] = get_nid_from_url_alias(
+                                config, row["node_id"]
+                            )
+                            if row["node_id"] is False:
+                                logging.warning(
+                                    f'URL "{incoming_node_id}" not found or is not accessible, skipping update.'
+                                )
+
                     row = clean_csv_values(config, row)
                     csv_writer.writerow(row)
                 except ValueError:
@@ -5517,6 +5677,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     logging.error(message)
                     print("Error: " + message)
                     sys.exit(message)
+
         repeats = set(
             ([x for x in unique_identifiers if unique_identifiers.count(x) > 1])
         )
@@ -5530,6 +5691,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             )
             logging.error(message)
             sys.exit("Error: " + message)
+    # "if" applies to create and update tasks for nodes; "else" applies to everything else.
     else:
         csv_writer = csv.DictWriter(
             csv_writer_file_handle,
@@ -5575,6 +5737,16 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     )
                     logging.error(message)
                     sys.exit("Error: " + message)
+
+            # Convert node URLs into node IDs.
+            if config["task"] in [
+                "update",
+                "delete",
+                "add_media",
+                "delete_media_by_node",
+            ]:
+                if value_is_numeric(row["node_id"]) is False:
+                    row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(
@@ -6257,7 +6429,8 @@ def prepare_term_id(config, vocab_ids, field_name, term):
     term = term.strip()
     if value_is_numeric(term):
         return term
-    if vocab_ids is False:
+    entity_reference_view_endpoints = get_entity_reference_view_endpoints(config)
+    if not entity_reference_view_endpoints and vocab_ids is False:
         return None
     # Special case: if the term starts with 'http', assume it's a Linked Data URI
     # and get its term ID from the URI.
@@ -6267,7 +6440,53 @@ def prepare_term_id(config, vocab_ids, field_name, term):
         if value_is_numeric(tid_from_uri):
             return tid_from_uri
     else:
-        if len(vocab_ids) == 1:
+        if entity_reference_view_endpoints.get(field_name, False):
+            headers = {"Content-Type": "application/json"}
+            endpoint = entity_reference_view_endpoints.get(field_name, False)
+            if ":" in term:
+                [tentative_vocab_id, term_name] = term.split(":", maxsplit=1)
+                tentative_vocab_id = tentative_vocab_id.strip()
+                term_name = term_name.strip()
+                response = issue_request(
+                    config,
+                    "GET",
+                    endpoint + "?name=" + term_name + "&vid=" + tentative_vocab_id,
+                    headers,
+                )
+                if response.status_code == 200:
+                    term_response_body = json.loads(response.text)
+                    if term_response_body:
+                        return term_response_body[0]["tid"][0]["value"]
+                    tid = create_term(config, tentative_vocab_id, term_name)
+                    return tid
+                else:
+                    logging.warning(
+                        "Term '%s' not found, HTTP response code was %s.",
+                        term,
+                        response.status_code,
+                    )
+                    return None
+            else:
+                response = issue_request(
+                    config, "GET", endpoint + "?name=" + term, headers
+                )
+                if response.status_code == 200:
+                    term_response_body = json.loads(response.text)
+                    if term_response_body:
+                        return term_response_body[0]["tid"][0]["value"]
+                    logging.warning(
+                        "Term '%s' not found. Cannot create it using entity_reference_view_endpoints without a provided vocabulary.",
+                        term,
+                    )
+                    return None
+                else:
+                    logging.warning(
+                        "Term '%s' not found, HTTP response code was %s.",
+                        term,
+                        response.status_code,
+                    )
+                    return None
+        elif len(vocab_ids) == 1:
             # A namespace is not needed but it might be present. If there is,
             # since this vocabulary is the only one linked to its field,
             # we remove it before sending it to create_term().
@@ -6327,10 +6546,25 @@ def get_field_vocabularies(config, field_definitions, field_name):
         return False
 
 
-def value_is_numeric(value):
-    """Tests to see if value is numeric."""
+def value_is_numeric(value, allow_decimals=False):
+    """Tests to see if value  is numeric."""
+
+    """Parameters
+    ----------
+    value : varies
+        The value to check. By design, we don't know what data type it is.
+    allow_decimals: boolean
+        Whether or not to allow '.' in the value. Decimal and float number types have decimals.
+
+    Returns
+    -------
+    boolean
+    """
     var = str(value)
-    var = var.strip()
+    if allow_decimals is True and "." in str(value):
+        var = str(value).replace(".", "")
+    else:
+        var = var.strip()
     if var.isnumeric():
         return True
     else:
@@ -6590,6 +6824,62 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                         )
                         print("Warning: " + message + message_2)
                         logging.warning(message + message_2)
+
+
+def validate_numeric_fields(config, field_definitions, csv_data):
+    """Validate integer, decimal, and float fields."""
+    numeric_fields_present = False
+    for count, row in enumerate(csv_data, start=1):
+        for field_name in field_definitions.keys():
+            if field_definitions[field_name]["field_type"] == "integer":
+                if field_name in row:
+                    numeric_fields_present = True
+                    delimited_field_values = row[field_name].split(
+                        config["subdelimiter"]
+                    )
+                    for field_value in delimited_field_values:
+                        if len(field_value.strip()):
+                            if not value_is_numeric(field_value.strip()):
+                                message = (
+                                    'Value in field "'
+                                    + field_name
+                                    + '" in row with ID '
+                                    + row[config["id_field"]]
+                                    + " ("
+                                    + field_value
+                                    + ") is not a valid integer value."
+                                )
+                                logging.error(message)
+                                sys.exit("Error: " + message)
+            if field_definitions[field_name]["field_type"] in ["decimal", "float"]:
+                if field_name in row:
+                    numeric_fields_present = True
+                    delimited_field_values = row[field_name].split(
+                        config["subdelimiter"]
+                    )
+                    for field_value in delimited_field_values:
+                        if len(field_value.strip()):
+                            if not value_is_numeric(
+                                field_value.strip(), allow_decimals=True
+                            ):
+                                message = (
+                                    'Value in field "'
+                                    + field_name
+                                    + '" in row with ID '
+                                    + row[config["id_field"]]
+                                    + " ("
+                                    + field_value
+                                    + ") is not a valid "
+                                    + field_definitions[field_name]["field_type"]
+                                    + " value."
+                                )
+                                logging.error(message)
+                                sys.exit("Error: " + message)
+
+    if numeric_fields_present is True:
+        message = "OK, numeric field values in the CSV file validate."
+        print(message)
+        logging.info(message)
 
 
 def validate_geolocation_fields(config, field_definitions, csv_data):
@@ -7841,6 +8131,22 @@ def validate_taxonomy_reference_value(
 
 def write_to_output_csv(config, id, node_json, input_csv_row=None):
     """Appends a row to the CVS file located at config['output_csv']."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        id : str
+            The value of the CSV row's ID field.
+        node_json : str
+            The JSON representation of the node just created, provided by Drupal.
+        input_csv_row : dict
+            The CSV Reader representation of the current input CSV row. Note that
+            this is copy.deepcopy() of the CSV row since passing the row in as is
+            modifies it in global scope.
+        Returns
+        -------
+        None
+    """
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
     import workbench_fields
@@ -7873,10 +8179,12 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     ]
     for field_to_remove in fields_to_remove:
         if field_to_remove in node_field_names:
-            # print("DEBUG", field_to_remove)
             node_field_names.remove(field_to_remove)
 
     reserved_fields = ["file", "parent_id", "url_alias", "image_alt_text", "checksum"]
+    additional_files_columns = list(get_additional_files_config(config).keys())
+    if len(additional_files_columns) > 0:
+        reserved_fields = reserved_fields + additional_files_columns
 
     csvfile = open(config["output_csv"], "a+", encoding="utf-8")
 
@@ -8640,7 +8948,7 @@ def get_preprocessed_file_path(
             except Exception as e:
                 # This can happen if subdirectories from previous runs of Workbench exist.
                 message = f'Subdirectory "{subdir}" could not be deleted. See log for more info.'
-                logging.warning(f'Subdictory "{subdir}" could not be deleted: {e}.')
+                logging.warning(f'Subdirectory "{subdir}" could not be deleted: {e}.')
 
         remote_extension_with_dot = get_remote_file_extension(
             config, file_path_from_csv
@@ -8760,7 +9068,9 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
 def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     sections = urllib.parse.urlparse(url)
     try:
-        # do not cache the responses for downloaded files in requests_cache
+        if config["secure_ssl_only"] is False:
+            requests.packages.urllib3.disable_warnings()
+        # Do not cache the responses for downloaded files in requests_cache
         with requests_cache.disabled():
             response = requests.get(
                 url, allow_redirects=True, stream=True, verify=config["secure_ssl_only"]
@@ -9418,6 +9728,29 @@ def get_entity_reference_view_endpoints(config):
             endpoint_mappings[field_name] = endpoint
 
     return endpoint_mappings
+
+
+def get_node_exists_verification_view_endpoint(config):
+    """Gets from conifig the View endpoints and CSV field to match to determine if a matching node already exists."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        Returns
+        -------
+        tuple|False
+            Tuple containing Drupal field name and View REST endpoints as values. If there are multiple mappings,
+            the returned tuple will contain the field_name and endpoint values of only the last mapping. If the config
+            can't be loaded into a tuple, returns False.
+    """
+    for endpoint_mapping in config["node_exists_verification_view_endpoint"]:
+        for field_name, endpoint in endpoint_mapping.items():
+            endpoint_mapping = (field_name, endpoint)
+
+    if type(endpoint_mapping) is tuple:
+        return endpoint_mapping
+    else:
+        return False
 
 
 def get_percentage(part, whole):

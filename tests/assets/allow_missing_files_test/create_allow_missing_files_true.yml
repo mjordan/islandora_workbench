@@ -7,3 +7,4 @@ input_csv: metadata_check.csv
 standalone_media_url: true
 allow_missing_files: true
 log_file_path: tests/assets/allow_missing_files_test/allow_missing_files_true.log
+secure_ssl_only: false

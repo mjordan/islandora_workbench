@@ -1,7 +1,6 @@
 task: create
-host: https://islandora.traefik.me
+host: https://somebadhost.org
 username: admin
 password: password
-input_dir: "tests/assets/commented_csvs_test"
 nodes_only: true
 secure_ssl_only: false

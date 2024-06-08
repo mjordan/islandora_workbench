@@ -5,3 +5,4 @@ password: password
 input_dir: "tests/assets/create_test"
 media_type: image
 allow_missing_files: True
+secure_ssl_only: false

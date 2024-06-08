@@ -6,3 +6,4 @@ input_dir: tests/assets/typed_relation_test/input_data
 input_csv: no_namespace.csv
 nodes_only: true
 allow_adding_terms: true
+secure_ssl_only: false

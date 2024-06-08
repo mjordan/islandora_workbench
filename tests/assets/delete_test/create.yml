@@ -5,3 +5,4 @@ password: password
 input_dir: "tests/assets/delete_test"
 allow_missing_files: True
 nodes_only: true
+secure_ssl_only: false

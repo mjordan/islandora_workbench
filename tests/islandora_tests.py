@@ -205,6 +205,7 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_create(self):
+        requests.packages.urllib3.disable_warnings()
         create_output = subprocess.check_output(self.create_cmd)
         self.create_output = create_output.decode().strip()
 
@@ -245,7 +246,7 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
                 + str(self.nids[0])
                 + "?_format=json"
             )
-            node_response = requests.get(node_url)
+            node_response = requests.get(node_url, verify=False)
             node = json.loads(node_response.text)
             updated_title = str(node["title"][0]["value"])
             self.assertLessEqual(len(updated_title), 30, "")
@@ -444,6 +445,7 @@ class TestUpdate(unittest.TestCase):
             update_fh.write(f'{self.nids[0]},identifier-0001,"99.1,-123.2"')
 
     def test_update(self):
+        requests.packages.urllib3.disable_warnings()
         # Run update task.
         time.sleep(5)
         update_config_file_path = os.path.join(
@@ -454,7 +456,7 @@ class TestUpdate(unittest.TestCase):
 
         # Confirm that fields have been updated.
         url = self.islandora_host + "/node/" + str(self.nids[0]) + "?_format=json"
-        response = requests.get(url)
+        response = requests.get(url, verify=False)
         node = json.loads(response.text)
         identifier = str(node["field_identifier"][0]["value"])
         self.assertEqual(identifier, "identifier-0001")
@@ -514,6 +516,7 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         )
 
     def test_create_with_non_latin_text(self):
+        requests.packages.urllib3.disable_warnings()
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -530,19 +533,19 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         self.assertEqual(len(nids), 3)
 
         url = self.islandora_host + "/node/" + str(nids[0]) + "?_format=json"
-        response = requests.get(url)
+        response = requests.get(url, verify=False)
         node = json.loads(response.text)
         title = str(node["title"][0]["value"])
         self.assertEqual(title, "一九二四年六月十二日")
 
         url = self.islandora_host + "/node/" + str(nids[1]) + "?_format=json"
-        response = requests.get(url)
+        response = requests.get(url, verify=False)
         node = json.loads(response.text)
         title = str(node["title"][0]["value"])
         self.assertEqual(title, "सरकारी दस्तावेज़")
 
         url = self.islandora_host + "/node/" + str(nids[2]) + "?_format=json"
-        response = requests.get(url)
+        response = requests.get(url, verify=False)
         node = json.loads(response.text)
         title = str(node["title"][0]["value"])
         self.assertEqual(title, "ᐊᑕᐅᓯᖅ ᓄᓇ, ᐅᓄᖅᑐᑦ ᓂᐲᑦ")
@@ -595,6 +598,7 @@ class TestSecondaryTask(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_secondary_task(self):
+        requests.packages.urllib3.disable_warnings()
         self.nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -610,7 +614,7 @@ class TestSecondaryTask(unittest.TestCase):
 
         for nid in self.nids:
             node_url = self.islandora_host + "/node/" + nid + "?_format=json"
-            response = requests.get(node_url)
+            response = requests.get(node_url, verify=False)
             node_json = json.loads(response.text)
             # Get the node ID of the parent node.
             if node_json["title"][0]["value"].startswith("Tester"):
@@ -619,7 +623,7 @@ class TestSecondaryTask(unittest.TestCase):
 
         for nid in self.nids:
             node_url = self.islandora_host + "/node/" + nid + "?_format=json"
-            response = requests.get(node_url)
+            response = requests.get(node_url, verify=False)
             node_json = json.loads(response.text)
             if node_json["title"][0]["value"].startswith("Secondary task test child 1"):
                 self.assertEqual(
@@ -698,6 +702,7 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_secondary_task_with_google_sheet(self):
+        requests.packages.urllib3.disable_warnings()
         self.nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -713,7 +718,7 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
 
         for nid in self.nids:
             node_url = self.islandora_host + "/node/" + nid + "?_format=json"
-            response = requests.get(node_url)
+            response = requests.get(node_url, verify=False)
             node_json = json.loads(response.text)
             # Get the node ID of the parent node.
             if node_json["field_local_identifier"][0]["value"] == "GSP-04":
@@ -722,7 +727,7 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
 
         for nid in self.nids:
             node_url = self.islandora_host + "/node/" + nid + "?_format=json"
-            response = requests.get(node_url)
+            response = requests.get(node_url, verify=False)
             node_json = json.loads(response.text)
             if node_json["field_local_identifier"][0]["value"] == "GSC-03":
                 self.assertEqual(
@@ -795,6 +800,7 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
         self.temp_dir = tempfile.gettempdir()
 
     def test_secondary_task_with_excel(self):
+        requests.packages.urllib3.disable_warnings()
         self.nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
@@ -812,7 +818,7 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
 
         for nid in self.nids:
             node_url = self.islandora_host + "/node/" + nid + "?_format=json"
-            response = requests.get(node_url)
+            response = requests.get(node_url, verify=False)
             node_json = json.loads(response.text)
             # Get the node ID of the parent node.
             if node_json["field_local_identifier"][0]["value"] == "STTP-02":
@@ -821,7 +827,7 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
 
         for nid in self.nids:
             node_url = self.islandora_host + "/node/" + nid + "?_format=json"
-            response = requests.get(node_url)
+            response = requests.get(node_url, verify=False)
             node_json = json.loads(response.text)
             if node_json["field_local_identifier"][0]["value"] == "STTC-01":
                 self.assertEqual(
@@ -873,6 +879,7 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
 class TestAdditionalFilesCreate(unittest.TestCase):
 
     def setUp(self):
+        requests.packages.urllib3.disable_warnings()
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         create_config_file_path = os.path.join(
             self.current_dir, "assets", "additional_files_test", "create.yml"
@@ -909,7 +916,9 @@ class TestAdditionalFilesCreate(unittest.TestCase):
             self.islandora_host + "/node/" + self.nid + "/media?_format=json"
         )
         media_list_response = requests.get(
-            media_list_url, auth=(self.islandora_username, self.islandora_password)
+            media_list_url,
+            auth=(self.islandora_username, self.islandora_password),
+            verify=False,
         )
         media_list_json = json.loads(media_list_response.text)
         self.media_sizes = dict()
@@ -987,6 +996,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         response = requests.get(
             term_from_authority_link_url,
             auth=(self.islandora_username, self.islandora_password),
+            verify=False,
         )
         response_body = json.loads(response.text)
         tid = response_body[0]["tid"][0]["value"]

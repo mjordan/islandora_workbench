@@ -4,3 +4,4 @@ username: admin
 password: islandora
 input_dir: tests/assets/execute_post_action_entity_script_test
 input_csv: rollback.csv
+secure_ssl_only: false

@@ -5,3 +5,4 @@ password: password
 input_dir: tests/assets/typed_relation_test/input_data
 input_csv: bad_uri_fail.csv
 nodes_only: true
+secure_ssl_only: false

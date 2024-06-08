@@ -7,3 +7,4 @@ nodes_only: true
 csv_field_templates:
  - field_model: https://schema.org/DigitalDocument
 input_csv: secondary.csv
+secure_ssl_only: false

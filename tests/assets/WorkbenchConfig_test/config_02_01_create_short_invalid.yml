@@ -3,3 +3,4 @@ host: https://islandora.traefik.me
 username: admin
 password: password
 content_type: invalid_content_type
+secure_ssl_only: false

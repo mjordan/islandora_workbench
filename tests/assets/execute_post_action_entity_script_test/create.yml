@@ -5,3 +5,4 @@ password: password
 input_dir: tests/assets/execute_post_action_entity_script_test
 nodes_only: true
 node_post_create: ['tests/assets/execute_post_action_entity_script_test/script.py']
+secure_ssl_only: false
