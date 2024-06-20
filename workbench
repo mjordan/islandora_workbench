@@ -3301,6 +3301,107 @@ def update_terms():
                 pbar(row_position)
 
 
+def create_redirects():
+    """Create new redirect entities via POST."""
+    message = '"Create redirects" task started using config file ' + args.config + "."
+    print(message)
+    logging.info(message)
+
+    if config["progress_bar"] is True:
+        csv_data_to_count = list(get_csv_data(config))
+        num_csv_records = len(csv_data_to_count)
+        pbar = InitBar()
+
+    # These should be set in WorkbenchConfig.get_config() but aren't
+    # taking effect there. @todo: address later.
+    config["id_field"] = "redirect_source"
+
+    # This is the CSV data for creating non-hierarchical or child terms.
+    csv_data = get_csv_data(config)
+
+    redirect_row_count = 0
+    # Create redirect.
+    for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config["enable_http_cache"] is True:
+            requests_cache.delete(expired=True)
+
+        redirect_row_count += 1
+
+        # Check to see if the redirect source value is already a redirect.
+        is_redirect_url = config["host"].rstrip("/") + "/" + row["redirect_source"]
+        is_redirect_response = requests.head(
+            is_redirect_url,
+            allow_redirects=False,
+            verify=config["secure_ssl_only"],
+            auth=(config["username"], config["password"]),
+        )
+        if str(is_redirect_response.status_code).startswith("30"):
+            message = (
+                'Redirect from "'
+                + row[config["id_field"]].strip()
+                + '" is already a redirect (HTTP response code is '
+                + str(is_redirect_response.status_code)
+                + "), skipping."
+            )
+            print("Warning: " + message)
+            logging.warning(message)
+            continue
+
+        redirect_source_nid = get_nid_from_url_alias(config, row["redirect_source"])
+        if redirect_source_nid is not False:
+            redirect = {
+                "type": [{"value": "redirect"}],
+                "redirect_source": [{"path": f"node/{redirect_source_nid}"}],
+                "redirect_redirect": [{"uri": row["redirect_target"].strip()}],
+                "status_code": [{"value": int(config["redirect_status_code"])}],
+            }
+            redirect_endpoint = config["host"] + "/entity/redirect?_format=json"
+            headers = {"Content-Type": "application/json"}
+            response = issue_request(
+                config, "POST", redirect_endpoint, headers, redirect, None
+            )
+            if response.status_code == 201:
+                message = (
+                    'OK, Redirect from "'
+                    + row[config["id_field"]].strip()
+                    + '" to "'
+                    + row["redirect_target"].strip()
+                    + '" created.'
+                )
+                print(message)
+                logging.info(message)
+            else:
+                message = (
+                    'Redirect from "'
+                    + row[config["id_field"]].strip()
+                    + '" to "'
+                    + row["redirect_target"].strip()
+                    + '" not created.'
+                )
+                print("Error: " + message + " See log for more info.")
+                logging.error(
+                    message + "HTTP status code: " + str(response.status_code)
+                )
+        else:
+            message = (
+                'Redirect from "'
+                + row[config["id_field"]]
+                + '" not created, since that path does not exist.'
+            )
+            if config["progress_bar"] is not True:
+                print("Warning: " + message)
+            logging.warning(message)
+            continue
+
+        if config["progress_bar"] is True:
+            redirect_row_position = get_percentage(redirect_row_count, num_csv_records)
+            pbar(redirect_row_position)
+
+    if config["progress_bar"] is True:
+        pbar(100)
+
+
 # Main program logic.
 
 parser = argparse.ArgumentParser()
@@ -3497,6 +3598,8 @@ try:
         update_media()
     if config["task"] == "update_terms":
         update_terms()
+    if config["task"] == "create_redirects":
+        create_redirects()
 
     if config["secondary_tasks"] is not None and len(config["secondary_tasks"]) > 0:
         for secondary_config_file in config["secondary_tasks"]:

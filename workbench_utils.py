@@ -1035,14 +1035,14 @@ def ping_remote_file(config, url):
 
 def get_nid_from_url_alias(config, url_alias):
     """Gets a node ID from a URL alias. This function also works
-    canonical URLs, e.g. http://localhost:8000/node/1648.
+    canonical URLs, e.g. https://localhost:8000/node/1648.
 
     Parameters
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
     url_alias : string
-        The full URL alias (or canonical URL), including http://, etc.
+        The full URL alias (or canonical URL), including https://, etc.
     Returns
     -------
     int|boolean
