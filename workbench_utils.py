@@ -1803,12 +1803,13 @@ def check_input(config, args):
         "get_data_from_view",
         "get_media_report_from_view",
         "update_terms",
+        "create_redirects",
     ]
     joiner = ", "
     if config["task"] not in tasks:
         message = (
             '"task" in your configuration file must be one of "create", "update", "delete", '
-            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", or "update_terms".'
+            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", or "create_redirects".'
         )
         logging.error(message)
         sys.exit("Error: " + message)
@@ -2992,6 +2993,82 @@ def check_input(config, args):
             message = 'For "update_terms" tasks, your CSV file must contain a "term_id" column.'
             logging.error(message)
             sys.exit("Error: " + message)
+    if config["task"] == "create_redirects":
+        if "redirect_source" not in csv_column_headers:
+            message = 'For "create_redirects" tasks, your CSV file must contain a "redirect_source" column.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if "redirect_target" not in csv_column_headers:
+            message = 'For "create_redirects" tasks, your CSV file must contain a "redirect_target" column.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+    warnings_about_redirect_input_csv = False
+    if config["task"] == "create_redirects":
+        check_for_redirects_csv_data = get_csv_data(config)
+        for count, row in enumerate(check_for_redirects_csv_data, start=1):
+            if row["redirect_source"].lower().startswith("http"):
+                message = (
+                    'Redirect source values cannot contain a hostname, they must be a path only. Please correct "'
+                    + row["redirect_source"]
+                    + " (row "
+                    + str(count)
+                    + ")."
+                )
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+                continue
+
+            # Log if source path doesn't exist. We don't use issue_request() since we
+            # don't want to override config["allow_redirects"] for this one request.
+            path_exists_url = config["host"].rstrip("/") + "/" + row["redirect_source"]
+            path_exists_response = requests.head(
+                path_exists_url,
+                allow_redirects=False,
+                verify=config["secure_ssl_only"],
+                auth=(config["username"], config["password"]),
+            )
+            if path_exists_response.status_code == 404:
+                message = (
+                    'Redirect path "'
+                    + row["redirect_source"].strip()
+                    + '" (row '
+                    + str(count)
+                    + ") does not exist (HTTP response code is "
+                    + str(is_redirect_response.status_code)
+                    + "). This may be intentional."
+                )
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+                continue
+
+            # Check to see if the redirect source value is already a redirect. We don't use issue_request()
+            # since we don't want to override config["allow_redirects"] for this one request.
+            is_redirect_url = config["host"].rstrip("/") + "/" + row["redirect_source"]
+            is_redirect_response = requests.head(
+                is_redirect_url,
+                allow_redirects=False,
+                verify=config["secure_ssl_only"],
+                auth=(config["username"], config["password"]),
+            )
+            if str(is_redirect_response.status_code).startswith("30"):
+                message = (
+                    'Redirect from "'
+                    + row["redirect_source"].strip()
+                    + '" (row '
+                    + str(count)
+                    + ") is already a redirect (HTTP response code is "
+                    + str(is_redirect_response.status_code)
+                    + ")."
+                )
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+
+        if warnings_about_redirect_input_csv is True:
+            message = (
+                "Input CSV contains at least one row that has generated a warning."
+            )
+            print("Warning: " + message + " See the log for details.")
 
     # Check for existence of files listed in the 'file' column.
     if (
