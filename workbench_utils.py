@@ -3005,6 +3005,23 @@ def check_input(config, args):
 
     warnings_about_redirect_input_csv = False
     if config["task"] == "create_redirects":
+        # Ping /entity/redirect and expect a 405 response.
+        endpoint_ping_response = requests.head(
+            config["host"].rstrip("/") + "/entity/redirect?_format=json",
+            allow_redirects=True,
+            verify=config["secure_ssl_only"],
+            auth=(config["username"], config["password"]),
+        )
+        if endpoint_ping_response.status_code != 405:
+            message = (
+                'Cannot access "'
+                + config["host"].rstrip("/")
+                + "/entity/redirect"
+                + '". Please confirm that the "Redirect" REST endpoint is configured properly.'
+            )
+            logging.error(message)
+            sys.exit("Error: " + message)
+
         check_for_redirects_csv_data = get_csv_data(config)
         for count, row in enumerate(check_for_redirects_csv_data, start=1):
             if row["redirect_source"].lower().startswith("http"):
