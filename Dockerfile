@@ -16,6 +16,5 @@ WORKDIR /workbench
 RUN python -m pip install setuptools
 
 # RUN pip install filemagic
-RUN pip install urllib3>=1.21.1
-RUN pip install libmagic
-RUN python setup.py install
+RUN pip install libmagic urllib3>=1.21.1
+RUN pip install --editable .
