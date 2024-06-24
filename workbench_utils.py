@@ -7597,9 +7597,10 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
         if column_name in field_definitions:
-            if field_definitions[column_name]["field_type"] == "typed_relation":
-                continue
-            if "vocabularies" in field_definitions[column_name]:
+            if (
+                field_definitions[column_name]["field_type"] == "entity_reference"
+                and "vocabularies" in field_definitions[column_name]
+            ):
                 vocabularies = get_field_vocabularies(
                     config, field_definitions, column_name
                 )
@@ -7954,6 +7955,15 @@ def validate_taxonomy_reference_value(
     this_fields_vocabularies = get_field_vocabularies(
         config, field_definitions, csv_field_name
     )
+
+    # Not an entity reference field on a vocabulary or a typed relation field.
+    if (
+        field_definitions[csv_field_name]["field_type"]
+        in ["entity_reference", "typed_relation"]
+        and "vocabularies" in field_definitions[csv_field_name]
+    ) is False:
+        return None
+
     this_fields_vocabularies_string = ", ".join(this_fields_vocabularies)
 
     new_term_names_in_csv = False
