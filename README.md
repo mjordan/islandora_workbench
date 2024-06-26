@@ -16,6 +16,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Allows assignment of Drupal vocabulary terms using term IDs, term names, or term URIs
 * Allows creation of new taxonomy terms from CSV field data, including complex and hierarchical terms
 * Allows the assignment of URL aliases
+* Allows creation of URL redirects
 * Allows adding alt text to images
 * Supports transmission fixity auditing for media files
 * Cross platform (written in Python, tested on Linux, Mac, and Windows)
