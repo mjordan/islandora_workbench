@@ -16,13 +16,13 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Allows assignment of Drupal vocabulary terms using term IDs, term names, or term URIs
 * Allows creation of new taxonomy terms from CSV field data, including complex and hierarchical terms
 * Allows the assignment of URL aliases
+* Allows creation of URL redirects
 * Allows adding alt text to images
 * Supports transmission fixity auditing for media files
 * Cross platform (written in Python, tested on Linux, Mac, and Windows)
 * Well tested
 * Well documented
 * Provides both sensible default configuration values and rich configuration options for power users
-* A companion project under development, [Islandora Workbench Desktop](https://github.com/mjordan/islandora_workbench_desktop), will add a graphical user interface that enables users not familiar or comfortable with the command line to use Workbench.
 * Run from within a Docker container.
 
 ## Documentation
