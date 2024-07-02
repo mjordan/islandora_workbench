@@ -3189,7 +3189,12 @@ class TestEntityRefererenceField(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-        self.config = {"task": "create", "subdelimiter": "|", "id_field": "id"}
+        self.config = {
+            "task": "create",
+            "subdelimiter": "|",
+            "id_field": "id",
+            "columns_with_term_names": [],
+        }
 
     def test_create_with_entity_reference_field(self):
         existing_node = {
@@ -4392,7 +4397,12 @@ class TestTypedRelationField(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-        self.config = {"task": "create", "subdelimiter": "|", "id_field": "id"}
+        self.config = {
+            "task": "create",
+            "subdelimiter": "|",
+            "id_field": "id",
+            "columns_with_term_names": [],
+        }
 
         self.existing_node = {
             "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
