@@ -6208,6 +6208,11 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
         string|boolean
             The term ID, or False term was not created.
     """
+    if vocab_id in config["protected_vocabularies"]:
+        logging.warning(
+            f'Term "{term_name}" is not in its designated vocabulary ({vocab_id}) and will not be added since the vocabulary is registered in the "protected_vocabularies" config setting.'
+        )
+        return False
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
@@ -8150,11 +8155,24 @@ def validate_taxonomy_reference_value(
                                     + field_value.strip()
                                     + '") that is '
                                 )
-                                message_2 = (
-                                    'not in the referenced vocabulary ("'
-                                    + this_fields_vocabularies[0]
-                                    + '"). That term will be created.'
-                                )
+
+                                if (
+                                    this_fields_vocabularies[0]
+                                    in config["protected_vocabularies"]
+                                ):
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + this_fields_vocabularies[0]
+                                        + '"). The term will not be created since "'
+                                        + this_fields_vocabularies[0]
+                                        + '" is registered in the "protected_vocabularies" config setting.'
+                                    )
+                                else:
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + this_fields_vocabularies[0]
+                                        + '"). That term will be created.'
+                                    )
                                 if config["validate_terms_exist"] is True:
                                     logging.warning(message + message_2)
                         else:
@@ -8223,11 +8241,24 @@ def validate_taxonomy_reference_value(
                                     + namespaced_term_name.strip()
                                     + '") that is '
                                 )
-                                message_2 = (
-                                    'not in the referenced vocabulary ("'
-                                    + namespace_vocab_id
-                                    + '"). That term will be created.'
-                                )
+
+                                if (
+                                    namespace_vocab_id
+                                    in config["protected_vocabularies"]
+                                ):
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + namespace_vocab_id
+                                        + '"). The term will not be created since "'
+                                        + namespace_vocab_id
+                                        + '" is registered in the "protected_vocabularies" config setting.'
+                                    )
+                                else:
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + namespace_vocab_id
+                                        + '"). That term will be created.'
+                                    )
                                 if config["validate_terms_exist"] is True:
                                     logging.warning(message + message_2)
                                 new_terms_to_add.append(split_field_value)
