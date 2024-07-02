@@ -6542,7 +6542,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
 """
     term = str(term)
     term = term.strip()
-    if value_is_numeric(term):
+    if value_is_numeric(term) and field_name not in config["columns_with_term_names"]:
         return term
     entity_reference_view_endpoints = get_entity_reference_view_endpoints(config)
     if not entity_reference_view_endpoints and vocab_ids is False:
@@ -8043,7 +8043,10 @@ def validate_taxonomy_reference_value(
                 )
 
         # Check to see if field_value is a member of the field's vocabularies. First, check whether field_value is a term ID.
-        if value_is_numeric(field_value):
+        if (
+            value_is_numeric(field_value)
+            and csv_field_name not in config["columns_with_term_names"]
+        ):
             field_value = field_value.strip()
             term_in_vocabs = False
             for vocab_id in this_fields_vocabularies:
@@ -8125,7 +8128,10 @@ def validate_taxonomy_reference_value(
             new_terms_to_add = []
             for vocabulary in this_fields_vocabularies:
                 tid = find_term_in_vocab(config, vocabulary, field_value)
-                if value_is_numeric(tid) is False:
+                if (
+                    value_is_numeric(tid) is False
+                    or csv_field_name in config["columns_with_term_names"]
+                ):
                     # Single taxonomy fields.
                     if len(this_fields_vocabularies) == 1:
                         if config["allow_adding_terms"] is True:
