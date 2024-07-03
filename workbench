@@ -414,7 +414,7 @@ def create():
                     + "."
                 )
             logging.info(
-                'Node for "%s (record %s)" created at %s.',
+                'Node for "%s" (record %s) created at %s.',
                 row["title"],
                 id_field,
                 node_uri,
