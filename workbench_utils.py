@@ -6236,7 +6236,7 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
 
     if config["allow_adding_terms"] is False:
         logging.warning(
-            'To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.'
+            f'Term "{term_name}" does not exist in the vocabulary "{vocab_id}". To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.'
         )
         return False
 
@@ -8133,10 +8133,7 @@ def validate_taxonomy_reference_value(
             new_terms_to_add = []
             for vocabulary in this_fields_vocabularies:
                 tid = find_term_in_vocab(config, vocabulary, field_value)
-                if (
-                    value_is_numeric(tid) is False
-                    or csv_field_name in config["columns_with_term_names"]
-                ):
+                if value_is_numeric(tid) is False:
                     # Single taxonomy fields.
                     if len(this_fields_vocabularies) == 1:
                         if config["allow_adding_terms"] is True:
