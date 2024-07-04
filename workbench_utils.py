@@ -541,7 +541,7 @@ def get_integration_module_version(config):
         return False
 
 
-def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
+def ping_node(config, nid_to_ping, method="HEAD", return_json=False, warn=True):
     """Ping the node to see if it exists.
 
     Note that HEAD requests do not return a response body.
@@ -550,8 +550,8 @@ def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
-    nid : string
-        Node ID of the node to be pinged.
+    nid_to_ping : string
+        Node ID/URL/alias of the node to be pinged.
     method: string, optional
         Either 'HEAD' or 'GET'.
     return_json: boolean, optional
@@ -565,10 +565,18 @@ def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
         True if method is HEAD and node was found, the response JSON response
         body if method was GET. False if request returns a non-allowed status code.
     """
-    if value_is_numeric(nid) is False:
-        nid = get_nid_from_url_alias(config, nid)
-    url = config["host"] + "/node/" + str(nid) + "?_format=json"
-    response = issue_request(config, method.upper(), url)
+    incoming_nid_to_ping = copy.copy(nid_to_ping)
+    if nid_to_ping is False:
+        if warn is True:
+            logging.warning(
+                "Can't perform node ping because the provided node ID was 'False'."
+            )
+        return False
+
+    if value_is_numeric(nid_to_ping) is False:
+        nid_to_ping = get_nid_from_url_alias(config, nid_to_ping)
+    url_to_ping = config["host"] + "/node/" + str(nid_to_ping) + "?_format=json"
+    response = issue_request(config, method.upper(), url_to_ping)
     allowed_status_codes = [200, 301, 302]
     if response.status_code in allowed_status_codes:
         if return_json is True:
@@ -578,9 +586,10 @@ def ping_node(config, nid, method="HEAD", return_json=False, warn=True):
     else:
         if warn is True:
             logging.warning(
-                "Node ping (%s) on %s returned a %s status code.",
+                "(%s) ping on node %s (using node ID %s) returned a %s status code.",
                 method.upper(),
-                url,
+                url_to_ping,
+                incoming_nid_to_ping,
                 response.status_code,
             )
         return False
@@ -1033,31 +1042,38 @@ def ping_remote_file(config, url):
         sys.exit("Error: " + message)
 
 
-def get_nid_from_url_alias(config, url_alias):
-    """Gets a node ID from a URL alias. This function also works
-    canonical URLs, e.g. https://localhost:8000/node/1648.
+def get_nid_from_url_alias(config, url_alias_to_query):
+    """Gets a node ID from a URL alias. This function also works on canonical
+    URLs, e.g. https://localhost:8000/node/1648 and URL aliases without a hostname,
+    e.g., /i_am_an_alias.
 
     Parameters
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
-    url_alias : string
+    url_alias_to_query : string
         The full URL alias (or canonical URL), including https://, etc.
     Returns
     -------
     int|boolean
         The node ID, or False if the URL cannot be found.
     """
-    if url_alias is False:
+    if url_alias_to_query is False:
         return False
 
-    url = url_alias + "?_format=json"
-    response = issue_request(config, "GET", url)
-    if response.status_code != 200:
+    if url_alias_to_query.startswith("http") is True:
+        alias_query_url = f"{url_alias_to_query}?_format=json"
+    else:
+        alias_query_url = (
+            f'{config["host"]}/{url_alias_to_query.lstrip("/")}?_format=json'
+        )
+
+    alias_query_response = issue_request(config, "GET", alias_query_url)
+    if alias_query_response.status_code != 200:
         return False
     else:
-        node = json.loads(response.text)
-        return node["nid"][0]["value"]
+        alias_query_node = json.loads(alias_query_response.text)
+        return alias_query_node["nid"][0]["value"]
 
 
 def get_mid_from_media_url_alias(config, url_alias):
@@ -2901,8 +2917,13 @@ def check_input(config, args):
                                     + ") that "
                                     + "doesn't exist or is not accessible. See the workbench log for more information."
                                 )
+                                message = f'Node identified in "field_member_of" ({parent_nid}) in row with ID "{row[config["id_field"]]}" cannot be found or accessed.'
                                 logging.error(message)
-                                sys.exit("Error: " + message)
+                                sys.exit(
+                                    "Error: "
+                                    + message
+                                    + " See Workbench log for more information."
+                                )
         else:
             message = (
                 '"validate_parent_node_exists" is set to false. Node IDs in "field_member_of" that do not exist or are not accessible '
