@@ -224,6 +224,8 @@ class WorkbenchConfig:
             "field_for_remote_filename": False,
             "field_for_media_title": False,
             "delete_tmp_upload": False,
+            "input_data_zip_archives": [],
+            "delete_zip_archive_after_extraction": True,
             "list_missing_drupal_fields": False,
             "secondary_tasks": None,
             "sqlite_db_filename": "workbench_temp_data.db",

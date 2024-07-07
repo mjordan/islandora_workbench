@@ -28,6 +28,7 @@ import shutil
 import itertools
 import http.client
 import sqlite3
+import zipfile
 import requests_cache
 from rich.traceback import install
 
@@ -1009,7 +1010,7 @@ def ping_remote_file(config, url):
         URL of remote file to be pinged.
     Returns
     -------
-    None
+    int|None
     """
 
     sections = urllib.parse.urlparse(url)
@@ -2222,6 +2223,31 @@ def check_input(config, args):
         )
         print(message)
         logging.info(message)
+
+    # Check existence of input data zip archives.
+    if len(config["input_data_zip_archives"]) > 0:
+        for input_data_zip_archive_location in config["input_data_zip_archives"]:
+            if input_data_zip_archive_location.lower().startswith("http"):
+                remote_zip_archive_ping_response_code = ping_remote_file(
+                    config, input_data_zip_archive_location
+                )
+                if remote_zip_archive_ping_response_code == 200:
+                    message = f'Remote input data zip archive "{input_data_zip_archive_location}" found.'
+                    print("Ok, " + message)
+                    logging.info(message)
+                else:
+                    message = f'Remote input data zip archive "{input_data_zip_archive_location}" not found, ping returned a {remote_zip_archive_ping_response_code} response.'
+                    print("Warning: " + message)
+                    logging.warning(message)
+            else:
+                if os.path.exists(input_data_zip_archive_location):
+                    message = f'Local input data zip archive "{input_data_zip_archive_location}" found.'
+                    print("Ok, " + message)
+                    logging.info(message)
+                else:
+                    message = f'Local input data zip archive "{input_data_zip_archive_location}" not found.'
+                    print("Warning: " + message)
+                    logging.warning(message)
 
     # Task-specific CSV checks.
     langcode_was_present = False
@@ -10693,3 +10719,78 @@ def service_file_present(config, input):
         if name_data["uri"] and name_data["uri"] == service_uri:
             return True
     return False
+
+
+def download_remote_archive_file(config, remote_archive_url):
+    message = f'Downloading Zip archive "{remote_archive_url}"...'
+    print(message)
+    logging.info(message)
+    sections = urllib.parse.urlparse(remote_archive_url)
+    archive_filename = os.path.basename(sections.path)
+    if archive_filename.lower().endswith(".zip") is False:
+        archive_filename = archive_filename + ".zip"
+    try:
+        if config["secure_ssl_only"] is False:
+            requests.packages.urllib3.disable_warnings()
+        # Do not cache the responses for downloaded files in requests_cache
+        with requests_cache.disabled():
+            response = requests.get(
+                remote_archive_url,
+                allow_redirects=True,
+                stream=True,
+                verify=config["secure_ssl_only"],
+            )
+    except requests.exceptions.Timeout as err_timeout:
+        message = (
+            "Workbench timed out trying to reach "
+            + sections.netloc
+            + " while connecting to "
+            + remote_archive_url
+            + ". Please verify that URL and check your network connection."
+        )
+        logging.error(message)
+        logging.error(err_timeout)
+        print("Error: " + message)
+        return False
+    except requests.exceptions.ConnectionError as error_connection:
+        message = (
+            "Workbench cannot connect to "
+            + sections.netloc
+            + " while connecting to "
+            + remote_archive_url
+            + ". Please verify that URL and check your network connection."
+        )
+        logging.error(message)
+        logging.error(error_connection)
+        print("Error: " + message)
+        return False
+
+    downloaded_file_path = os.path.join(config["temp_dir"], archive_filename)
+    with open(downloaded_file_path, "wb+") as output_file:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                output_file.write(chunk)
+
+    return downloaded_file_path
+
+
+def unzip_archive(config, archive_file_path):
+    if os.path.exists(archive_file_path):
+        with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
+            zip_ref.extractall(config["input_dir"])
+            message = f'Zip archive "{archive_file_path}" extracted to "{config["input_dir"]}".'
+            print("OK, " + message)
+            logging.info(message)
+
+        if config["delete_zip_archive_after_extraction"] is True:
+            try:
+                os.remove(archive_file_path)
+                logging.info(f'Zip archive "{archive_file_path}" deleted."')
+            except Exception as e:
+                logging.error(
+                    f'Could not remove input archive file "{archive_file_path}": {e}.'
+                )
+    else:
+        message = f'Zip archive "{archive_file_path}" not extracted to "{config["input_dir"]}": cannot find zip archive.'
+        print("Warning: " + message)
+        logging.warning(message)

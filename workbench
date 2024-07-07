@@ -3525,6 +3525,17 @@ validate_input_dir(config)
 ping_islandora(config, print_message=True)
 check_integration_module_version(config)
 
+# Unzip (and fetch if remote) input data zip archives.
+if config["check"] is False and len(config["input_data_zip_archives"]) > 0:
+    for input_data_zip_archive in config["input_data_zip_archives"]:
+        if input_data_zip_archive.lower().startswith("http"):
+            downloaded_zip_file_path = download_remote_archive_file(
+                config, input_data_zip_archive
+            )
+            unzip_archive(config, downloaded_zip_file_path)
+        else:
+            unzip_archive(config, input_data_zip_archive)
+
 if config["enable_http_cache"] is True:
     if config["http_cache_storage"] == "sqlite" and os.path.exists("http_cache.sqlite"):
         logging.info('Cleared HTTP cache file "http_cache.sqlite".')
