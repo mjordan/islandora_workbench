@@ -10776,21 +10776,26 @@ def download_remote_archive_file(config, remote_archive_url):
 
 def unzip_archive(config, archive_file_path):
     if os.path.exists(archive_file_path):
-        with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
-            zip_ref.extractall(config["input_dir"])
-            message = f'Zip archive "{archive_file_path}" extracted to "{config["input_dir"]}".'
-            print("OK, " + message)
-            logging.info(message)
+        if zipfile.is_zipfile(archive_file_path) is True:
+            with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
+                zip_ref.extractall(config["input_dir"])
+                message = f'Zip archive "{archive_file_path}" extracted to "{config["input_dir"]}".'
+                print("OK, " + message)
+                logging.info(message)
 
-        if config["delete_zip_archive_after_extraction"] is True:
-            try:
-                os.remove(archive_file_path)
-                logging.info(f'Zip archive "{archive_file_path}" deleted."')
-            except Exception as e:
-                logging.error(
-                    f'Could not remove input archive file "{archive_file_path}": {e}.'
-                )
+            if config["delete_zip_archive_after_extraction"] is True:
+                try:
+                    os.remove(archive_file_path)
+                    logging.info(f'Zip archive "{archive_file_path}" deleted."')
+                except Exception as e:
+                    logging.error(
+                        f'Could not remove input archive file "{archive_file_path}": {e}.'
+                    )
+        else:
+            message = f'"{archive_file_path}" does not appear to be a valid Zip file.'
+            logging.error(message)
+            sys.exit("Error: " + message)
     else:
         message = f'Zip archive "{archive_file_path}" not extracted to "{config["input_dir"]}": cannot find zip archive.'
-        print("Warning: " + message)
-        logging.warning(message)
+        logging.error(message)
+        sys.exit("Error: " + message)
