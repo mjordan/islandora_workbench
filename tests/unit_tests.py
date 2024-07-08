@@ -999,6 +999,34 @@ class TestGetPageTitleFromTemplate(unittest.TestCase):
             self.assertEqual(fixture["control"], page_title)
 
 
+class TestApplyCsvValueTemplates(unittest.TestCase):
+    def test_get_page_title_from_template(self):
+        fixtures = [
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_1": "$csv_value, bar"}],
+                },
+                "row": {"title": "Title 1", "field_foo_1": "I am foo"},
+                "control": {"title": "Title 1", "field_foo_1": "I am foo, bar"},
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_2": "pre-$csv_value-post"}],
+                },
+                "row": {"title": "Title 1", "field_foo_2": "I am foo"},
+                "control": {"title": "Title 1", "field_foo_2": "pre-I am foo-post"},
+            },
+        ]
+
+        for fixture in fixtures:
+            page_title = workbench_utils.apply_csv_value_templates(
+                fixture["config"], fixture["row"]
+            )
+            self.assertEqual(fixture["control"], page_title)
+
+
 class TestGetPreprocessedFilePath(unittest.TestCase):
     def test_get_preprocessed_file_path_with_extension(self):
         node_csv_record = collections.OrderedDict()
