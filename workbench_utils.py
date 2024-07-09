@@ -12,6 +12,8 @@ import string
 import re
 import copy
 import logging
+import random
+import uuid
 import datetime
 import requests
 import subprocess
@@ -9741,14 +9743,22 @@ def get_page_title_from_template(config, parent_title, weight):
     return page_title
 
 
-def apply_csv_value_templates(config, row):
+def apply_csv_value_templates(
+    config, row, parent_row=None, rand_length=5, filename=None
+):
     """Applies a simple template to a CSV value."""
     """Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
         row: OrderedDict
-            A CSV row.
+            A CSV row to apply the template(s) to.
+        parent_row: OrderedDict
+            The CSV row of the current row's parent.
+        rand_length: int
+            The length of the randomly generated number or string.
+        filename: str
+            A filename for the current row.
         Returns
         -------
         string
@@ -9764,10 +9774,32 @@ def apply_csv_value_templates(config, row):
             incoming_subvalues = row[field].split(config["subdelimiter"])
             outgoing_subvalues = []
             for subvalue in incoming_subvalues:
+                # Generate replacement values for each subvalue.
+                if parent_row is not None and field in parent_row.keys():
+                    parent_row_value = parent_row[field]
+                else:
+                    parent_row_value = "!!!NoCSVValueAvailableFromParentRow"
+                if filename is None:
+                    filename = "!!!NoFilenameAvailable"
+                alphanumeric_string = "".join(
+                    random.choices(string.ascii_letters + string.digits, k=rand_length)
+                )
+                number_string = "".join(random.choices(string.digits, k=rand_length))
+                uuid_string = str(uuid.uuid4())
+
                 if len(subvalue) > 0:
-                    csv_value_template = string.Template(templates[field])
+                    field_template = string.Template(templates[field])
                     subvalue = str(
-                        csv_value_template.substitute({"csv_value": subvalue})
+                        field_template.substitute(
+                            {
+                                "csv_value": subvalue,
+                                "parent_row_value": parent_row_value,
+                                "filename": filename,
+                                "alphanumeric_string": alphanumeric_string,
+                                "number_string": number_string,
+                                "uuid_string": uuid_string,
+                            }
+                        )
                     )
                     outgoing_subvalues.append(subvalue)
             templated_string = config["subdelimiter"].join(outgoing_subvalues)

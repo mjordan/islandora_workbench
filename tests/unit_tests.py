@@ -1000,7 +1000,7 @@ class TestGetPageTitleFromTemplate(unittest.TestCase):
 
 
 class TestApplyCsvValueTemplates(unittest.TestCase):
-    def test_get_page_title_from_template(self):
+    def test_csv_value_template(self):
         fixtures = [
             {
                 "config": {
@@ -1021,10 +1021,47 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
         ]
 
         for fixture in fixtures:
-            page_title = workbench_utils.apply_csv_value_templates(
+            output_row = workbench_utils.apply_csv_value_templates(
                 fixture["config"], fixture["row"]
             )
-            self.assertEqual(fixture["control"], page_title)
+            self.assertEqual(fixture["control"], output_row)
+
+    def _test_parent_row_template(self):
+        fixtures = [
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_2": "$parent_row_value, bar"}],
+                },
+                "row": {"title": "Title 1", "field_foo_1": "I am foo", "field_foo_2": ""},
+                "parent_row": {"title": "Parent Title", "field_foo_1": "I am parent foo", "field_foo_2": "I am a foo too"},
+                "control": {"title": "Title 1", "field_foo_1": "I am foo", "field_foo_2": "I am a foo too, bar"},
+            },
+        ]
+
+        for fixture in fixtures:
+            output_row = workbench_utils.apply_csv_value_templates(
+                fixture["config"], fixture["row"], fixture["parent_row"]
+            )
+            self.assertEqual(fixture["control"], output_row)
+
+    def test_alphanumeric_string_template(self):
+        fixtures = [
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_2": "$alphanumeric_string, bar"}],
+                },
+                "row": {"title": "Title 1", "field_foo_1": "I am foo", "field_foo_2": ""},
+                "control": {"title": "Title 1", "field_foo_1": "I am foo", "field_foo_2": "I am a foo too, bar"},
+            },
+        ]
+
+        for fixture in fixtures:
+            output_row = workbench_utils.apply_csv_value_templates(
+                fixture["config"], fixture["row"]
+            )
+            self.assertEqual(fixture["control"], output_row)
 
 
 class TestGetPreprocessedFilePath(unittest.TestCase):
