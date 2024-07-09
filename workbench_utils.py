@@ -6234,6 +6234,11 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
         string|boolean
             The term ID, or False term was not created.
     """
+    if vocab_id in config["protected_vocabularies"]:
+        logging.warning(
+            f'Term "{term_name}" is not in its designated vocabulary ({vocab_id}) and will not be added since the vocabulary is registered in the "protected_vocabularies" config setting.'
+        )
+        return False
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
@@ -6257,7 +6262,7 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
 
     if config["allow_adding_terms"] is False:
         logging.warning(
-            'To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.'
+            f'Term "{term_name}" does not exist in the vocabulary "{vocab_id}". To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.'
         )
         return False
 
@@ -6568,7 +6573,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
 """
     term = str(term)
     term = term.strip()
-    if value_is_numeric(term):
+    if value_is_numeric(term) and field_name not in config["columns_with_term_names"]:
         return term
     entity_reference_view_endpoints = get_entity_reference_view_endpoints(config)
     if not entity_reference_view_endpoints and vocab_ids is False:
@@ -8069,7 +8074,10 @@ def validate_taxonomy_reference_value(
                 )
 
         # Check to see if field_value is a member of the field's vocabularies. First, check whether field_value is a term ID.
-        if value_is_numeric(field_value):
+        if (
+            value_is_numeric(field_value)
+            and csv_field_name not in config["columns_with_term_names"]
+        ):
             field_value = field_value.strip()
             term_in_vocabs = False
             for vocab_id in this_fields_vocabularies:
@@ -8170,11 +8178,24 @@ def validate_taxonomy_reference_value(
                                     + field_value.strip()
                                     + '") that is '
                                 )
-                                message_2 = (
-                                    'not in the referenced vocabulary ("'
-                                    + this_fields_vocabularies[0]
-                                    + '"). That term will be created.'
-                                )
+
+                                if (
+                                    this_fields_vocabularies[0]
+                                    in config["protected_vocabularies"]
+                                ):
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + this_fields_vocabularies[0]
+                                        + '"). The term will not be created since "'
+                                        + this_fields_vocabularies[0]
+                                        + '" is registered in the "protected_vocabularies" config setting.'
+                                    )
+                                else:
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + this_fields_vocabularies[0]
+                                        + '"). That term will be created.'
+                                    )
                                 if config["validate_terms_exist"] is True:
                                     logging.warning(message + message_2)
                         else:
@@ -8243,11 +8264,24 @@ def validate_taxonomy_reference_value(
                                     + namespaced_term_name.strip()
                                     + '") that is '
                                 )
-                                message_2 = (
-                                    'not in the referenced vocabulary ("'
-                                    + namespace_vocab_id
-                                    + '"). That term will be created.'
-                                )
+
+                                if (
+                                    namespace_vocab_id
+                                    in config["protected_vocabularies"]
+                                ):
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + namespace_vocab_id
+                                        + '"). The term will not be created since "'
+                                        + namespace_vocab_id
+                                        + '" is registered in the "protected_vocabularies" config setting.'
+                                    )
+                                else:
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + namespace_vocab_id
+                                        + '"). That term will be created.'
+                                    )
                                 if config["validate_terms_exist"] is True:
                                     logging.warning(message + message_2)
                                 new_terms_to_add.append(split_field_value)

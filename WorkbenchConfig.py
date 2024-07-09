@@ -198,6 +198,8 @@ class WorkbenchConfig:
             "paged_content_from_directories": False,
             "delete_media_with_nodes": True,
             "allow_adding_terms": False,
+            "columns_with_term_names": [],
+            "protected_vocabularies": [],
             "nodes_only": False,
             "log_response_time": False,
             "adaptive_pause_threshold": 2,
