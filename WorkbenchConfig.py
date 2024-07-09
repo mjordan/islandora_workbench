@@ -272,6 +272,7 @@ class WorkbenchConfig:
             "query_csv_id_to_node_id_map_for_parents": False,
             "ignore_duplicate_parent_ids": True,
             "redirect_status_code": 301,
+            "allow_csv_value_templates_if_empty": [],
         }
 
     # Tests validity and existence of configuration file path.

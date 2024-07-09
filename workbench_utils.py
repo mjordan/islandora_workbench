@@ -8412,8 +8412,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         )
         weight = filename_segments[-1]
         weight = weight.lstrip("0")
+
+        # Resolved with #791's introduction of CSV value templates like "field_identifier": "$parent_row_value-$alphanumeric_string"?
         # @todo: come up with a templated way to generate the page_identifier, and what field to POST it to.
         page_identifier = parent_id + "_" + filename_without_extension
+
         page_title = get_page_title_from_template(
             config, parent_csv_record["title"], weight
         )
@@ -9787,7 +9790,10 @@ def apply_csv_value_templates(
                 number_string = "".join(random.choices(string.digits, k=rand_length))
                 uuid_string = str(uuid.uuid4())
 
-                if len(subvalue) > 0:
+                if (
+                    len(subvalue) > 0
+                    and field not in config["allow_csv_value_templates_if_empty"]
+                ):
                     field_template = string.Template(templates[field])
                     subvalue = str(
                         field_template.substitute(
@@ -9802,6 +9808,25 @@ def apply_csv_value_templates(
                         )
                     )
                     outgoing_subvalues.append(subvalue)
+                if (
+                    len(subvalue) == 0
+                    and field in config["allow_csv_value_templates_if_empty"]
+                ):
+                    field_template = string.Template(templates[field])
+                    subvalue = str(
+                        field_template.substitute(
+                            {
+                                "csv_value": subvalue,
+                                "parent_row_value": parent_row_value,
+                                "filename": filename,
+                                "alphanumeric_string": alphanumeric_string,
+                                "number_string": number_string,
+                                "uuid_string": uuid_string,
+                            }
+                        )
+                    )
+                    outgoing_subvalues.append(subvalue)
+
             templated_string = config["subdelimiter"].join(outgoing_subvalues)
             row[field] = templated_string
     return row

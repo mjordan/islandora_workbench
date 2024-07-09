@@ -1006,6 +1006,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_1": "$csv_value, bar"}],
+                    "allow_csv_value_templates_if_empty": [],
                 },
                 "row": {"title": "Title 1", "field_foo_1": "I am foo"},
                 "control": {"title": "Title 1", "field_foo_1": "I am foo, bar"},
@@ -1014,6 +1015,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_2": "pre-$csv_value-post"}],
+                    "allow_csv_value_templates_if_empty": [],
                 },
                 "row": {"title": "Title 1", "field_foo_2": "I am foo"},
                 "control": {"title": "Title 1", "field_foo_2": "pre-I am foo-post"},
@@ -1026,16 +1028,29 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
             )
             self.assertEqual(fixture["control"], output_row)
 
-    def _test_parent_row_template(self):
+    def test_parent_row_template(self):
         fixtures = [
             {
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_2": "$parent_row_value, bar"}],
+                    "allow_csv_value_templates_if_empty": ["field_foo_2"],
                 },
-                "row": {"title": "Title 1", "field_foo_1": "I am foo", "field_foo_2": ""},
-                "parent_row": {"title": "Parent Title", "field_foo_1": "I am parent foo", "field_foo_2": "I am a foo too"},
-                "control": {"title": "Title 1", "field_foo_1": "I am foo", "field_foo_2": "I am a foo too, bar"},
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_2": "",
+                },
+                "parent_row": {
+                    "title": "Parent Title",
+                    "field_foo_1": "I am parent foo",
+                    "field_foo_2": "I am a foo too",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_2": "I am a foo too, bar",
+                },
             },
         ]
 
@@ -1045,15 +1060,66 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
             )
             self.assertEqual(fixture["control"], output_row)
 
+    def test_parent_row_template_with_alphanumeric(self):
+        fixtures = [
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [
+                        {"field_identifier": "$parent_row_value-$alphanumeric_string"}
+                    ],
+                    "allow_csv_value_templates_if_empty": ["field_identifier"],
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_2": "",
+                    "field_identifier": "",
+                },
+                "parent_row": {
+                    "title": "Parent Title",
+                    "field_foo_1": "I am parent foo",
+                    "field_foo_2": "I am a foo too",
+                    "field_identifier": "parent_001",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_2": "I am a foo too, bar",
+                    "field_identifier": "parent_001-",
+                },
+            },
+        ]
+
+        for fixture in fixtures:
+            output_row = workbench_utils.apply_csv_value_templates(
+                fixture["config"], fixture["row"], fixture["parent_row"]
+            )
+            # self.assertEqual(fixture["control"], output_row)
+            self.assertRegex(
+                fixture["row"]["field_identifier"], "parent_001\-[A-Za-z0-9]{5}", ""
+            )
+
     def test_alphanumeric_string_template(self):
         fixtures = [
             {
                 "config": {
                     "subdelimiter": "|",
-                    "csv_value_templates": [{"field_foo_2": "$alphanumeric_string, bar"}],
+                    "csv_value_templates": [
+                        {"field_foo_2": "$alphanumeric_string, bar"}
+                    ],
+                    "allow_csv_value_templates_if_empty": [],
                 },
-                "row": {"title": "Title 1", "field_foo_1": "I am foo", "field_foo_2": ""},
-                "control": {"title": "Title 1", "field_foo_1": "I am foo", "field_foo_2": "I am a foo too, bar"},
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_2": "ha",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_2": "ha, bar",
+                },
             },
         ]
 
@@ -1061,7 +1127,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
             output_row = workbench_utils.apply_csv_value_templates(
                 fixture["config"], fixture["row"]
             )
-            self.assertEqual(fixture["control"], output_row)
+            self.assertRegex(fixture["row"]["field_foo_2"], "[A-Za-z0-9]{5}, bar", "")
 
 
 class TestGetPreprocessedFilePath(unittest.TestCase):
