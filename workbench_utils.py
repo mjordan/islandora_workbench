@@ -2231,11 +2231,7 @@ def check_input(config, args):
                 remote_zip_archive_ping_response_code = ping_remote_file(
                     config, input_data_zip_archive_location
                 )
-                if remote_zip_archive_ping_response_code == 200:
-                    message = f'Remote input data zip archive "{input_data_zip_archive_location}" found.'
-                    print("Ok, " + message)
-                    logging.info(message)
-                else:
+                if remote_zip_archive_ping_response_code != 200:
                     message = f'Remote input data zip archive "{input_data_zip_archive_location}" not found, ping returned a {remote_zip_archive_ping_response_code} response.'
                     print("Warning: " + message)
                     logging.warning(message)
@@ -10809,6 +10805,8 @@ def download_remote_archive_file(config, remote_archive_url):
 
 
 def unzip_archive(config, archive_file_path):
+    if archive_file_path is False:
+        return None
     if os.path.exists(archive_file_path):
         if zipfile.is_zipfile(archive_file_path) is True:
             with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
