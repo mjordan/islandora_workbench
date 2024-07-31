@@ -6230,11 +6230,6 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
         string|boolean
             The term ID, or False term was not created.
     """
-    if vocab_id in config["protected_vocabularies"]:
-        logging.warning(
-            f'Term "{term_name}" is not in its designated vocabulary ({vocab_id}) and will not be added since the vocabulary is registered in the "protected_vocabularies" config setting.'
-        )
-        return False
     # Check to see if term exists; if so, return its ID, if not, proceed to create it.
     tid = find_term_in_vocab(config, vocab_id, term_name)
     if value_is_numeric(tid):
@@ -6255,6 +6250,12 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
                 vocab_id,
             )
         return tid
+
+    if vocab_id in config["protected_vocabularies"]:
+        logging.warning(
+            f'Term "{term_name}" is not in its designated vocabulary ({vocab_id}) and will not be added since the vocabulary is registered in the "protected_vocabularies" config setting.'
+        )
+        return False
 
     if config["allow_adding_terms"] is False:
         logging.warning(
