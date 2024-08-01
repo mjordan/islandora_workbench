@@ -3440,7 +3440,9 @@ args = parser.parse_args()
 try:
     workbench_config = WorkbenchConfig(args)
 except Exception as e:
-    # Workbench wouldn't get this far is the YAML config file has syntax errors or is not found.
+    # Workbench wouldn't get this far as the YAML config file has syntax errors or is not found,
+    # or there has been a connection error such as an expired SSL cert. We can't log the exception
+    # since config isn't initialized yet.
     yaml = YAML()
     with open(args.config, "r") as stream:
         config_to_get_host_value = yaml.load(stream)
@@ -3448,7 +3450,7 @@ except Exception as e:
     print(
         'Confirm your "host" configuration setting is correct and that the website is running, and try again.'
     )
-    sys.exit()
+    sys.exit(str(e))
 config = workbench_config.get_config()
 
 create_temp_dir(config)

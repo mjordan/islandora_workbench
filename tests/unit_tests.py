@@ -1000,25 +1000,141 @@ class TestGetPageTitleFromTemplate(unittest.TestCase):
 
 
 class TestApplyCsvValueTemplates(unittest.TestCase):
-    def test_csv_value_template(self):
+    def test_fixed_string_templates(self):
+        """Tests $csv_value and $filenamne templates. Dynamically generated template strings
+        have their own test functions, below.
+        """
         fixtures = [
             {
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_1": "$csv_value, bar"}],
                     "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 5,
                 },
-                "row": {"title": "Title 1", "field_foo_1": "I am foo"},
-                "control": {"title": "Title 1", "field_foo_1": "I am foo, bar"},
+                "row": {"title": "Title 1", "field_foo_1": "I am foo", "file": ""},
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo, bar",
+                    "file": "",
+                },
             },
             {
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_2": "pre-$csv_value-post"}],
                     "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 5,
                 },
-                "row": {"title": "Title 1", "field_foo_2": "I am foo"},
-                "control": {"title": "Title 1", "field_foo_2": "pre-I am foo-post"},
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_2": "I am foo",
+                    "file": "foo.jpg",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_2": "pre-I am foo-post",
+                    "file": "foo.jpg",
+                },
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_2": "pre-$file-post"}],
+                    "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_2": "I am foo",
+                    "file": "bar.tif",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_2": "pre-bar.tif-post",
+                    "file": "bar.tif",
+                },
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_2": "$csv_value-$file"}],
+                    "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_2": "I am a value",
+                    "file": "a good movie.mov",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_2": "I am a value-a good movie.mov",
+                    "file": "a good movie.mov",
+                },
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_2": "$csv_value-$file"}],
+                    "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "",
+                    "field_foo_2": "I am a value",
+                    "file": "a good movie.mov",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_1": "",
+                    "field_foo_2": "I am a value-a good movie.mov",
+                    "file": "a good movie.mov",
+                },
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [
+                        {
+                            "field_foo_1": "$csv_value-$file",
+                            "field_foo_2": "$csv_value-$file",
+                        }
+                    ],
+                    "allow_csv_value_templates_if_empty": ["field_foo_1"],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "",
+                    "field_foo_2": "I am a value",
+                    "file": "a good movie.mov",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_1": "-a good movie.mov",
+                    "field_foo_2": "I am a value-a good movie.mov",
+                    "file": "a good movie.mov",
+                },
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_2": "$csv_value-$file"}],
+                    "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_2": "I am a value",
+                    "file": "a good movie.mov",
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_2": "I am a value-a good movie.mov",
+                    "file": "a good movie.mov",
+                },
             },
         ]
 
@@ -1027,78 +1143,6 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 fixture["config"], fixture["row"]
             )
             self.assertEqual(fixture["control"], output_row)
-
-    def test_parent_row_template(self):
-        fixtures = [
-            {
-                "config": {
-                    "subdelimiter": "|",
-                    "csv_value_templates": [{"field_foo_2": "$parent_row_value, bar"}],
-                    "allow_csv_value_templates_if_empty": ["field_foo_2"],
-                },
-                "row": {
-                    "title": "Title 1",
-                    "field_foo_1": "I am foo",
-                    "field_foo_2": "",
-                },
-                "parent_row": {
-                    "title": "Parent Title",
-                    "field_foo_1": "I am parent foo",
-                    "field_foo_2": "I am a foo too",
-                },
-                "control": {
-                    "title": "Title 1",
-                    "field_foo_1": "I am foo",
-                    "field_foo_2": "I am a foo too, bar",
-                },
-            },
-        ]
-
-        for fixture in fixtures:
-            output_row = workbench_utils.apply_csv_value_templates(
-                fixture["config"], fixture["row"], fixture["parent_row"]
-            )
-            self.assertEqual(fixture["control"], output_row)
-
-    def test_parent_row_template_with_alphanumeric(self):
-        fixtures = [
-            {
-                "config": {
-                    "subdelimiter": "|",
-                    "csv_value_templates": [
-                        {"field_identifier": "$parent_row_value-$alphanumeric_string"}
-                    ],
-                    "allow_csv_value_templates_if_empty": ["field_identifier"],
-                },
-                "row": {
-                    "title": "Title 1",
-                    "field_foo_1": "I am foo",
-                    "field_foo_2": "",
-                    "field_identifier": "",
-                },
-                "parent_row": {
-                    "title": "Parent Title",
-                    "field_foo_1": "I am parent foo",
-                    "field_foo_2": "I am a foo too",
-                    "field_identifier": "parent_001",
-                },
-                "control": {
-                    "title": "Title 1",
-                    "field_foo_1": "I am foo",
-                    "field_foo_2": "I am a foo too, bar",
-                    "field_identifier": "parent_001-",
-                },
-            },
-        ]
-
-        for fixture in fixtures:
-            output_row = workbench_utils.apply_csv_value_templates(
-                fixture["config"], fixture["row"], fixture["parent_row"]
-            )
-            # self.assertEqual(fixture["control"], output_row)
-            self.assertRegex(
-                fixture["row"]["field_identifier"], "parent_001\-[A-Za-z0-9]{5}", ""
-            )
 
     def test_alphanumeric_string_template(self):
         fixtures = [
@@ -1106,19 +1150,124 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [
-                        {"field_foo_2": "$alphanumeric_string, bar"}
+                        {"field_foo_2": "bar -- $random_alphanumeric_string"}
                     ],
                     "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 6,
                 },
                 "row": {
                     "title": "Title 1",
                     "field_foo_1": "I am foo",
                     "field_foo_2": "ha",
+                    "file": "",
                 },
-                "control": {
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [
+                        {"field_foo_2": "bar -- $random_alphanumeric_string"}
+                    ],
+                    "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 10,
+                },
+                "row": {
                     "title": "Title 1",
                     "field_foo_1": "I am foo",
-                    "field_foo_2": "ha, bar",
+                    "field_foo_2": "ha",
+                    "file": "",
+                },
+            },
+        ]
+
+        for fixture in fixtures:
+            rand_str_length = fixture["config"]["csv_value_templates_rand_length"]
+            output_row = workbench_utils.apply_csv_value_templates(
+                fixture["config"], fixture["row"]
+            )
+            # Sorry for the inscrutible {{{}}} in the regex quantifier...
+            self.assertRegex(
+                fixture["row"]["field_foo_2"],
+                f"bar -- [A-Za-z0-9]{{{rand_str_length}}}",
+                "",
+            )
+
+    def test_numeric_string_template(self):
+        fixtures = [
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [
+                        {"field_foo_2": "$random_number_string: xxx"}
+                    ],
+                    "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_2": "ha",
+                    "file": "",
+                },
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [
+                        {"field_foo_2": "$random_number_string: xxx"}
+                    ],
+                    "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 20,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_2": "ha",
+                    "file": "",
+                },
+            },
+        ]
+
+        for fixture in fixtures:
+            rand_str_length = fixture["config"]["csv_value_templates_rand_length"]
+            output_row = workbench_utils.apply_csv_value_templates(
+                fixture["config"], fixture["row"]
+            )
+            # Sorry about the inscrutible {{{rand_str_length}}} in the regex quantifier...
+            self.assertRegex(
+                fixture["row"]["field_foo_2"],
+                f"[A-Za-z0-9]{{{rand_str_length}}}: xxx",
+                "",
+            )
+
+    def test_uuid_template(self):
+        fixtures = [
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_3": "yyy:$uuid_string"}],
+                    "allow_csv_value_templates_if_empty": [],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_3": "ha",
+                    "file": "",
+                },
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates": [{"field_foo_3": "ggg:$uuid_string"}],
+                    "allow_csv_value_templates_if_empty": ["field_foo_3"],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "field_foo_3": "",
+                    "file": "",
                 },
             },
         ]
@@ -1127,7 +1276,11 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
             output_row = workbench_utils.apply_csv_value_templates(
                 fixture["config"], fixture["row"]
             )
-            self.assertRegex(fixture["row"]["field_foo_2"], "[A-Za-z0-9]{5}, bar", "")
+            self.assertRegex(
+                fixture["row"]["field_foo_3"],
+                "^.{3}:[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}",
+                "",
+            )
 
 
 class TestGetPreprocessedFilePath(unittest.TestCase):

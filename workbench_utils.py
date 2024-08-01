@@ -8417,6 +8417,15 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         # @todo: come up with a templated way to generate the page_identifier, and what field to POST it to.
         page_identifier = parent_id + "_" + filename_without_extension
 
+        test_row = apply_csv_value_templates(
+            config,
+            row=None,
+            parent_row=parent_csv_record,
+            rand_length=5,
+            filename=filename_without_extension,
+        )
+        print("DEBUG test_row", test_row)
+
         page_title = get_page_title_from_template(
             config, parent_csv_record["title"], weight
         )
@@ -8467,6 +8476,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             if len(parent_csv_record["created"]) > 0:
                 node_json["created"] = [{"value": parent_csv_record["created"]}]
 
+        # WIP on #791: Given that the field-creation code below is already in place for
+        # required fields, we should reuse it for non-required fields configured to be applied
+        # to children.
+
         # Add any required fields that are in the parent CSV.
         required_fields = get_required_bundle_fields(
             config, "node", config["content_type"]
@@ -8478,7 +8491,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             import workbench_fields
 
             for required_field in required_fields:
-                # THese fields are populated above.
+                # These fields are populated above.
                 if required_field in [
                     "title",
                     "field_model",
@@ -9746,9 +9759,7 @@ def get_page_title_from_template(config, parent_title, weight):
     return page_title
 
 
-def apply_csv_value_templates(
-    config, row, parent_row=None, rand_length=5, filename=None
-):
+def apply_csv_value_templates(config, row):
     """Applies a simple template to a CSV value."""
     """Parameters
         ----------
@@ -9756,15 +9767,9 @@ def apply_csv_value_templates(
             The configuration settings defined by workbench_config.get_config().
         row: OrderedDict
             A CSV row to apply the template(s) to.
-        parent_row: OrderedDict
-            The CSV row of the current row's parent.
-        rand_length: int
-            The length of the randomly generated number or string.
-        filename: str
-            A filename for the current row.
         Returns
         -------
-        string
+        dict
             The row with CSV value templates applied.
     """
     templates = dict()
@@ -9777,17 +9782,17 @@ def apply_csv_value_templates(
             incoming_subvalues = row[field].split(config["subdelimiter"])
             outgoing_subvalues = []
             for subvalue in incoming_subvalues:
-                # Generate replacement values for each subvalue.
-                if parent_row is not None and field in parent_row.keys():
-                    parent_row_value = parent_row[field]
-                else:
-                    parent_row_value = "!!!NoCSVValueAvailableFromParentRow"
-                if filename is None:
-                    filename = "!!!NoFilenameAvailable"
                 alphanumeric_string = "".join(
-                    random.choices(string.ascii_letters + string.digits, k=rand_length)
+                    random.choices(
+                        string.ascii_letters + string.digits,
+                        k=config["csv_value_templates_rand_length"],
+                    )
                 )
-                number_string = "".join(random.choices(string.digits, k=rand_length))
+                number_string = "".join(
+                    random.choices(
+                        string.digits, k=config["csv_value_templates_rand_length"]
+                    )
+                )
                 uuid_string = str(uuid.uuid4())
 
                 if (
@@ -9799,10 +9804,9 @@ def apply_csv_value_templates(
                         field_template.substitute(
                             {
                                 "csv_value": subvalue,
-                                "parent_row_value": parent_row_value,
-                                "filename": filename,
-                                "alphanumeric_string": alphanumeric_string,
-                                "number_string": number_string,
+                                "file": row["file"],
+                                "random_alphanumeric_string": alphanumeric_string,
+                                "random_number_string": number_string,
                                 "uuid_string": uuid_string,
                             }
                         )
@@ -9817,10 +9821,9 @@ def apply_csv_value_templates(
                         field_template.substitute(
                             {
                                 "csv_value": subvalue,
-                                "parent_row_value": parent_row_value,
-                                "filename": filename,
-                                "alphanumeric_string": alphanumeric_string,
-                                "number_string": number_string,
+                                "file": row["file"],
+                                "random_alphanumeric_string": alphanumeric_string,
+                                "random_number_string": number_string,
                                 "uuid_string": uuid_string,
                             }
                         )
