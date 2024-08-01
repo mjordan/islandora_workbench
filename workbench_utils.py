@@ -9760,7 +9760,10 @@ def get_page_title_from_template(config, parent_title, weight):
 
 
 def apply_csv_value_templates(config, row):
-    """Applies a simple template to a CSV value."""
+    """Applies a simple template to a CSV value. Template variables availalbe are:
+    $csv_value, $file, $random_alphanumeric_string, $random_number_string, and
+    $uuid_string.
+    """
     """Parameters
         ----------
         config : dict
@@ -9797,7 +9800,7 @@ def apply_csv_value_templates(config, row):
 
                 if (
                     len(subvalue) > 0
-                    and field not in config["allow_csv_value_templates_if_empty"]
+                    and field not in config["allow_csv_value_templates_if_field_empty"]
                 ):
                     field_template = string.Template(templates[field])
                     subvalue = str(
@@ -9812,9 +9815,10 @@ def apply_csv_value_templates(config, row):
                         )
                     )
                     outgoing_subvalues.append(subvalue)
+
                 if (
                     len(subvalue) == 0
-                    and field in config["allow_csv_value_templates_if_empty"]
+                    and field in config["allow_csv_value_templates_if_field_empty"]
                 ):
                     field_template = string.Template(templates[field])
                     subvalue = str(

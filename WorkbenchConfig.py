@@ -274,7 +274,7 @@ class WorkbenchConfig:
             "redirect_status_code": 301,
             "csv_value_templates": [],
             "csv_value_templates_rand_length": 5,
-            "allow_csv_value_templates_if_empty": [],
+            "allow_csv_value_templates_if_field_empty": [],
         }
 
     # Tests validity and existence of configuration file path.

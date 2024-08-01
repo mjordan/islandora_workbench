@@ -1009,7 +1009,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_1": "$csv_value, bar"}],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {"title": "Title 1", "field_foo_1": "I am foo", "file": ""},
@@ -1023,7 +1023,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_2": "pre-$csv_value-post"}],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
@@ -1041,7 +1041,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_2": "pre-$file-post"}],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
@@ -1059,7 +1059,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_2": "$csv_value-$file"}],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
@@ -1077,7 +1077,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_2": "$csv_value-$file"}],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
@@ -1102,7 +1102,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                             "field_foo_2": "$csv_value-$file",
                         }
                     ],
-                    "allow_csv_value_templates_if_empty": ["field_foo_1"],
+                    "allow_csv_value_templates_if_field_empty": ["field_foo_1"],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
@@ -1122,7 +1122,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_2": "$csv_value-$file"}],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
@@ -1152,7 +1152,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                     "csv_value_templates": [
                         {"field_foo_2": "bar -- $random_alphanumeric_string"}
                     ],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 6,
                 },
                 "row": {
@@ -1168,7 +1168,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                     "csv_value_templates": [
                         {"field_foo_2": "bar -- $random_alphanumeric_string"}
                     ],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 10,
                 },
                 "row": {
@@ -1200,7 +1200,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                     "csv_value_templates": [
                         {"field_foo_2": "$random_number_string: xxx"}
                     ],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
@@ -1216,7 +1216,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                     "csv_value_templates": [
                         {"field_foo_2": "$random_number_string: xxx"}
                     ],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 20,
                 },
                 "row": {
@@ -1246,7 +1246,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_3": "yyy:$uuid_string"}],
-                    "allow_csv_value_templates_if_empty": [],
+                    "allow_csv_value_templates_if_field_empty": [],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
@@ -1260,7 +1260,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
                 "config": {
                     "subdelimiter": "|",
                     "csv_value_templates": [{"field_foo_3": "ggg:$uuid_string"}],
-                    "allow_csv_value_templates_if_empty": ["field_foo_3"],
+                    "allow_csv_value_templates_if_field_empty": ["field_foo_3"],
                     "csv_value_templates_rand_length": 5,
                 },
                 "row": {
