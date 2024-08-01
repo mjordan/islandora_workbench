@@ -9798,10 +9798,7 @@ def apply_csv_value_templates(config, row):
                 )
                 uuid_string = str(uuid.uuid4())
 
-                if (
-                    len(subvalue) > 0
-                    and field not in config["allow_csv_value_templates_if_field_empty"]
-                ):
+                if len(subvalue) > 0:
                     field_template = string.Template(templates[field])
                     subvalue = str(
                         field_template.substitute(
@@ -9817,7 +9814,7 @@ def apply_csv_value_templates(config, row):
                     outgoing_subvalues.append(subvalue)
 
                 if (
-                    len(subvalue) == 0
+                    len(row[field]) == 0
                     and field in config["allow_csv_value_templates_if_field_empty"]
                 ):
                     field_template = string.Template(templates[field])
