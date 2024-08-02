@@ -8413,22 +8413,19 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         weight = filename_segments[-1]
         weight = weight.lstrip("0")
 
-        # Resolved with #791's introduction of CSV value templates like "field_identifier": "$parent_row_value-$alphanumeric_string"?
-        # @todo: come up with a templated way to generate the page_identifier, and what field to POST it to.
+        # Maybe create a new function that templates the ID what field to POST it to?
+        # Also, this "identifier" is the CSV identfier, not a Drupal field.
         page_identifier = parent_id + "_" + filename_without_extension
 
-        test_row = apply_csv_value_templates(
-            config,
-            row=None,
-            parent_row=parent_csv_record,
-            rand_length=5,
-            filename=filename_without_extension,
-        )
-        print("DEBUG test_row", test_row)
+
+        print("DEBUG page identifier", page_identifier)
+        print("DEBUG parent_csv_record", parent_csv_record)
 
         page_title = get_page_title_from_template(
             config, parent_csv_record["title"], weight
         )
+
+        # @todo: #791. Simply add the designated fields to the page CSV row?
 
         node_json = {
             "type": [
@@ -9798,13 +9795,18 @@ def apply_csv_value_templates(config, row):
                 )
                 uuid_string = str(uuid.uuid4())
 
+                if "file" in row:
+                    row_file_value = row["file"]
+                else:
+                    row_file_value = ''
+
                 if len(subvalue) > 0:
                     field_template = string.Template(templates[field])
                     subvalue = str(
                         field_template.substitute(
                             {
                                 "csv_value": subvalue,
-                                "file": row["file"],
+                                "file": row_file_value,
                                 "random_alphanumeric_string": alphanumeric_string,
                                 "random_number_string": number_string,
                                 "uuid_string": uuid_string,
@@ -9822,7 +9824,7 @@ def apply_csv_value_templates(config, row):
                         field_template.substitute(
                             {
                                 "csv_value": subvalue,
-                                "file": row["file"],
+                                "file": row_file_value,
                                 "random_alphanumeric_string": alphanumeric_string,
                                 "random_number_string": number_string,
                                 "uuid_string": uuid_string,
