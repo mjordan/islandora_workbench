@@ -28,6 +28,7 @@ import shutil
 import itertools
 import http.client
 import sqlite3
+import zipfile
 import requests_cache
 from rich.traceback import install
 
@@ -1009,7 +1010,7 @@ def ping_remote_file(config, url):
         URL of remote file to be pinged.
     Returns
     -------
-    None
+    int|None
     """
 
     sections = urllib.parse.urlparse(url)
@@ -2222,6 +2223,27 @@ def check_input(config, args):
         )
         print(message)
         logging.info(message)
+
+    # Check existence of input data zip archives.
+    if len(config["input_data_zip_archives"]) > 0:
+        for input_data_zip_archive_location in config["input_data_zip_archives"]:
+            if input_data_zip_archive_location.lower().startswith("http"):
+                remote_zip_archive_ping_response_code = ping_remote_file(
+                    config, input_data_zip_archive_location
+                )
+                if remote_zip_archive_ping_response_code != 200:
+                    message = f'Remote input data zip archive "{input_data_zip_archive_location}" not found, ping returned a {remote_zip_archive_ping_response_code} response.'
+                    print("Warning: " + message)
+                    logging.warning(message)
+            else:
+                if os.path.exists(input_data_zip_archive_location):
+                    message = f'Local input data zip archive "{input_data_zip_archive_location}" found.'
+                    print("Ok, " + message)
+                    logging.info(message)
+                else:
+                    message = f'Local input data zip archive "{input_data_zip_archive_location}" not found.'
+                    print("Warning: " + message)
+                    logging.warning(message)
 
     # Task-specific CSV checks.
     langcode_was_present = False
@@ -6229,9 +6251,15 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
             )
         return tid
 
+    if vocab_id in config["protected_vocabularies"]:
+        logging.warning(
+            f'Term "{term_name}" is not in its designated vocabulary ({vocab_id}) and will not be added since the vocabulary is registered in the "protected_vocabularies" config setting.'
+        )
+        return False
+
     if config["allow_adding_terms"] is False:
         logging.warning(
-            'To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.'
+            f'Term "{term_name}" does not exist in the vocabulary "{vocab_id}". To create new taxonomy terms, you must add "allow_adding_terms: true" to your configuration file.'
         )
         return False
 
@@ -6542,7 +6570,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
 """
     term = str(term)
     term = term.strip()
-    if value_is_numeric(term):
+    if value_is_numeric(term) and field_name not in config["columns_with_term_names"]:
         return term
     entity_reference_view_endpoints = get_entity_reference_view_endpoints(config)
     if not entity_reference_view_endpoints and vocab_ids is False:
@@ -8043,7 +8071,10 @@ def validate_taxonomy_reference_value(
                 )
 
         # Check to see if field_value is a member of the field's vocabularies. First, check whether field_value is a term ID.
-        if value_is_numeric(field_value):
+        if (
+            value_is_numeric(field_value)
+            and csv_field_name not in config["columns_with_term_names"]
+        ):
             field_value = field_value.strip()
             term_in_vocabs = False
             for vocab_id in this_fields_vocabularies:
@@ -8144,11 +8175,24 @@ def validate_taxonomy_reference_value(
                                     + field_value.strip()
                                     + '") that is '
                                 )
-                                message_2 = (
-                                    'not in the referenced vocabulary ("'
-                                    + this_fields_vocabularies[0]
-                                    + '"). That term will be created.'
-                                )
+
+                                if (
+                                    this_fields_vocabularies[0]
+                                    in config["protected_vocabularies"]
+                                ):
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + this_fields_vocabularies[0]
+                                        + '"). The term will not be created since "'
+                                        + this_fields_vocabularies[0]
+                                        + '" is registered in the "protected_vocabularies" config setting.'
+                                    )
+                                else:
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + this_fields_vocabularies[0]
+                                        + '"). That term will be created.'
+                                    )
                                 if config["validate_terms_exist"] is True:
                                     logging.warning(message + message_2)
                         else:
@@ -8217,11 +8261,24 @@ def validate_taxonomy_reference_value(
                                     + namespaced_term_name.strip()
                                     + '") that is '
                                 )
-                                message_2 = (
-                                    'not in the referenced vocabulary ("'
-                                    + namespace_vocab_id
-                                    + '"). That term will be created.'
-                                )
+
+                                if (
+                                    namespace_vocab_id
+                                    in config["protected_vocabularies"]
+                                ):
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + namespace_vocab_id
+                                        + '"). The term will not be created since "'
+                                        + namespace_vocab_id
+                                        + '" is registered in the "protected_vocabularies" config setting.'
+                                    )
+                                else:
+                                    message_2 = (
+                                        'not in the referenced vocabulary ("'
+                                        + namespace_vocab_id
+                                        + '"). That term will be created.'
+                                    )
                                 if config["validate_terms_exist"] is True:
                                     logging.warning(message + message_2)
                                 new_terms_to_add.append(split_field_value)
@@ -10693,3 +10750,85 @@ def service_file_present(config, input):
         if name_data["uri"] and name_data["uri"] == service_uri:
             return True
     return False
+
+
+def download_remote_archive_file(config, remote_archive_url):
+    message = f'Downloading Zip archive "{remote_archive_url}"...'
+    print(message)
+    logging.info(message)
+    sections = urllib.parse.urlparse(remote_archive_url)
+    archive_filename = os.path.basename(sections.path)
+    if archive_filename.lower().endswith(".zip") is False:
+        archive_filename = archive_filename + ".zip"
+    try:
+        if config["secure_ssl_only"] is False:
+            requests.packages.urllib3.disable_warnings()
+        # Do not cache the responses for downloaded files in requests_cache
+        with requests_cache.disabled():
+            response = requests.get(
+                remote_archive_url,
+                allow_redirects=True,
+                stream=True,
+                verify=config["secure_ssl_only"],
+            )
+    except requests.exceptions.Timeout as err_timeout:
+        message = (
+            "Workbench timed out trying to reach "
+            + sections.netloc
+            + " while connecting to "
+            + remote_archive_url
+            + ". Please verify that URL and check your network connection."
+        )
+        logging.error(message)
+        logging.error(err_timeout)
+        print("Error: " + message)
+        return False
+    except requests.exceptions.ConnectionError as error_connection:
+        message = (
+            "Workbench cannot connect to "
+            + sections.netloc
+            + " while connecting to "
+            + remote_archive_url
+            + ". Please verify that URL and check your network connection."
+        )
+        logging.error(message)
+        logging.error(error_connection)
+        print("Error: " + message)
+        return False
+
+    downloaded_file_path = os.path.join(config["temp_dir"], archive_filename)
+    with open(downloaded_file_path, "wb+") as output_file:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                output_file.write(chunk)
+
+    return downloaded_file_path
+
+
+def unzip_archive(config, archive_file_path):
+    if archive_file_path is False:
+        return None
+    if os.path.exists(archive_file_path):
+        if zipfile.is_zipfile(archive_file_path) is True:
+            with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
+                zip_ref.extractall(config["input_dir"])
+                message = f'Zip archive "{archive_file_path}" extracted to "{config["input_dir"]}".'
+                print("OK, " + message)
+                logging.info(message)
+
+            if config["delete_zip_archive_after_extraction"] is True:
+                try:
+                    os.remove(archive_file_path)
+                    logging.info(f'Zip archive "{archive_file_path}" deleted."')
+                except Exception as e:
+                    logging.error(
+                        f'Could not remove input archive file "{archive_file_path}": {e}.'
+                    )
+        else:
+            message = f'"{archive_file_path}" does not appear to be a valid Zip file.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+    else:
+        message = f'Zip archive "{archive_file_path}" not extracted to "{config["input_dir"]}": cannot find zip archive.'
+        logging.error(message)
+        sys.exit("Error: " + message)
