@@ -5780,7 +5780,9 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         "csv_value_templates" in config
                         and len(config["csv_value_templates"]) > 0
                     ):
-                        row = apply_csv_value_templates(config, row)
+                        row = apply_csv_value_templates(
+                            config, "csv_value_templates", row
+                        )
 
                     # Convert node URLs into node IDs.
                     if config["task"] in [
@@ -8384,8 +8386,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     prepare_csv_id_to_node_id_map(config)
 
-    # These objects will have a title (derived from filename), an ID based on the parent's id, and a config-defined
-    # Islandora model. Content type and status are inherited as is from parent, as are other required fields. The
+    # These objects will have a title (derived from the page filename), an ID based on the parent's id, and a config-defined
+    # Islandora model. Content type and status are inherited as is from parent, as are other required fields. Fields
+    # specified in the csv_value_templates_for_paged_content config setting are also applied to paged children. The
     # weight assigned to the page is the last segment in the filename, split from the rest of the filename using the
     # character defined in the 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config["id_field"]]
@@ -8405,6 +8408,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     else:
         page_files = os.listdir(page_dir_path)
 
+    # Identify any required fields that are in the parent CSV.
+    required_fields = get_required_bundle_fields(config, "node", config["content_type"])
+
     for page_file_name in page_files:
         filename_without_extension = os.path.splitext(page_file_name)[0]
         filename_segments = filename_without_extension.split(
@@ -8413,19 +8419,45 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         weight = filename_segments[-1]
         weight = weight.lstrip("0")
 
-        # Maybe create a new function that templates the ID what field to POST it to?
-        # Also, this "identifier" is the CSV identfier, not a Drupal field.
+        # This "identifier" is the CSV ID, not a Drupal field. It may be overwritten
+        # by a CSV value template below.
         page_identifier = parent_id + "_" + filename_without_extension
-
-
-        print("DEBUG page identifier", page_identifier)
-        print("DEBUG parent_csv_record", parent_csv_record)
 
         page_title = get_page_title_from_template(
             config, parent_csv_record["title"], weight
         )
 
-        # @todo: #791. Simply add the designated fields to the page CSV row?
+        inherited_fields = copy.copy(required_fields)
+
+        csv_row_to_apply_to_paged_children = copy.deepcopy(parent_csv_record)
+        csv_row_to_apply_to_paged_children["file"] = page_file_name
+        csv_row_to_apply_to_paged_children["field_weight"] = weight
+
+        # Add any fields to the page's row that are defined in config["csv_value_templates_for_paged_content"].
+        if (
+            "csv_value_templates_for_paged_content" in config
+            and len(config["csv_value_templates_for_paged_content"]) > 0
+        ):
+            for paged_items_template in config["csv_value_templates_for_paged_content"]:
+                for (
+                    paged_items_template_field_name,
+                    paged_items_template_template,
+                ) in paged_items_template.items():
+                    if paged_items_template_field_name not in inherited_fields:
+                        inherited_fields.append(paged_items_template_field_name)
+                        csv_row_to_apply_to_paged_children[
+                            paged_items_template_field_name
+                        ] = ""
+
+        if (
+            "csv_value_templates_for_paged_content" in config
+            and len(config["csv_value_templates_for_paged_content"]) > 0
+        ):
+            csv_row_to_apply_to_paged_children = apply_csv_value_templates(
+                config,
+                "csv_value_templates_for_paged_content",
+                csv_row_to_apply_to_paged_children,
+            )
 
         node_json = {
             "type": [
@@ -8473,23 +8505,15 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             if len(parent_csv_record["created"]) > 0:
                 node_json["created"] = [{"value": parent_csv_record["created"]}]
 
-        # WIP on #791: Given that the field-creation code below is already in place for
-        # required fields, we should reuse it for non-required fields configured to be applied
-        # to children.
-
-        # Add any required fields that are in the parent CSV.
-        required_fields = get_required_bundle_fields(
-            config, "node", config["content_type"]
-        )
-        if len(required_fields) > 0:
+        if len(inherited_fields) > 0:
             field_definitions = get_field_definitions(config, "node")
             # Importing the workbench_fields module at the top of this module with the
             # rest of the imports causes a circular import exception, so we do it here.
             import workbench_fields
 
-            for required_field in required_fields:
+            for inherited_field in inherited_fields:
                 # These fields are populated above.
-                if required_field in [
+                if inherited_field in [
                     "title",
                     "field_model",
                     "field_display_hints",
@@ -8503,7 +8527,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
                 # Entity reference fields (taxonomy_term and node).
                 if (
-                    field_definitions[required_field]["field_type"]
+                    field_definitions[inherited_field]["field_type"]
                     == "entity_reference"
                 ):
                     entity_reference_field = workbench_fields.EntityReferenceField()
@@ -8511,67 +8535,68 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # Typed relation fields.
                 elif (
-                    field_definitions[required_field]["field_type"] == "typed_relation"
+                    field_definitions[inherited_field]["field_type"] == "typed_relation"
                 ):
                     typed_relation_field = workbench_fields.TypedRelationField()
                     node_json = typed_relation_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # Geolocation fields.
-                elif field_definitions[required_field]["field_type"] == "geolocation":
+                elif field_definitions[inherited_field]["field_type"] == "geolocation":
                     geolocation_field = workbench_fields.GeolocationField()
                     node_json = geolocation_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # Link fields.
-                elif field_definitions[required_field]["field_type"] == "link":
+                elif field_definitions[inherited_field]["field_type"] == "link":
                     link_field = workbench_fields.LinkField()
                     node_json = link_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # Authority Link fields.
                 elif (
-                    field_definitions[required_field]["field_type"] == "authority_link"
+                    field_definitions[inherited_field]["field_type"] == "authority_link"
                 ):
                     link_field = workbench_fields.AuthorityLinkField()
                     node_json = link_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
                 else:
+                    # WIP on #791.
                     simple_field = workbench_fields.SimpleField()
                     node_json = simple_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
         node_headers = {"Content-Type": "application/json"}
@@ -9756,15 +9781,18 @@ def get_page_title_from_template(config, parent_title, weight):
     return page_title
 
 
-def apply_csv_value_templates(config, row):
-    """Applies a simple template to a CSV value. Template variables availalbe are:
-    $csv_value, $file, $random_alphanumeric_string, $random_number_string, and
+def apply_csv_value_templates(config, template_config_setting, row):
+    """Applies a simple template to a CSV value. Template variables availalbe are: $csv_value, $file,
+    $filename_without_extension, $weight, $random_alphanumeric_string, $random_number_string, and
     $uuid_string.
     """
     """Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
+        template_config_setting: str
+            The config setting to get the templates from. One of 'csv_value_templates' or
+            'csv_value_templates_for_paged_content'.
         row: OrderedDict
             A CSV row to apply the template(s) to.
         Returns
@@ -9773,7 +9801,7 @@ def apply_csv_value_templates(config, row):
             The row with CSV value templates applied.
     """
     templates = dict()
-    for template in config["csv_value_templates"]:
+    for template in config[template_config_setting]:
         for field_name, value_template in template.items():
             templates[field_name] = value_template
 
@@ -9798,7 +9826,18 @@ def apply_csv_value_templates(config, row):
                 if "file" in row:
                     row_file_value = row["file"]
                 else:
-                    row_file_value = ''
+                    row_file_value = ""
+
+                if "file" in row:
+                    path, extension = os.path.splitext(row["file"])
+                    filename_without_extension = os.path.basename(path)
+                else:
+                    filename_without_extension = ""
+
+                if "field_weight" in row:
+                    weight = row["field_weight"]
+                else:
+                    weight = ""
 
                 if len(subvalue) > 0:
                     field_template = string.Template(templates[field])
@@ -9807,6 +9846,8 @@ def apply_csv_value_templates(config, row):
                             {
                                 "csv_value": subvalue,
                                 "file": row_file_value,
+                                "filename_without_extension": filename_without_extension,
+                                "weight": weight,
                                 "random_alphanumeric_string": alphanumeric_string,
                                 "random_number_string": number_string,
                                 "uuid_string": uuid_string,
@@ -9825,6 +9866,8 @@ def apply_csv_value_templates(config, row):
                             {
                                 "csv_value": subvalue,
                                 "file": row_file_value,
+                                "filename_without_extension": filename_without_extension,
+                                "weight": weight,
                                 "random_alphanumeric_string": alphanumeric_string,
                                 "random_number_string": number_string,
                                 "uuid_string": uuid_string,
@@ -9835,6 +9878,7 @@ def apply_csv_value_templates(config, row):
 
             templated_string = config["subdelimiter"].join(outgoing_subvalues)
             row[field] = templated_string
+
     return row
 
 
