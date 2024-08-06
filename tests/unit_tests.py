@@ -1140,7 +1140,64 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
 
         for fixture in fixtures:
             output_row = workbench_utils.apply_csv_value_templates(
-                fixture["config"], fixture["row"]
+                fixture["config"], "csv_value_templates", fixture["row"]
+            )
+            self.assertEqual(fixture["control"], output_row)
+
+    def test_fixed_string_templates_in_paged_content(self):
+        """Tests $filename_without_extension and $weight templates."""
+        fixtures = [
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates_for_paged_content": [
+                        {"field_foo_1": "$filename_without_extension, bar"}
+                    ],
+                    "allow_csv_value_templates_if_field_empty": [],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_1": "I am foo",
+                    "file": "baz.jpg",
+                    "field_weight": 1,
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_1": "baz, bar",
+                    "file": "baz.jpg",
+                    "field_weight": 1,
+                },
+            },
+            {
+                "config": {
+                    "subdelimiter": "|",
+                    "csv_value_templates_for_paged_content": [
+                        {"field_foo_2": "pre-$weight"}
+                    ],
+                    "allow_csv_value_templates_if_field_empty": [],
+                    "csv_value_templates_rand_length": 5,
+                },
+                "row": {
+                    "title": "Title 1",
+                    "field_foo_2": "I am foo",
+                    "file": "foo.jpg",
+                    "field_weight": 2,
+                },
+                "control": {
+                    "title": "Title 1",
+                    "field_foo_2": "pre-2",
+                    "file": "foo.jpg",
+                    "field_weight": 2,
+                },
+            },
+        ]
+
+        for fixture in fixtures:
+            output_row = workbench_utils.apply_csv_value_templates(
+                fixture["config"],
+                "csv_value_templates_for_paged_content",
+                fixture["row"],
             )
             self.assertEqual(fixture["control"], output_row)
 
@@ -1183,7 +1240,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
         for fixture in fixtures:
             rand_str_length = fixture["config"]["csv_value_templates_rand_length"]
             output_row = workbench_utils.apply_csv_value_templates(
-                fixture["config"], fixture["row"]
+                fixture["config"], "csv_value_templates", fixture["row"]
             )
             # Sorry for the inscrutible {{{}}} in the regex quantifier...
             self.assertRegex(
@@ -1231,7 +1288,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
         for fixture in fixtures:
             rand_str_length = fixture["config"]["csv_value_templates_rand_length"]
             output_row = workbench_utils.apply_csv_value_templates(
-                fixture["config"], fixture["row"]
+                fixture["config"], "csv_value_templates", fixture["row"]
             )
             # Sorry about the inscrutible {{{rand_str_length}}} in the regex quantifier...
             self.assertRegex(
@@ -1274,7 +1331,7 @@ class TestApplyCsvValueTemplates(unittest.TestCase):
 
         for fixture in fixtures:
             output_row = workbench_utils.apply_csv_value_templates(
-                fixture["config"], fixture["row"]
+                fixture["config"], "csv_value_templates", fixture["row"]
             )
             self.assertRegex(
                 fixture["row"]["field_foo_3"],
