@@ -1103,6 +1103,28 @@ def get_mid_from_media_url_alias(config, url_alias):
         return media["mid"][0]["value"]
 
 
+def get_nid_from_url_without_config(url):
+    """Gets a node ID from a raw URL, with no accompanying config data.
+       Useful within integration tests where the config is not directly accessible.
+
+    Parameters
+    ----------
+    url : string
+        The full URL alias (or canonical URL), including http://, etc.
+    Returns
+    -------
+    int|boolean
+        The node ID, or False if the URL cannot be found.
+    """
+    url = url + "?_format=json"
+    response = requests.get(url)
+    if response.status_code != 200:
+        return False
+    else:
+        media = json.loads(response.text)
+        return media["nid"][0]["value"]
+
+
 def get_node_title_from_nid(config, node_id):
     """Get node title from Drupal.
 
@@ -10109,17 +10131,32 @@ def is_ascii(input):
 def quick_delete_node(config, args):
     logging.info("--quick_delete_node task started for " + args.quick_delete_node)
 
-    response = issue_request(config, "GET", args.quick_delete_node + "?_format=json")
-    if response.status_code != 200:
-        message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
-        logging.error(message)
-        sys.exit("Error: " + message)
-
-    node_id = get_nid_from_url_alias(config, args.quick_delete_node)
-    if node_id is False:
-        message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
-        logging.error(message)
-        sys.exit("Error: " + message)
+    if value_is_numeric(args.quick_delete_node) is True:
+        response = issue_request(
+            config, "GET", args.quick_delete_node + "?_format=json"
+        )
+        if response.status_code != 200:
+            message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
+            logging.error(
+                message + f" (HTTP response code was {response.status_code}.)"
+            )
+            sys.exit("Error: " + message)
+    else:
+        node_id = get_nid_from_url_alias(config, args.quick_delete_node)
+        if node_id is False:
+            message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
+            logging.error(message)
+            sys.exit("Error: " + message)
+        else:
+            response = issue_request(
+                config, "GET", f'{config["host"]}/node/{node_id}' + "?_format=json"
+            )
+            if response.status_code != 200:
+                message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
+                logging.error(
+                    message + f" (HTTP response code was {response.status_code}.)"
+                )
+                sys.exit("Error: " + message)
 
     entity = json.loads(response.text)
     if "type" in entity:
@@ -10195,7 +10232,7 @@ def quick_delete_media(config, args):
     )
     if ping_response.status_code == 404:
         message = f"Cannot find {args.quick_delete_media}. Please verify the media URL and try again."
-        logging.error(message)
+        logging.error(message + f"HTTP response code was {ping_response.status_code}.")
         sys.exit("Error: " + message)
 
     entity = json.loads(ping_response.text)
