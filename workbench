@@ -176,9 +176,10 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row["promote"] = ""
 
-        # WIP on #795.
+        # print("DEBUG field_member_of", row)
         if "field_member_of" in row.keys() and (
-            value_is_numeric(row["field_member_of"]) is False
+            len(row["field_member_of"]) > 0
+            and value_is_numeric(row["field_member_of"]) is False
         ):
             field_member_of_value_for_message = copy.copy(row["field_member_of"])
             row["field_member_of"] = get_nid_from_url_alias(
