@@ -1104,8 +1104,8 @@ def get_mid_from_media_url_alias(config, url_alias):
 
 
 def get_nid_from_url_without_config(url):
-    """Gets a node ID from a raw URL, with no accompanying config data.
-       Useful within integration tests where the config is not directly accessible.
+    """Gets a node ID from a raw URL, with no accompanying config data. Useful
+       within integration tests where the config is not directly accessible.
 
     Parameters
     ----------
@@ -5137,6 +5137,14 @@ def create_media(
                 ],
             }
 
+            # WIP on #806. Since our only use case so far for assigning a non-standard/uncommon MIME
+            # type is for .hocr files, we will reuse the 'paged_content_additional_page_media'
+            # config setting to hard code logic for that file type. If we need a more generalized
+            # solution later, we can add it.
+            # print("DEBUG filename, media_use_tid", filename, media_use_tid)
+            # if media_use_tids[0] == "920":
+            # media_json.update({"field_mime_type": [{"value": "text/vnd.hocr+html"}]})
+
         if "published" in csv_row and len(csv_row["published"]) > 0:
             media_json["status"] = {"value": csv_row["published"]}
 
@@ -9035,6 +9043,50 @@ def get_extension_from_mimetype(config, mimetype):
         return map[mimetype]
     else:
         return mimetypes.guess_extension(mimetype)
+
+    return None
+
+
+def get_mimetype_from_extension(config, filepath, lazy=False):
+    """For a given file path, return the corresponding MIME type."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        filepath: string
+            The path to the local file to get the MIME type for.
+        lazy: bool
+            If True, and no entry for a given extension exists in the map, return
+            "application/octet-stream".
+        Returns
+        -------
+        string|None
+            The MIME type, or None if the MIME type can be determined.
+    """
+    if os.path.exists(filepath):
+        root, ext = os.path.splitext(filepath)
+        ext = ext.lstrip(".").lower()
+    else:
+        logging.error(
+            f"Attempt to get MIME type for file {filepath} failed because file does not exist."
+        )
+        return None
+
+    map = {"hocr": "text/vnd.hocr+html"}
+    if (
+        "extensions_to_mimetypes" in config
+        and len(config["extensions_to_mimetypes"]) > 0
+    ):
+        for mtype, ext in config["extensions_to_mimetypes"].items():
+            map[ext] = mtype
+
+    if ext in map:
+        return map[ext]
+    else:
+        if lazy is False:
+            return mimetypes.guess_type(filepath)[0]
+        else:
+            return "application/octet-stream"
 
     return None
 

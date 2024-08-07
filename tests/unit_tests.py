@@ -1520,5 +1520,57 @@ class TestDeduplicateFieldValues(unittest.TestCase):
             self.assertEqual(fixture["control"], unique_values)
 
 
+class TestMimeTypeFunctions(unittest.TestCase):
+    def test_mimeypes_from_extensions(self):
+        config = dict()
+        fixtures = [
+            {
+                "file_path": "tests/assets/mime_type_test/test.tXt",
+                "mime_type": "text/plain",
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/test.hocR",
+                "mime_type": "text/vnd.hocr+html",
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/test.101910",
+                "mime_type": None,
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/testtest",
+                "mime_type": None,
+            },
+        ]
+
+        for fixture in fixtures:
+            mimetype = workbench_utils.get_mimetype_from_extension(
+                config, fixture["file_path"]
+            )
+            self.assertEqual(fixture["mime_type"], mimetype)
+
+    def test_mimeypes_from_extensions_lazy(self):
+        config = dict()
+        fixtures = [
+            {
+                "file_path": "tests/assets/mime_type_test/test.txt",
+                "mime_type": "application/octet-stream",
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/test.hocr",
+                "mime_type": "text/vnd.hocr+html",
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/test.101910",
+                "mime_type": "application/octet-stream",
+            },
+        ]
+
+        for fixture in fixtures:
+            mimetype = workbench_utils.get_mimetype_from_extension(
+                config, fixture["file_path"], lazy=True
+            )
+            self.assertEqual(fixture["mime_type"], mimetype)
+
+
 if __name__ == "__main__":
     unittest.main()
