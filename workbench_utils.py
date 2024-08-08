@@ -4256,6 +4256,50 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
 
     return return_list
 
+def split_typed_relation_display_name_string(config, typed_relation_display_name_string, target_type):
+    """Fields of type 'typed_relation_display_name' are represented in the CSV file
+    using a structured string, specifically namespace:property:id~display_name,
+    e.g., 'relators:pht:5~Jane Smith', with the final display_name parameter
+    (separated by a tilde ~) optional. 'id' is either a term ID or a node ID. This
+    function takes one of those strings (optionally with a multivalue
+    subdelimiter) and returns a list of dictionaries in the form they
+    take in existing node values. ID values can also be term names (strings)
+    and term URIs (also strings, but in the form 'http....').
+
+    Also, these values can (but don't need to) have an optional namespace
+    in the term ID segment, which is the vocabulary ID string. These
+    typed relation strings look like 'relators:pht:person:Jordan, Mark~Mark Jordan'.
+    However, since we split the typed relation strings only on the first
+    two :, the entire third segment (minus the display name) is considered,
+    for the purposes of splitting the value, to be the term.
+    """
+    typed_relation_display_name_string = typed_relation_display_name_string.strip()
+
+    return_list = []
+    if len(typed_relation_display_name_string) == 0:
+        return return_list
+
+    temp_list = typed_relation_display_name_string.split(config["subdelimiter"])
+    for item in temp_list:
+        display_name = None
+        item_list = item.split(":", 2)
+        term_and_display_name = item_list[2].split("~",1)
+        if term_and_display_name[1]:
+            display_name = term_and_display_name[1]
+        if value_is_numeric(term_and_display_name[0]):
+            target_id = int(term_and_display_name[0])
+        else:
+            target_id = term_and_display_name[0]
+
+        item_dict = {
+            "target_id": target_id,
+            "rel_type": item_list[0] + ":" + item_list[1],
+            "target_type": target_type,
+            "display_name": display_name,
+        }
+        return_list.append(item_dict)
+
+    return return_list
 
 def split_geolocation_string(config, geolocation_string):
     """Fields of type 'geolocation' are represented in the CSV file using a
@@ -6489,6 +6533,17 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
                     field_name,
                 )
 
+            # Typed relation display name fields.
+            elif vocab_field_definitions[field_name]["field_type"] == "typed_relation_display_name":
+                typed_relation_display_name_field = workbench_fields.TypedRelationDisplayNameField()
+                term_field_data = typed_relation_display_name_field.create(
+                    config,
+                    vocab_field_definitions,
+                    term_field_data,
+                    term_csv_row,
+                    field_name,
+                )
+
             # Geolocation fields.
             elif vocab_field_definitions[field_name]["field_type"] == "geolocation":
                 geolocation_field = workbench_fields.GeolocationField()
@@ -8605,6 +8660,19 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                         inherited_field,
                     )
 
+                # Typed relation fields.
+                elif (
+                        field_definitions[inherited_field]["field_type"] == "typed_relation_display_name"
+                ):
+                    typed_relation_display_name_field = workbench_fields.TypedRelationDisplayNameField()
+                    node_json = typed_relation_display_name_field.create(
+                        config,
+                        field_definitions,
+                        node_json,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
+                    )
+
                 # Geolocation fields.
                 elif field_definitions[inherited_field]["field_type"] == "geolocation":
                     geolocation_field = workbench_fields.GeolocationField()
@@ -9974,6 +10042,12 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     # Typed relation fields (currently, only taxonomy term)
     elif field_definitions[field_name]["field_type"] == "typed_relation":
         serialized_field = workbench_fields.TypedRelationField()
+        csv_field_data = serialized_field.serialize(
+            config, field_definitions, field_name, field_data
+        )
+    # Typed relation display name fields (currently, only taxonomy term)
+    elif field_definitions[field_name]["field_type"] == "typed_relation_display_name":
+        serialized_field = workbench_fields.TypedRelationDisplayNameField()
         csv_field_data = serialized_field.serialize(
             config, field_definitions, field_name, field_data
         )

@@ -1255,6 +1255,205 @@ class TypedRelationField:
         else:
             return subvalues[0]
 
+class TypedRelationDisplayNameField(TypedRelationField):
+    """Functions for handling fields with 'typed_relation_display_name' Drupal field data type.
+    All functions return an "entity" dictionary that is passed to Requests' "json"
+    parameter.
+
+    Currently this field type only supports Typed Relation Taxonomies (not other
+    Typed Relation entity types).
+
+    Note: this class assumes that the entity has the field identified in 'field_name'.
+    Callers should pre-emptively confirm that. For an example, see code near the top
+    of workbench.update().
+    """
+
+    def create(self, config, field_definitions, entity, row, field_name):
+        """Parameters
+        ----------
+         config : dict
+             The configuration settings defined by workbench_config.get_config().
+         field_definitions : dict
+             The field definitions object defined by get_field_definitions().
+         entity : dict
+             The dict that will be POSTed to Drupal as JSON.
+         row : OrderedDict.
+             The current CSV record.
+         field_name : string
+             The Drupal fieldname/CSV column header.
+         Returns
+         -------
+         dictionary
+             A dictionary representing the entity that is POSTed to Drupal as JSON.
+        """
+        if not row[field_name]:
+            return entity
+
+        id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
+        # Currently only supports Typed Relation Display Name with taxonomy entities.
+        if field_definitions[field_name]["target_type"] == "taxonomy_term":
+            target_type = "taxonomy_term"
+            field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
+            field_values = []
+            subvalues = split_typed_relation_display_name_string(
+                config, row[field_name], target_type
+            )
+            subvalues = self.dedupe_values(subvalues)
+            cardinality = int(field_definitions[field_name].get("cardinality", -1))
+            if -1 < cardinality < len(subvalues):
+                log_field_cardinality_violation(field_name, id_field, str(cardinality))
+                subvalues = subvalues[:cardinality]
+            for subvalue in subvalues:
+                subvalue["target_id"] = prepare_term_id(
+                    config, field_vocabs, field_name, subvalue["target_id"]
+                )
+                field_values.append(subvalue)
+            entity[field_name] = field_values
+
+        return entity
+
+    def update(
+            self, config, field_definitions, entity, row, field_name, entity_field_values
+    ):
+        """Note: this method appends incoming CSV values to existing values, replaces existing field
+        values with incoming values, or deletes all values from fields, depending on whether
+        config['update_mode'] is 'append', 'replace', or 'delete'. It doesn not replace individual
+        values within fields.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            entity : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            entity_field_values : list
+                List of dictionaries containing existing value(s) for field_name in the entity being updated.
+            Returns
+            -------
+            dictionary
+                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
+        """
+        if config["update_mode"] == "delete":
+            entity[field_name] = []
+            return entity
+
+        if not row[field_name]:
+            return entity
+
+        if field_name not in entity:
+            entity[field_name] = []
+
+        if config["task"] == "update_terms":
+            entity_id_field = "term_id"
+        if config["task"] == "update":
+            entity_id_field = "node_id"
+        if config["task"] == "update_media":
+            entity_id_field = "media_id"
+
+        # Currently only supports Typed Relation taxonomy entities.
+        if field_definitions[field_name]["target_type"] == "taxonomy_term":
+            target_type = "taxonomy_term"
+            field_vocabs = get_field_vocabularies(config, field_definitions, field_name)
+
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "replace":
+            subvalues = split_typed_relation_display_name_string(
+                config, row[field_name], target_type
+            )
+            subvalues = self.dedupe_values(subvalues)
+            field_values = []
+            for subvalue in subvalues:
+                subvalue["target_id"] = prepare_term_id(
+                    config, field_vocabs, field_name, subvalue["target_id"]
+                )
+                field_values.append(subvalue)
+            if -1 < cardinality < len(field_values):
+                field_values = field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+            entity[field_name] = field_values
+        if config["update_mode"] == "append":
+            field_values = []
+            subvalues = split_typed_relation_display_name_string(
+                config, row[field_name], target_type
+            )
+            for subvalue in subvalues:
+                subvalue["target_id"] = prepare_term_id(
+                    config, field_vocabs, field_name, subvalue["target_id"]
+                )
+                entity_field_values.append(subvalue)
+            entity_field_values = self.dedupe_values(entity_field_values)
+            if -1 < cardinality < len(entity_field_values):
+                entity[field_name] = entity_field_values[:cardinality]
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+            else:
+                entity[field_name] = entity_field_values
+
+        return entity
+
+
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format."""
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            string
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
+        """
+        if "field_type" not in field_definitions[field_name]:
+            return None
+
+        subvalues = list()
+        for subvalue in field_data:
+            display_name = str(subvalue["display_name"])
+            if config["export_csv_term_mode"] == "name":
+                vocab_id = get_term_vocab(config, subvalue["target_id"])
+                term_name = get_term_name(config, subvalue["target_id"])
+                if display_name:
+                    subvalues.append(
+                        str(subvalue["rel_type"]) + ":" + vocab_id + ":" + term_name + "~" + display_name
+                    )
+                else:
+                    subvalues.append(
+                        str(subvalue["rel_type"]) + ":" + vocab_id + ":" + term_name
+                    )
+            else:
+                # Term IDs.
+                if display_name:
+                    subvalues.append(
+                        str(subvalue["rel_type"]) + ":" + str(subvalue["target_id"]) + "~" + display_name
+                    )
+                else:
+                    subvalues.append(
+                        str(subvalue["rel_type"]) + ":" + str(subvalue["target_id"])
+                    )
+
+        if len(subvalues) > 1:
+            return config["subdelimiter"].join(subvalues)
+        elif len(subvalues) == 0:
+            return None
+        else:
+            return subvalues[0]
+
 
 class AuthorityLinkField:
     """Functions for handling fields with 'authority_link' Drupal field data type.
