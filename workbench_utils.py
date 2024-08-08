@@ -4256,7 +4256,10 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
 
     return return_list
 
-def split_typed_relation_display_name_string(config, typed_relation_display_name_string, target_type):
+
+def split_typed_relation_display_name_string(
+    config, typed_relation_display_name_string, target_type
+):
     """Fields of type 'typed_relation_display_name' are represented in the CSV file
     using a structured string, specifically namespace:property:id~display_name,
     e.g., 'relators:pht:5~Jane Smith', with the final display_name parameter
@@ -4283,7 +4286,7 @@ def split_typed_relation_display_name_string(config, typed_relation_display_name
     for item in temp_list:
         display_name = None
         item_list = item.split(":", 2)
-        term_and_display_name = item_list[2].split("~",1)
+        term_and_display_name = item_list[2].split("~", 1)
         if term_and_display_name[1]:
             display_name = term_and_display_name[1]
         if value_is_numeric(term_and_display_name[0]):
@@ -4300,6 +4303,7 @@ def split_typed_relation_display_name_string(config, typed_relation_display_name
         return_list.append(item_dict)
 
     return return_list
+
 
 def split_geolocation_string(config, geolocation_string):
     """Fields of type 'geolocation' are represented in the CSV file using a
@@ -6534,8 +6538,13 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
                 )
 
             # Typed relation display name fields.
-            elif vocab_field_definitions[field_name]["field_type"] == "typed_relation_display_name":
-                typed_relation_display_name_field = workbench_fields.TypedRelationDisplayNameField()
+            elif (
+                vocab_field_definitions[field_name]["field_type"]
+                == "typed_relation_display_name"
+            ):
+                typed_relation_display_name_field = (
+                    workbench_fields.TypedRelationDisplayNameField()
+                )
                 term_field_data = typed_relation_display_name_field.create(
                     config,
                     vocab_field_definitions,
@@ -8662,9 +8671,12 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
                 # Typed relation fields.
                 elif (
-                        field_definitions[inherited_field]["field_type"] == "typed_relation_display_name"
+                    field_definitions[inherited_field]["field_type"]
+                    == "typed_relation_display_name"
                 ):
-                    typed_relation_display_name_field = workbench_fields.TypedRelationDisplayNameField()
+                    typed_relation_display_name_field = (
+                        workbench_fields.TypedRelationDisplayNameField()
+                    )
                     node_json = typed_relation_display_name_field.create(
                         config,
                         field_definitions,

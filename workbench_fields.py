@@ -1255,6 +1255,7 @@ class TypedRelationField:
         else:
             return subvalues[0]
 
+
 class TypedRelationDisplayNameField(TypedRelationField):
     """Functions for handling fields with 'typed_relation_display_name' Drupal field data type.
     All functions return an "entity" dictionary that is passed to Requests' "json"
@@ -1313,7 +1314,7 @@ class TypedRelationDisplayNameField(TypedRelationField):
         return entity
 
     def update(
-            self, config, field_definitions, entity, row, field_name, entity_field_values
+        self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -1400,7 +1401,6 @@ class TypedRelationDisplayNameField(TypedRelationField):
 
         return entity
 
-
     def serialize(self, config, field_definitions, field_name, field_data):
         """Serialized values into a format consistent with Workbench's CSV-field input format."""
         """Parameters
@@ -1430,7 +1430,13 @@ class TypedRelationDisplayNameField(TypedRelationField):
                 term_name = get_term_name(config, subvalue["target_id"])
                 if display_name:
                     subvalues.append(
-                        str(subvalue["rel_type"]) + ":" + vocab_id + ":" + term_name + "~" + display_name
+                        str(subvalue["rel_type"])
+                        + ":"
+                        + vocab_id
+                        + ":"
+                        + term_name
+                        + "~"
+                        + display_name
                     )
                 else:
                     subvalues.append(
@@ -1440,7 +1446,11 @@ class TypedRelationDisplayNameField(TypedRelationField):
                 # Term IDs.
                 if display_name:
                     subvalues.append(
-                        str(subvalue["rel_type"]) + ":" + str(subvalue["target_id"]) + "~" + display_name
+                        str(subvalue["rel_type"])
+                        + ":"
+                        + str(subvalue["target_id"])
+                        + "~"
+                        + display_name
                     )
                 else:
                     subvalues.append(
