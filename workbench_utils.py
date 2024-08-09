@@ -5137,13 +5137,28 @@ def create_media(
                 ],
             }
 
-            # WIP on #806. Since our only use case so far for assigning a non-standard/uncommon MIME
-            # type is for .hocr files, we will reuse the 'paged_content_additional_page_media'
-            # config setting to hard code logic for that file type. If we need a more generalized
-            # solution later, we can add it.
-            # print("DEBUG filename, media_use_tid", filename, media_use_tid)
-            # if media_use_tids[0] == "920":
-            # media_json.update({"field_mime_type": [{"value": "text/vnd.hocr+html"}]})
+            # Use the 'paged_content_additional_page_media' config setting to determine
+            # if any hOCR files are being added, since we need to explicitly define hOCR
+            # media's MIME type as "text/vnd.hocr+html".
+            file_is_hocr = False
+            if "paged_content_additional_page_media" in config:
+                file_mimetype = get_mimetype_from_extension(config, filename)
+                for uri_to_extension_mapping in config[
+                    "paged_content_additional_page_media"
+                ]:
+                    if (
+                        "https://discoverygarden.ca/use#hocr"
+                        in uri_to_extension_mapping
+                    ):
+                        file_is_hocr = True
+
+            if file_is_hocr is True:
+                media_use_uri = get_term_uri(config, media_use_tids[0])
+                if (
+                    media_use_uri == "https://discoverygarden.ca/use#hocr"
+                    and file_mimetype == "text/vnd.hocr+html"
+                ):
+                    media_json.update({"field_mime_type": [{"value": file_mimetype}]})
 
         if "published" in csv_row and len(csv_row["published"]) > 0:
             media_json["status"] = {"value": csv_row["published"]}
@@ -9047,22 +9062,30 @@ def get_extension_from_mimetype(config, mimetype):
     return None
 
 
-def get_mimetype_from_extension(config, filepath, lazy=False):
+def get_mimetype_from_extension(config, file_path, lazy=False):
     """For a given file path, return the corresponding MIME type."""
     """Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
-        filepath: string
+            The 'extensions_to_mimetypes' setting allows assignment of MIME types
+            in config.
+        file_path: string
             The path to the local file to get the MIME type for.
         lazy: bool
             If True, and no entry for a given extension exists in the map, return
-            "application/octet-stream".
+            "application/octet-stream" as a default if non MIME type can be determined.
+            If False, let Python's mimetypes library guess.
         Returns
         -------
         string|None
             The MIME type, or None if the MIME type can be determined.
     """
+    if os.path.isabs(file_path) is True:
+        filepath = file_path
+    else:
+        filepath = os.path.join(config["input_dir"], file_path)
+
     if os.path.exists(filepath):
         root, ext = os.path.splitext(filepath)
         ext = ext.lstrip(".").lower()
@@ -9072,13 +9095,17 @@ def get_mimetype_from_extension(config, filepath, lazy=False):
         )
         return None
 
+    # A MIME type used in Islandora but not recognized by Python's mimetypes library.
     map = {"hocr": "text/vnd.hocr+html"}
+
+    # Modify the map as per config.
     if (
         "extensions_to_mimetypes" in config
         and len(config["extensions_to_mimetypes"]) > 0
     ):
-        for mtype, ext in config["extensions_to_mimetypes"].items():
-            map[ext] = mtype
+        for extension, mtype in config["extensions_to_mimetypes"].items():
+            extension = extension.lstrip(".").lower()
+            map[extension] = mtype
 
     if ext in map:
         return map[ext]

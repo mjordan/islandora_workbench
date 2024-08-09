@@ -1522,7 +1522,7 @@ class TestDeduplicateFieldValues(unittest.TestCase):
 
 class TestMimeTypeFunctions(unittest.TestCase):
     def test_mimeypes_from_extensions(self):
-        config = dict()
+        config = dict({"input_dir": "."})
         fixtures = [
             {
                 "file_path": "tests/assets/mime_type_test/test.tXt",
@@ -1540,6 +1540,14 @@ class TestMimeTypeFunctions(unittest.TestCase):
                 "file_path": "tests/assets/mime_type_test/testtest",
                 "mime_type": None,
             },
+            {
+                "file_path": "tests/assets/mime_type_test/test.jpg",
+                "mime_type": "image/jpeg",
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/test.xml",
+                "mime_type": "application/xml",
+            },
         ]
 
         for fixture in fixtures:
@@ -1549,7 +1557,7 @@ class TestMimeTypeFunctions(unittest.TestCase):
             self.assertEqual(fixture["mime_type"], mimetype)
 
     def test_mimeypes_from_extensions_lazy(self):
-        config = dict()
+        config = dict({"input_dir": "."})
         fixtures = [
             {
                 "file_path": "tests/assets/mime_type_test/test.txt",
@@ -1568,6 +1576,36 @@ class TestMimeTypeFunctions(unittest.TestCase):
         for fixture in fixtures:
             mimetype = workbench_utils.get_mimetype_from_extension(
                 config, fixture["file_path"], lazy=True
+            )
+            self.assertEqual(fixture["mime_type"], mimetype)
+
+    def test_mimeypes_from_extensions_with_configs(self):
+        extensions_to_mimetypes = collections.OrderedDict()
+        extensions_to_mimetypes["txt"] = "foo/bar"
+        extensions_to_mimetypes["xml"] = "foo/xml"
+        config = {"input_dir": ".", "extensions_to_mimetypes": extensions_to_mimetypes}
+        fixtures = [
+            {
+                "file_path": "tests/assets/mime_type_test/test.txt",
+                "mime_type": "foo/bar",
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/test.101910",
+                "mime_type": None,
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/test.hocr",
+                "mime_type": "text/vnd.hocr+html",
+            },
+            {
+                "file_path": "tests/assets/mime_type_test/test.xml",
+                "mime_type": "foo/xml",
+            },
+        ]
+
+        for fixture in fixtures:
+            mimetype = workbench_utils.get_mimetype_from_extension(
+                config, fixture["file_path"]
             )
             self.assertEqual(fixture["mime_type"], mimetype)
 
