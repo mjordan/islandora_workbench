@@ -1582,7 +1582,7 @@ class TestMimeTypeFunctions(unittest.TestCase):
     def test_mimeypes_from_extensions_with_configs(self):
         extensions_to_mimetypes = collections.OrderedDict()
         extensions_to_mimetypes["txt"] = "foo/bar"
-        extensions_to_mimetypes["xml"] = "foo/xml"
+        extensions_to_mimetypes[".xml"] = "foo/xml"
         config = {"input_dir": ".", "extensions_to_mimetypes": extensions_to_mimetypes}
         fixtures = [
             {
