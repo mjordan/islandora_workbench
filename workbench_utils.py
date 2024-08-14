@@ -5782,6 +5782,40 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         csv_writer.writeheader()
         row_num = 0
         unique_identifiers = []
+
+        # WIP on #812.
+        # Prepare any "csv_row_filters", which we apply to each row, below.
+        if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
+            row_filters_is = dict()
+            row_filters_isnot = dict()
+            # First defne the field/operator pairs.
+            for filter_config in config["csv_row_filters"]:
+                filter_group = filter_config.split(":", 2)
+                if filter_group[1] == "is":
+                    filter_group_field = filter_group[0]
+                    filter_group_value = filter_group[2]
+                    row_filters_is[filter_group_field] = []
+                if filter_group[1] == "isnot":
+                    filter_group_field = filter_group[0]
+                    filter_group_value = filter_group[2]
+                    row_filters_isnot[filter_group_field] = []
+
+            # Then populate the lists of filter values.
+            for filter_config in config["csv_row_filters"]:
+                filter_group = filter_config.split(":", 2)
+                if filter_group[1] == "is":
+                    filter_group_field = filter_group[0]
+                    filter_group_value = filter_group[2]
+                    row_filters_is[filter_group_field].append(
+                        filter_group_value.strip()
+                    )
+                if filter_group[1] == "isnot":
+                    filter_group_field = filter_group[0]
+                    filter_group_value = filter_group[2]
+                    row_filters_isnot[filter_group_field].append(
+                        filter_group_value.strip()
+                    )
+
         # We subtract 1 from config['csv_start_row'] so user's expectation of the actual
         # start row match up with Python's 0-based counting.
         if config["csv_start_row"] > 0:
@@ -5798,6 +5832,47 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                 and len(config["csv_rows_to_process"]) > 0
             ):
                 if row[config["id_field"]] not in config["csv_rows_to_process"]:
+                    continue
+
+            # WIP on #812.
+            # Apply the "is" and "isnot" csv_row_filters defined defined above.
+            # If the field/value combo is in the 'isnot' list, skip this row.
+            if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
+                filter_out_this_csv_row = False
+                if len(row_filters_isnot) > 0:
+                    for filter_field, filter_values in row_filters_isnot.items():
+                        if (
+                            len(filter_values) > 0
+                            and filter_field in row
+                            and len(row[filter_field]) > 0
+                        ):
+                            # Split out multiple field values to test each one.
+                            values_in_row_field = row[filter_field].split(
+                                config["subdelimiter"]
+                            )
+                            for value_in_row_field in values_in_row_field:
+                                if value_in_row_field.strip() in filter_values:
+                                    filter_out_this_csv_row = True
+                if filter_out_this_csv_row is True:
+                    continue
+
+                # If the field/value combo is not in the 'is' list, skip this row.
+                filter_out_this_csv_row = False
+                if len(row_filters_is) > 0:
+                    for filter_field, filter_values in row_filters_is.items():
+                        if (
+                            len(filter_values) > 0
+                            and filter_field in row
+                            and len(row[filter_field]) > 0
+                        ):
+                            # Split out multiple field values to test each one.
+                            values_in_row_field = row[filter_field].split(
+                                config["subdelimiter"]
+                            )
+                            for value_in_row_field in values_in_row_field:
+                                if value_in_row_field.strip() not in filter_values:
+                                    filter_out_this_csv_row = True
+                if filter_out_this_csv_row is True:
                     continue
 
             # Remove columns specified in config['ignore_csv_columns'].
