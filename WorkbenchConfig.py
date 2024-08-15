@@ -198,6 +198,8 @@ class WorkbenchConfig:
             "paged_content_from_directories": False,
             "delete_media_with_nodes": True,
             "allow_adding_terms": False,
+            "columns_with_term_names": [],
+            "protected_vocabularies": [],
             "nodes_only": False,
             "log_response_time": False,
             "adaptive_pause_threshold": 2,
@@ -224,6 +226,8 @@ class WorkbenchConfig:
             "field_for_remote_filename": False,
             "field_for_media_title": False,
             "delete_tmp_upload": False,
+            "input_data_zip_archives": [],
+            "delete_zip_archive_after_extraction": True,
             "list_missing_drupal_fields": False,
             "secondary_tasks": None,
             "sqlite_db_filename": "workbench_temp_data.db",
@@ -270,6 +274,10 @@ class WorkbenchConfig:
             "query_csv_id_to_node_id_map_for_parents": False,
             "ignore_duplicate_parent_ids": True,
             "redirect_status_code": 301,
+            "csv_value_templates": [],
+            "csv_value_templates_for_paged_content": [],
+            "csv_value_templates_rand_length": 5,
+            "allow_csv_value_templates_if_field_empty": [],
         }
 
     # Tests validity and existence of configuration file path.

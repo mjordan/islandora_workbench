@@ -139,6 +139,10 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
             if "created at" in line:
                 nid = line.rsplit("/", 1)[-1]
                 nid = nid.strip(".")
+                # E.g. a URL alias.
+                if workbench_utils.value_is_numeric(nid) is False:
+                    url = line[line.find("http") :].strip(".")
+                    nid = workbench_utils.get_nid_from_url_without_config(url)
                 self.nids.append(nid)
 
         self.assertEqual(len(self.nids), 4)
@@ -186,7 +190,7 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                self.islandora_host + "/node/" + nid,
+                f"{self.islandora_host}/node/{nid}",
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 

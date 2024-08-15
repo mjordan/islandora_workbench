@@ -176,6 +176,21 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row["promote"] = ""
 
+        # print("DEBUG field_member_of", row)
+        if "field_member_of" in row.keys() and (
+            len(row["field_member_of"]) > 0
+            and value_is_numeric(row["field_member_of"]) is False
+        ):
+            field_member_of_value_for_message = copy.copy(row["field_member_of"])
+            row["field_member_of"] = get_nid_from_url_alias(
+                config, row["field_member_of"]
+            )
+            if row["field_member_of"] is False:
+                # @TODO: Use this version of the message in --check.
+                message = f'Node identified in "field_member_of" ({field_member_of_value_for_message}) in CSV row with ID "{id_field}" cannot be found or accessed.'
+                print("Warning: " + message)
+                logging.warning(message)
+
         # We want to collect the node IDs of items that are parents in-session
         # to accommodate users who have 'query_csv_id_to_node_id_map_for_parents: false'
         # in their config files. Note: this will not work with secondary tasks, if
@@ -400,7 +415,7 @@ def create():
                     + "."
                 )
             logging.info(
-                'Node for "%s (record %s)" created at %s.',
+                'Node for "%s" (record %s) created at %s.',
                 row["title"],
                 id_field,
                 node_uri,
@@ -3426,7 +3441,9 @@ args = parser.parse_args()
 try:
     workbench_config = WorkbenchConfig(args)
 except Exception as e:
-    # Workbench wouldn't get this far is the YAML config file has syntax errors or is not found.
+    # Workbench wouldn't get this far as the YAML config file has syntax errors or is not found,
+    # or there has been a connection error such as an expired SSL cert. We can't log the exception
+    # since config isn't initialized yet.
     yaml = YAML()
     with open(args.config, "r") as stream:
         config_to_get_host_value = yaml.load(stream)
@@ -3434,7 +3451,7 @@ except Exception as e:
     print(
         'Confirm your "host" configuration setting is correct and that the website is running, and try again.'
     )
-    sys.exit()
+    sys.exit(str(e))
 config = workbench_config.get_config()
 
 create_temp_dir(config)
@@ -3471,6 +3488,22 @@ else:
         datefmt="%d-%b-%y %H:%M:%S",
     )
 
+ping_islandora(config, print_message=True)
+check_integration_module_version(config)
+
+validate_input_dir(config)
+
+# Unzip (and fetch if remote) input data zip archives.
+if len(config["input_data_zip_archives"]) > 0:
+    for input_data_zip_archive in config["input_data_zip_archives"]:
+        if input_data_zip_archive.lower().startswith("http"):
+            downloaded_zip_file_path = download_remote_archive_file(
+                config, input_data_zip_archive
+            )
+            unzip_archive(config, downloaded_zip_file_path)
+        else:
+            unzip_archive(config, input_data_zip_archive)
+
 if "check" in config.keys():
     tasks_to_skip = ["create_from_files", "get_data_from_view"]
     if config["check"] is False and config["task"] not in tasks_to_skip:
@@ -3505,11 +3538,6 @@ if (
     and config["input_csv"].endswith(".xlsx") is True
 ):
     get_csv_from_excel(config)
-
-validate_input_dir(config)
-
-ping_islandora(config, print_message=True)
-check_integration_module_version(config)
 
 if config["enable_http_cache"] is True:
     if config["http_cache_storage"] == "sqlite" and os.path.exists("http_cache.sqlite"):
