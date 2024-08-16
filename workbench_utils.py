@@ -12,6 +12,8 @@ import string
 import re
 import copy
 import logging
+import random
+import uuid
 import datetime
 import requests
 import subprocess
@@ -1099,6 +1101,28 @@ def get_mid_from_media_url_alias(config, url_alias):
     else:
         media = json.loads(response.text)
         return media["mid"][0]["value"]
+
+
+def get_nid_from_url_without_config(url):
+    """Gets a node ID from a raw URL, with no accompanying config data. Useful
+       within integration tests where the config is not directly accessible.
+
+    Parameters
+    ----------
+    url : string
+        The full URL alias (or canonical URL), including http://, etc.
+    Returns
+    -------
+    int|boolean
+        The node ID, or False if the URL cannot be found.
+    """
+    url = url + "?_format=json"
+    response = requests.get(url)
+    if response.status_code != 200:
+        return False
+    else:
+        media = json.loads(response.text)
+        return media["nid"][0]["value"]
 
 
 def get_node_title_from_nid(config, node_id):
@@ -5113,6 +5137,29 @@ def create_media(
                 ],
             }
 
+            # Use the 'paged_content_additional_page_media' config setting to determine
+            # if any hOCR files are being added, since we need to explicitly define hOCR
+            # media's MIME type as "text/vnd.hocr+html".
+            file_is_hocr = False
+            if "paged_content_additional_page_media" in config:
+                file_mimetype = get_mimetype_from_extension(config, filename)
+                for uri_to_extension_mapping in config[
+                    "paged_content_additional_page_media"
+                ]:
+                    if (
+                        "https://discoverygarden.ca/use#hocr"
+                        in uri_to_extension_mapping
+                    ):
+                        file_is_hocr = True
+
+            if file_is_hocr is True:
+                media_use_uri = get_term_uri(config, media_use_tids[0])
+                if (
+                    media_use_uri == "https://discoverygarden.ca/use#hocr"
+                    and file_mimetype == "text/vnd.hocr+html"
+                ):
+                    media_json.update({"field_mime_type": [{"value": file_mimetype}]})
+
         if "published" in csv_row and len(csv_row["published"]) > 0:
             media_json["status"] = {"value": csv_row["published"]}
 
@@ -5774,7 +5821,9 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         "csv_value_templates" in config
                         and len(config["csv_value_templates"]) > 0
                     ):
-                        row = apply_csv_value_templates(config, row)
+                        row = apply_csv_value_templates(
+                            config, "csv_value_templates", row
+                        )
 
                     # Convert node URLs into node IDs.
                     if config["task"] in [
@@ -8413,8 +8462,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     prepare_csv_id_to_node_id_map(config)
 
-    # These objects will have a title (derived from filename), an ID based on the parent's id, and a config-defined
-    # Islandora model. Content type and status are inherited as is from parent, as are other required fields. The
+    # These objects will have a title (derived from the page filename), an ID based on the parent's id, and a config-defined
+    # Islandora model. Content type and status are inherited as is from parent, as are other required fields. Fields
+    # specified in the csv_value_templates_for_paged_content config setting are also applied to paged children. The
     # weight assigned to the page is the last segment in the filename, split from the rest of the filename using the
     # character defined in the 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config["id_field"]]
@@ -8434,6 +8484,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     else:
         page_files = os.listdir(page_dir_path)
 
+    # Identify any required fields that are in the parent CSV.
+    required_fields = get_required_bundle_fields(config, "node", config["content_type"])
+
     for page_file_name in page_files:
         filename_without_extension = os.path.splitext(page_file_name)[0]
         filename_segments = filename_without_extension.split(
@@ -8441,11 +8494,46 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         )
         weight = filename_segments[-1]
         weight = weight.lstrip("0")
-        # @todo: come up with a templated way to generate the page_identifier, and what field to POST it to.
+
+        # This "identifier" is the CSV ID, not a Drupal field. It may be overwritten
+        # by a CSV value template below.
         page_identifier = parent_id + "_" + filename_without_extension
+
         page_title = get_page_title_from_template(
             config, parent_csv_record["title"], weight
         )
+
+        inherited_fields = copy.copy(required_fields)
+
+        csv_row_to_apply_to_paged_children = copy.deepcopy(parent_csv_record)
+        csv_row_to_apply_to_paged_children["file"] = page_file_name
+        csv_row_to_apply_to_paged_children["field_weight"] = weight
+
+        # Add any fields to the page's row that are defined in config["csv_value_templates_for_paged_content"].
+        if (
+            "csv_value_templates_for_paged_content" in config
+            and len(config["csv_value_templates_for_paged_content"]) > 0
+        ):
+            for paged_items_template in config["csv_value_templates_for_paged_content"]:
+                for (
+                    paged_items_template_field_name,
+                    paged_items_template_template,
+                ) in paged_items_template.items():
+                    if paged_items_template_field_name not in inherited_fields:
+                        inherited_fields.append(paged_items_template_field_name)
+                        csv_row_to_apply_to_paged_children[
+                            paged_items_template_field_name
+                        ] = ""
+
+        if (
+            "csv_value_templates_for_paged_content" in config
+            and len(config["csv_value_templates_for_paged_content"]) > 0
+        ):
+            csv_row_to_apply_to_paged_children = apply_csv_value_templates(
+                config,
+                "csv_value_templates_for_paged_content",
+                csv_row_to_apply_to_paged_children,
+            )
 
         node_json = {
             "type": [
@@ -8493,19 +8581,15 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             if len(parent_csv_record["created"]) > 0:
                 node_json["created"] = [{"value": parent_csv_record["created"]}]
 
-        # Add any required fields that are in the parent CSV.
-        required_fields = get_required_bundle_fields(
-            config, "node", config["content_type"]
-        )
-        if len(required_fields) > 0:
+        if len(inherited_fields) > 0:
             field_definitions = get_field_definitions(config, "node")
             # Importing the workbench_fields module at the top of this module with the
             # rest of the imports causes a circular import exception, so we do it here.
             import workbench_fields
 
-            for required_field in required_fields:
-                # THese fields are populated above.
-                if required_field in [
+            for inherited_field in inherited_fields:
+                # These fields are populated above.
+                if inherited_field in [
                     "title",
                     "field_model",
                     "field_display_hints",
@@ -8519,7 +8603,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
                 # Entity reference fields (taxonomy_term and node).
                 if (
-                    field_definitions[required_field]["field_type"]
+                    field_definitions[inherited_field]["field_type"]
                     == "entity_reference"
                 ):
                     entity_reference_field = workbench_fields.EntityReferenceField()
@@ -8527,67 +8611,68 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # Typed relation fields.
                 elif (
-                    field_definitions[required_field]["field_type"] == "typed_relation"
+                    field_definitions[inherited_field]["field_type"] == "typed_relation"
                 ):
                     typed_relation_field = workbench_fields.TypedRelationField()
                     node_json = typed_relation_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # Geolocation fields.
-                elif field_definitions[required_field]["field_type"] == "geolocation":
+                elif field_definitions[inherited_field]["field_type"] == "geolocation":
                     geolocation_field = workbench_fields.GeolocationField()
                     node_json = geolocation_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # Link fields.
-                elif field_definitions[required_field]["field_type"] == "link":
+                elif field_definitions[inherited_field]["field_type"] == "link":
                     link_field = workbench_fields.LinkField()
                     node_json = link_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # Authority Link fields.
                 elif (
-                    field_definitions[required_field]["field_type"] == "authority_link"
+                    field_definitions[inherited_field]["field_type"] == "authority_link"
                 ):
                     link_field = workbench_fields.AuthorityLinkField()
                     node_json = link_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
                 # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
                 else:
+                    # WIP on #791.
                     simple_field = workbench_fields.SimpleField()
                     node_json = simple_field.create(
                         config,
                         field_definitions,
                         node_json,
-                        parent_csv_record,
-                        required_field,
+                        csv_row_to_apply_to_paged_children,
+                        inherited_field,
                     )
 
         node_headers = {"Content-Type": "application/json"}
@@ -8973,6 +9058,62 @@ def get_extension_from_mimetype(config, mimetype):
         return map[mimetype]
     else:
         return mimetypes.guess_extension(mimetype)
+
+    return None
+
+
+def get_mimetype_from_extension(config, file_path, lazy=False):
+    """For a given file path, return the corresponding MIME type."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+            The 'extensions_to_mimetypes' setting allows assignment of MIME types
+            in config.
+        file_path: string
+            The path to the local file to get the MIME type for.
+        lazy: bool
+            If True, and no entry for a given extension exists in the map, return
+            "application/octet-stream" as a default if non MIME type can be determined.
+            If False, let Python's mimetypes library guess.
+        Returns
+        -------
+        string|None
+            The MIME type, or None if the MIME type can be determined.
+    """
+    if os.path.isabs(file_path) is True:
+        filepath = file_path
+    else:
+        filepath = os.path.join(config["input_dir"], file_path)
+
+    if os.path.exists(filepath):
+        root, ext = os.path.splitext(filepath)
+        ext = ext.lstrip(".").lower()
+    else:
+        logging.error(
+            f"Attempt to get MIME type for file {filepath} failed because file does not exist."
+        )
+        return None
+
+    # A MIME type used in Islandora but not recognized by Python's mimetypes library.
+    map = {"hocr": "text/vnd.hocr+html"}
+
+    # Modify the map as per config.
+    if (
+        "extensions_to_mimetypes" in config
+        and len(config["extensions_to_mimetypes"]) > 0
+    ):
+        for extension, mtype in config["extensions_to_mimetypes"].items():
+            extension = extension.lstrip(".").lower()
+            map[extension] = mtype
+
+    if ext in map:
+        return map[ext]
+    else:
+        if lazy is False:
+            return mimetypes.guess_type(filepath)[0]
+        else:
+            return "application/octet-stream"
 
     return None
 
@@ -9772,21 +9913,27 @@ def get_page_title_from_template(config, parent_title, weight):
     return page_title
 
 
-def apply_csv_value_templates(config, row):
-    """Applies a simple template to a CSV value."""
+def apply_csv_value_templates(config, template_config_setting, row):
+    """Applies a simple template to a CSV value. Template variables availalbe are: $csv_value, $file,
+    $filename_without_extension, $weight, $random_alphanumeric_string, $random_number_string, and
+    $uuid_string.
+    """
     """Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
+        template_config_setting: str
+            The config setting to get the templates from. One of 'csv_value_templates' or
+            'csv_value_templates_for_paged_content'.
         row: OrderedDict
-            A CSV row.
+            A CSV row to apply the template(s) to.
         Returns
         -------
-        string
+        dict
             The row with CSV value templates applied.
     """
     templates = dict()
-    for template in config["csv_value_templates"]:
+    for template in config[template_config_setting]:
         for field_name, value_template in template.items():
             templates[field_name] = value_template
 
@@ -9795,14 +9942,75 @@ def apply_csv_value_templates(config, row):
             incoming_subvalues = row[field].split(config["subdelimiter"])
             outgoing_subvalues = []
             for subvalue in incoming_subvalues:
+                alphanumeric_string = "".join(
+                    random.choices(
+                        string.ascii_letters + string.digits,
+                        k=config["csv_value_templates_rand_length"],
+                    )
+                )
+                number_string = "".join(
+                    random.choices(
+                        string.digits, k=config["csv_value_templates_rand_length"]
+                    )
+                )
+                uuid_string = str(uuid.uuid4())
+
+                if "file" in row:
+                    row_file_value = row["file"]
+                else:
+                    row_file_value = ""
+
+                if "file" in row:
+                    path, extension = os.path.splitext(row["file"])
+                    filename_without_extension = os.path.basename(path)
+                else:
+                    filename_without_extension = ""
+
+                if "field_weight" in row:
+                    weight = row["field_weight"]
+                else:
+                    weight = ""
+
                 if len(subvalue) > 0:
-                    csv_value_template = string.Template(templates[field])
+                    field_template = string.Template(templates[field])
                     subvalue = str(
-                        csv_value_template.substitute({"csv_value": subvalue})
+                        field_template.substitute(
+                            {
+                                "csv_value": subvalue,
+                                "file": row_file_value,
+                                "filename_without_extension": filename_without_extension,
+                                "weight": weight,
+                                "random_alphanumeric_string": alphanumeric_string,
+                                "random_number_string": number_string,
+                                "uuid_string": uuid_string,
+                            }
+                        )
                     )
                     outgoing_subvalues.append(subvalue)
+
+                if (
+                    len(row[field]) == 0
+                    and field in config["allow_csv_value_templates_if_field_empty"]
+                ):
+                    field_template = string.Template(templates[field])
+                    subvalue = str(
+                        field_template.substitute(
+                            {
+                                "csv_value": subvalue,
+                                "file": row_file_value,
+                                "filename_without_extension": filename_without_extension,
+                                "weight": weight,
+                                "random_alphanumeric_string": alphanumeric_string,
+                                "random_number_string": number_string,
+                                "uuid_string": uuid_string,
+                            }
+                        )
+                    )
+                    outgoing_subvalues.append(subvalue)
+
             templated_string = config["subdelimiter"].join(outgoing_subvalues)
             row[field] = templated_string
+
     return row
 
 
@@ -10002,17 +10210,32 @@ def is_ascii(input):
 def quick_delete_node(config, args):
     logging.info("--quick_delete_node task started for " + args.quick_delete_node)
 
-    response = issue_request(config, "GET", args.quick_delete_node + "?_format=json")
-    if response.status_code != 200:
-        message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
-        logging.error(message)
-        sys.exit("Error: " + message)
-
-    node_id = get_nid_from_url_alias(config, args.quick_delete_node)
-    if node_id is False:
-        message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
-        logging.error(message)
-        sys.exit("Error: " + message)
+    if value_is_numeric(args.quick_delete_node) is True:
+        response = issue_request(
+            config, "GET", args.quick_delete_node + "?_format=json"
+        )
+        if response.status_code != 200:
+            message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
+            logging.error(
+                message + f" (HTTP response code was {response.status_code}.)"
+            )
+            sys.exit("Error: " + message)
+    else:
+        node_id = get_nid_from_url_alias(config, args.quick_delete_node)
+        if node_id is False:
+            message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
+            logging.error(message)
+            sys.exit("Error: " + message)
+        else:
+            response = issue_request(
+                config, "GET", f'{config["host"]}/node/{node_id}' + "?_format=json"
+            )
+            if response.status_code != 200:
+                message = f"Sorry, {args.quick_delete_node} can't be accessed. Please confirm the node exists and is accessible to the user defined in your Workbench configuration."
+                logging.error(
+                    message + f" (HTTP response code was {response.status_code}.)"
+                )
+                sys.exit("Error: " + message)
 
     entity = json.loads(response.text)
     if "type" in entity:
@@ -10088,7 +10311,7 @@ def quick_delete_media(config, args):
     )
     if ping_response.status_code == 404:
         message = f"Cannot find {args.quick_delete_media}. Please verify the media URL and try again."
-        logging.error(message)
+        logging.error(message + f"HTTP response code was {ping_response.status_code}.")
         sys.exit("Error: " + message)
 
     entity = json.loads(ping_response.text)

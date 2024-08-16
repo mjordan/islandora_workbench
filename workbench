@@ -176,9 +176,10 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row["promote"] = ""
 
-        # WIP on #795.
+        # print("DEBUG field_member_of", row)
         if "field_member_of" in row.keys() and (
-            value_is_numeric(row["field_member_of"]) is False
+            len(row["field_member_of"]) > 0
+            and value_is_numeric(row["field_member_of"]) is False
         ):
             field_member_of_value_for_message = copy.copy(row["field_member_of"])
             row["field_member_of"] = get_nid_from_url_alias(
@@ -3440,7 +3441,9 @@ args = parser.parse_args()
 try:
     workbench_config = WorkbenchConfig(args)
 except Exception as e:
-    # Workbench wouldn't get this far is the YAML config file has syntax errors or is not found.
+    # Workbench wouldn't get this far as the YAML config file has syntax errors or is not found,
+    # or there has been a connection error such as an expired SSL cert. We can't log the exception
+    # since config isn't initialized yet.
     yaml = YAML()
     with open(args.config, "r") as stream:
         config_to_get_host_value = yaml.load(stream)
@@ -3448,7 +3451,7 @@ except Exception as e:
     print(
         'Confirm your "host" configuration setting is correct and that the website is running, and try again.'
     )
-    sys.exit()
+    sys.exit(str(e))
 config = workbench_config.get_config()
 
 create_temp_dir(config)
