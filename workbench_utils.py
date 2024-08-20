@@ -5803,6 +5803,9 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             # Then populate the lists of filter values.
             for filter_config in config["csv_row_filters"]:
                 filter_group = filter_config.split(":", 2)
+                # Prepare the '' filter value.
+                if filter_group[2] == "''" or filter_group[2] == '""':
+                    filter_group[2] = ""
                 if filter_group[1] == "is":
                     filter_group_field = filter_group[0]
                     filter_group_value = filter_group[2]
@@ -5837,41 +5840,40 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             # WIP on #812.
             # Apply the "is" and "isnot" csv_row_filters defined defined above.
             # If the field/value combo is in the 'isnot' list, skip this row.
+            filter_out_this_csv_row = False
             if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
-                filter_out_this_csv_row = False
+                # filter_out_this_csv_row = False
                 if len(row_filters_isnot) > 0:
                     for filter_field, filter_values in row_filters_isnot.items():
-                        if (
-                            len(filter_values) > 0
-                            and filter_field in row
-                            and len(row[filter_field]) > 0
-                        ):
+                        if len(filter_values) > 0 and filter_field in row:
                             # Split out multiple field values to test each one.
                             values_in_row_field = row[filter_field].split(
                                 config["subdelimiter"]
                             )
                             for value_in_row_field in values_in_row_field:
+                                filter_out_this_csv_row = False
                                 if value_in_row_field.strip() in filter_values:
                                     filter_out_this_csv_row = True
+                                else:
+                                    break
                 if filter_out_this_csv_row is True:
                     continue
 
                 # If the field/value combo is not in the 'is' list, skip this row.
-                filter_out_this_csv_row = False
                 if len(row_filters_is) > 0:
+                    # filter_out_this_csv_row = False
                     for filter_field, filter_values in row_filters_is.items():
-                        if (
-                            len(filter_values) > 0
-                            and filter_field in row
-                            and len(row[filter_field]) > 0
-                        ):
+                        if len(filter_values) > 0 and filter_field in row:
                             # Split out multiple field values to test each one.
                             values_in_row_field = row[filter_field].split(
                                 config["subdelimiter"]
                             )
                             for value_in_row_field in values_in_row_field:
+                                filter_out_this_csv_row = False
                                 if value_in_row_field.strip() not in filter_values:
                                     filter_out_this_csv_row = True
+                                else:
+                                    break
                 if filter_out_this_csv_row is True:
                     continue
 

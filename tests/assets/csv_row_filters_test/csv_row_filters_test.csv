@@ -1,0 +1,7 @@
+file,id,title,field_model,field_edtf_date
+,issue_812_001,Issue 812 item 1,Image,2020-01-01
+foo.jpg,issue_812_002,Issue 812 item 2,Image,
+noo.jpg,issue_812_003,Issue 812 item 3,Binary,1999-01-01|2000
+,issue_812_004,Issue 812 item 4,Digital document,2000|2001
+bar.jpg,issue_812_005,Issue 812 item 5,Digital document,2012-12-12|2001
+,issue_812_006,Issue 812 item 6,Compound object,
