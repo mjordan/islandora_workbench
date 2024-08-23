@@ -1816,6 +1816,7 @@ def check_input(config, args):
     # but it doesn't show up in any field configs.
     reserved_fields = [
         "file",
+        "directory",
         "media_use_tid",
         "checksum",
         "node_id",
@@ -3601,7 +3602,8 @@ def check_input(config, args):
             paged_content_from_directories_csv_data, start=1
         ):
             dir_path = os.path.join(
-                config["input_dir"], file_check_row[config["id_field"]]
+                config["input_dir"],
+                file_check_row[config["page_files_source_dir_field"]],
             )
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
                 message = (
@@ -5783,7 +5785,6 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         row_num = 0
         unique_identifiers = []
 
-        # WIP on #812.
         # Prepare any "csv_row_filters", which we apply to each row, below.
         if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
             row_filters_is = dict()
@@ -8545,7 +8546,8 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     # weight assigned to the page is the last segment in the filename, split from the rest of the filename using the
     # character defined in the 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config["id_field"]]
-    page_dir_path = os.path.join(config["input_dir"], str(parent_id).strip())
+    page_dir_name = parent_csv_record[config["page_files_source_dir_field"]]
+    page_dir_path = os.path.join(config["input_dir"], page_dir_name)
 
     if "paged_content_additional_page_media" in config:
         if "paged_content_image_file_extension" in config:
@@ -8771,7 +8773,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 config, parent_id, parent_node_id, page_file_name, node_nid
             )
 
-            page_file_path = os.path.join(parent_id, page_file_name)
+            page_file_path = os.path.join(page_dir_name, page_file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record["title"] = page_title
             fake_csv_record["file"] = page_file_path

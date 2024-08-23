@@ -282,6 +282,10 @@ def create():
             if custom_field == "checksum":
                 continue
 
+            # 'directory' is a reserved CSV field.
+            if custom_field == "directory":
+                continue
+
             # We skip CSV columns whose headers use the 'media:video:field_foo' media track convention.
             if custom_field.startswith("media:"):
                 continue
