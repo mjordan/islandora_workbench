@@ -486,6 +486,7 @@ class TestValidEdtfDate(unittest.TestCase):
             "2001-24",
             "2001-31",
             "193X/196X",
+            "195X-01~",
             "198X?",
             "19XX?",
             "2XXX?",

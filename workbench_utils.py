@@ -7578,6 +7578,10 @@ def validate_edtf_fields(config, field_definitions, csv_data):
 
 def validate_edtf_date(date):
     date = date.strip()
+    # 195X-01~
+    # nnnX-nn~
+    if re.match(r"^[1-2]\d\dX\-\d\d\~", date):
+        return True
     # nnnX?
     if re.match(r"^[1-2]\d\dX\?", date):
         return True
