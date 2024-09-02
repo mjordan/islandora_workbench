@@ -285,6 +285,7 @@ class WorkbenchConfig:
             "csv_value_templates_for_paged_content": [],
             "csv_value_templates_rand_length": 5,
             "allow_csv_value_templates_if_field_empty": [],
+            "remind_user_to_run_check": False,
         }
 
     # Tests validity and existence of configuration file path.

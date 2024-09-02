@@ -11138,3 +11138,13 @@ def unzip_archive(config, archive_file_path):
         message = f'Zip archive "{archive_file_path}" not extracted to "{config["input_dir"]}": cannot find zip archive.'
         logging.error(message)
         sys.exit("Error: " + message)
+
+
+def prompt_user(config):
+    for user_prompt in config["user_prompts"]:
+        response = input(user_prompt)
+        if response.lower() != "y":
+            logging.info(
+                f'Exiting because user responded "{response}" to prompt "{user_prompt}".'
+            )
+            sys.exit("Exiting at user prompts.")
