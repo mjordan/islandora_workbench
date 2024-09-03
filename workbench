@@ -3517,7 +3517,7 @@ check_integration_module_version(config)
 validate_input_dir(config)
 
 # Unzip (and fetch if remote) input data zip archives.
-if len(config["input_data_zip_archives"]) > 0:
+if len(config["input_data_zip_archives"]) > 0 and config["nodes_only"] is not True:
     for input_data_zip_archive in config["input_data_zip_archives"]:
         if input_data_zip_archive.lower().startswith("http"):
             downloaded_zip_file_path = download_remote_archive_file(
