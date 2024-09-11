@@ -30,7 +30,7 @@ WORKDIR /workbench
 COPY . /workbench/
 
 # Set ownership and permissions for the non-root user
-RUN chown -R dockeruser:dockeruser /workbench
+RUN chown -R $USER_ID:$GROUP_ID /workbench
 
 # Set the PATH environment variable to include .local/bin
 ENV PATH=/home/dockeruser/.local/bin:$PATH
