@@ -471,7 +471,7 @@ class TestValidateNodeCreatedDateValue(unittest.TestCase):
             self.assertFalse(res)
 
 
-class _TestValidEdtfDate(unittest.TestCase):
+class TestValidEdtfDate(unittest.TestCase):
 
     def test_validate_good_edtf_values(self):
         good_values = [
