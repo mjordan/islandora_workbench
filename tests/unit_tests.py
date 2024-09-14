@@ -470,7 +470,7 @@ class TestValidateNodeCreatedDateValue(unittest.TestCase):
             res = workbench_utils.validate_node_created_date_string(value)
             self.assertFalse(res)
 
-'''
+
 class TestValidEdtfDate(unittest.TestCase):
 
     def test_validate_good_edtf_values(self):
@@ -519,7 +519,7 @@ class TestValidEdtfDate(unittest.TestCase):
         for bad_value in bad_values:
             res = workbench_utils.validate_edtf_date(bad_value)
             self.assertFalse(res, bad_value)
-'''
+
 
 class TestSetMediaType(unittest.TestCase):
 
