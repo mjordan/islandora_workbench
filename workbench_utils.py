@@ -4724,7 +4724,7 @@ def execute_entity_post_task_script(
 #     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
 #     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
 #     # of both requirements.
-#     ascii_only = is_ascii(filename)
+#     ascii_only = string_is_ascii(filename)
 #     if ascii_only is False:
 #         original_filename = copy.copy(filename)
 #         filename = unidecode(filename)
@@ -4840,7 +4840,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
     # of both requirements.
-    ascii_only = is_ascii(filename)
+    ascii_only = string_is_ascii(filename)
     if ascii_only is False:
         original_filename = copy.copy(filename)
         filename = unidecode(filename)
@@ -10293,7 +10293,7 @@ def calculate_response_time_trend(config, response_time):
         return average
 
 
-def is_ascii(input):
+def string_is_ascii(input):
     """Check if a string contains only ASCII characters."""
     """Parameters
         ----------
@@ -10306,6 +10306,32 @@ def is_ascii(input):
             False otherwise.
     """
     return all(ord(c) < 128 for c in input)
+
+
+def file_is_utf8(file_path):
+    """Check if a file is encoded as UTF-8, or backward-compatible encodings such as ASCII. BOM is ignored."""
+    """Parameters
+        ----------
+        file_path : str
+            The absolute or relative path to the file.
+        Returns
+        -------
+        boolean
+            True if file is encoded as UTF-8. False if not or if file cannot be found.
+    """
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            try:
+                f.read().decode("utf-8-sig")
+                file_is_utf8 = True
+            except UnicodeDecodeError:
+                file_is_utf8 = False
+            return file_is_utf8
+    else:
+        logging.error(
+            f'File "{file_path}" not found; Workbench cannot determine if it is encoded as UTF-8.'
+        )
+        return False
 
 
 def quick_delete_node(config, args):

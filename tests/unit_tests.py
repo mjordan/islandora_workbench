@@ -5,6 +5,7 @@ import sys
 import os
 from ruamel.yaml import YAML
 import collections
+import glob
 import tempfile
 import unittest
 
@@ -1609,6 +1610,30 @@ class TestMimeTypeFunctions(unittest.TestCase):
                 config, fixture["file_path"]
             )
             self.assertEqual(fixture["mime_type"], mimetype)
+
+
+class TestFileIsUtf8(unittest.TestCase):
+    def test_file_is_utf8(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        input_files_dir = os.path.join(current_dir, "assets", "file_is_utf8_test")
+        files_to_test = glob.glob("true_*.txt", root_dir=input_files_dir)
+
+        for file_to_test in files_to_test:
+            is_utf8 = workbench_utils.file_is_utf8(
+                os.path.join(input_files_dir, file_to_test)
+            )
+            self.assertEqual(is_utf8, True)
+
+    def test_file_is_not_utf8(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        input_files_dir = os.path.join(current_dir, "assets", "file_is_utf8_test")
+        files_to_test = glob.glob("false_*.txt", root_dir=input_files_dir)
+
+        for file_to_test in files_to_test:
+            is_utf8 = workbench_utils.file_is_utf8(
+                os.path.join(input_files_dir, file_to_test)
+            )
+            self.assertEqual(is_utf8, False)
 
 
 if __name__ == "__main__":
