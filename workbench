@@ -282,6 +282,10 @@ def create():
             if custom_field == "checksum":
                 continue
 
+            # 'directory' is a reserved CSV field.
+            if custom_field == "directory":
+                continue
+
             # We skip CSV columns whose headers use the 'media:video:field_foo' media track convention.
             if custom_field.startswith("media:"):
                 continue
@@ -3435,6 +3439,11 @@ parser.add_argument(
 parser.add_argument(
     "--contactsheet", help="Generate a contact sheet.", action="store_true"
 )
+parser.add_argument(
+    "--skip_user_prompts",
+    help='Include to skip any user prompts defined in your config file\'s "user_prompts" setting.',
+    action="store_true",
+)
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
 
@@ -3454,7 +3463,21 @@ except Exception as e:
     sys.exit(str(e))
 config = workbench_config.get_config()
 
+if args.check is not True and config["remind_user_to_run_check"] is True:
+    if args.skip_user_prompts is not True:
+        user_has_run_check = input("Have you run --check? (y/n)")
+        if user_has_run_check.lower() != "y":
+            logging.info(
+                'User was prompted whether they ran --check, and they responded "n".'
+            )
+            sys.exit(
+                "Your Workbench configuration file indicates you were to be reminded to run --check."
+            )
+
 create_temp_dir(config)
+
+if "user_prompts" in config and args.skip_user_prompts is not True:
+    prompt_user(config)
 
 if config["secondary_tasks"] is not None and len(config["secondary_tasks"]) > 0:
     secondary_tasks = []
@@ -3494,7 +3517,7 @@ check_integration_module_version(config)
 validate_input_dir(config)
 
 # Unzip (and fetch if remote) input data zip archives.
-if len(config["input_data_zip_archives"]) > 0:
+if len(config["input_data_zip_archives"]) > 0 and config["nodes_only"] is not True:
     for input_data_zip_archive in config["input_data_zip_archives"]:
         if input_data_zip_archive.lower().startswith("http"):
             downloaded_zip_file_path = download_remote_archive_file(

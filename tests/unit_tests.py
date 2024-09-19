@@ -486,6 +486,7 @@ class TestValidEdtfDate(unittest.TestCase):
             "2001-24",
             "2001-31",
             "193X/196X",
+            "195X-01~",
             "198X?",
             "19XX?",
             "2XXX?",
@@ -1608,6 +1609,30 @@ class TestMimeTypeFunctions(unittest.TestCase):
                 config, fixture["file_path"]
             )
             self.assertEqual(fixture["mime_type"], mimetype)
+
+
+class TestFileIsUtf8(unittest.TestCase):
+    def test_file_is_utf8(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        input_files_dir = os.path.join(current_dir, "assets", "file_is_utf8_test")
+        with os.scandir(input_files_dir) as files_to_test:
+            for file_to_test in files_to_test:
+                if file_to_test.name.startswith("true_"):
+                    is_utf8 = workbench_utils.file_is_utf8(
+                        os.path.join(input_files_dir, file_to_test)
+                    )
+                    self.assertEqual(is_utf8, True)
+
+    def test_file_is_not_utf8(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        input_files_dir = os.path.join(current_dir, "assets", "file_is_utf8_test")
+        with os.scandir(input_files_dir) as files_to_test:
+            for file_to_test in files_to_test:
+                if file_to_test.name.startswith("false_"):
+                    is_utf8 = workbench_utils.file_is_utf8(
+                        os.path.join(input_files_dir, file_to_test)
+                    )
+                    self.assertEqual(is_utf8, False)
 
 
 if __name__ == "__main__":
