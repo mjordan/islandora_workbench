@@ -1816,6 +1816,7 @@ def check_input(config, args):
     # but it doesn't show up in any field configs.
     reserved_fields = [
         "file",
+        "directory",
         "media_use_tid",
         "checksum",
         "node_id",
@@ -3601,7 +3602,8 @@ def check_input(config, args):
             paged_content_from_directories_csv_data, start=1
         ):
             dir_path = os.path.join(
-                config["input_dir"], file_check_row[config["id_field"]]
+                config["input_dir"],
+                file_check_row[config["page_files_source_dir_field"]],
             )
             if not os.path.exists(dir_path) or os.path.isfile(dir_path):
                 message = (
@@ -4722,7 +4724,7 @@ def execute_entity_post_task_script(
 #     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
 #     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
 #     # of both requirements.
-#     ascii_only = is_ascii(filename)
+#     ascii_only = string_is_ascii(filename)
 #     if ascii_only is False:
 #         original_filename = copy.copy(filename)
 #         filename = unidecode(filename)
@@ -4838,7 +4840,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
     # of both requirements.
-    ascii_only = is_ascii(filename)
+    ascii_only = string_is_ascii(filename)
     if ascii_only is False:
         original_filename = copy.copy(filename)
         filename = unidecode(filename)
@@ -5782,6 +5784,42 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         csv_writer.writeheader()
         row_num = 0
         unique_identifiers = []
+
+        # Prepare any "csv_row_filters", which we apply to each row, below.
+        if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
+            row_filters_is = dict()
+            row_filters_isnot = dict()
+            # First defne the field/operator pairs.
+            for filter_config in config["csv_row_filters"]:
+                filter_group = filter_config.split(":", 2)
+                if filter_group[1] == "is":
+                    filter_group_field = filter_group[0]
+                    filter_group_value = filter_group[2]
+                    row_filters_is[filter_group_field] = []
+                if filter_group[1] == "isnot":
+                    filter_group_field = filter_group[0]
+                    filter_group_value = filter_group[2]
+                    row_filters_isnot[filter_group_field] = []
+
+            # Then populate the lists of filter values.
+            for filter_config in config["csv_row_filters"]:
+                filter_group = filter_config.split(":", 2)
+                # Prepare the '' filter value.
+                if filter_group[2] == "''" or filter_group[2] == '""':
+                    filter_group[2] = ""
+                if filter_group[1] == "is":
+                    filter_group_field = filter_group[0]
+                    filter_group_value = filter_group[2]
+                    row_filters_is[filter_group_field].append(
+                        filter_group_value.strip()
+                    )
+                if filter_group[1] == "isnot":
+                    filter_group_field = filter_group[0]
+                    filter_group_value = filter_group[2]
+                    row_filters_isnot[filter_group_field].append(
+                        filter_group_value.strip()
+                    )
+
         # We subtract 1 from config['csv_start_row'] so user's expectation of the actual
         # start row match up with Python's 0-based counting.
         if config["csv_start_row"] > 0:
@@ -5798,6 +5836,46 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                 and len(config["csv_rows_to_process"]) > 0
             ):
                 if row[config["id_field"]] not in config["csv_rows_to_process"]:
+                    continue
+
+            # WIP on #812.
+            # Apply the "is" and "isnot" csv_row_filters defined defined above.
+            # If the field/value combo is in the 'isnot' list, skip this row.
+            filter_out_this_csv_row = False
+            if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
+                # filter_out_this_csv_row = False
+                if len(row_filters_isnot) > 0:
+                    for filter_field, filter_values in row_filters_isnot.items():
+                        if len(filter_values) > 0 and filter_field in row:
+                            # Split out multiple field values to test each one.
+                            values_in_row_field = row[filter_field].split(
+                                config["subdelimiter"]
+                            )
+                            for value_in_row_field in values_in_row_field:
+                                filter_out_this_csv_row = False
+                                if value_in_row_field.strip() in filter_values:
+                                    filter_out_this_csv_row = True
+                                else:
+                                    break
+                if filter_out_this_csv_row is True:
+                    continue
+
+                # If the field/value combo is not in the 'is' list, skip this row.
+                if len(row_filters_is) > 0:
+                    # filter_out_this_csv_row = False
+                    for filter_field, filter_values in row_filters_is.items():
+                        if len(filter_values) > 0 and filter_field in row:
+                            # Split out multiple field values to test each one.
+                            values_in_row_field = row[filter_field].split(
+                                config["subdelimiter"]
+                            )
+                            for value_in_row_field in values_in_row_field:
+                                filter_out_this_csv_row = False
+                                if value_in_row_field.strip() not in filter_values:
+                                    filter_out_this_csv_row = True
+                                else:
+                                    break
+                if filter_out_this_csv_row is True:
                     continue
 
             # Remove columns specified in config['ignore_csv_columns'].
@@ -7500,6 +7578,10 @@ def validate_edtf_fields(config, field_definitions, csv_data):
 
 def validate_edtf_date(date):
     date = date.strip()
+    # 195X-01~
+    # nnnX-nn~
+    if re.match(r"^[1-2]\d\dX\-\d\d\~", date):
+        return True
     # nnnX?
     if re.match(r"^[1-2]\d\dX\?", date):
         return True
@@ -8451,7 +8533,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         for field_name in node_dict:
             if field_name.startswith("field_"):
                 row[field_name] = serialize_field_json(
-                    config, field_definitions, field_name, node_dict[field_name]
+                    config, field_definitions, field_name, node_dict[fifileeld_name]
                 )
         row.update(input_csv_row)
     writer.writerow(row)
@@ -8468,7 +8550,8 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     # weight assigned to the page is the last segment in the filename, split from the rest of the filename using the
     # character defined in the 'paged_content_sequence_separator' config option.
     parent_id = parent_csv_record[config["id_field"]]
-    page_dir_path = os.path.join(config["input_dir"], str(parent_id).strip())
+    page_dir_name = parent_csv_record[config["page_files_source_dir_field"]]
+    page_dir_path = os.path.join(config["input_dir"], page_dir_name)
 
     if "paged_content_additional_page_media" in config:
         if "paged_content_image_file_extension" in config:
@@ -8694,7 +8777,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 config, parent_id, parent_node_id, page_file_name, node_nid
             )
 
-            page_file_path = os.path.join(parent_id, page_file_name)
+            page_file_path = os.path.join(page_dir_name, page_file_name)
             fake_csv_record = collections.OrderedDict()
             fake_csv_record["title"] = page_title
             fake_csv_record["file"] = page_file_path
@@ -8848,6 +8931,8 @@ def write_rollback_config(config, path_to_rollback_csv_file):
         rollback_config_filename = "rollback.yml"
 
     rollback_config_file = open(rollback_config_filename, "w")
+    rollback_comments = get_rollback_config_comments(config)
+    rollback_config_file.write(rollback_comments)
 
     yaml.dump(
         {
@@ -8869,6 +8954,8 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
             os.remove(path_to_rollback_csv_file)
         rollback_csv_file = open(path_to_rollback_csv_file, "a+")
         rollback_csv_file.write("node_id" + "\n")
+        rollback_csv_comments = get_rollback_config_comments(config)
+        rollback_csv_file.write(rollback_csv_comments)
         rollback_csv_file.close()
     except Exception as e:
         message = (
@@ -8885,6 +8972,20 @@ def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
     rollback_csv_file = open(path_to_rollback_csv_file, "a+")
     rollback_csv_file.write(str(node_id) + "\n")
     rollback_csv_file.close()
+
+
+def get_rollback_config_comments(config):
+    task = config["task"]
+    config_file = config["config_file"]
+    time_string = now_string = EXECUTION_START_TIME.strftime("%Y:%m:%d %H:%M:%S")
+    input_csv = config["input_csv"]
+    comments = (
+        f'# Generated by a "{task}" task started {time_string} using'
+        + "\n"
+        + f'# config file "{config_file}" and input CSV "{input_csv}".'
+        + "\n"
+    )
+    return comments
 
 
 def get_csv_from_google_sheet(config):
@@ -10192,7 +10293,7 @@ def calculate_response_time_trend(config, response_time):
         return average
 
 
-def is_ascii(input):
+def string_is_ascii(input):
     """Check if a string contains only ASCII characters."""
     """Parameters
         ----------
@@ -10205,6 +10306,32 @@ def is_ascii(input):
             False otherwise.
     """
     return all(ord(c) < 128 for c in input)
+
+
+def file_is_utf8(file_path):
+    """Check if a file is encoded as UTF-8, or backward-compatible encodings such as ASCII. BOM is ignored."""
+    """Parameters
+        ----------
+        file_path : str
+            The absolute or relative path to the file.
+        Returns
+        -------
+        boolean
+            True if file is encoded as UTF-8. False if not or if file cannot be found.
+    """
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            try:
+                f.read().decode("utf-8-sig")
+                file_is_utf8 = True
+            except UnicodeDecodeError:
+                file_is_utf8 = False
+            return file_is_utf8
+    else:
+        logging.error(
+            f'File "{file_path}" not found; Workbench cannot determine if it is encoded as UTF-8.'
+        )
+        return False
 
 
 def quick_delete_node(config, args):
@@ -11055,3 +11182,13 @@ def unzip_archive(config, archive_file_path):
         message = f'Zip archive "{archive_file_path}" not extracted to "{config["input_dir"]}": cannot find zip archive.'
         logging.error(message)
         sys.exit("Error: " + message)
+
+
+def prompt_user(config):
+    for user_prompt in config["user_prompts"]:
+        response = input(user_prompt)
+        if response.lower() != "y":
+            logging.info(
+                f'Exiting because user responded "{response}" to prompt "{user_prompt}".'
+            )
+            sys.exit("Exiting at user prompts.")

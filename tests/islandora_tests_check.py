@@ -1565,5 +1565,44 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             os.remove(self.true_log_file_path)
 
 
+class TestCsvRowFilters(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "csv_row_filters_test",
+            "csv_row_filters_test.yml",
+        )
+        self.temp_dir = tempfile.gettempdir()
+        self.preprocessed_csv_file_path = os.path.join(
+            self.temp_dir, "csv_row_filters_test.csv.preprocessed"
+        )
+
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        self.output = output.decode().strip()
+
+    def test_update_check(self):
+        file = open(self.preprocessed_csv_file_path)
+        csv_rows = file.readlines()
+        file.close()
+
+        self.assertEqual(len(csv_rows), 3, "")
+        self.assertEqual(
+            csv_rows[1].strip(), ",issue_812_001,Issue 812 item 1,Image,2020-01-01", ""
+        )
+        self.assertEqual(
+            csv_rows[2].strip(),
+            "noo.jpg,issue_812_003,Issue 812 item 3,Binary,1999-01-01|2000",
+            "",
+        )
+
+    def tearDown(self):
+        if os.path.exists(self.preprocessed_csv_file_path):
+            os.remove(self.preprocessed_csv_file_path)
+
+
 if __name__ == "__main__":
     unittest.main()
