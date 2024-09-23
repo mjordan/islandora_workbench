@@ -1797,6 +1797,10 @@ def check_input(config, args):
         args.config,
     )
 
+    if "check_lock_file_path" in config:
+        if os.path.exists(config["check_lock_file_path"]):
+            os.remove(config["check_lock_file_path"])
+
     ping_islandora(config, print_message=False)
     check_integration_module_version(config)
 
@@ -3805,6 +3809,18 @@ def check_input(config, args):
         config["task"],
         args.config,
     )
+
+    if "check_lock_file_path" in config:
+        with open(config["check_lock_file_path"], "a") as check_lock_file:
+            config_file_md5 = get_file_hash_from_local(
+                config, config["config_file_path"], "md5"
+            )
+            check_lock_file.write(
+                f'Check against {config["config_file_path"]} (md5 hash {config_file_md5}) OK'
+            )
+            logging.info(
+                f"Writing --check lock file \"{config['check_lock_file_path']}\"."
+            )
 
     if args.contactsheet is True:
         if os.path.isabs(config["contact_sheet_output_dir"]):

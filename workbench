@@ -3474,6 +3474,31 @@ if args.check is not True and config["remind_user_to_run_check"] is True:
                 "Your Workbench configuration file indicates you were to be reminded to run --check."
             )
 
+if args.check is not True and "check_lock_file_path" in config:
+    check_lock_file_path = config["check_lock_file_path"]
+    if os.path.exists(check_lock_file_path):
+        config_file_md5 = get_file_hash_from_local(
+            config, config["config_file_path"], "md5"
+        )
+        with open(check_lock_file_path, "r") as check_lock_file:
+            check_lock_message_expected = f"Check against {config['config_file_path']} (md5 hash {config_file_md5}) OK"
+            check_lock_message_from_file = check_lock_file.readline()
+            if (
+                check_lock_message_expected.strip()
+                != check_lock_message_from_file.strip()
+            ):
+                message = f'The "check_lock_file_path" setting is present in config, but the contents of the lock file ("{check_lock_message_from_file.strip()}") do not match the expected --check lock message ("{check_lock_message_expected.strip()}").'
+                logging.error(message)
+                sys.exit("Error: " + message)
+            else:
+                message = f'Check lock file "{check_lock_file_path}" confirms --check was run. Removing lock file.'
+                logging.info(message)
+                os.remove(config["check_lock_file_path"])
+    else:
+        message = f'The "check_lock_file_path" setting is present in config but the specified lock file, "{check_lock_file_path}", does not exist.'
+        logging.error(message)
+        sys.exit("Error: " + message)
+
 create_temp_dir(config)
 
 if "user_prompts" in config and args.skip_user_prompts is not True:
