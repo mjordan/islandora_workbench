@@ -78,7 +78,7 @@ headers.append("sequence")
 headers.append("file")
 if config["id_field"] not in headers:
     headers.append(config["id_field"])
-    index = config["id_start_number"]
+index = config["id_start_number"]
 
 if config["fetch_files"] is True:
     if not os.path.exists(config["obj_directory"]):
