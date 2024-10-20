@@ -3119,12 +3119,12 @@ def check_input(config, args):
             )
             if path_exists_response.status_code == 404:
                 message = (
-                    'Redirect path "'
+                    'Redirect source path "'
                     + row["redirect_source"].strip()
                     + '" (row '
                     + str(count)
                     + ") does not exist (HTTP response code is "
-                    + str(is_redirect_response.status_code)
+                    + str(path_exists_response.status_code)
                     + "). This may be intentional."
                 )
                 logging.warning(message)

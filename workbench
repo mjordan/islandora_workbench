@@ -3352,6 +3352,13 @@ def create_redirects():
             logging.warning(message)
             continue
 
+        if row["redirect_target"].lower().startswith("http") is False:
+            # It's an internal redirect.
+            redirect_target = f'internal:/{row["redirect_target"]}'
+        else:
+            # It's an external redirect.
+            redirect_target = row["redirect_target"]
+
         # Check to see if the redirect source value is already a redirect. We don't use issue_request()
         # since we don't want to override config["allow_redirects"] for this one request.
         is_redirect_url = config["host"].rstrip("/") + "/" + row["redirect_source"]
@@ -3377,7 +3384,7 @@ def create_redirects():
         redirect = {
             "type": [{"value": "redirect"}],
             "redirect_source": [{"path": row["redirect_source"].lstrip("/").strip()}],
-            "redirect_redirect": [{"uri": row["redirect_target"].strip()}],
+            "redirect_redirect": [{"uri": redirect_target.strip()}],
             "status_code": [{"value": int(config["redirect_status_code"])}],
         }
         redirect_endpoint = config["host"] + "/entity/redirect?_format=json"
@@ -3404,7 +3411,7 @@ def create_redirects():
                 + '" not created.'
             )
             print("Error: " + message + " See log for more info.")
-            logging.error(message + "HTTP status code: " + str(response.status_code))
+            logging.error(message + " HTTP status code: " + str(response.status_code))
 
         if config["progress_bar"] is True:
             redirect_row_position = get_percentage(redirect_row_count, num_csv_records)
