@@ -79,6 +79,14 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     """
     if "media_type" in config:
         return config["media_type"]
+    if config["media_type_by_media_use"] and len(config["media_type_by_media_use"]) > 0:
+        additional_files = get_additional_files_config(config)
+        media_url = additional_files.get(file_fieldname)
+        if file_fieldname in additional_files:
+            for entry in config["media_type_by_media_use"]:
+                for key, value in entry.items():
+                    if key == media_url:
+                        return value
 
     # Determine if the incomtimg filepath matches a registered eEmbed media type.
     oembed_media_type = get_oembed_url_media_type(config, filepath)
