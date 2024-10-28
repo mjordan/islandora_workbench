@@ -16,3 +16,6 @@ media_types_override:
  - sometextmedia: ['txt']
 
 secure_ssl_only: false
+
+media_type_by_media_use:
+  - https://projects.iq.harvard.edu/fits: fits_technical_metadata
