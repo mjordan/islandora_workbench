@@ -905,12 +905,9 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         self.rollback_file_path = os.path.join(
             self.current_dir, "assets", "additional_files_test", "rollback.csv"
         )
-        with open(self.rollback_file_path, "r") as rbf:
-            rollback_file_contents = rbf.read()
-
         # There will only be one nid in the rollback.csv file.
-        nid = rollback_file_contents.replace("node_id", "")
-        self.nid = nid.strip()
+        with open(self.rollback_file_path, "r") as rbf:
+            self.nid = rbf.readlines()[-1].strip()
 
         media_list_url = (
             self.islandora_host + "/node/" + self.nid + "/media?_format=json"
@@ -920,6 +917,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
             auth=(self.islandora_username, self.islandora_password),
             verify=False,
         )
+
         media_list_json = json.loads(media_list_response.text)
         self.media_sizes = dict()
         self.media_use_tids = dict()

@@ -1797,6 +1797,10 @@ def check_input(config, args):
         args.config,
     )
 
+    if "check_lock_file_path" in config:
+        if os.path.exists(config["check_lock_file_path"]):
+            os.remove(config["check_lock_file_path"])
+
     ping_islandora(config, print_message=False)
     check_integration_module_version(config)
 
@@ -3094,34 +3098,11 @@ def check_input(config, args):
         for count, row in enumerate(check_for_redirects_csv_data, start=1):
             if row["redirect_source"].lower().startswith("http"):
                 message = (
-                    'Redirect source values cannot contain a hostname, they must be a path only. Please correct "'
+                    'Redirect source values cannot contain a hostname, they must be a path only, without a hostname. Please correct "'
                     + row["redirect_source"]
                     + " (row "
                     + str(count)
                     + ")."
-                )
-                logging.warning(message)
-                warnings_about_redirect_input_csv = True
-                continue
-
-            # Log if source path doesn't exist. We don't use issue_request() since we
-            # don't want to override config["allow_redirects"] for this one request.
-            path_exists_url = config["host"].rstrip("/") + "/" + row["redirect_source"]
-            path_exists_response = requests.head(
-                path_exists_url,
-                allow_redirects=False,
-                verify=config["secure_ssl_only"],
-                auth=(config["username"], config["password"]),
-            )
-            if path_exists_response.status_code == 404:
-                message = (
-                    'Redirect path "'
-                    + row["redirect_source"].strip()
-                    + '" (row '
-                    + str(count)
-                    + ") does not exist (HTTP response code is "
-                    + str(is_redirect_response.status_code)
-                    + "). This may be intentional."
                 )
                 logging.warning(message)
                 warnings_about_redirect_input_csv = True
@@ -3138,16 +3119,54 @@ def check_input(config, args):
             )
             if str(is_redirect_response.status_code).startswith("30"):
                 message = (
-                    'Redirect from "'
+                    'Redirect source path "'
                     + row["redirect_source"].strip()
                     + '" (row '
                     + str(count)
-                    + ") is already a redirect (HTTP response code is "
+                    + ') is already a redirect to "'
+                    + is_redirect_response.headers["Location"]
+                    + '" (HTTP response code is '
                     + str(is_redirect_response.status_code)
                     + ")."
                 )
                 logging.warning(message)
                 warnings_about_redirect_input_csv = True
+                continue
+
+            # Log whether the source path exists. We don't use issue_request() since we
+            # don't want to override config["allow_redirects"] for this one request.
+            path_exists_url = config["host"].rstrip("/") + "/" + row["redirect_source"]
+            path_exists_response = requests.head(
+                path_exists_url,
+                allow_redirects=False,
+                verify=config["secure_ssl_only"],
+                auth=(config["username"], config["password"]),
+            )
+            if path_exists_response.status_code == 404:
+                message = (
+                    'Redirect source path "'
+                    + row["redirect_source"].strip()
+                    + '" (row '
+                    + str(count)
+                    + ") does not exist (HTTP response code is "
+                    + str(path_exists_response.status_code)
+                    + ")."
+                )
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+                continue
+            else:
+                # We've already tested for 3xx responses, so assume that the path exists.
+                message = (
+                    'Redirect source path "'
+                    + row["redirect_source"].strip()
+                    + '" (row '
+                    + str(count)
+                    + ") already exists."
+                )
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+                continue
 
         if warnings_about_redirect_input_csv is True:
             message = (
@@ -3805,6 +3824,18 @@ def check_input(config, args):
         config["task"],
         args.config,
     )
+
+    if "check_lock_file_path" in config:
+        with open(config["check_lock_file_path"], "a") as check_lock_file:
+            config_file_md5 = get_file_hash_from_local(
+                config, config["config_file_path"], "md5"
+            )
+            check_lock_file.write(
+                f'Check against {config["config_file_path"]} (md5 hash {config_file_md5}) OK'
+            )
+            logging.info(
+                f"Writing --check lock file \"{config['check_lock_file_path']}\"."
+            )
 
     if args.contactsheet is True:
         if os.path.isabs(config["contact_sheet_output_dir"]):
