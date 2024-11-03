@@ -3112,7 +3112,6 @@ def update_terms():
     )
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
-    # invalid_target_ids = []
 
     if config["log_term_creation"] is False:
         logging.info(
@@ -3183,13 +3182,23 @@ def update_terms():
             if len(row["description"].strip()) != 0:
                 term["description"] = [{"value": row["description"]}]
 
+        if "published" in csv_column_headers:
+            if len(row["published"].strip()) != 0:
+                term["status"] = [{"value": row["published"]}]
+
         # Add custom (non-required) fields.
         required_fields = ["term_id"]
         custom_fields = list(set(csv_column_headers) - set(required_fields))
         for custom_field in custom_fields:
             term_has_all_fields = True
             # If node doesn't have the field, log that fact and skip updating the field.
-            reserved_fields = ["parent", "weight", "description", "term_name"]
+            reserved_fields = [
+                "parent",
+                "weight",
+                "description",
+                "term_name",
+                "published",
+            ]
             if (
                 custom_field not in json.loads(term_response.text)
                 and custom_field not in reserved_fields
@@ -3214,6 +3223,10 @@ def update_terms():
 
             # 'description' is a reserved CSV field.
             if custom_field == "description":
+                continue
+
+            # 'published' is a reserved CSV field.
+            if custom_field == "published":
                 continue
 
             # Assemble Drupal field structures from CSV data. If new field types are added to

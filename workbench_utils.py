@@ -2780,6 +2780,7 @@ def check_input(config, args):
             "parent",
             "weight",
             "description",
+            "published",
         ]
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
@@ -6508,9 +6509,18 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             The dict containing the term field data, or False if this is not possible.
             @note: reason why creating JSON is not possible should be logged in this function.
     """
+    if (
+        term_csv_row is not None
+        and "published" in term_csv_row.keys()
+        and len(term_csv_row["published"]) > 0
+    ):
+        published_status = term_csv_row["published"]
+    else:
+        published_status = True
+
     # 'vid' and 'name' are added in create_term().
     term_field_data = {
-        "status": [{"value": True}],
+        "status": [{"value": published_status}],
         "description": [{"value": "", "format": None}],
         "weight": [{"value": 0}],
         "parent": [{"target_type": "taxonomy_term", "target_id": None}],
@@ -6536,6 +6546,10 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
         for field_name in vocab_csv_column_headers:
             # term_name is the "id" field in the vocabulary CSV and not a field in the term JSON, so skip it.
             if field_name == "term_name":
+                continue
+
+            # "published" is a reserved column name in the vocabulary CSV and not a field in the term JSON, so skip it.
+            if field_name == "published":
                 continue
 
             # 'parent' field is present and not empty, so we need to look up the parent term. All terms
