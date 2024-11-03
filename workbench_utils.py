@@ -8564,7 +8564,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         for field_name in node_dict:
             if field_name.startswith("field_"):
                 row[field_name] = serialize_field_json(
-                    config, field_definitions, field_name, node_dict[fifileeld_name]
+                    config, field_definitions, field_name, node_dict[field_name]
                 )
         row.update(input_csv_row)
     writer.writerow(row)
