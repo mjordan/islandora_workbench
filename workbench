@@ -3326,6 +3326,14 @@ def update_terms():
                     "Term %s updated.",
                     config["host"] + "/taxonomy/term/" + row["term_id"],
                 )
+            else:
+                message = (
+                    f'Term {config["host"]}/taxonomy/term/{row["term_id"]} not updated.'
+                )
+                print("Warning: " + message)
+                logging.warning(
+                    f"{message} HTTP response code was {term_response.status_code}. Response body was {term_response.text}."
+                )
 
             if config["progress_bar"] is True:
                 row_count += 1

@@ -6480,9 +6480,10 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
         return tid
     else:
         logging.warning(
-            "Term '%s' not created, HTTP response code was %s.",
+            "Term '%s' not created, HTTP response code was %s, response body was %s.",
             term_name,
             response.status_code,
+            response.text,
         )
         return False
 
