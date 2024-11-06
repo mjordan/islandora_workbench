@@ -823,6 +823,9 @@ class EntityReferenceField:
         if field_definitions[field_name]["target_type"] == "media":
             target_type = "media_type"
 
+        if field_definitions[field_name]["target_type"] == "domain":
+            target_type = "domain"
+
         field_values = []
         subvalues = str(row[field_name]).split(config["subdelimiter"])
         subvalues = self.dedupe_values(subvalues)
@@ -902,6 +905,9 @@ class EntityReferenceField:
 
         if field_definitions[field_name]["target_type"] == "media":
             target_type = "media_type"
+
+        if field_definitions[field_name]["target_type"] == "domain":
+            target_type = "domain"
 
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "replace":
