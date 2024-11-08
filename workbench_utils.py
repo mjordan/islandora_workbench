@@ -8937,11 +8937,42 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
 
 def get_rollback_csv_filepath(config):
+    if "rollback_csv_filename_template" in config:
+        config_filename, task_config_ext = os.path.splitext(config["config_file"])
+        input_csv_filename, input_csv_ext = os.path.splitext(config["input_csv"])
+
+        rollback_csv_filename_template = string.Template(
+            config["rollback_csv_filename_template"]
+        )
+        try:
+            rollback_csv_filename_basename = str(
+                rollback_csv_filename_template.substitute(
+                    {
+                        "config_filename": config_filename,
+                        "input_csv_filename": input_csv_filename,
+                    }
+                )
+            )
+        except Exception as e:
+            # We need to account for the very common case where the user has included "valid identifier characters"
+            # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common instance
+            # will likely be underscores separating the template placeholders.
+            if "config_filename" in str(e) or "input_csv_filename" in str(e):
+                message = f"One or more parts of the configured rollback filename template needs adjusting: {e}"
+            else:
+                message = f'One or more parts of the configured rollback filename template ({config["rollback_csv_filename_template"]}) need adjusting.'
+                logging.error()
+                sys.exit(
+                    f"Error: {message}. Please refer to the Workbench documentation for suggestions."
+                )
+    else:
+        rollback_csv_filename_basename = "rollback"
+
     if config["timestamp_rollback"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
-        rollback_csv_filename = "rollback." + now_string + ".csv"
+        rollback_csv_filename = f"{rollback_csv_filename_basename}.{now_string}.csv"
     else:
-        rollback_csv_filename = "rollback.csv"
+        rollback_csv_filename = f"{rollback_csv_filename_basename}.csv"
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
