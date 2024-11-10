@@ -48,8 +48,9 @@ def create():
         logging.info(message)
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    write_rollback_config(config, path_to_rollback_csv_file)
     prep_rollback_csv(config, path_to_rollback_csv_file)
-    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
+    logging.info(f"Writing rollback CSV to {path_to_rollback_csv_file}.")
 
     prepare_csv_id_to_node_id_map(config)
 
@@ -470,8 +471,6 @@ def create():
         # If 'url_alias' is in the CSV, create the alias.
         if "url_alias" in row and len(row["url_alias"]) > 0:
             create_url_alias(config, node_id, row["url_alias"])
-
-        write_rollback_config(config, path_to_rollback_csv_file)
 
         # If the file named in 'file' can't be found.
         if "file" in row and len(row["file"].strip()) > 0:
@@ -2265,8 +2264,9 @@ def create_from_files():
     files = os.listdir(file_dir_path)
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    write_rollback_config(config, path_to_rollback_csv_file)
     prep_rollback_csv(config, path_to_rollback_csv_file)
-    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
+    logging.info(f"Writing rollback CSV to {path_to_rollback_csv_file}.")
 
     num_files = len(files)
     file_count = 0
