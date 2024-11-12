@@ -3468,7 +3468,27 @@ except Exception as e:
         'Confirm your "host" configuration setting is correct and that the website is running, and try again.'
     )
     sys.exit(str(e))
+
 config = workbench_config.get_config()
+
+if "include_config" in config:
+    print("DEBUG main config - clean", config)
+    print("\n\n")
+
+    # Create a copy of the ArgumentParser to use for the included config file.
+    # @todo: Check that the file named in config["include_config"] is readable by the current user;
+    # if it isn't, log it and exit.
+    included_config_argparser = copy.deepcopy(parser)
+    included_args = included_config_argparser.parse_args(["--config", config["include_config"]])
+    included_workbench_config = WorkbenchConfig(included_args)
+    included_config = included_workbench_config.get_config()
+    print("DEBUG included config", included_config)
+    print("\n\n")
+
+    # @todo: If a key exists in the included config dict or is different from the one in the main
+    # config, replace the one in the main config with the one in the included config.
+    # print("DEBUG main config - overridden", config)
+
 
 if args.check is not True and config["remind_user_to_run_check"] is True:
     if args.skip_user_prompts is not True:
