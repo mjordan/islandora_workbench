@@ -79,6 +79,14 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     """
     if "media_type" in config:
         return config["media_type"]
+    if config["media_type_by_media_use"] and len(config["media_type_by_media_use"]) > 0:
+        additional_files = get_additional_files_config(config)
+        media_url = additional_files.get(file_fieldname)
+        if file_fieldname in additional_files:
+            for entry in config["media_type_by_media_use"]:
+                for key, value in entry.items():
+                    if key == media_url:
+                        return value
 
     # Determine if the incomtimg filepath matches a registered eEmbed media type.
     oembed_media_type = get_oembed_url_media_type(config, filepath)
@@ -8564,7 +8572,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         for field_name in node_dict:
             if field_name.startswith("field_"):
                 row[field_name] = serialize_field_json(
-                    config, field_definitions, field_name, node_dict[fifileeld_name]
+                    config, field_definitions, field_name, node_dict[field_name]
                 )
         row.update(input_csv_row)
     writer.writerow(row)
@@ -8937,11 +8945,41 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
 
 def get_rollback_csv_filepath(config):
+    if "rollback_csv_filename_template" in config:
+        config_filename, task_config_ext = os.path.splitext(config["config_file"])
+        input_csv_filename, input_csv_ext = os.path.splitext(config["input_csv"])
+
+        rollback_csv_filename_template = string.Template(
+            config["rollback_csv_filename_template"]
+        )
+        try:
+            rollback_csv_filename_basename = str(
+                rollback_csv_filename_template.substitute(
+                    {
+                        "config_filename": config_filename,
+                        "input_csv_filename": input_csv_filename,
+                    }
+                )
+            )
+        except Exception as e:
+            # We need to account for the very common case where the user has included "valid identifier characters"
+            # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common case will
+            # likely be underscores separating the template placeholders.
+            message = f'One or more parts of the configured rollback csv filename template ({config["rollback_csv_filename_template"]}) need adjusting.'
+            logging.error(
+                f"{message} A {e.__class__.__name__} exception occured with the error message {e}. Please refer to the Workbench documentation for suggestions."
+            )
+            sys.exit(
+                f"Error: {message} Please refer to your Workbench log and to the Workbench documentation for suggestions."
+            )
+    else:
+        rollback_csv_filename_basename = "rollback"
+
     if config["timestamp_rollback"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
-        rollback_csv_filename = "rollback." + now_string + ".csv"
+        rollback_csv_filename = f"{rollback_csv_filename_basename}.{now_string}.csv"
     else:
-        rollback_csv_filename = "rollback.csv"
+        rollback_csv_filename = f"{rollback_csv_filename_basename}.csv"
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
@@ -8955,12 +8993,45 @@ def get_rollback_csv_filepath(config):
 
 
 def write_rollback_config(config, path_to_rollback_csv_file):
+    if "rollback_config_filename_template" in config:
+        config_filename, task_config_ext = os.path.splitext(config["config_file"])
+        input_csv_filename, input_csv_ext = os.path.splitext(config["input_csv"])
+
+        rollback_config_filename_template = string.Template(
+            config["rollback_config_filename_template"]
+        )
+        try:
+            rollback_config_filename_basename = str(
+                rollback_config_filename_template.substitute(
+                    {
+                        "config_filename": config_filename,
+                        "input_csv_filename": input_csv_filename,
+                    }
+                )
+            )
+        except Exception as e:
+            # We need to account for the very common case where the user has included "valid identifier characters"
+            # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common case will
+            # likely be underscores separating the template placeholders.
+            message = f'One or more parts of the configured rollback configuration filename template ({config["rollback_config_filename_template"]}) need adjusting.'
+            logging.error(
+                f"{message} A {e.__class__.__name__} exception occured with the error message {e}. Please refer to the Workbench documentation for suggestions."
+            )
+            sys.exit(
+                f"Error: {message} Please refer to your Workbench log and to the Workbench documentation for suggestions."
+            )
+    else:
+        rollback_config_filename_basename = "rollback"
+
     if config["timestamp_rollback"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
-        rollback_config_filename = "rollback." + now_string + ".yml"
+        rollback_config_filename = (
+            f"{rollback_config_filename_basename}.{now_string}.yml"
+        )
     else:
-        rollback_config_filename = "rollback.yml"
+        rollback_config_filename = f"{rollback_config_filename_basename}.yml"
 
+    logging.info(f"Writing rollback configuration file to {rollback_config_filename}.")
     rollback_config_file = open(rollback_config_filename, "w")
     rollback_comments = get_rollback_config_comments(config)
     rollback_config_file.write(rollback_comments)
@@ -9006,17 +9077,22 @@ def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
 
 
 def get_rollback_config_comments(config):
+    comments = list()
     task = config["task"]
     config_file = config["config_file"]
-    time_string = now_string = EXECUTION_START_TIME.strftime("%Y:%m:%d %H:%M:%S")
     input_csv = config["input_csv"]
-    comments = (
-        f'# Generated by a "{task}" task started {time_string} using'
-        + "\n"
-        + f'# config file "{config_file}" and input CSV "{input_csv}".'
-        + "\n"
-    )
-    return comments
+    time_string = now_string = EXECUTION_START_TIME.strftime("%Y:%m:%d %H:%M:%S")
+
+    comments.append(f'# Generated by a "{task}" task started {time_string} using')
+    comments.append(f'config file "{config_file}" and input CSV "{input_csv}".')
+    if (
+        "rollback_file_comments" in config
+        and config["rollback_file_comments"] is not None
+        and len(config["rollback_file_comments"]) > 0
+    ):
+        comments.extend(config["rollback_file_comments"])
+
+    return "\n# ".join(comments) + "\n"
 
 
 def get_csv_from_google_sheet(config):

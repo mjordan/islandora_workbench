@@ -56,6 +56,7 @@ class i7ImportUtilities:
         "start": 0,
         "rows": 100000,
         "secure_ssl_only": True,
+        "pids": False,
     }
 
     def get_config(self):
@@ -180,6 +181,12 @@ class i7ImportUtilities:
             for collection in collections:
                 fedora_collections.append(f'{fedora_prefix}"{collection}"')
             fq_string = "&fq=" + " or ".join(fedora_collections)
+            query = f"{query}{fq_string}"
+        if self.config["pids"]:
+            pids_to_use = []
+            for candidate in self.config["pids"]:
+                pids_to_use.append(f"PID:{candidate}")
+            fq_string = "&fq=" + " or ".join(pids_to_use)
             query = f"{query}{fq_string}"
 
         # Get the populated CSV from Solr, with the object namespace and field list filters applied.
