@@ -7848,7 +7848,11 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         for column_name in fields_with_vocabularies:
             if len(row[column_name]):
                 new_term_names_in_csv = validate_taxonomy_reference_value(
-                    config, field_definitions, column_name, row[column_name], row[config["id_field"]]
+                    config,
+                    field_definitions,
+                    column_name,
+                    row[column_name],
+                    row[config["id_field"]],
                 )
                 new_term_names_in_csv_results.append(new_term_names_in_csv)
 
