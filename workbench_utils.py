@@ -7512,7 +7512,7 @@ def validate_authority_link_value(authority_link_value, authority_sources):
         return False
 
 
-def validate_term_name_length(term_name, row_number, column_name):
+def validate_term_name_length(term_name, row_id, column_name):
     """Checks that the length of a term name does not exceed
     Drupal's 255 character length.
     """
@@ -7521,8 +7521,8 @@ def validate_term_name_length(term_name, row_number, column_name):
         message = (
             'CSV field "'
             + column_name
-            + '" in record '
-            + row_number
+            + '" in record with ID '
+            + row_id
             + " contains a taxonomy term that exceeds Drupal's limit of 255 characters (length of term is "
             + str(len(term_name))
             + " characters)."
@@ -7848,7 +7848,7 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         for column_name in fields_with_vocabularies:
             if len(row[column_name]):
                 new_term_names_in_csv = validate_taxonomy_reference_value(
-                    config, field_definitions, column_name, row[column_name], count
+                    config, field_definitions, column_name, row[column_name], row[config["id_field"]]
                 )
                 new_term_names_in_csv_results.append(new_term_names_in_csv)
 
@@ -8135,7 +8135,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                                 field_definitions,
                                 column_name,
                                 field_value_to_check,
-                                count,
+                                row[config["id_field"]],
                             )
                             new_term_names_in_csv_results.append(new_term_names_in_csv)
 
@@ -8169,7 +8169,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
 
 
 def validate_taxonomy_reference_value(
-    config, field_definitions, csv_field_name, csv_field_value, record_number
+    config, field_definitions, csv_field_name, csv_field_value, row_id
 ):
     this_fields_vocabularies = get_field_vocabularies(
         config, field_definitions, csv_field_name
@@ -8211,8 +8211,8 @@ def validate_taxonomy_reference_value(
                             + tentative_namespace
                             + '" used in CSV column "'
                             + csv_field_name
-                            + '", row '
-                            + str(record_number)
+                            + '", row with ID '
+                            + str(row_id)
                             + " does not match any of the vocabularies referenced by the"
                             + " corresponding Drupal field ("
                             + this_fields_vocabularies_string
@@ -8229,15 +8229,15 @@ def validate_taxonomy_reference_value(
                     message_2 = (
                         '"'
                         + field_value
-                        + '" in row '
-                        + str(record_number)
+                        + '" in row with ID '
+                        + str(row_id)
                         + " does not have one."
                     )
                     logging.error(message + message_2)
                     sys.exit("Error: " + message + message_2)
 
                 validate_term_name_length(
-                    split_field_value, str(record_number), csv_field_name
+                    split_field_value, str(row_id), csv_field_name
                 )
 
         # Check to see if field_value is a member of the field's vocabularies. First, check whether field_value is a term ID.
@@ -8255,8 +8255,8 @@ def validate_taxonomy_reference_value(
                 message = (
                     'CSV field "'
                     + csv_field_name
-                    + '" in row '
-                    + str(record_number)
+                    + '" in row with ID '
+                    + str(row_id)
                     + " contains a term ID ("
                     + field_value
                     + ") that is "
@@ -8289,8 +8289,8 @@ def validate_taxonomy_reference_value(
                     message = (
                         'CSV field "'
                         + csv_field_name
-                        + '" in row '
-                        + str(record_number)
+                        + '" in row with ID '
+                        + str(row_id)
                         + " contains a term URI ("
                         + field_value
                         + ") that is "
@@ -8315,8 +8315,8 @@ def validate_taxonomy_reference_value(
                     + field_value
                     + '" used in CSV column "'
                     + csv_field_name
-                    + '" row '
-                    + str(record_number)
+                    + '" row with ID '
+                    + str(row_id)
                     + " does not match any terms."
                 )
                 logging.error(message)
@@ -8334,13 +8334,13 @@ def validate_taxonomy_reference_value(
                             if tid is False:
                                 new_term_names_in_csv = True
                                 validate_term_name_length(
-                                    field_value, str(record_number), csv_field_name
+                                    field_value, str(row_id), csv_field_name
                                 )
                                 message = (
                                     'CSV field "'
                                     + csv_field_name
-                                    + '" in row '
-                                    + str(record_number)
+                                    + '" in row with ID '
+                                    + str(row_id)
                                     + ' contains a term ("'
                                     + field_value.strip()
                                     + '") that is '
@@ -8370,8 +8370,8 @@ def validate_taxonomy_reference_value(
                             message = (
                                 'CSV field "'
                                 + csv_field_name
-                                + '" in row '
-                                + str(record_number)
+                                + '" in row with ID '
+                                + str(row_id)
                                 + ' contains a term ("'
                                 + field_value.strip()
                                 + '") that is '
@@ -8397,8 +8397,8 @@ def validate_taxonomy_reference_value(
                             message = (
                                 'CSV field "'
                                 + csv_field_name
-                                + '" in row '
-                                + str(record_number)
+                                + '" in row with ID '
+                                + str(row_id)
                                 + " contains a namespaced term name "
                             )
                             message_2 = (
@@ -8425,8 +8425,8 @@ def validate_taxonomy_reference_value(
                                 message = (
                                     'CSV field "'
                                     + csv_field_name
-                                    + '" in row '
-                                    + str(record_number)
+                                    + '" in row with ID '
+                                    + str(row_id)
                                     + ' contains a term ("'
                                     + namespaced_term_name.strip()
                                     + '") that is '
@@ -8455,7 +8455,7 @@ def validate_taxonomy_reference_value(
 
                                 validate_term_name_length(
                                     split_field_value,
-                                    str(record_number),
+                                    str(row_id),
                                     csv_field_name,
                                 )
                         # Die if namespaced term name is not specified vocab.
@@ -8464,8 +8464,8 @@ def validate_taxonomy_reference_value(
                                 message = (
                                     'CSV field "'
                                     + csv_field_name
-                                    + '" in row '
-                                    + str(record_number)
+                                    + '" in row with ID '
+                                    + str(row_id)
                                     + ' contains a term ("'
                                     + namespaced_term_name.strip()
                                     + '") that is '
