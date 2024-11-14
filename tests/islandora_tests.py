@@ -1565,7 +1565,7 @@ class TestMultipleParents(unittest.TestCase):
         self.assertEqual(len(self.nids), 3)
 
         # create the child CSV based on the parents created
-        file_path = os.path.join(
+        self.children_csv_file_path = os.path.join(
             self.current_dir, "assets", "create_multi_parents", "children.csv"
         )
         headers = ["id", "title", "field_model", "field_member_of"]
@@ -1597,7 +1597,7 @@ class TestMultipleParents(unittest.TestCase):
         ]
 
         # Write to CSV
-        with open(file_path, mode="w", newline="") as file:
+        with open(self.children_csv_file_path, mode="w", newline="") as file:
             writer = csv.DictWriter(file, fieldnames=headers)
             writer.writeheader()
             writer.writerows(data)
@@ -1627,7 +1627,7 @@ class TestMultipleParents(unittest.TestCase):
             response = requests.get(node_url, verify=False)
             node_json = json.loads(response.text)
             if node_json["title"][0]["value"] == "Child 1, 2":
-                self.assertEqual(len(node_json["field_member_of"]), 10)
+                self.assertEqual(len(node_json["field_member_of"]), 2)
             elif node_json["title"][0]["value"] == "Child 1":
                 self.assertEqual(len(node_json["field_member_of"]), 1)
             elif node_json["title"][0]["value"] == "Child 1, 2, 3":
@@ -1666,6 +1666,9 @@ class TestMultipleParents(unittest.TestCase):
         )
         if os.path.exists(secondary_preprocessed_csv_path):
             os.remove(secondary_preprocessed_csv_path)
+
+        if os.path.exists(self.children_csv_file_path):
+            os.remove(self.children_csv_file_path)
 
         map_file_path = os.path.join(
             self.current_dir, "assets", "create_multi_parents", "id_to_node_map.tsv"
