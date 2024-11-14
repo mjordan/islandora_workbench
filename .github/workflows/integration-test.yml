@@ -2,6 +2,10 @@ name: Run integration test
 
 on: [push, pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,6 +43,9 @@ jobs:
         run: |  
           python -m pip install --upgrade pip  
           python setup.py install
+
+          # disable media standalone URL
+          docker exec isle-site-template-drupal-dev-1 drush config:set media.settings standalone_url FALSE -y
 
       - name: Run unittests  
         run: |  
