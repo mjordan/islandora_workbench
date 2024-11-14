@@ -3471,42 +3471,53 @@ except Exception as e:
 
 config = workbench_config.get_config()
 
+# Start WIP on #846
 if "include_config" in config:
-    # print("DEBUG main config - clean", config)
-    # print("\n\n")
+    included_config_file_abspath = os.path.abspath(config["include_config"])
+    if not os.path.exists(included_config_file_abspath) or not os.path.isfile(included_config_file_abspath):
+        message = f"Included configuration file {included_config_file_abspath} not found or is not readable."
+        logging.error(message)
+        sys.exit("Error: " + message)
 
-    # Create a copy of the ArgumentParser to use for the included config file.
-    # @todo: Check that the file named in config["include_config"] is readable by the current user; if it isn't, log it and exit.
-    included_config_argparser = copy.deepcopy(parser)
-    included_args = included_config_argparser.parse_args(["--config", config["include_config"]])
-    included_workbench_config = WorkbenchConfig(included_args)
-    included_config = included_workbench_config.get_config()
-    # print("DEBUG included config", included_config)
-    # print("\n\n")
+    included_config_file = open(included_config_file_abspath, "r")
+    try:
+        included_config_yaml = YAML()
+        included_config = included_config_yaml.load(included_config_file)
+    except YAMLError as exc:
+        message = f"There appears to be a YAML syntax error in your included configuration file, {included_config_file_abspath}. Remove the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ or your YAML validator of choice."
+        logging.error(message)
+        sys.exit("Error: " + message)
 
-    # If a key exists in the included config dict or is different from the one in the main
-    # config, replace the one in the main config with the one in the included config.
-    # print("DEBUG main config - overridden", config)
-    for included_config_setting in included_config.keys():
-        if included_config_setting not in config.keys():
-            config[included_config_setting] = included_config[included_config_setting]
+    # We skip these settings if they are in the included config file.
+    main_only_config_settings = ["task", "host", "username", "password", "config_file", "config_file_path", "current_config_file_path"]
+    # main_only_config_settings = ["config_file", "config_file_path", "current_config_file_path"]
+    for included_config_setting in list(included_config.keys()):
+            # This section applies to config settings that exist in both the main and included config dictionary.
+            # In this case, we keep the setting in the main file.
+            if included_config_setting in list(config.keys()):
+                config[included_config_setting] = included_config[included_config_setting]
 
-        if config[included_config_setting] != included_config[included_config_setting]:
-            config[included_config_setting] = included_config[included_config_setting]
+            # This section applies to config settings not added to the main config dictionary by WorkbenchConfig.
+            if included_config_setting not in main_only_config_settings:
+                if included_config_setting not in list(config.keys()):
+                    config[included_config_setting] = included_config[included_config_setting]
 
-    # During WIP of #846 only.
-    from rich.console import Console
-    from rich.table import Table
-    table = Table(title="Workbench Configuration")
-    table.add_column("Parameter", justify="left")
-    table.add_column("Value", justify="left")
-    for key, value in config.items():
-        table.add_row(key, str(value))
-    console = Console()
-    console.print(table)
+    if config["dump_config"] is True:
+        from rich.console import Console
+        from rich.table import Table
+        # table = Table(title="Workbench Configuration")
+        table = Table()
+        table.add_column("Setting", justify="left")
+        table.add_column("Value", justify="left")
+        for key, value in config.items():
+            if key == 'password':
+                table.add_row(key, 'xxxxxxxxxx')
+            else:
+                table.add_row(key, str(value))
+        console = Console()
+        console.print(table)
 
     # End WIP on #846
-
 
 if args.check is not True and config["remind_user_to_run_check"] is True:
     if args.skip_user_prompts is not True:
