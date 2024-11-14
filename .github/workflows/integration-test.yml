@@ -1,0 +1,42 @@
+name: Run unittests
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:  
+      matrix:  
+        python-version: ["3.8", "3.9", "3.10", "3.11"] 
+    steps:
+      - name: Checkout isle-site-template
+        uses: actions/checkout@v4
+        with:
+          repository: Islandora-Devops/isle-site-template
+
+      - name: Install mkcert
+        run: |-
+          curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
+          chmod +x mkcert-v*-linux-amd64
+          sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
+
+      - name: Start islandora-starter-site
+        run: ./tests/init-template-starter.sh
+        env:
+          ISLANDORA_TAG: main
+          ISLANDORA_STARTER_REF: "heads/main"
+          ISLANDORA_STARTER_OWNER: "Islandora-Devops"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5  
+        with:  
+          python-version: 3.11  
+
+      - name: Install dependencies  
+        run: |  
+          python -m pip install --upgrade pip  
+          python setup.py install
+
+      - name: Run unittests  
+        run: |  
+          python tests/islandora_tests.py

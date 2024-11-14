@@ -1,4 +1,4 @@
-"""unittest tests that require a live Drupal at https://islandora.traefik.me. In most cases, the host URL,
+"""unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
    credentials, etc. are in a configuration file referenced in the test.
 
    Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
@@ -54,7 +54,7 @@ class TestCreate(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
@@ -100,7 +100,7 @@ class TestCreateFromFiles(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
@@ -165,7 +165,7 @@ class TestCreateWithMaxNodeTitleLength(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
@@ -243,9 +243,7 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
         # Fetch each node in self.nids and check to see if its title is <= 30 chars long. All should be.
         for nid_to_update in self.nids:
             node_url = (
-                "https://islandora.traefik.me/node/"
-                + str(self.nids[0])
-                + "?_format=json"
+                "https://islandora.dev/node/" + str(self.nids[0]) + "?_format=json"
             )
             node_response = requests.get(node_url, verify=False)
             node = json.loads(node_response.text)
@@ -259,7 +257,7 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
@@ -1622,12 +1620,14 @@ class TestMultipleParents(unittest.TestCase):
                 nid = nid.strip(".")
                 self.child_nids.append(nid)
 
+        self.assertEqual(len(self.child_nids), 4)
+
         for nid in self.child_nids:
             node_url = self.islandora_host + "/node/" + nid + "?_format=json"
             response = requests.get(node_url, verify=False)
             node_json = json.loads(response.text)
             if node_json["title"][0]["value"] == "Child 1, 2":
-                self.assertEqual(len(node_json["field_member_of"]), 2)
+                self.assertEqual(len(node_json["field_member_of"]), 10)
             elif node_json["title"][0]["value"] == "Child 1":
                 self.assertEqual(len(node_json["field_member_of"]), 1)
             elif node_json["title"][0]["value"] == "Child 1, 2, 3":
