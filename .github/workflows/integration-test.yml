@@ -9,6 +9,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
     steps:
 
       - name: Checkout workbench
