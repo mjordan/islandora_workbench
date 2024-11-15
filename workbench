@@ -15,6 +15,8 @@ import collections
 import subprocess
 import requests_cache
 from progress_bar import InitBar
+from rich.console import Console
+from rich.table import Table
 from ruamel.yaml import YAML
 from workbench_utils import *
 import workbench_fields
@@ -3468,6 +3470,11 @@ parser.add_argument(
     "--contactsheet", help="Generate a contact sheet.", action="store_true"
 )
 parser.add_argument(
+    "--print_config",
+    help="Prints out the current configuration settings.",
+    action="store_true",
+)
+parser.add_argument(
     "--skip_user_prompts",
     help='Include to skip any user prompts defined in your config file\'s "user_prompts" setting.',
     action="store_true",
@@ -3490,6 +3497,21 @@ except Exception as e:
     )
     sys.exit(str(e))
 config = workbench_config.get_config()
+
+if args.print_config is True:
+    print("\nCurrent Islandora Workbench configuration, including defaults")
+    table = Table()
+    table.add_column("Config setting", justify="left")
+    table.add_column("Value", justify="left")
+    for key, value in config.items():
+        if key == "password":
+            table.add_row(key, "xxxxxxxxxx")
+        else:
+            table.add_row(key, str(value))
+
+    console = Console()
+    console.print(table)
+    sys.exit()
 
 if args.check is not True and config["remind_user_to_run_check"] is True:
     if args.skip_user_prompts is not True:
