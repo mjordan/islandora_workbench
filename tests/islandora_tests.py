@@ -372,14 +372,15 @@ class TestDelete(unittest.TestCase):
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
         create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
+        with open(self.nid_file, "w") as fh:
             fh.write("node_id\n")
             for line in create_lines:
                 if "created at" in line:
                     nid = line.rsplit("/", 1)[-1]
                     nid = nid.strip(".")
-                    nids.append(nid)
-                    fh.write(nid + "\n")
+                    if workbench_utils.value_is_numeric(nid):
+                        nids.append(nid)
+                        fh.write(nid + "\n")
 
     def test_delete(self):
         delete_config_file_path = os.path.join(
@@ -429,14 +430,15 @@ class TestUpdate(unittest.TestCase):
         create_output = create_output.decode().strip()
         create_lines = create_output.splitlines()
 
-        with open(self.nid_file, "a") as nids_fh:
+        with open(self.nid_file, "w") as nids_fh:
             nids_fh.write("node_id\n")
             for line in create_lines:
                 if "created at" in line:
                     nid = line.rsplit("/", 1)[-1]
                     nid = nid.strip(".")
-                    nids_fh.write(nid + "\n")
-                    self.nids.append(nid)
+                    if workbench_utils.value_is_numeric(nid):
+                        nids_fh.write(nid + "\n")
+                        self.nids.append(nid)
 
         # Add some values to the update CSV file to test against.
         with open(self.update_metadata_file, "a") as update_fh:
@@ -520,14 +522,15 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
         create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
+        with open(self.nid_file, "w") as fh:
             fh.write("node_id\n")
             for line in create_lines:
                 if "created at" in line:
                     nid = line.rsplit("/", 1)[-1]
                     nid = nid.strip(".")
-                    nids.append(nid)
-                    fh.write(nid + "\n")
+                    if workbench_utils.value_is_numeric(nid):
+                        nids.append(nid)
+                        fh.write(nid + "\n")
 
         self.assertEqual(len(nids), 3)
 
