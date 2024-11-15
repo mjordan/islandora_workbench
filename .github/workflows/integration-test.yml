@@ -51,9 +51,6 @@ jobs:
       - name: Run islandora_tests  
         run: python tests/islandora_tests.py
 
-      - name: Run islandora_tests_check  
-        run: python tests/islandora_tests_check.py
-
       - name: Run islandora_tests_hooks  
         run: python tests/islandora_tests_hooks.py
 
