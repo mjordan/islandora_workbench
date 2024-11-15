@@ -78,7 +78,7 @@ class TestExecutePostActionEntityScript(unittest.TestCase):
             "execute_post_action_entity_script_test",
             "script.py",
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.output_file_path = os.path.join(
             self.temp_dir, "execute_post_action_entity_script.dat"
         )

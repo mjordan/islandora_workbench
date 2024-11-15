@@ -129,7 +129,7 @@ class TestCreateWithMaxNodeTitleLength(unittest.TestCase):
         self.nids = list()
         self.output_lines = ""
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_create(self):
         create_output = subprocess.check_output(self.create_cmd)
@@ -203,7 +203,7 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
         )
         self.update_cmd = ["./workbench", "--config", self.update_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_create(self):
         requests.packages.urllib3.disable_warnings()
@@ -298,7 +298,7 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         )
         self.create_cmd = ["./workbench", "--config", self.config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         parser = argparse.ArgumentParser()
         parser.add_argument("--config")
@@ -365,7 +365,7 @@ class TestDelete(unittest.TestCase):
         )
         self.create_cmd = ["./workbench", "--config", create_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nid_file = os.path.join(self.temp_dir, "workbenchdeletetesttnids.txt")
 
         nids = list()
@@ -409,7 +409,7 @@ class TestUpdate(unittest.TestCase):
         )
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nid_file = os.path.join(self.temp_dir, "workbenchupdatetestnids.txt")
         self.update_metadata_file = os.path.join(
             self.current_dir, "assets", "update_test", "workbenchupdatetest.csv"
@@ -506,7 +506,7 @@ class TestCreateWithNonLatinText(unittest.TestCase):
             config[k] = v
         self.islandora_host = config["host"]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nid_file = os.path.join(
             self.temp_dir, "workbenchcreatenonlatintestnids.txt"
         )
@@ -594,7 +594,7 @@ class TestSecondaryTask(unittest.TestCase):
         self.islandora_host = config["host"]
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_secondary_task(self):
         requests.packages.urllib3.disable_warnings()
@@ -698,7 +698,7 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
         self.islandora_host = config["host"]
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_secondary_task_with_google_sheet(self):
         requests.packages.urllib3.disable_warnings()
@@ -796,7 +796,7 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
         self.islandora_host = config["host"]
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_secondary_task_with_excel(self):
         requests.packages.urllib3.disable_warnings()
@@ -899,7 +899,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         self.rollback_file_path = os.path.join(
             self.current_dir, "assets", "additional_files_test", "rollback.csv"
@@ -1019,7 +1019,7 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(unittest.TestCase):
         self.rollback_file_path = os.path.join(
             self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1109,7 +1109,7 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(unittest.TestCase):
         self.rollback_file_path = os.path.join(
             self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1225,7 +1225,7 @@ class TestAdditionalFilesAddMediaAllowMissingFilesFalse(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_false.log",
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1393,7 +1393,7 @@ class TestAdditionalFilesAddMediaAllowMissingFilesTrue(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_true.log",
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1547,7 +1547,7 @@ class TestMultipleParents(unittest.TestCase):
         self.islandora_host = config["host"]
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_secondary_task(self):
         requests.packages.urllib3.disable_warnings()

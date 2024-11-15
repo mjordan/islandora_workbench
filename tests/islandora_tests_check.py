@@ -87,7 +87,7 @@ class TestUpdateCheck(unittest.TestCase):
         config_file_path = os.path.join(
             self.current_dir, "assets", "check_test", "update.yml"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
@@ -113,7 +113,7 @@ class TestDeleteCheck(unittest.TestCase):
         config_file_path = os.path.join(
             self.current_dir, "assets", "check_test", "delete.yml"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
@@ -139,7 +139,7 @@ class TestAddMediaCheck(unittest.TestCase):
         config_file_path = os.path.join(
             self.current_dir, "assets", "check_test", "add_media.yml"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
@@ -165,7 +165,7 @@ class TestCreateMaxNodeTitleLengthCheck(unittest.TestCase):
         config_file_path = os.path.join(
             self.current_dir, "assets", "max_node_title_length_test", "create.yml"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
@@ -225,7 +225,7 @@ class TestUpdateWithMaxNodeTitleLengthCheck(unittest.TestCase):
             "--check",
         ]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_for_too_long_titles(self):
         create_output = subprocess.check_output(self.create_cmd)
@@ -311,7 +311,7 @@ class TestUpdateWithMaxNodeTitleLengthCheck(unittest.TestCase):
 class TestTypedRelationBadRelatorCheck(unittest.TestCase):
 
     def setUp(self):
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_bad_relator_check_fail(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -351,7 +351,7 @@ class TestTypedRelationBadRelatorCheck(unittest.TestCase):
 class TestTypedRelationBadUriCheck(unittest.TestCase):
 
     def setUp(self):
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_bad_uri_check_fail(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -397,7 +397,7 @@ class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_new_typed_relation_check(self):
         self.assertRegex(self.output, "new terms will be created as noted", "")
@@ -423,7 +423,7 @@ class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
 class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
 
     def setUp(self):
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_no_namespace_check_fail(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -466,7 +466,7 @@ class TestDelimiterCheck(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_delimiter_check(self):
         self.assertRegex(self.output, "input data appear to be valid", "")
@@ -482,7 +482,7 @@ class TestDelimiterCheck(unittest.TestCase):
 class TestGeolocationCheck(unittest.TestCase):
 
     def setUp(self):
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_geolocation_check(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -508,7 +508,7 @@ class TestGeolocationCheck(unittest.TestCase):
 class TestHeaderColumnMismatchCheck(unittest.TestCase):
 
     def setUp(self):
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_header_column_mismatch_fail(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -547,7 +547,7 @@ class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_create_with_field_templates_check(self):
         self.assertRegex(
@@ -565,7 +565,7 @@ class TestCommentedCsvs(unittest.TestCase):
 
     def test_commented_csv(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         config_file_path = os.path.join(
             current_dir, "assets", "commented_csvs_test", "raw_csv.yml"
@@ -636,7 +636,7 @@ class TestTaxonomies(unittest.TestCase):
 
         self.create_cmd = ["./workbench", "--config", self.taxonomies_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         nids = list()
@@ -774,7 +774,7 @@ class TestTaxonomies(unittest.TestCase):
 class TestGoogleGid(unittest.TestCase):
 
     def setUp(self):
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_google_gid(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -826,7 +826,7 @@ class TestParentsPrecedeChildren(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_good_csv(self):
         config_file_path = os.path.join(
@@ -860,7 +860,7 @@ class TestCreateAllowMissingFiles(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.false_log_file_path = os.path.join(
             self.current_dir,
             "assets",
@@ -978,7 +978,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.false_log_file_path = os.path.join(
             self.current_dir,
             "assets",
@@ -1153,7 +1153,7 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
         self.add_media_csv_file_path = os.path.join(
             self.current_dir, "assets", "allow_missing_files_test", "add_media.csv"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1381,7 +1381,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files.csv",
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1575,7 +1575,7 @@ class TestCsvRowFilters(unittest.TestCase):
             "csv_row_filters_test",
             "csv_row_filters_test.yml",
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.preprocessed_csv_file_path = os.path.join(
             self.temp_dir, "csv_row_filters_test.csv.preprocessed"
         )
