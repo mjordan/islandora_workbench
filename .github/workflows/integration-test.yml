@@ -49,9 +49,6 @@ jobs:
           docker exec isle-site-template-drupal-dev-1 drush config:set media.settings standalone_url FALSE -y
           docker exec isle-site-template-drupal-dev-1 drush cr
 
-      - name: Run islandora_tests  
-        run: python tests/islandora_tests.py
-
       - name: Run islandora_tests_hooks  
         run: python tests/islandora_tests_hooks.py
 
@@ -59,3 +56,6 @@ jobs:
         run: python tests/islandora_tests_paged_content.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
+
+      - name: Run islandora_tests  
+        run: python tests/islandora_tests.py
