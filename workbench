@@ -48,8 +48,9 @@ def create():
         logging.info(message)
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    write_rollback_config(config, path_to_rollback_csv_file)
     prep_rollback_csv(config, path_to_rollback_csv_file)
-    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
+    logging.info(f"Writing rollback CSV to {path_to_rollback_csv_file}.")
 
     prepare_csv_id_to_node_id_map(config)
 
@@ -470,8 +471,6 @@ def create():
         # If 'url_alias' is in the CSV, create the alias.
         if "url_alias" in row and len(row["url_alias"]) > 0:
             create_url_alias(config, node_id, row["url_alias"])
-
-        write_rollback_config(config, path_to_rollback_csv_file)
 
         # If the file named in 'file' can't be found.
         if "file" in row and len(row["file"].strip()) > 0:
@@ -2265,8 +2264,9 @@ def create_from_files():
     files = os.listdir(file_dir_path)
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    write_rollback_config(config, path_to_rollback_csv_file)
     prep_rollback_csv(config, path_to_rollback_csv_file)
-    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
+    logging.info(f"Writing rollback CSV to {path_to_rollback_csv_file}.")
 
     num_files = len(files)
     file_count = 0
@@ -3112,7 +3112,6 @@ def update_terms():
     )
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
-    # invalid_target_ids = []
 
     if config["log_term_creation"] is False:
         logging.info(
@@ -3183,13 +3182,23 @@ def update_terms():
             if len(row["description"].strip()) != 0:
                 term["description"] = [{"value": row["description"]}]
 
+        if "published" in csv_column_headers:
+            if len(row["published"].strip()) != 0:
+                term["status"] = [{"value": row["published"]}]
+
         # Add custom (non-required) fields.
         required_fields = ["term_id"]
         custom_fields = list(set(csv_column_headers) - set(required_fields))
         for custom_field in custom_fields:
             term_has_all_fields = True
             # If node doesn't have the field, log that fact and skip updating the field.
-            reserved_fields = ["parent", "weight", "description", "term_name"]
+            reserved_fields = [
+                "parent",
+                "weight",
+                "description",
+                "term_name",
+                "published",
+            ]
             if (
                 custom_field not in json.loads(term_response.text)
                 and custom_field not in reserved_fields
@@ -3214,6 +3223,10 @@ def update_terms():
 
             # 'description' is a reserved CSV field.
             if custom_field == "description":
+                continue
+
+            # 'published' is a reserved CSV field.
+            if custom_field == "published":
                 continue
 
             # Assemble Drupal field structures from CSV data. If new field types are added to
@@ -3312,6 +3325,14 @@ def update_terms():
                 logging.info(
                     "Term %s updated.",
                     config["host"] + "/taxonomy/term/" + row["term_id"],
+                )
+            else:
+                message = (
+                    f'Term {config["host"]}/taxonomy/term/{row["term_id"]} not updated.'
+                )
+                print("Warning: " + message)
+                logging.warning(
+                    f"{message} HTTP response code was {term_response.status_code}. Response body was {term_response.text}."
                 )
 
             if config["progress_bar"] is True:

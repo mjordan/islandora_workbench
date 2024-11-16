@@ -79,6 +79,14 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     """
     if "media_type" in config:
         return config["media_type"]
+    if config["media_type_by_media_use"] and len(config["media_type_by_media_use"]) > 0:
+        additional_files = get_additional_files_config(config)
+        media_url = additional_files.get(file_fieldname)
+        if file_fieldname in additional_files:
+            for entry in config["media_type_by_media_use"]:
+                for key, value in entry.items():
+                    if key == media_url:
+                        return value
 
     # Determine if the incomtimg filepath matches a registered eEmbed media type.
     oembed_media_type = get_oembed_url_media_type(config, filepath)
@@ -2780,6 +2788,7 @@ def check_input(config, args):
             "parent",
             "weight",
             "description",
+            "published",
         ]
         drupal_fieldnames = []
         for drupal_fieldname in field_definitions:
@@ -6479,9 +6488,10 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
         return tid
     else:
         logging.warning(
-            "Term '%s' not created, HTTP response code was %s.",
+            "Term '%s' not created, HTTP response code was %s, response body was %s.",
             term_name,
             response.status_code,
+            response.text,
         )
         return False
 
@@ -6508,9 +6518,18 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             The dict containing the term field data, or False if this is not possible.
             @note: reason why creating JSON is not possible should be logged in this function.
     """
+    if (
+        term_csv_row is not None
+        and "published" in term_csv_row.keys()
+        and len(term_csv_row["published"]) > 0
+    ):
+        published_status = term_csv_row["published"]
+    else:
+        published_status = True
+
     # 'vid' and 'name' are added in create_term().
     term_field_data = {
-        "status": [{"value": True}],
+        "status": [{"value": published_status}],
         "description": [{"value": "", "format": None}],
         "weight": [{"value": 0}],
         "parent": [{"target_type": "taxonomy_term", "target_id": None}],
@@ -6536,6 +6555,10 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
         for field_name in vocab_csv_column_headers:
             # term_name is the "id" field in the vocabulary CSV and not a field in the term JSON, so skip it.
             if field_name == "term_name":
+                continue
+
+            # "published" is a reserved column name in the vocabulary CSV and not a field in the term JSON, so skip it.
+            if field_name == "published":
                 continue
 
             # 'parent' field is present and not empty, so we need to look up the parent term. All terms
@@ -7504,7 +7527,7 @@ def validate_authority_link_value(authority_link_value, authority_sources):
         return False
 
 
-def validate_term_name_length(term_name, row_number, column_name):
+def validate_term_name_length(term_name, row_id, column_name):
     """Checks that the length of a term name does not exceed
     Drupal's 255 character length.
     """
@@ -7513,8 +7536,8 @@ def validate_term_name_length(term_name, row_number, column_name):
         message = (
             'CSV field "'
             + column_name
-            + '" in record '
-            + row_number
+            + '" in record with ID '
+            + row_id
             + " contains a taxonomy term that exceeds Drupal's limit of 255 characters (length of term is "
             + str(len(term_name))
             + " characters)."
@@ -7840,7 +7863,11 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         for column_name in fields_with_vocabularies:
             if len(row[column_name]):
                 new_term_names_in_csv = validate_taxonomy_reference_value(
-                    config, field_definitions, column_name, row[column_name], count
+                    config,
+                    field_definitions,
+                    column_name,
+                    row[column_name],
+                    row[config["id_field"]],
                 )
                 new_term_names_in_csv_results.append(new_term_names_in_csv)
 
@@ -8127,7 +8154,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
                                 field_definitions,
                                 column_name,
                                 field_value_to_check,
-                                count,
+                                row[config["id_field"]],
                             )
                             new_term_names_in_csv_results.append(new_term_names_in_csv)
 
@@ -8161,7 +8188,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
 
 
 def validate_taxonomy_reference_value(
-    config, field_definitions, csv_field_name, csv_field_value, record_number
+    config, field_definitions, csv_field_name, csv_field_value, row_id
 ):
     this_fields_vocabularies = get_field_vocabularies(
         config, field_definitions, csv_field_name
@@ -8203,8 +8230,8 @@ def validate_taxonomy_reference_value(
                             + tentative_namespace
                             + '" used in CSV column "'
                             + csv_field_name
-                            + '", row '
-                            + str(record_number)
+                            + '", row with ID '
+                            + str(row_id)
                             + " does not match any of the vocabularies referenced by the"
                             + " corresponding Drupal field ("
                             + this_fields_vocabularies_string
@@ -8221,15 +8248,15 @@ def validate_taxonomy_reference_value(
                     message_2 = (
                         '"'
                         + field_value
-                        + '" in row '
-                        + str(record_number)
+                        + '" in row with ID '
+                        + str(row_id)
                         + " does not have one."
                     )
                     logging.error(message + message_2)
                     sys.exit("Error: " + message + message_2)
 
                 validate_term_name_length(
-                    split_field_value, str(record_number), csv_field_name
+                    split_field_value, str(row_id), csv_field_name
                 )
 
         # Check to see if field_value is a member of the field's vocabularies. First, check whether field_value is a term ID.
@@ -8247,8 +8274,8 @@ def validate_taxonomy_reference_value(
                 message = (
                     'CSV field "'
                     + csv_field_name
-                    + '" in row '
-                    + str(record_number)
+                    + '" in row with ID '
+                    + str(row_id)
                     + " contains a term ID ("
                     + field_value
                     + ") that is "
@@ -8281,8 +8308,8 @@ def validate_taxonomy_reference_value(
                     message = (
                         'CSV field "'
                         + csv_field_name
-                        + '" in row '
-                        + str(record_number)
+                        + '" in row with ID '
+                        + str(row_id)
                         + " contains a term URI ("
                         + field_value
                         + ") that is "
@@ -8307,8 +8334,8 @@ def validate_taxonomy_reference_value(
                     + field_value
                     + '" used in CSV column "'
                     + csv_field_name
-                    + '" row '
-                    + str(record_number)
+                    + '" row with ID '
+                    + str(row_id)
                     + " does not match any terms."
                 )
                 logging.error(message)
@@ -8326,13 +8353,13 @@ def validate_taxonomy_reference_value(
                             if tid is False:
                                 new_term_names_in_csv = True
                                 validate_term_name_length(
-                                    field_value, str(record_number), csv_field_name
+                                    field_value, str(row_id), csv_field_name
                                 )
                                 message = (
                                     'CSV field "'
                                     + csv_field_name
-                                    + '" in row '
-                                    + str(record_number)
+                                    + '" in row with ID '
+                                    + str(row_id)
                                     + ' contains a term ("'
                                     + field_value.strip()
                                     + '") that is '
@@ -8362,8 +8389,8 @@ def validate_taxonomy_reference_value(
                             message = (
                                 'CSV field "'
                                 + csv_field_name
-                                + '" in row '
-                                + str(record_number)
+                                + '" in row with ID '
+                                + str(row_id)
                                 + ' contains a term ("'
                                 + field_value.strip()
                                 + '") that is '
@@ -8389,8 +8416,8 @@ def validate_taxonomy_reference_value(
                             message = (
                                 'CSV field "'
                                 + csv_field_name
-                                + '" in row '
-                                + str(record_number)
+                                + '" in row with ID '
+                                + str(row_id)
                                 + " contains a namespaced term name "
                             )
                             message_2 = (
@@ -8417,8 +8444,8 @@ def validate_taxonomy_reference_value(
                                 message = (
                                     'CSV field "'
                                     + csv_field_name
-                                    + '" in row '
-                                    + str(record_number)
+                                    + '" in row with ID '
+                                    + str(row_id)
                                     + ' contains a term ("'
                                     + namespaced_term_name.strip()
                                     + '") that is '
@@ -8447,7 +8474,7 @@ def validate_taxonomy_reference_value(
 
                                 validate_term_name_length(
                                     split_field_value,
-                                    str(record_number),
+                                    str(row_id),
                                     csv_field_name,
                                 )
                         # Die if namespaced term name is not specified vocab.
@@ -8456,8 +8483,8 @@ def validate_taxonomy_reference_value(
                                 message = (
                                     'CSV field "'
                                     + csv_field_name
-                                    + '" in row '
-                                    + str(record_number)
+                                    + '" in row with ID '
+                                    + str(row_id)
                                     + ' contains a term ("'
                                     + namespaced_term_name.strip()
                                     + '") that is '
@@ -8564,7 +8591,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         for field_name in node_dict:
             if field_name.startswith("field_"):
                 row[field_name] = serialize_field_json(
-                    config, field_definitions, field_name, node_dict[fifileeld_name]
+                    config, field_definitions, field_name, node_dict[field_name]
                 )
         row.update(input_csv_row)
     writer.writerow(row)
@@ -8937,11 +8964,41 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
 
 def get_rollback_csv_filepath(config):
+    if "rollback_csv_filename_template" in config:
+        config_filename, task_config_ext = os.path.splitext(config["config_file"])
+        input_csv_filename, input_csv_ext = os.path.splitext(config["input_csv"])
+
+        rollback_csv_filename_template = string.Template(
+            config["rollback_csv_filename_template"]
+        )
+        try:
+            rollback_csv_filename_basename = str(
+                rollback_csv_filename_template.substitute(
+                    {
+                        "config_filename": config_filename,
+                        "input_csv_filename": input_csv_filename,
+                    }
+                )
+            )
+        except Exception as e:
+            # We need to account for the very common case where the user has included "valid identifier characters"
+            # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common case will
+            # likely be underscores separating the template placeholders.
+            message = f'One or more parts of the configured rollback csv filename template ({config["rollback_csv_filename_template"]}) need adjusting.'
+            logging.error(
+                f"{message} A {e.__class__.__name__} exception occured with the error message {e}. Please refer to the Workbench documentation for suggestions."
+            )
+            sys.exit(
+                f"Error: {message} Please refer to your Workbench log and to the Workbench documentation for suggestions."
+            )
+    else:
+        rollback_csv_filename_basename = "rollback"
+
     if config["timestamp_rollback"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
-        rollback_csv_filename = "rollback." + now_string + ".csv"
+        rollback_csv_filename = f"{rollback_csv_filename_basename}.{now_string}.csv"
     else:
-        rollback_csv_filename = "rollback.csv"
+        rollback_csv_filename = f"{rollback_csv_filename_basename}.csv"
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
@@ -8955,12 +9012,45 @@ def get_rollback_csv_filepath(config):
 
 
 def write_rollback_config(config, path_to_rollback_csv_file):
+    if "rollback_config_filename_template" in config:
+        config_filename, task_config_ext = os.path.splitext(config["config_file"])
+        input_csv_filename, input_csv_ext = os.path.splitext(config["input_csv"])
+
+        rollback_config_filename_template = string.Template(
+            config["rollback_config_filename_template"]
+        )
+        try:
+            rollback_config_filename_basename = str(
+                rollback_config_filename_template.substitute(
+                    {
+                        "config_filename": config_filename,
+                        "input_csv_filename": input_csv_filename,
+                    }
+                )
+            )
+        except Exception as e:
+            # We need to account for the very common case where the user has included "valid identifier characters"
+            # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common case will
+            # likely be underscores separating the template placeholders.
+            message = f'One or more parts of the configured rollback configuration filename template ({config["rollback_config_filename_template"]}) need adjusting.'
+            logging.error(
+                f"{message} A {e.__class__.__name__} exception occured with the error message {e}. Please refer to the Workbench documentation for suggestions."
+            )
+            sys.exit(
+                f"Error: {message} Please refer to your Workbench log and to the Workbench documentation for suggestions."
+            )
+    else:
+        rollback_config_filename_basename = "rollback"
+
     if config["timestamp_rollback"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
-        rollback_config_filename = "rollback." + now_string + ".yml"
+        rollback_config_filename = (
+            f"{rollback_config_filename_basename}.{now_string}.yml"
+        )
     else:
-        rollback_config_filename = "rollback.yml"
+        rollback_config_filename = f"{rollback_config_filename_basename}.yml"
 
+    logging.info(f"Writing rollback configuration file to {rollback_config_filename}.")
     rollback_config_file = open(rollback_config_filename, "w")
     rollback_comments = get_rollback_config_comments(config)
     rollback_config_file.write(rollback_comments)
@@ -9006,17 +9096,22 @@ def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
 
 
 def get_rollback_config_comments(config):
+    comments = list()
     task = config["task"]
     config_file = config["config_file"]
-    time_string = now_string = EXECUTION_START_TIME.strftime("%Y:%m:%d %H:%M:%S")
     input_csv = config["input_csv"]
-    comments = (
-        f'# Generated by a "{task}" task started {time_string} using'
-        + "\n"
-        + f'# config file "{config_file}" and input CSV "{input_csv}".'
-        + "\n"
-    )
-    return comments
+    time_string = now_string = EXECUTION_START_TIME.strftime("%Y:%m:%d %H:%M:%S")
+
+    comments.append(f'# Generated by a "{task}" task started {time_string} using')
+    comments.append(f'config file "{config_file}" and input CSV "{input_csv}".')
+    if (
+        "rollback_file_comments" in config
+        and config["rollback_file_comments"] is not None
+        and len(config["rollback_file_comments"]) > 0
+    ):
+        comments.extend(config["rollback_file_comments"])
+
+    return "\n# ".join(comments) + "\n"
 
 
 def get_csv_from_google_sheet(config):
