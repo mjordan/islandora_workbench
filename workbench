@@ -3142,13 +3142,13 @@ def update_terms():
         if term_ping_result is False:
             if config["progress_bar"] is False:
                 print(
-                    "Term "
-                    + row["term_name"]
+                    "Warning: Term "
+                    + row["term_id"]
                     + " not found or not accessible, skipping update."
                 )
             logging.warning(
                 "Term "
-                + row["term_name"]
+                + row["term_id"]
                 + " not found or not accessible, skipping update."
             )
             continue
