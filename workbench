@@ -3479,6 +3479,22 @@ parser.add_argument(
     help='Include to skip any user prompts defined in your config file\'s "user_prompts" setting.',
     action="store_true",
 )
+parser.add_argument(
+    "--input_csv",
+    help="Overrides the 'input_csv' configuration setting.",
+)
+parser.add_argument(
+    "--input_dir",
+    help="Overrides the 'input_dir' configuration setting.",
+)
+parser.add_argument(
+    "--google_sheets_gid",
+    help="Overrides the 'google_sheets_gid' configuration setting.",
+)
+parser.add_argument(
+    "--log_file_path",
+    help="Overrides the 'log_file_path' configuration setting.",
+)
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
 
@@ -3497,6 +3513,15 @@ except Exception as e:
     )
     sys.exit(str(e))
 config = workbench_config.get_config()
+
+if args.input_csv is not None:
+    config["input_csv"] = args.input_csv
+if args.input_csv is not None:
+    config["google_sheets_gid"] = args.google_sheets_gid
+if args.input_dir is not None:
+    config["input_dir"] = args.input_dir
+if args.log_file_path is not None:
+    config["log_file_path"] = args.log_file_path
 
 if args.print_config is True:
     print("\nCurrent Islandora Workbench configuration, including defaults")
