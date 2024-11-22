@@ -15,6 +15,8 @@ import collections
 import subprocess
 import requests_cache
 from progress_bar import InitBar
+from rich.console import Console
+from rich.table import Table
 from ruamel.yaml import YAML
 from workbench_utils import *
 import workbench_fields
@@ -48,8 +50,9 @@ def create():
         logging.info(message)
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    write_rollback_config(config, path_to_rollback_csv_file)
     prep_rollback_csv(config, path_to_rollback_csv_file)
-    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
+    logging.info(f"Writing rollback CSV to {path_to_rollback_csv_file}.")
 
     prepare_csv_id_to_node_id_map(config)
 
@@ -470,8 +473,6 @@ def create():
         # If 'url_alias' is in the CSV, create the alias.
         if "url_alias" in row and len(row["url_alias"]) > 0:
             create_url_alias(config, node_id, row["url_alias"])
-
-        write_rollback_config(config, path_to_rollback_csv_file)
 
         # If the file named in 'file' can't be found.
         if "file" in row and len(row["file"].strip()) > 0:
@@ -2265,8 +2266,9 @@ def create_from_files():
     files = os.listdir(file_dir_path)
 
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
+    write_rollback_config(config, path_to_rollback_csv_file)
     prep_rollback_csv(config, path_to_rollback_csv_file)
-    logging.info("Writing rollback CSV to " + path_to_rollback_csv_file)
+    logging.info(f"Writing rollback CSV to {path_to_rollback_csv_file}.")
 
     num_files = len(files)
     file_count = 0
@@ -3112,7 +3114,6 @@ def update_terms():
     )
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
-    # invalid_target_ids = []
 
     if config["log_term_creation"] is False:
         logging.info(
@@ -3143,13 +3144,13 @@ def update_terms():
         if term_ping_result is False:
             if config["progress_bar"] is False:
                 print(
-                    "Term "
-                    + row["term_name"]
+                    "Warning: Term "
+                    + row["term_id"]
                     + " not found or not accessible, skipping update."
                 )
             logging.warning(
                 "Term "
-                + row["term_name"]
+                + row["term_id"]
                 + " not found or not accessible, skipping update."
             )
             continue
@@ -3183,13 +3184,23 @@ def update_terms():
             if len(row["description"].strip()) != 0:
                 term["description"] = [{"value": row["description"]}]
 
+        if "published" in csv_column_headers:
+            if len(row["published"].strip()) != 0:
+                term["status"] = [{"value": row["published"]}]
+
         # Add custom (non-required) fields.
         required_fields = ["term_id"]
         custom_fields = list(set(csv_column_headers) - set(required_fields))
         for custom_field in custom_fields:
             term_has_all_fields = True
             # If node doesn't have the field, log that fact and skip updating the field.
-            reserved_fields = ["parent", "weight", "description", "term_name"]
+            reserved_fields = [
+                "parent",
+                "weight",
+                "description",
+                "term_name",
+                "published",
+            ]
             if (
                 custom_field not in json.loads(term_response.text)
                 and custom_field not in reserved_fields
@@ -3214,6 +3225,10 @@ def update_terms():
 
             # 'description' is a reserved CSV field.
             if custom_field == "description":
+                continue
+
+            # 'published' is a reserved CSV field.
+            if custom_field == "published":
                 continue
 
             # Assemble Drupal field structures from CSV data. If new field types are added to
@@ -3312,6 +3327,14 @@ def update_terms():
                 logging.info(
                     "Term %s updated.",
                     config["host"] + "/taxonomy/term/" + row["term_id"],
+                )
+            else:
+                message = (
+                    f'Term {config["host"]}/taxonomy/term/{row["term_id"]} not updated.'
+                )
+                print("Warning: " + message)
+                logging.warning(
+                    f"{message} HTTP response code was {term_response.status_code}. Response body was {term_response.text}."
                 )
 
             if config["progress_bar"] is True:
@@ -3511,9 +3534,30 @@ parser.add_argument(
     "--contactsheet", help="Generate a contact sheet.", action="store_true"
 )
 parser.add_argument(
+    "--print_config",
+    help="Prints out the current configuration settings.",
+    action="store_true",
+)
+parser.add_argument(
     "--skip_user_prompts",
     help='Include to skip any user prompts defined in your config file\'s "user_prompts" setting.',
     action="store_true",
+)
+parser.add_argument(
+    "--input_csv",
+    help="Overrides the 'input_csv' configuration setting.",
+)
+parser.add_argument(
+    "--input_dir",
+    help="Overrides the 'input_dir' configuration setting.",
+)
+parser.add_argument(
+    "--google_sheets_gid",
+    help="Overrides the 'google_sheets_gid' configuration setting.",
+)
+parser.add_argument(
+    "--log_file_path",
+    help="Overrides the 'log_file_path' configuration setting.",
 )
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
@@ -3533,6 +3577,30 @@ except Exception as e:
     )
     sys.exit(str(e))
 config = workbench_config.get_config()
+
+if args.input_csv is not None:
+    config["input_csv"] = args.input_csv
+if args.input_csv is not None:
+    config["google_sheets_gid"] = args.google_sheets_gid
+if args.input_dir is not None:
+    config["input_dir"] = args.input_dir
+if args.log_file_path is not None:
+    config["log_file_path"] = args.log_file_path
+
+if args.print_config is True:
+    print("\nCurrent Islandora Workbench configuration, including defaults")
+    table = Table()
+    table.add_column("Config setting", justify="left")
+    table.add_column("Value", justify="left")
+    for key, value in config.items():
+        if key == "password":
+            table.add_row(key, "xxxxxxxxxx")
+        else:
+            table.add_row(key, str(value))
+
+    console = Console()
+    console.print(table)
+    sys.exit()
 
 if args.check is not True and config["remind_user_to_run_check"] is True:
     if args.skip_user_prompts is not True:
