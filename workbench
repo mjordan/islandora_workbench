@@ -3322,9 +3322,9 @@ def update_terms():
 
 def update_files():
     """Update files via PATCH. Note that PATCHing replaces the target field,
-       so if we are adding an additional value to a multivalued field, we need
-       to include the existing value(s) in our PATCH. The field classes take
-       care of preserving existing values in 'append' updates.
+    so if we are adding an additional value to a multivalued field, we need
+    to include the existing value(s) in our PATCH. The field classes take
+    care of preserving existing values in 'append' updates.
     """
     message = (
         '"Update Files" ('
@@ -3335,10 +3335,10 @@ def update_files():
     )
     print(message)
     logging.info(message)
-    
+
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
-    
+
     if "file_id" not in csv_column_headers:
         message = (
             'For "update_files" tasks, your CSV file must contain a "file_id" column.'
@@ -3351,13 +3351,11 @@ def update_files():
         # Delete expired items from request_cache before processing a row.
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)
-        file = {
-            
-        }
+        file = {}
         if "filename" in csv_column_headers:
             if len(row["filename"].strip()) != 0:
                 file["filename"] = [{"value": row["filename"]}]
-                
+
         file_endpoint = (
             config["host"] + "/entity/file/" + row["file_id"] + "?_format=json"
         )
@@ -3379,11 +3377,11 @@ def update_files():
                 "File %s updated.",
                 config["host"] + "/entity/file/" + row["file_id"],
             )
-        
+
         if config["progress_bar"] is True:
-                row_count += 1
-                row_position = get_percentage(row_count, num_csv_records)
-                pbar(row_position)
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
 
 
 def create_redirects():
@@ -3418,6 +3416,13 @@ def create_redirects():
             logging.warning(message)
             continue
 
+        if row["redirect_target"].lower().startswith("http") is False:
+            # It's an internal redirect.
+            redirect_target = f'internal:/{row["redirect_target"]}'
+        else:
+            # It's an external redirect.
+            redirect_target = row["redirect_target"]
+
         # Check to see if the redirect source value is already a redirect. We don't use issue_request()
         # since we don't want to override config["allow_redirects"] for this one request.
         is_redirect_url = config["host"].rstrip("/") + "/" + row["redirect_source"]
@@ -3443,7 +3448,7 @@ def create_redirects():
         redirect = {
             "type": [{"value": "redirect"}],
             "redirect_source": [{"path": row["redirect_source"].lstrip("/").strip()}],
-            "redirect_redirect": [{"uri": row["redirect_target"].strip()}],
+            "redirect_redirect": [{"uri": redirect_target.strip()}],
             "status_code": [{"value": int(config["redirect_status_code"])}],
         }
         redirect_endpoint = config["host"] + "/entity/redirect?_format=json"
@@ -3470,7 +3475,7 @@ def create_redirects():
                 + '" not created.'
             )
             print("Error: " + message + " See log for more info.")
-            logging.error(message + "HTTP status code: " + str(response.status_code))
+            logging.error(message + " HTTP status code: " + str(response.status_code))
 
         if config["progress_bar"] is True:
             redirect_row_position = get_percentage(redirect_row_count, num_csv_records)
