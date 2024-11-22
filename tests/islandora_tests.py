@@ -1522,12 +1522,15 @@ class TestUpdateFileName(unittest.TestCase):
         self.create_config_file_path = os.path.join(
             self.current_dir, "assets", "update_file_name_test", "create.yml"
         )
+        self.create_csv_file_path = os.path.join(
+            self.current_dir, "assets", "update_file_name_test", "create.csv"
+        )
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
         self.nids = list()
         self.fids = list()
 
         self.update_csv_file_path = os.path.join(
-            self.current_dir, "assets", "update_file_name_test", "update_file_name.csv"
+            self.current_dir, "assets", "update_file_name_test", "update_files.csv"
         )
         self.update_config_file_path = os.path.join(
             self.current_dir, "assets", "update_file_name_test", "update.yml"
@@ -1545,6 +1548,8 @@ class TestUpdateFileName(unittest.TestCase):
         config = workbench_config.get_config()
         self.config = config
 
+        self.temp_dir = tempfile.gettempdir()
+
     def test_update(self):
         create_output = subprocess.check_output(self.create_cmd)
         self.create_output = create_output.decode().strip()
@@ -1559,11 +1564,16 @@ class TestUpdateFileName(unittest.TestCase):
         test_file_names = ["add_media_file_1.jpg", "add_media_file_2.jpg"]
 
         i = 0
-        csv_data = workbench_utils.get_csv_data(self.config)
+        with open(self.create_csv_file_path):
+            csv_data = workbench_utils.get_csv_data(self.config)
         for row in csv_data:
-            file_id = workbench_utils.create_file(
-                self.config, test_file_names[i], None, row, self.nids[i]
+            self.test_file_path = os.path.join(
+                self.current_dir, "assets", "update_file_name_test", test_file_names[i]
             )
+            with open(self.test_file_path):
+                file_id = workbench_utils.create_file(
+                    self.config, test_file_names[i], "file", row, row["id"]
+                )
             self.assertIsNot(file_id, False)
             self.fids.append(file_id)
             i = i + 1
@@ -1590,7 +1600,7 @@ class TestUpdateFileName(unittest.TestCase):
         new_file_names = ["new_file_name_1.jpg", "new_file_name_2.jpg"]
         update_csv_file_rows.append("file_id,filename")
         i = 0
-        while i <= 2:
+        while i <= 1:
             update_csv_file_rows.append(f"{self.fids[i]},{new_file_names[i]}")
             i = i + 1
         with open(self.update_csv_file_path, mode="wt") as update_csv_file:
@@ -1599,7 +1609,7 @@ class TestUpdateFileName(unittest.TestCase):
 
         # Hit URL to see if file was successfully renamed
         i = 0
-        while i <= 4:
+        while i <= 1:
             file = {}
             file_endpoint = (
                 self.config["host"]
@@ -1612,7 +1622,9 @@ class TestUpdateFileName(unittest.TestCase):
                 self.config, "GET", file_endpoint, file_headers, file
             )
             self.assertEqual(file_response.status_code, 200)
-            self.assertEqual(file_response.json()["filename"], new_file_names[i])
+            self.assertEqual(
+                file_response.json()["filename"][0]["value"], new_file_names[i]
+            )
             i = i + 1
 
     def tearDown(self):
@@ -1633,15 +1645,13 @@ class TestUpdateFileName(unittest.TestCase):
             os.remove(self.rollback_file_path)
 
         self.preprocessed_file_path = os.path.join(
-            self.current_dir, "assets", "update_file_name_test", "rollback.preprocessed"
+            self.temp_dir, "create.csv.preprocessed"
         )
         if os.path.exists(self.preprocessed_file_path):
             os.remove(self.preprocessed_file_path)
 
         if os.path.exists(self.update_csv_file_path):
             os.remove(self.update_csv_file_path)
-        if os.path.exists(self.update_csv_file_path + ".preprocessed"):
-            os.remove(self.update_csv_file_path + ".preprocessed")
 
 
 class TestUpdateMediaFields(unittest.TestCase):

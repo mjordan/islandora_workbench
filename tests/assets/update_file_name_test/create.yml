@@ -4,5 +4,4 @@ username: admin
 password: password
 input_dir: "tests/assets/update_file_name_test"
 input_csv: create.csv
-paged_content_from_directories: True
-nodes_only: True
+standalone_media_url: true
