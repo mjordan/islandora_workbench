@@ -3649,16 +3649,17 @@ def check_input(config, args):
                 print("Warning: " + message)
                 logging.warning(message)
             for page_file_name in page_files:
-                if config["paged_content_sequence_separator"] not in page_file_name:
-                    message = (
-                        "Page file "
-                        + os.path.join(dir_path, page_file_name)
-                        + " does not contain a sequence separator ("
-                        + config["paged_content_sequence_separator"]
-                        + ")."
-                    )
-                    logging.error(message)
-                    sys.exit("Error: " + message)
+                if page_file_name.strip().lower() not in [fn.strip().lower() for fn in config["paged_content_ignore_files"]]:
+                    if config["paged_content_sequence_separator"] not in page_file_name:
+                        message = (
+                            "Page file "
+                            + os.path.join(dir_path, page_file_name)
+                            + " does not contain a sequence separator ("
+                            + config["paged_content_sequence_separator"]
+                            + ")."
+                        )
+                        logging.error(message)
+                        sys.exit("Error: " + message)
 
         print("OK, page directories are all present.")
 
@@ -8629,6 +8630,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     required_fields = get_required_bundle_fields(config, "node", config["content_type"])
 
     for page_file_name in page_files:
+        if page_file_name.strip().lower() in [fn.strip().lower() for fn in config["paged_content_ignore_files"]]:
+            continue
+
         filename_without_extension = os.path.splitext(page_file_name)[0]
         filename_segments = filename_without_extension.split(
             config["paged_content_sequence_separator"]
