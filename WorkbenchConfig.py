@@ -287,7 +287,7 @@ class WorkbenchConfig:
             "allow_csv_value_templates_if_field_empty": [],
             "remind_user_to_run_check": False,
             "media_type_by_media_use": False,
-            "paged_content_ignore_files": ["Thumbs.db"]
+            "paged_content_ignore_files": ["Thumbs.db"],
         }
 
     # Tests validity and existence of configuration file path.
