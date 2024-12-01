@@ -3905,6 +3905,11 @@ def check_rollback_file_path_directories(config):
         logging.error(message)
         sys.exit("Error: " + message)
 
+    if config["check"] is True:
+        logging.info(
+            f"Rollback configuration file will be written to {rollback_config_file_path}."
+        )
+
     rollback_csv_file_path = get_rollback_csv_filepath(config)
     rollback_csv_file_path_head, rollback_csv_file_path_tail = os.path.split(
         rollback_csv_file_path
@@ -3913,6 +3918,9 @@ def check_rollback_file_path_directories(config):
         message = f'Directory "{rollback_csv_file_path_head}" in the rollback CSV file path does not exist or is not writable.'
         logging.error(message)
         sys.exit("Error: " + message)
+
+    if config["check"] is True:
+        logging.info(f"Rollback CSV file will be written to {rollback_csv_file_path}.")
 
 
 def get_registered_media_extensions(config, media_bundle, field_name_filter=None):
