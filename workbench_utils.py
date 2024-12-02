@@ -3163,10 +3163,9 @@ def check_input(config, args):
                     + str(count)
                     + ") does not exist (HTTP response code is "
                     + str(path_exists_response.status_code)
-                    + ")."
+                    + ") so is available as a redirect."
                 )
-                logging.warning(message)
-                warnings_about_redirect_input_csv = True
+                logging.info(message)
                 continue
             else:
                 # We've already tested for 3xx responses, so assume that the path exists.
