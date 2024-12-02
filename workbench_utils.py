@@ -10244,7 +10244,7 @@ def get_page_title_from_template(config, parent_title, weight):
 
 
 def apply_csv_value_templates(config, template_config_setting, row):
-    """Applies a simple template to a CSV value. Template variables availalbe are: $csv_value, $file,
+    """Applies templates to values in a CSV row. Template variables available are: $csv_value, $file,
     $filename_without_extension, $weight, $random_alphanumeric_string, $random_number_string, and
     $uuid_string.
     """
@@ -10318,6 +10318,10 @@ def apply_csv_value_templates(config, template_config_setting, row):
                     )
                     outgoing_subvalues.append(subvalue)
 
+                # Note: fields that are registered in "csv_value_templates_for_paged_content" should
+                # also be listed in "allow_csv_value_templates_if_field_empty" since those fields will
+                # be empty when applied to pages. Fields not listed in "allow_csv_value_templates_if_field_empty"
+                # will not be applied to pages.
                 if (
                     len(row[field]) == 0
                     and field in config["allow_csv_value_templates_if_field_empty"]
