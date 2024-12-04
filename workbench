@@ -3507,6 +3507,14 @@ parser.add_argument(
     "--rollback_csv_file_path",
     help="Overrides the 'rollback_csv_file_path' configuration setting.",
 )
+parser.add_argument(
+    "--csv_start_row",
+    help="Overrides the 'csv_start_row' configuration setting.",
+)
+parser.add_argument(
+    "--csv_stop_row",
+    help="Overrides the 'csv_stop_row' configuration setting.",
+)
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
 
@@ -3539,6 +3547,10 @@ if args.rollback_config_file_path is not None:
     config["rollback_config_file_path"] = args.rollback_config_file_path
 if args.rollback_csv_file_path is not None:
     config["rollback_csv_file_path"] = args.rollback_csv_file_path
+if args.csv_start_row is not None:
+    config["csv_start_row"] = int(args.csv_start_row)
+if args.csv_stop_row is not None:
+    config["csv_stop_row"] = int(args.csv_stop_row)
 
 if args.print_config is True:
     print("\nCurrent Islandora Workbench configuration, including defaults")

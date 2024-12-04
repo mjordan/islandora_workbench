@@ -9016,6 +9016,8 @@ def get_rollback_csv_filepath(config):
                     {
                         "config_filename": config_filename,
                         "input_csv_filename": input_csv_filename,
+                        "csv_start_row": str(config["csv_start_row"]),
+                        "csv_stop_row": str(config["csv_stop_row"]),
                     }
                 )
             )
@@ -9084,6 +9086,8 @@ def get_rollback_config_filepath(config):
                     {
                         "config_filename": config_filename,
                         "input_csv_filename": input_csv_filename,
+                        "csv_start_row": str(config["csv_start_row"]),
+                        "csv_stop_row": str(config["csv_stop_row"]),
                     }
                 )
             )
