@@ -9011,16 +9011,25 @@ def get_rollback_csv_filepath(config):
             config["rollback_csv_filename_template"]
         )
         try:
-            rollback_csv_filename_basename = str(
-                rollback_csv_filename_template.substitute(
-                    {
-                        "config_filename": config_filename,
-                        "input_csv_filename": input_csv_filename,
-                        "csv_start_row": str(config["csv_start_row"]),
-                        "csv_stop_row": str(config["csv_stop_row"]),
-                    }
+            if config["task"] == "create":
+                rollback_csv_filename_basename = str(
+                    rollback_csv_filename_template.substitute(
+                        {
+                            "config_filename": config_filename,
+                            "input_csv_filename": input_csv_filename,
+                            "csv_start_row": str(config["csv_start_row"]),
+                            "csv_stop_row": str(config["csv_stop_row"]),
+                        }
+                    )
                 )
-            )
+            if config["task"] == "create_from_files":
+                rollback_csv_filename_basename = str(
+                    rollback_csv_filename_template.substitute(
+                        {
+                            "config_filename": config_filename,
+                        }
+                    )
+                )
         except Exception as e:
             # We need to account for the very common case where the user has included "valid identifier characters"
             # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common case will
@@ -9081,16 +9090,25 @@ def get_rollback_config_filepath(config):
             config["rollback_config_filename_template"]
         )
         try:
-            rollback_config_filename_basename = str(
-                rollback_config_filename_template.substitute(
-                    {
-                        "config_filename": config_filename,
-                        "input_csv_filename": input_csv_filename,
-                        "csv_start_row": str(config["csv_start_row"]),
-                        "csv_stop_row": str(config["csv_stop_row"]),
-                    }
+            if config["task"] == "create":
+                rollback_config_filename_basename = str(
+                    rollback_config_filename_template.substitute(
+                        {
+                            "config_filename": config_filename,
+                            "input_csv_filename": input_csv_filename,
+                            "csv_start_row": str(config["csv_start_row"]),
+                            "csv_stop_row": str(config["csv_stop_row"]),
+                        }
+                    )
                 )
-            )
+            if config["task"] == "create_from_files":
+                rollback_config_filename_basename = str(
+                    rollback_config_filename_template.substitute(
+                        {
+                            "config_filename": config_filename,
+                        }
+                    )
+                )
         except Exception as e:
             # We need to account for the very common case where the user has included "valid identifier characters"
             # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common case will
