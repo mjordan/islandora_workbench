@@ -8700,10 +8700,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                     paged_items_template_template,
                 ) in paged_items_template.items():
                     if paged_items_template_field_name not in inherited_fields:
-                        inherited_fields.append(paged_items_template_field_name)
-                        csv_row_to_apply_to_paged_children[
-                            paged_items_template_field_name
-                        ] = ""
+                        if paged_items_template_field_name in parent_csv_record:
+                            inherited_fields.append(paged_items_template_field_name)
+                            csv_row_to_apply_to_paged_children[
+                                paged_items_template_field_name
+                            ] = parent_csv_record[paged_items_template_field_name]
 
         if (
             "csv_value_templates_for_paged_content" in config
@@ -8845,7 +8846,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
                 # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
                 else:
-                    # WIP on #791.
                     simple_field = workbench_fields.SimpleField()
                     node_json = simple_field.create(
                         config,
@@ -10256,7 +10256,8 @@ def apply_csv_value_templates(config, template_config_setting, row):
             The config setting to get the templates from. One of 'csv_value_templates' or
             'csv_value_templates_for_paged_content'.
         row: OrderedDict
-            A CSV row to apply the template(s) to.
+            A CSV row to apply the template(s) to. For pages/children created from subdirectories, this
+            is a version of the parent's row so we can get $csv_value values for non-required fields.
         Returns
         -------
         dict
@@ -10318,29 +10319,48 @@ def apply_csv_value_templates(config, template_config_setting, row):
                     )
                     outgoing_subvalues.append(subvalue)
 
-                # Note: fields that are registered in "csv_value_templates_for_paged_content" should
-                # also be listed in "allow_csv_value_templates_if_field_empty" since those fields will
-                # be empty when applied to pages. Fields not listed in "allow_csv_value_templates_if_field_empty"
-                # will not be applied to pages.
-                if (
-                    len(row[field]) == 0
-                    and field in config["allow_csv_value_templates_if_field_empty"]
-                ):
-                    field_template = string.Template(templates[field])
-                    subvalue = str(
-                        field_template.substitute(
-                            {
-                                "csv_value": subvalue,
-                                "file": row_file_value,
-                                "filename_without_extension": filename_without_extension,
-                                "weight": weight,
-                                "random_alphanumeric_string": alphanumeric_string,
-                                "random_number_string": number_string,
-                                "uuid_string": uuid_string,
-                            }
+                # Handle empty CSV values, first for parent-level items and then for page/child items from
+                # subdirectories (which will always have empty CSV values except for required fields).
+                if len(row[field]) == 0:
+                    if (
+                        template_config_setting == "csv_value_templates"
+                        and field in config["allow_csv_value_templates_if_field_empty"]
+                    ):
+                        field_template = string.Template(templates[field])
+                        subvalue = str(
+                            field_template.substitute(
+                                {
+                                    "csv_value": subvalue,
+                                    "file": row_file_value,
+                                    "filename_without_extension": filename_without_extension,
+                                    "weight": weight,
+                                    "random_alphanumeric_string": alphanumeric_string,
+                                    "random_number_string": number_string,
+                                    "uuid_string": uuid_string,
+                                }
+                            )
                         )
-                    )
-                    outgoing_subvalues.append(subvalue)
+                        outgoing_subvalues.append(subvalue)
+
+                    if (
+                        template_config_setting
+                        == "csv_value_templates_for_paged_content"
+                    ):
+                        field_template = string.Template(templates[field])
+                        subvalue = str(
+                            field_template.substitute(
+                                {
+                                    "csv_value": subvalue,
+                                    "file": row_file_value,
+                                    "filename_without_extension": filename_without_extension,
+                                    "weight": weight,
+                                    "random_alphanumeric_string": alphanumeric_string,
+                                    "random_number_string": number_string,
+                                    "uuid_string": uuid_string,
+                                }
+                            )
+                        )
+                        outgoing_subvalues.append(subvalue)
 
             templated_string = config["subdelimiter"].join(outgoing_subvalues)
             row[field] = templated_string
