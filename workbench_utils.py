@@ -2060,6 +2060,10 @@ def check_input(config, args):
     print(message)
     logging.info(message)
 
+    # Check that the rollback configuration file and CSV file directories exist and are writable.
+    if config["task"] in ["create", "create_from_files"]:
+        check_rollback_file_path_directories(config)
+
     create_temp_dir(config)
 
     # Perform checks on get_data_from_view tasks. Since this task doesn't use input_dir, input_csv, etc.,
@@ -3106,6 +3110,18 @@ def check_input(config, args):
 
         check_for_redirects_csv_data = get_csv_data(config)
         for count, row in enumerate(check_for_redirects_csv_data, start=1):
+            if len(row["redirect_source"].strip()) == 0:
+                message = f"Redirect source value in input CSV row {count} is empty. Redirect will not be created."
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+                continue
+
+            if len(row["redirect_target"].strip()) == 0:
+                message = f"Redirect target value in input CSV row {count} is empty. Redirect will not be created."
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+                continue
+
             if row["redirect_source"].lower().startswith("http"):
                 message = (
                     'Redirect source values cannot contain a hostname, they must be a path only, without a hostname. Please correct "'
@@ -3160,10 +3176,9 @@ def check_input(config, args):
                     + str(count)
                     + ") does not exist (HTTP response code is "
                     + str(path_exists_response.status_code)
-                    + ")."
+                    + ") so is available as a redirect."
                 )
-                logging.warning(message)
-                warnings_about_redirect_input_csv = True
+                logging.info(message)
                 continue
             else:
                 # We've already tested for 3xx responses, so assume that the path exists.
@@ -3650,16 +3665,19 @@ def check_input(config, args):
                 print("Warning: " + message)
                 logging.warning(message)
             for page_file_name in page_files:
-                if config["paged_content_sequence_separator"] not in page_file_name:
-                    message = (
-                        "Page file "
-                        + os.path.join(dir_path, page_file_name)
-                        + " does not contain a sequence separator ("
-                        + config["paged_content_sequence_separator"]
-                        + ")."
-                    )
-                    logging.error(message)
-                    sys.exit("Error: " + message)
+                if page_file_name.strip().lower() not in [
+                    fn.strip().lower() for fn in config["paged_content_ignore_files"]
+                ]:
+                    if config["paged_content_sequence_separator"] not in page_file_name:
+                        message = (
+                            "Page file "
+                            + os.path.join(dir_path, page_file_name)
+                            + " does not contain a sequence separator ("
+                            + config["paged_content_sequence_separator"]
+                            + ")."
+                        )
+                        logging.error(message)
+                        sys.exit("Error: " + message)
 
         print("OK, page directories are all present.")
 
@@ -3887,6 +3905,34 @@ def check_input(config, args):
             output = subprocess.run(cmd)
 
         sys.exit(0)
+
+
+def check_rollback_file_path_directories(config):
+    rollback_config_file_path = get_rollback_config_filepath(config)
+    rollback_config_file_path_head, rollback_config_file_path_tail = os.path.split(
+        rollback_config_file_path
+    )
+    if not os.access(rollback_config_file_path_head, os.W_OK):
+        message = f'Directory "{rollback_config_file_path_head}" in the rollback configuration file path does not exist or is not writable.'
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    if config["check"] is True:
+        logging.info(
+            f"Rollback configuration file will be written to {rollback_config_file_path}."
+        )
+
+    rollback_csv_file_path = get_rollback_csv_filepath(config)
+    rollback_csv_file_path_head, rollback_csv_file_path_tail = os.path.split(
+        rollback_csv_file_path
+    )
+    if not os.access(rollback_csv_file_path_head, os.W_OK):
+        message = f'Directory "{rollback_csv_file_path_head}" in the rollback CSV file path does not exist or is not writable.'
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+    if config["check"] is True:
+        logging.info(f"Rollback CSV file will be written to {rollback_csv_file_path}.")
 
 
 def get_registered_media_extensions(config, media_bundle, field_name_filter=None):
@@ -8630,6 +8676,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     required_fields = get_required_bundle_fields(config, "node", config["content_type"])
 
     for page_file_name in page_files:
+        if page_file_name.strip().lower() in [
+            fn.strip().lower() for fn in config["paged_content_ignore_files"]
+        ]:
+            continue
+
         filename_without_extension = os.path.splitext(page_file_name)[0]
         filename_segments = filename_without_extension.split(
             config["paged_content_sequence_separator"]
@@ -8662,10 +8713,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                     paged_items_template_template,
                 ) in paged_items_template.items():
                     if paged_items_template_field_name not in inherited_fields:
-                        inherited_fields.append(paged_items_template_field_name)
-                        csv_row_to_apply_to_paged_children[
-                            paged_items_template_field_name
-                        ] = ""
+                        if paged_items_template_field_name in parent_csv_record:
+                            inherited_fields.append(paged_items_template_field_name)
+                            csv_row_to_apply_to_paged_children[
+                                paged_items_template_field_name
+                            ] = parent_csv_record[paged_items_template_field_name]
 
         if (
             "csv_value_templates_for_paged_content" in config
@@ -8807,7 +8859,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
                 # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
                 else:
-                    # WIP on #791.
                     simple_field = workbench_fields.SimpleField()
                     node_json = simple_field.create(
                         config,
@@ -8973,14 +9024,25 @@ def get_rollback_csv_filepath(config):
             config["rollback_csv_filename_template"]
         )
         try:
-            rollback_csv_filename_basename = str(
-                rollback_csv_filename_template.substitute(
-                    {
-                        "config_filename": config_filename,
-                        "input_csv_filename": input_csv_filename,
-                    }
+            if config["task"] == "create":
+                rollback_csv_filename_basename = str(
+                    rollback_csv_filename_template.substitute(
+                        {
+                            "config_filename": config_filename,
+                            "input_csv_filename": input_csv_filename,
+                            "csv_start_row": str(config["csv_start_row"]),
+                            "csv_stop_row": str(config["csv_stop_row"]),
+                        }
+                    )
                 )
-            )
+            if config["task"] == "create_from_files":
+                rollback_csv_filename_basename = str(
+                    rollback_csv_filename_template.substitute(
+                        {
+                            "config_filename": config_filename,
+                        }
+                    )
+                )
         except Exception as e:
             # We need to account for the very common case where the user has included "valid identifier characters"
             # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common case will
@@ -8997,6 +9059,8 @@ def get_rollback_csv_filepath(config):
 
     if config["timestamp_rollback"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
+
+    if config["timestamp_rollback"] is True:
         rollback_csv_filename = f"{rollback_csv_filename_basename}.{now_string}.csv"
     else:
         rollback_csv_filename = f"{rollback_csv_filename_basename}.csv"
@@ -9007,12 +9071,30 @@ def get_rollback_csv_filepath(config):
             config_file_id = get_config_file_identifier(config)
             rollback_csv_filename = rollback_csv_filename + "." + config_file_id
 
-    return os.path.join(
-        config["rollback_dir"] or config["input_dir"], rollback_csv_filename
-    )
+    if "rollback_csv_file_path" in config and len(config["rollback_csv_file_path"]) > 0:
+        if config["timestamp_rollback"] is True:
+            rollback_csv_file_path_head, rollback_csv_file_path_tail = os.path.split(
+                config["rollback_csv_file_path"]
+            )
+            rollback_csv_file_basename, rollback_csv_file_ext = os.path.splitext(
+                rollback_csv_file_path_tail
+            )
+            rollback_csv_file_path = os.path.join(
+                rollback_csv_file_path_head,
+                f"{rollback_csv_file_basename}.{now_string}{rollback_csv_file_ext}",
+            )
+            return os.path.abspath(rollback_csv_file_path)
+        else:
+            return os.path.abspath(config["rollback_csv_file_path"])
+    else:
+        return os.path.abspath(
+            os.path.join(
+                config["rollback_dir"] or config["input_dir"], rollback_csv_filename
+            )
+        )
 
 
-def write_rollback_config(config, path_to_rollback_csv_file):
+def get_rollback_config_filepath(config):
     if "rollback_config_filename_template" in config:
         config_filename, task_config_ext = os.path.splitext(config["config_file"])
         input_csv_filename, input_csv_ext = os.path.splitext(config["input_csv"])
@@ -9021,14 +9103,25 @@ def write_rollback_config(config, path_to_rollback_csv_file):
             config["rollback_config_filename_template"]
         )
         try:
-            rollback_config_filename_basename = str(
-                rollback_config_filename_template.substitute(
-                    {
-                        "config_filename": config_filename,
-                        "input_csv_filename": input_csv_filename,
-                    }
+            if config["task"] == "create":
+                rollback_config_filename_basename = str(
+                    rollback_config_filename_template.substitute(
+                        {
+                            "config_filename": config_filename,
+                            "input_csv_filename": input_csv_filename,
+                            "csv_start_row": str(config["csv_start_row"]),
+                            "csv_stop_row": str(config["csv_stop_row"]),
+                        }
+                    )
                 )
-            )
+            if config["task"] == "create_from_files":
+                rollback_config_filename_basename = str(
+                    rollback_config_filename_template.substitute(
+                        {
+                            "config_filename": config_filename,
+                        }
+                    )
+                )
         except Exception as e:
             # We need to account for the very common case where the user has included "valid identifier characters"
             # (as defined in https://peps.python.org/pep-0292/) as part of their template. The most common case will
@@ -9043,28 +9136,72 @@ def write_rollback_config(config, path_to_rollback_csv_file):
     else:
         rollback_config_filename_basename = "rollback"
 
+    # Get workbench's current directory, to use as the default directory for the rollback config file.
+    # We only override this location if "rollback_config_file_path" is set in the config.
+    if "rollback_config_file_path" not in config:
+        rb_config_file_dir = sys.path[0]
+    else:
+        rb_config_file_dir = ""
+
     if config["timestamp_rollback"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
-        rollback_config_filename = (
-            f"{rollback_config_filename_basename}.{now_string}.yml"
+
+    if config["timestamp_rollback"] is True:
+        rollback_config_filepath = os.path.join(
+            f"{rb_config_file_dir}",
+            f"{rollback_config_filename_basename}.{now_string}.yml",
         )
     else:
-        rollback_config_filename = f"{rollback_config_filename_basename}.yml"
+        rollback_config_filepath = os.path.join(
+            f"{rb_config_file_dir}", f"{rollback_config_filename_basename}.yml"
+        )
+
+    if (
+        "rollback_config_file_path" in config
+        and len(config["rollback_config_file_path"]) > 0
+    ):
+        if config["timestamp_rollback"] is True:
+            rollback_config_file_path_head, rollback_config_file_path_tail = (
+                os.path.split(config["rollback_config_file_path"])
+            )
+            rollback_config_file_basename, rollback_config_file_ext = os.path.splitext(
+                rollback_config_file_path_tail
+            )
+            rollback_config_file_path = os.path.join(
+                rollback_config_file_path_head,
+                f"{rollback_config_file_basename}.{now_string}{rollback_config_file_ext}",
+            )
+            return os.path.abspath(rollback_config_file_path)
+        else:
+            rollback_config_filepath = os.path.abspath(
+                config["rollback_config_file_path"]
+            )
+
+    return rollback_config_filepath
+
+
+def write_rollback_config(config, path_to_rollback_csv_file):
+    rollback_config_filename = get_rollback_config_filepath(config)
 
     logging.info(f"Writing rollback configuration file to {rollback_config_filename}.")
     rollback_config_file = open(rollback_config_filename, "w")
     rollback_comments = get_rollback_config_comments(config)
     rollback_config_file.write(rollback_comments)
 
+    if config["include_password_in_rollback_config_file"] is True:
+        password = config["password"]
+    else:
+        password = None
+
     yaml.dump(
         {
             "task": "delete",
             "host": config["host"],
             "username": config["username"],
-            "password": config["password"],
+            "password": password,
             "input_dir": config["input_dir"],
             "standalone_media_url": config["standalone_media_url"],
-            "input_csv": os.path.basename(path_to_rollback_csv_file),
+            "input_csv": path_to_rollback_csv_file,
         },
         rollback_config_file,
     )
@@ -10142,7 +10279,7 @@ def get_page_title_from_template(config, parent_title, weight):
 
 
 def apply_csv_value_templates(config, template_config_setting, row):
-    """Applies a simple template to a CSV value. Template variables availalbe are: $csv_value, $file,
+    """Applies templates to values in a CSV row. Template variables available are: $csv_value, $file,
     $filename_without_extension, $weight, $random_alphanumeric_string, $random_number_string, and
     $uuid_string.
     """
@@ -10154,7 +10291,8 @@ def apply_csv_value_templates(config, template_config_setting, row):
             The config setting to get the templates from. One of 'csv_value_templates' or
             'csv_value_templates_for_paged_content'.
         row: OrderedDict
-            A CSV row to apply the template(s) to.
+            A CSV row to apply the template(s) to. For pages/children created from subdirectories, this
+            is a version of the parent's row so we can get $csv_value values for non-required fields.
         Returns
         -------
         dict
@@ -10216,25 +10354,48 @@ def apply_csv_value_templates(config, template_config_setting, row):
                     )
                     outgoing_subvalues.append(subvalue)
 
-                if (
-                    len(row[field]) == 0
-                    and field in config["allow_csv_value_templates_if_field_empty"]
-                ):
-                    field_template = string.Template(templates[field])
-                    subvalue = str(
-                        field_template.substitute(
-                            {
-                                "csv_value": subvalue,
-                                "file": row_file_value,
-                                "filename_without_extension": filename_without_extension,
-                                "weight": weight,
-                                "random_alphanumeric_string": alphanumeric_string,
-                                "random_number_string": number_string,
-                                "uuid_string": uuid_string,
-                            }
+                # Handle empty CSV values, first for parent-level items and then for page/child items from
+                # subdirectories (which will always have empty CSV values except for required fields).
+                if len(row[field]) == 0:
+                    if (
+                        template_config_setting == "csv_value_templates"
+                        and field in config["allow_csv_value_templates_if_field_empty"]
+                    ):
+                        field_template = string.Template(templates[field])
+                        subvalue = str(
+                            field_template.substitute(
+                                {
+                                    "csv_value": subvalue,
+                                    "file": row_file_value,
+                                    "filename_without_extension": filename_without_extension,
+                                    "weight": weight,
+                                    "random_alphanumeric_string": alphanumeric_string,
+                                    "random_number_string": number_string,
+                                    "uuid_string": uuid_string,
+                                }
+                            )
                         )
-                    )
-                    outgoing_subvalues.append(subvalue)
+                        outgoing_subvalues.append(subvalue)
+
+                    if (
+                        template_config_setting
+                        == "csv_value_templates_for_paged_content"
+                    ):
+                        field_template = string.Template(templates[field])
+                        subvalue = str(
+                            field_template.substitute(
+                                {
+                                    "csv_value": subvalue,
+                                    "file": row_file_value,
+                                    "filename_without_extension": filename_without_extension,
+                                    "weight": weight,
+                                    "random_alphanumeric_string": alphanumeric_string,
+                                    "random_number_string": number_string,
+                                    "uuid_string": uuid_string,
+                                }
+                            )
+                        )
+                        outgoing_subvalues.append(subvalue)
 
             templated_string = config["subdelimiter"].join(outgoing_subvalues)
             row[field] = templated_string

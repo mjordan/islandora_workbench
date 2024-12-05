@@ -29,6 +29,8 @@ def create():
     print(message)
     logging.info(message)
 
+    check_rollback_file_path_directories(config)
+
     if config["ignore_existing_parent_ids"] is True:
         workbench_execution_start_time = "{:%Y-%m-%d %H:%M:%S}".format(
             datetime.datetime.now()
@@ -2260,6 +2262,8 @@ def create_from_files():
     print(message)
     logging.info(message)
 
+    check_rollback_file_path_directories(config)
+
     prepare_csv_id_to_node_id_map(config)
 
     file_dir_path = config["input_dir"]
@@ -3429,6 +3433,18 @@ def create_redirects():
 
         redirect_row_count += 1
 
+        if len(row["redirect_source"].strip()) == 0:
+            message = f"Redirect source value in input CSV row {redirect_row_count} is empty. Skipping."
+            print("Warning: " + message)
+            logging.warning(message)
+            continue
+
+        if len(row["redirect_target"].strip()) == 0:
+            message = f"Redirect target value in input CSV row {redirect_row_count} is empty. Skipping."
+            print("Warning: " + message)
+            logging.warning(message)
+            continue
+
         if row["redirect_source"].lower().startswith("http"):
             message = (
                 'Redirect source values cannot contain a hostname, they must be a path only. Skipping creating redirect from "'
@@ -3559,6 +3575,22 @@ parser.add_argument(
     "--log_file_path",
     help="Overrides the 'log_file_path' configuration setting.",
 )
+parser.add_argument(
+    "--rollback_config_file_path",
+    help="Overrides the 'rollback_config_file_path' configuration setting.",
+)
+parser.add_argument(
+    "--rollback_csv_file_path",
+    help="Overrides the 'rollback_csv_file_path' configuration setting.",
+)
+parser.add_argument(
+    "--csv_start_row",
+    help="Overrides the 'csv_start_row' configuration setting.",
+)
+parser.add_argument(
+    "--csv_stop_row",
+    help="Overrides the 'csv_stop_row' configuration setting.",
+)
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
 
@@ -3578,6 +3610,7 @@ except Exception as e:
     sys.exit(str(e))
 config = workbench_config.get_config()
 
+# Override configuration settings that are provided as command-line arguments.
 if args.input_csv is not None:
     config["input_csv"] = args.input_csv
 if args.input_csv is not None:
@@ -3586,6 +3619,14 @@ if args.input_dir is not None:
     config["input_dir"] = args.input_dir
 if args.log_file_path is not None:
     config["log_file_path"] = args.log_file_path
+if args.rollback_config_file_path is not None:
+    config["rollback_config_file_path"] = args.rollback_config_file_path
+if args.rollback_csv_file_path is not None:
+    config["rollback_csv_file_path"] = args.rollback_csv_file_path
+if args.csv_start_row is not None:
+    config["csv_start_row"] = int(args.csv_start_row)
+if args.csv_stop_row is not None:
+    config["csv_stop_row"] = int(args.csv_stop_row)
 
 if args.print_config is True:
     print("\nCurrent Islandora Workbench configuration, including defaults")
