@@ -3109,6 +3109,18 @@ def check_input(config, args):
 
         check_for_redirects_csv_data = get_csv_data(config)
         for count, row in enumerate(check_for_redirects_csv_data, start=1):
+            if len(row["redirect_source"].strip()) == 0:
+                message = f"Redirect source value in input CSV row {count} is empty. Redirect will not be created."
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+                continue
+
+            if len(row["redirect_target"].strip()) == 0:
+                message = f"Redirect target value in input CSV row {count} is empty. Redirect will not be created."
+                logging.warning(message)
+                warnings_about_redirect_input_csv = True
+                continue
+
             if row["redirect_source"].lower().startswith("http"):
                 message = (
                     'Redirect source values cannot contain a hostname, they must be a path only, without a hostname. Please correct "'

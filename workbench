@@ -3369,6 +3369,18 @@ def create_redirects():
 
         redirect_row_count += 1
 
+        if len(row["redirect_source"].strip()) == 0:
+            message = f"Redirect source value in input CSV row {redirect_row_count} is empty. Skipping."
+            print("Warning: " + message)
+            logging.warning(message)
+            continue
+
+        if len(row["redirect_target"].strip()) == 0:
+            message = f"Redirect target value in input CSV row {redirect_row_count} is empty. Skipping."
+            print("Warning: " + message)
+            logging.warning(message)
+            continue
+
         if row["redirect_source"].lower().startswith("http"):
             message = (
                 'Redirect source values cannot contain a hostname, they must be a path only. Skipping creating redirect from "'
