@@ -3404,6 +3404,19 @@ def update_files():
                 "File %s updated.",
                 config["host"] + "/entity/file/" + row["file_id"],
             )
+        else:
+            if config["progress_bar"] is False:
+                print(
+                    "File "
+                    + config["host"]
+                    + "/entity/file/"
+                    + row["file_id"]
+                    + " could not be updated."
+                )
+            logging.info(
+                "File %s could not be updated.",
+                config["host"] + "/entity/file/" + row["file_id"],
+            )
 
         if config["progress_bar"] is True:
             row_count += 1
