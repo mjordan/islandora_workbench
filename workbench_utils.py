@@ -3664,6 +3664,10 @@ def check_input(config, args):
                 print("Warning: " + message)
                 logging.warning(message)
             for page_file_name in page_files:
+                # Only want files, not directories.
+                if os.path.isdir(os.path.join(dir_path, page_file_name)):
+                    continue
+
                 if page_file_name.strip().lower() not in [
                     fn.strip().lower() for fn in config["paged_content_ignore_files"]
                 ]:
@@ -8678,6 +8682,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         if page_file_name.strip().lower() in [
             fn.strip().lower() for fn in config["paged_content_ignore_files"]
         ]:
+            continue
+
+        # Only want files, not directories.
+        if os.path.isdir(os.path.join(page_dir_path, page_file_name)):
             continue
 
         filename_without_extension = os.path.splitext(page_file_name)[0]
