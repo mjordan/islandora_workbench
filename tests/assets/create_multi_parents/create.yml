@@ -2,5 +2,6 @@ task: create
 host: https://islandora.dev
 username: admin
 password: password
-content_type: invalid_content_type
+input_dir: "tests/assets/create_multi_parents"
+nodes_only: true
 secure_ssl_only: false

@@ -1,4 +1,4 @@
-"""unittest tests that require a live Drupal at https://islandora.traefik.me. In most cases, the host URL,
+"""unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
    credentials, etc. are in a configuration file referenced in the test.
 
    Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
@@ -18,6 +18,7 @@ import urllib.parse
 import unittest
 import time
 import copy
+import csv
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
@@ -53,7 +54,7 @@ class TestCreate(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
@@ -99,7 +100,7 @@ class TestCreateFromFiles(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
@@ -128,7 +129,7 @@ class TestCreateWithMaxNodeTitleLength(unittest.TestCase):
         self.nids = list()
         self.output_lines = ""
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_create(self):
         create_output = subprocess.check_output(self.create_cmd)
@@ -164,7 +165,7 @@ class TestCreateWithMaxNodeTitleLength(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
@@ -202,7 +203,7 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
         )
         self.update_cmd = ["./workbench", "--config", self.update_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_create(self):
         requests.packages.urllib3.disable_warnings()
@@ -242,9 +243,7 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
         # Fetch each node in self.nids and check to see if its title is <= 30 chars long. All should be.
         for nid_to_update in self.nids:
             node_url = (
-                "https://islandora.traefik.me/node/"
-                + str(self.nids[0])
-                + "?_format=json"
+                "https://islandora.dev/node/" + str(self.nids[0]) + "?_format=json"
             )
             node_response = requests.get(node_url, verify=False)
             node = json.loads(node_response.text)
@@ -258,7 +257,7 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
             quick_delete_output = subprocess.check_output(quick_delete_cmd)
 
@@ -299,7 +298,7 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
         )
         self.create_cmd = ["./workbench", "--config", self.config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         parser = argparse.ArgumentParser()
         parser.add_argument("--config")
@@ -366,21 +365,22 @@ class TestDelete(unittest.TestCase):
         )
         self.create_cmd = ["./workbench", "--config", create_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nid_file = os.path.join(self.temp_dir, "workbenchdeletetesttnids.txt")
 
         nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
         create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
+        with open(self.nid_file, "w") as fh:
             fh.write("node_id\n")
             for line in create_lines:
                 if "created at" in line:
                     nid = line.rsplit("/", 1)[-1]
                     nid = nid.strip(".")
-                    nids.append(nid)
-                    fh.write(nid + "\n")
+                    if workbench_utils.value_is_numeric(nid):
+                        nids.append(nid)
+                        fh.write(nid + "\n")
 
     def test_delete(self):
         delete_config_file_path = os.path.join(
@@ -410,7 +410,7 @@ class TestUpdate(unittest.TestCase):
         )
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nid_file = os.path.join(self.temp_dir, "workbenchupdatetestnids.txt")
         self.update_metadata_file = os.path.join(
             self.current_dir, "assets", "update_test", "workbenchupdatetest.csv"
@@ -430,14 +430,15 @@ class TestUpdate(unittest.TestCase):
         create_output = create_output.decode().strip()
         create_lines = create_output.splitlines()
 
-        with open(self.nid_file, "a") as nids_fh:
+        with open(self.nid_file, "w") as nids_fh:
             nids_fh.write("node_id\n")
             for line in create_lines:
                 if "created at" in line:
                     nid = line.rsplit("/", 1)[-1]
                     nid = nid.strip(".")
-                    nids_fh.write(nid + "\n")
-                    self.nids.append(nid)
+                    if workbench_utils.value_is_numeric(nid):
+                        nids_fh.write(nid + "\n")
+                        self.nids.append(nid)
 
         # Add some values to the update CSV file to test against.
         with open(self.update_metadata_file, "a") as update_fh:
@@ -507,7 +508,7 @@ class TestCreateWithNonLatinText(unittest.TestCase):
             config[k] = v
         self.islandora_host = config["host"]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nid_file = os.path.join(
             self.temp_dir, "workbenchcreatenonlatintestnids.txt"
         )
@@ -521,14 +522,15 @@ class TestCreateWithNonLatinText(unittest.TestCase):
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
         create_lines = create_output.splitlines()
-        with open(self.nid_file, "a") as fh:
+        with open(self.nid_file, "w") as fh:
             fh.write("node_id\n")
             for line in create_lines:
                 if "created at" in line:
                     nid = line.rsplit("/", 1)[-1]
                     nid = nid.strip(".")
-                    nids.append(nid)
-                    fh.write(nid + "\n")
+                    if workbench_utils.value_is_numeric(nid):
+                        nids.append(nid)
+                        fh.write(nid + "\n")
 
         self.assertEqual(len(nids), 3)
 
@@ -595,7 +597,7 @@ class TestSecondaryTask(unittest.TestCase):
         self.islandora_host = config["host"]
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_secondary_task(self):
         requests.packages.urllib3.disable_warnings()
@@ -699,7 +701,7 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
         self.islandora_host = config["host"]
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_secondary_task_with_google_sheet(self):
         requests.packages.urllib3.disable_warnings()
@@ -797,7 +799,7 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
         self.islandora_host = config["host"]
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_secondary_task_with_excel(self):
         requests.packages.urllib3.disable_warnings()
@@ -900,7 +902,7 @@ class TestAdditionalFilesCreate(unittest.TestCase):
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
         self.rollback_file_path = os.path.join(
             self.current_dir, "assets", "additional_files_test", "rollback.csv"
@@ -1020,7 +1022,7 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(unittest.TestCase):
         self.rollback_file_path = os.path.join(
             self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1110,7 +1112,7 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(unittest.TestCase):
         self.rollback_file_path = os.path.join(
             self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1226,7 +1228,7 @@ class TestAdditionalFilesAddMediaAllowMissingFilesFalse(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_false.log",
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1394,7 +1396,7 @@ class TestAdditionalFilesAddMediaAllowMissingFilesTrue(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_true.log",
         )
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1528,6 +1530,160 @@ class TestUpdateMediaFields(unittest.TestCase):
 
     def tearDown():
         pass
+
+
+class TestMultipleParents(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(
+            self.current_dir, "assets", "create_multi_parents", "create.yml"
+        )
+
+        yaml = YAML()
+        with open(self.create_config_file_path, "r") as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config["host"]
+
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.temp_dir = "/tmp"
+
+    def test_secondary_task(self):
+        requests.packages.urllib3.disable_warnings()
+        self.nids = list()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+
+        create_lines = create_output.splitlines()
+        for line in create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                self.nids.append(nid)
+
+        self.assertEqual(len(self.nids), 3)
+
+        # create the child CSV based on the parents created
+        self.children_csv_file_path = os.path.join(
+            self.current_dir, "assets", "create_multi_parents", "children.csv"
+        )
+        headers = ["id", "title", "field_model", "field_member_of"]
+        data = [
+            {
+                "id": "001",
+                "title": "Child 1, 2",
+                "field_model": "Image",
+                "field_member_of": "|".join(map(str, self.nids[:2])),
+            },
+            {
+                "id": "002",
+                "title": "Child 1",
+                "field_model": "Image",
+                "field_member_of": str(self.nids[0]),
+            },
+            {
+                "id": "004",
+                "title": "Child 1, 2, 3",
+                "field_model": "Image",
+                "field_member_of": "|".join(map(str, self.nids[:3])),
+            },
+            {
+                "id": "005",
+                "title": "No parent",
+                "field_model": "Image",
+                "field_member_of": "",
+            },
+        ]
+
+        # Write to CSV
+        with open(self.children_csv_file_path, mode="w", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=headers)
+            writer.writeheader()
+            writer.writerows(data)
+
+        self.child_config_file_path = os.path.join(
+            self.current_dir, "assets", "create_multi_parents", "children.yml"
+        )
+        child_cmd = ["./workbench", "--config", self.child_config_file_path]
+        create_output = subprocess.check_output(child_cmd)
+        create_output = create_output.decode().strip()
+
+        self.child_nids = list()
+        create_output = subprocess.check_output(child_cmd)
+        create_output = create_output.decode().strip()
+
+        create_lines = create_output.splitlines()
+        for line in create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                self.child_nids.append(nid)
+
+        self.assertEqual(len(self.child_nids), 4)
+
+        for nid in self.child_nids:
+            node_url = self.islandora_host + "/node/" + nid + "?_format=json"
+            response = requests.get(node_url, verify=False)
+            node_json = json.loads(response.text)
+            if node_json["title"][0]["value"] == "Child 1, 2":
+                self.assertEqual(len(node_json["field_member_of"]), 2)
+            elif node_json["title"][0]["value"] == "Child 1":
+                self.assertEqual(len(node_json["field_member_of"]), 1)
+            elif node_json["title"][0]["value"] == "Child 1, 2, 3":
+                self.assertEqual(len(node_json["field_member_of"]), 3)
+
+    def tearDown(self):
+        for nid in self.nids:
+            quick_delete_cmd = [
+                "./workbench",
+                "--config",
+                self.create_config_file_path,
+                "--quick_delete_node",
+                self.islandora_host + "/node/" + nid,
+            ]
+            subprocess.check_output(quick_delete_cmd)
+        for nid in self.child_nids:
+            quick_delete_cmd = [
+                "./workbench",
+                "--config",
+                self.child_config_file_path,
+                "--quick_delete_node",
+                self.islandora_host + "/node/" + nid,
+            ]
+            subprocess.check_output(quick_delete_cmd)
+        preprocessed_csv_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "create_multi_parents",
+            "metadata.csv.preprocessed",
+        )
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+        secondary_preprocessed_csv_path = os.path.join(
+            self.temp_dir, "children.csv.preprocessed"
+        )
+        if os.path.exists(secondary_preprocessed_csv_path):
+            os.remove(secondary_preprocessed_csv_path)
+
+        if os.path.exists(self.children_csv_file_path):
+            os.remove(self.children_csv_file_path)
+
+        map_file_path = os.path.join(
+            self.current_dir, "assets", "create_multi_parents", "id_to_node_map.tsv"
+        )
+        if os.path.exists(map_file_path):
+            os.remove(map_file_path)
+
+        rollback_file_path = os.path.join(
+            self.current_dir, "assets", "create_multi_parents", "rollback.csv"
+        )
+        if os.path.exists(rollback_file_path):
+            os.remove(rollback_file_path)
 
 
 if __name__ == "__main__":
