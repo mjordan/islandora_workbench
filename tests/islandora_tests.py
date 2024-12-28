@@ -1531,5 +1531,6 @@ class TestUpdateMediaFields(unittest.TestCase):
     def tearDown():
         pass
 
+
 if __name__ == "__main__":
     unittest.main()
