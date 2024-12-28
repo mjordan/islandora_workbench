@@ -181,52 +181,36 @@ def create():
             # in the "Assemble Drupal field structures..." section below.
             row["promote"] = ""
 
-        if "field_member_of" in row.keys() and (
-            len(row["field_member_of"]) > 0
-            # and value_is_numeric(row["field_member_of"]) is False
-        ):
-            # field_member_of_value_for_message = copy.copy(row["field_member_of"])
-
+        if "field_member_of" in row.keys() and (len(row["field_member_of"]) > 0):
             # First split out subvalues.
             field_member_of_values = []
             if config["subdelimiter"] in row["field_member_of"]:
-                field_member_of_values = row["field_member_of"].split(config["subdelimiter"])
+                field_member_of_values = row["field_member_of"].split(
+                    config["subdelimiter"]
+                )
             else:
                 field_member_of_values.append(row["field_member_of"])
 
             field_member_of_values_nids = []
             for field_member_of_value in field_member_of_values:
-                print("DEBUG processing field_member_of_value", field_member_of_value)
                 if value_is_numeric(field_member_of_value) is False:
-                    print("DEBUG field_member_of_value is False", field_member_of_value)
                     # Get the node ID for each item in the list.
-                    field_member_of_value_nid = get_nid_from_url_alias(config, field_member_of_value)
-                    print("DEBUG field_member_of_value_nid from get_nid_from_url_alias()", field_member_of_value_nid)
-
+                    field_member_of_value_nid = get_nid_from_url_alias(
+                        config, field_member_of_value
+                    )
                     if field_member_of_value_nid is False:
                         message = f'Node identified in "field_member_of" ({field_member_of_value}) in CSV row with ID "{id_field}" cannot be found or accessed.'
                         print("Warning: " + message)
                         logging.warning(message)
                     else:
-                        field_member_of_values_nids.append(str(field_member_of_value_nid))
+                        field_member_of_values_nids.append(
+                            str(field_member_of_value_nid)
+                        )
                 else:
                     field_member_of_values_nids.append(str(field_member_of_value))
-                print("DEBUG field_member_of_value", field_member_of_value)
-            row["field_member_of"] = config["subdelimiter"].join(field_member_of_values_nids)
-
-
-            '''
-            # Get the node ID for each item in the list.
-            row["field_member_of"] = get_nid_from_url_alias(
-                config, row["field_member_of"]
+            row["field_member_of"] = config["subdelimiter"].join(
+                field_member_of_values_nids
             )
-
-            if row["field_member_of"] is False:
-                # @TODO: Use this version of the message in --check.
-                message = f'Node identified in "field_member_of" ({field_member_of_value_for_message}) in CSV row with ID "{id_field}" cannot be found or accessed.'
-                print("Warning: " + message)
-                logging.warning(message)
-            '''
 
         # We want to collect the node IDs of items that are parents in-session
         # to accommodate users who have 'query_csv_id_to_node_id_map_for_parents: false'
