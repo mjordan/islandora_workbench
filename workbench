@@ -181,7 +181,6 @@ def create():
         if "field_member_of" in row.keys() and (
             len(row["field_member_of"]) > 0
             and value_is_numeric(row["field_member_of"]) is False
-            and config["subdelimiter"] not in row["field_member_of"]
         ):
             field_member_of_value_for_message = copy.copy(row["field_member_of"])
             row["field_member_of"] = get_nid_from_url_alias(
