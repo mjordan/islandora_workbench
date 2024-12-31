@@ -243,6 +243,7 @@ class WorkbenchConfig:
             "output_csv_include_input_csv": False,
             "timestamp_rollback": False,
             "rollback_dir": None,
+            "rollback_file_include_node_info": False,
             "enable_http_cache": True,
             "http_cache_storage": "memory",
             "http_cache_storage_expire_after": 1200,

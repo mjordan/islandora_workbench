@@ -3447,7 +3447,7 @@ def check_input(config, args):
                     ].strip()
                     if len(file_check_row[additional_file_field]) == 0:
                         message = (
-                            "CVS row with ID "
+                            "CSV row with ID "
                             + file_check_row[config["id_field"]]
                             + ' contains an empty value in its "'
                             + additional_file_field
@@ -8551,7 +8551,7 @@ def validate_taxonomy_reference_value(
 
 
 def write_to_output_csv(config, id, node_json, input_csv_row=None):
-    """Appends a row to the CVS file located at config['output_csv']."""
+    """Appends a row to the CSV file located at config['output_csv']."""
     """Parameters
         ----------
         config : dict
@@ -8888,13 +8888,21 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 write_to_output_csv(config, page_identifier, node_response.text)
 
             node_nid = get_nid_from_url_alias(config, node_uri)
-            write_rollback_node_id(config, node_nid, path_to_rollback_csv_file)
 
             populate_csv_id_to_node_id_map(
                 config, parent_id, parent_node_id, page_file_name, node_nid
             )
 
             page_file_path = os.path.join(page_dir_name, page_file_name)
+            write_rollback_node_id(
+                config,
+                node_nid,
+                page_title,
+                page_file_path,
+                parent_node_id,
+                path_to_rollback_csv_file,
+            )
+
             fake_csv_record = collections.OrderedDict()
             fake_csv_record["title"] = page_title
             fake_csv_record["file"] = page_file_path
@@ -9219,7 +9227,10 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
         if os.path.exists(path_to_rollback_csv_file):
             os.remove(path_to_rollback_csv_file)
         rollback_csv_file = open(path_to_rollback_csv_file, "a+")
-        rollback_csv_file.write("node_id" + "\n")
+        if config["rollback_file_include_node_info"] is False:
+            rollback_csv_file.write("node_id" + "\n")
+        else:
+            rollback_csv_file.write("node_id,title,field_member_of,file" + "\n")
         rollback_csv_comments = get_rollback_config_comments(config)
         rollback_csv_file.write(rollback_csv_comments)
         rollback_csv_file.close()
@@ -9233,10 +9244,50 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
         sys.exit("Error: " + message)
 
 
-def write_rollback_node_id(config, node_id, path_to_rollback_csv_file):
+def write_rollback_node_id(
+    config, node_id, node_title, node_file_path, member_of, path_to_rollback_csv_file
+):
+    """Appends a row to the CSV file located at path_to_rollback_csv_file."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        node_id : str
+            The node ID to write to the file.
+        node_title : str
+            The title of the node.
+        node_file_path : str
+            The relative path to the value of the CSV "file" column, or for page/child
+            nodes created from subdirectories, the path to the subdirectory and file.
+        member_of : str
+            The value of "field_member_of" for the node.
+        path_to_rollback_csv_file : string
+            The path to the CSV file.
+        Returns
+        -------
+        None
+    """
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
-    rollback_csv_file = open(path_to_rollback_csv_file, "a+")
-    rollback_csv_file.write(str(node_id) + "\n")
+    if config["rollback_file_include_node_info"] is False:
+        rollback_csv_file = open(path_to_rollback_csv_file, "a+")
+        rollback_csv_file.write(str(node_id) + "\n")
+    else:
+        rollback_csv_file = open(
+            path_to_rollback_csv_file, "a+", newline="", encoding="utf-8"
+        )
+        rollback_csv_writer = csv.DictWriter(
+            rollback_csv_file,
+            fieldnames=["node_id", "title", "field_member_of", "file"],
+        )
+        rollback_csv_writer.writerow(
+            {
+                "node_id": node_id,
+                "title": node_title,
+                "field_member_of": member_of,
+                "file": node_file_path,
+            }
+        )
+
     rollback_csv_file.close()
 
 
