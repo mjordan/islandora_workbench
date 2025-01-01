@@ -1530,7 +1530,7 @@ class TestUpdateFileName(unittest.TestCase):
         self.fids = list()
 
         self.update_csv_file_path = os.path.join(
-            self.current_dir, "assets", "update_file_name_test", "update_files.csv"
+            self.current_dir, "assets", "update_file_name_test", "update_filenames.csv"
         )
         self.update_config_file_path = os.path.join(
             self.current_dir, "assets", "update_file_name_test", "update.yml"
@@ -1595,7 +1595,7 @@ class TestUpdateFileName(unittest.TestCase):
             self.assertEqual(file_response.status_code, 200)
             i = i + 1
 
-        # Write out an update_files CSV
+        # Write out an update_filenames CSV
         update_csv_file_rows = list()
         new_file_names = ["new_file_name_1.jpg", "new_file_name_2.jpg"]
         update_csv_file_rows.append("file_id,filename")

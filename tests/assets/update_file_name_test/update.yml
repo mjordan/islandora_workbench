@@ -1,7 +1,7 @@
-task: update_files
+task: update_filenames
 host: https://islandora.traefik.me
 username: admin
 password: password
 input_dir: "tests/assets/update_file_name_test"
-input_csv: update_files.csv
+input_csv: update_filenames.csv
 standalone_media_url: true

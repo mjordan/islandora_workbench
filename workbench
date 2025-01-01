@@ -3347,7 +3347,7 @@ def update_terms():
                 pbar(row_position)
 
 
-def update_files():
+def update_filenames():
     """Update files via PATCH. Note that PATCHing replaces the target field,
     so if we are adding an additional value to a multivalued field, we need
     to include the existing value(s) in our PATCH. The field classes take
@@ -3368,7 +3368,7 @@ def update_files():
 
     if "file_id" not in csv_column_headers:
         message = (
-            'For "update_files" tasks, your CSV file must contain a "file_id" column.'
+            'For "update_filenames" tasks, your CSV file must contain a "file_id" column.'
         )
         logging.error(message)
         sys.exit("Error: " + message)
@@ -3860,8 +3860,8 @@ try:
         update_media()
     if config["task"] == "update_terms":
         update_terms()
-    if config["task"] == "update_files":
-        update_files()
+    if config["task"] == "update_filenames":
+        update_filenames()
     if config["task"] == "create_redirects":
         create_redirects()
 
