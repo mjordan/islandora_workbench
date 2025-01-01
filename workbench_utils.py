@@ -3635,7 +3635,7 @@ def check_input(config, args):
             ):
                 message = (
                     'If your configuration contains the "paged_content_additional_page_media" setting, it must also include both '
-                    + 'the "paged_content_image_file_extension" and "paged_content_additional_page_media" settings.s.'
+                    + 'the "paged_content_image_file_extension" and "paged_content_additional_page_media" settings.'
                 )
                 logging.error(message)
                 sys.exit("Error: " + message)
@@ -3663,6 +3663,7 @@ def check_input(config, args):
                 message = "Page directory " + dir_path + " is empty."
                 print("Warning: " + message)
                 logging.warning(message)
+
             for page_file_name in page_files:
                 # Only want files, not directories.
                 if os.path.isdir(os.path.join(dir_path, page_file_name)):
@@ -3682,7 +3683,61 @@ def check_input(config, args):
                         logging.error(message)
                         sys.exit("Error: " + message)
 
+            # Check additional page media files (e.g. OCR andhOCR files) for utf8 encoding.
+            additional_page_media_no_utf8_warnings = list()
+            if config["paged_content_from_directories"] is True:
+                if "paged_content_additional_page_media" in config:
+                    for extension_mapping in config[
+                        "paged_content_additional_page_media"
+                    ]:
+                        for (
+                            additional_page_media_use_term,
+                            additional_page_media_extension,
+                        ) in extension_mapping.items():
+                            for page_file_name in page_files:
+                                page_file_base_path, page_file_extension = (
+                                    os.path.splitext(page_file_name)
+                                )
+                                if (
+                                    page_file_extension.lstrip(".")
+                                    == additional_page_media_extension
+                                ):
+                                    additional_page_media_file_path = os.path.join(
+                                        dir_path,
+                                        page_file_base_path
+                                        + "."
+                                        + additional_page_media_extension.strip(),
+                                    )
+                                    if check_file_exists(
+                                        config, additional_page_media_file_path
+                                    ):
+                                        if (
+                                            file_is_utf8(
+                                                additional_page_media_file_path
+                                            )
+                                            is False
+                                        ):
+                                            message = (
+                                                'Additional page/child media file "'
+                                                + additional_page_media_file_path
+                                                + '" in directory for row ID "'
+                                                + row[config["id_field"]]
+                                                + '" is not encoded as UTF-8 so will not be ingested.'
+                                            )
+                                            if (
+                                                additional_page_media_file_path
+                                                not in additional_page_media_no_utf8_warnings
+                                            ):
+                                                logging.warning(message)
+                                                additional_page_media_no_utf8_warnings.append(
+                                                    additional_page_media_file_path
+                                                )
+
         print("OK, page directories are all present.")
+        if len(additional_page_media_no_utf8_warnings) > 0:
+            print(
+                "Warning: Check your Workbench log for entries about UTF-8 encoding of additional page/child files."
+            )
 
     # Check for bootstrap scripts, if any are configured.
     bootsrap_scripts_present = False
@@ -5266,15 +5321,21 @@ def create_media(
                 media_json[media_field][0]["alt"] = alt_text
 
         # extracted_text media must have their field_edited_text field populated for full text indexing.
+        # Text must be encoded as utf-8.
         if media_type == "extracted_text":
             if check_file_exists(config, filename):
                 media_json["field_edited_text"] = list()
                 if os.path.isabs(filename) is False:
                     filename = os.path.join(config["input_dir"], filename)
-                extracted_text_file = open(filename, "r", -1, "utf-8")
-                media_json["field_edited_text"].append(
-                    {"value": extracted_text_file.read()}
-                )
+                try:
+                    extracted_text_file = open(filename, "r", -1, "utf-8-sig")
+                    media_json["field_edited_text"].append(
+                        {"value": extracted_text_file.read()}
+                    )
+                except Exception as e:
+                    logging.error(
+                        f'Extracted text file "{filename}" caused a problem that prevented it from being ingested ({e}).'
+                    )
             else:
                 logging.error("Extracted text file %s not found.", filename)
 
@@ -5403,17 +5464,25 @@ def create_media(
                     media_track_field_name_parts = (
                         fully_qualified_media_track_field_name.split(":")
                     )
-                    create_track_file_result = create_file(
-                        config,
-                        media_track_entry["file_path"],
-                        fully_qualified_media_track_field_name,
-                        csv_row,
-                        node_id,
-                    )
+                    try:
+                        create_track_file_result = create_file(
+                            config,
+                            media_track_entry["file_path"],
+                            fully_qualified_media_track_field_name,
+                            csv_row,
+                            node_id,
+                        )
+                    except Exception as e:
+                        media_track_entry_file_path = media_track_entry["file_path"]
+                        logging.error(
+                            f'Media track file "{media_track_entry_file_path}" caused a problem that prevented it from being ingested ({e}).'
+                        )
+                        continue
+
                     if create_track_file_result is not False and isinstance(
                         create_track_file_result, int
                     ):
-                        # /entity/file/663?_format=json will return JSON containing the file's 'uri'.
+                        # /entity/file/xxx?_format=json will return JSON containing the file's 'uri'.
                         track_file_info_response = issue_request(
                             config,
                             "GET",
@@ -7486,6 +7555,19 @@ def validate_media_track_fields(config, csv_data):
                                                 )
                                                 logging.error(message)
                                                 sys.exit("Error: " + message)
+
+                                            if (
+                                                file_is_utf8(media_track_file_path)
+                                                is False
+                                            ):
+                                                message = (
+                                                    'Media track file "'
+                                                    + media_track_file_path_in_csv
+                                                    + '" in row with ID "'
+                                                    + row[config["id_field"]]
+                                                    + '" is not encoded as UTF-8 and will not be ingested.'
+                                                )
+                                                logging.warning(message)
 
     if media_track_fields_present is True:
         message = "OK, media track field values in the CSV file validate."
