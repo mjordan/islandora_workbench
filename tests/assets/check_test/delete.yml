@@ -1,5 +1,5 @@
 task: delete
-host: https://islandora.traefik.me
+host: https://islandora.dev
 username: admin
 password: password
 input_csv: delete.csv

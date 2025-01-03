@@ -1,0 +1,61 @@
+name: Run integration test
+
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout workbench
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Checkout isle-site-template
+        uses: actions/checkout@v4
+        with:
+          repository: Islandora-Devops/isle-site-template
+          path: isle-site-template
+
+      - name: Install mkcert
+        run: |-
+          curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
+          chmod +x mkcert-v*-linux-amd64
+          sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
+
+      - name: Start islandora-starter-site
+        working-directory: isle-site-template
+        run: ./tests/init-template-starter.sh
+        env:
+          ISLANDORA_TAG: main
+          ISLANDORA_STARTER_REF: "heads/main"
+          ISLANDORA_STARTER_OWNER: "Islandora-Devops"
+
+      - name: Install dependencies  
+        run: |  
+          python -m pip install --upgrade pip  
+          python setup.py install
+
+          # disable media standalone URL
+          docker exec isle-site-template-drupal-dev-1 drush config:set media.settings standalone_url FALSE -y
+          docker exec isle-site-template-drupal-dev-1 drush cr
+
+      - name: Run islandora_tests_hooks  
+        run: python tests/islandora_tests_hooks.py
+
+      - name: Run islandora_tests_paged_content  
+        run: python tests/islandora_tests_paged_content.py
+        env:
+          REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
+
+      - name: Run islandora_tests  
+        run: python tests/islandora_tests.py
