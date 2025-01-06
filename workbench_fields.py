@@ -81,8 +81,8 @@ class SimpleField:
                 field_name, id_field, field_definitions[field_name], subvalue
             )
             if (
-                "formatted_text" in field_definitions[field_name]
-                and field_definitions[field_name]["formatted_text"] is True
+                    "formatted_text" in field_definitions[field_name]
+                    and field_definitions[field_name]["formatted_text"] is True
             ):
                 field_values.append({"value": subvalue, "format": text_format})
             else:
@@ -101,7 +101,7 @@ class SimpleField:
         return entity
 
     def update(
-        self, config, field_definitions, entity, row, field_name, entity_field_values
+            self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -163,8 +163,8 @@ class SimpleField:
                     subvalue,
                 )
                 if (
-                    "formatted_text" in field_definitions[field_name]
-                    and field_definitions[field_name]["formatted_text"] is True
+                        "formatted_text" in field_definitions[field_name]
+                        and field_definitions[field_name]["formatted_text"] is True
                 ):
                     entity[field_name].append(
                         {"value": subvalue, "format": text_format}
@@ -205,8 +205,8 @@ class SimpleField:
                     subvalue,
                 )
                 if (
-                    "formatted_text" in field_definitions[field_name]
-                    and field_definitions[field_name]["formatted_text"] is True
+                        "formatted_text" in field_definitions[field_name]
+                        and field_definitions[field_name]["formatted_text"] is True
                 ):
                     field_values.append({"value": subvalue, "format": text_format})
                 else:
@@ -221,7 +221,7 @@ class SimpleField:
                     field_values.append({"value": subvalue})
             field_values = self.dedupe_values(field_values)
             entity[field_name] = field_values
-
+        print(entity)
         return entity
 
     def dedupe_values(self, values):
@@ -265,11 +265,11 @@ class SimpleField:
                     valid_values.append(subvalue)
                 else:
                     message = (
-                        'Value "'
-                        + subvalue
-                        + '" in field "'
-                        + field_name
-                        + '" is not a valid EDTF field value.'
+                            'Value "'
+                            + subvalue
+                            + '" in field "'
+                            + field_name
+                            + '" is not a valid EDTF field value.'
                     )
                     logging.warning(message)
             return valid_values
@@ -280,11 +280,11 @@ class SimpleField:
                     valid_values.append(subvalue)
                 else:
                     message = (
-                        'Value "'
-                        + subvalue
-                        + '" in field "'
-                        + field_name
-                        + '" is not a valid integer field value.'
+                            'Value "'
+                            + subvalue
+                            + '" in field "'
+                            + field_name
+                            + '" is not a valid integer field value.'
                     )
                     logging.warning(message)
             return valid_values
@@ -295,13 +295,13 @@ class SimpleField:
                     valid_values.append(subvalue)
                 else:
                     message = (
-                        'Value "'
-                        + subvalue
-                        + '" in field "'
-                        + field_name
-                        + '" is not a valid '
-                        + field_definitions[field_name]["field_type"]
-                        + " field value."
+                            'Value "'
+                            + subvalue
+                            + '" in field "'
+                            + field_name
+                            + '" is not a valid '
+                            + field_definitions[field_name]["field_type"]
+                            + " field value."
                     )
                     logging.warning(message)
             return valid_values
@@ -312,11 +312,11 @@ class SimpleField:
                     valid_values.append(subvalue)
                 else:
                     message = (
-                        'Value "'
-                        + subvalue
-                        + '" in field "'
-                        + field_name
-                        + "\" is not in the field's list of allowed values."
+                            'Value "'
+                            + subvalue
+                            + '" in field "'
+                            + field_name
+                            + "\" is not in the field's list of allowed values."
                     )
                     logging.warning(message)
             return valid_values
@@ -415,7 +415,7 @@ class GeolocationField:
         return entity
 
     def update(
-        self, config, field_definitions, entity, row, field_name, entity_field_values
+            self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -524,11 +524,11 @@ class GeolocationField:
                 valid_values.append(subvalue)
             else:
                 message = (
-                    'Value "'
-                    + subvalue
-                    + '" in field "'
-                    + field_name
-                    + '" is not a valid Geolocation field value.'
+                        'Value "'
+                        + subvalue
+                        + '" in field "'
+                        + field_name
+                        + '" is not a valid Geolocation field value.'
                 )
                 logging.warning(message)
         return valid_values
@@ -615,7 +615,7 @@ class LinkField:
         return entity
 
     def update(
-        self, config, field_definitions, entity, row, field_name, entity_field_values
+            self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -722,11 +722,11 @@ class LinkField:
                 valid_values.append(subvalue)
             else:
                 message = (
-                    'Value "'
-                    + subvalue
-                    + '" in field "'
-                    + field_name
-                    + '" is not a valid Link field value.'
+                        'Value "'
+                        + subvalue
+                        + '" in field "'
+                        + field_name
+                        + '" is not a valid Link field value.'
                 )
                 logging.warning(message)
         return valid_values
@@ -755,9 +755,9 @@ class LinkField:
         subvalues = list()
         for subvalue in field_data:
             if (
-                "title" in subvalue
-                and subvalue["title"] is not None
-                and subvalue["title"] != ""
+                    "title" in subvalue
+                    and subvalue["title"] is not None
+                    and subvalue["title"] != ""
             ):
                 subvalues.append(subvalue["uri"] + "%%" + subvalue["title"])
             else:
@@ -843,7 +843,7 @@ class EntityReferenceField:
         return entity
 
     def update(
-        self, config, field_definitions, entity, row, field_name, entity_field_values
+            self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -1010,8 +1010,8 @@ class EntityReferenceField:
         subvalues = list()
         for subvalue in field_data:
             if (
-                config["export_csv_term_mode"] == "name"
-                and subvalue["target_type"] == "taxonomy_term"
+                    config["export_csv_term_mode"] == "name"
+                    and subvalue["target_type"] == "taxonomy_term"
             ):
                 # Output term names, with vocab IDs (aka namespaces).
                 vocab_id = get_term_vocab(config, subvalue["target_id"])
@@ -1089,7 +1089,7 @@ class TypedRelationField:
         return entity
 
     def update(
-        self, config, field_definitions, entity, row, field_name, entity_field_values
+            self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -1262,6 +1262,198 @@ class TypedRelationField:
             return subvalues[0]
 
 
+class NameField:
+    """Functions for handling fields with 'name' Drupal field data type.
+    All functions return an "entity" dictionary that is passed to Requests' "json"
+    parameter.
+
+    Note: this class assumes that the entity has the field identified in 'field_name'.
+    Callers should pre-emptively confirm that. For an example, see code near the top
+    of workbench.update().
+    """
+
+    def __init__(self):
+        self.field_names = field_names = ['title', 'given', 'middle', 'family', 'generational', 'credentials']
+        self.sf = SimpleField()
+
+    def create(self, config, field_definitions, entity, row, field_name):
+        """Parameters
+        ----------
+         config : dict
+             The configuration settings defined by workbench_config.get_config().
+         field_definitions : dict
+             The field definitions object defined by get_field_definitions().
+         entity : dict
+             The dict that will be POSTed to Drupal as JSON.
+         row : OrderedDict.
+             The current CSV record.
+         field_name : string
+             The Drupal fieldname/CSV column header.
+         Returns
+         -------
+         dictionary
+             A dictionary representing the entity that is POSTed to Drupal as JSON.
+        """
+        if not row[field_name]:
+            return entity
+        field_values = []
+        id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
+        all_names = row[field_name].split(config["subdelimiter"])
+        for name in all_names:
+            name_parts = name.split(':')
+            field_value = {self.field_names[i]: name_parts[i] for i in range(len(name_parts))}
+            field_values.append(field_value)
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if -1 < cardinality < len(field_values):
+            log_field_cardinality_violation(field_name, id_field, str(cardinality))
+            field_values = field_values[:cardinality]
+        entity[field_name] = field_values
+        return entity
+
+    def update(
+            self, config, field_definitions, entity, row, field_name, entity_field_values
+    ):
+        """Note: this method appends incoming CSV values to existing values, replaces existing field
+        values with incoming values, or deletes all values from fields, depending on whether
+        config['update_mode'] is 'append', 'replace', or 'delete'. It doesn not replace individual
+        values within fields.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            entity : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            entity_field_values : list
+                List of dictionaries containing existing value(s) for field_name in the entity being updated.
+            Returns
+            -------
+            dictionary
+                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
+        """
+        if config["update_mode"] == "delete":
+            entity[field_name] = []
+            return entity
+
+        if not row[field_name]:
+            return entity
+
+        if field_name not in entity:
+            entity[field_name] = []
+
+        if config["task"] == "update_terms":
+            entity_id_field = "term_id"
+        if config["task"] == "update":
+            entity_id_field = "node_id"
+        if config["task"] == "update_media":
+            entity_id_field = "media_id"
+
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if config["update_mode"] == "append":
+            subvalues = str(row[field_name]).split(config["subdelimiter"])
+            subvalues = self.remove_invalid_values(
+                config, field_definitions, field_name, subvalues
+            )
+            for subvalue in subvalues:
+                subvalue = truncate_csv_value(
+                    field_name,
+                    row[entity_id_field],
+                    field_definitions[field_name],
+                    subvalue,
+                )
+                if (
+                        "formatted_text" in field_definitions[field_name]
+                        and field_definitions[field_name]["formatted_text"] is True
+                ):
+                    entity[field_name].append(
+                        {"value": subvalue, "format": text_format}
+                    )
+                else:
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "integer" and value_is_numeric(subvalue):
+                        subvalue = int(subvalue)
+                    if field_definitions[field_name][
+                        "field_type"
+                    ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
+                        subvalue = float(subvalue)
+                    entity[field_name].append({"value": subvalue})
+            entity[field_name] = self.dedupe_values(entity[field_name])
+            if -1 < cardinality < len(entity[field_name]):
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+                entity[field_name] = entity[field_name][:cardinality]
+        if config["update_mode"] == "replace":
+            field_values = []
+            subvalues = str(row[field_name]).split(config["subdelimiter"])
+            subvalues = self.remove_invalid_values(
+                config, field_definitions, field_name, subvalues
+            )
+            subvalues = self.dedupe_values(subvalues)
+            name_list = []
+            if -1 < cardinality < len(subvalues):
+                log_field_cardinality_violation(
+                    field_name, row[entity_id_field], str(cardinality)
+                )
+                subvalues = subvalues[:cardinality]
+
+            for subvalue in subvalues:
+                subvalue = truncate_csv_value(
+                    field_name,
+                    row[entity_id_field],
+                    field_definitions[field_name],
+                    subvalue,
+                )
+                name_parts = subvalue.split(':')
+                name_dict = {self.field_names[i]: name_parts[i] for i in range(len(name_parts))}
+                field_values.append(name_dict)
+            field_values = self.dedupe_values(field_values)
+            entity[field_name] = field_values
+        return entity
+
+    def dedupe_values(self, values):
+        return self.sf.dedupe_values(values)
+
+    def remove_invalid_values(self, config, field_definitions, field_name, values):
+        """Removes invalid entries from 'values'."""
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            values : list
+                List containing strings split from CSV values.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        valid_values = list()
+        for subvalue in values:
+            if subvalue.count(':') == 5:
+                valid_values.append(subvalue)
+            else:
+                message = (f"Value '{subvalue}' in field '{field_name}' requires exactly 6 values, any of which can be blank")
+                logging.warning(message)
+        return valid_values
+
+    def serialize(self, config, field_definitions, field_name, field_data):
+        serialized_data = []
+        for name in field_data:
+            serialized_data.append(':'.join(str(value) for value in name.values()))
+        return '|'.join(serialized_data)
+
+
 class AuthorityLinkField:
     """Functions for handling fields with 'authority_link' Drupal field data type.
     All functions return a "entity" dictionary that is passed to Requests' "json"
@@ -1306,7 +1498,7 @@ class AuthorityLinkField:
         return entity
 
     def update(
-        self, config, field_definitions, entity, row, field_name, entity_field_values
+            self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -1410,19 +1602,19 @@ class AuthorityLinkField:
         valid_values = list()
         for subvalue in values:
             if (
-                validate_authority_link_value(
-                    subvalue, field_definitions[field_name]["authority_sources"]
-                )
-                is True
+                    validate_authority_link_value(
+                        subvalue, field_definitions[field_name]["authority_sources"]
+                    )
+                    is True
             ):
                 valid_values.append(subvalue)
             else:
                 message = (
-                    'Value "'
-                    + subvalue
-                    + '" in field "'
-                    + field_name
-                    + '" is not a valid Authority Link field value.'
+                        'Value "'
+                        + subvalue
+                        + '" in field "'
+                        + field_name
+                        + '" is not a valid Authority Link field value.'
                 )
                 logging.warning(message)
         return valid_values
@@ -1516,7 +1708,7 @@ class MediaTrackField:
         return entity
 
     def update(
-        self, config, field_definitions, entity, row, field_name, entity_field_values
+            self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -1612,19 +1804,19 @@ class MediaTrackField:
         valid_values = list()
         for subvalue in values:
             if (
-                validate_media_track_value(
-                    subvalue, field_definitions[field_name]["authority_sources"]
-                )
-                is True
+                    validate_media_track_value(
+                        subvalue, field_definitions[field_name]["authority_sources"]
+                    )
+                    is True
             ):
                 valid_values.append(subvalue)
             else:
                 message = (
-                    'Value "'
-                    + subvalue
-                    + '" in field "'
-                    + field_name
-                    + '" is not a valid Authority Link field value.'
+                        'Value "'
+                        + subvalue
+                        + '" in field "'
+                        + field_name
+                        + '" is not a valid Authority Link field value.'
                 )
                 logging.warning(message)
         return valid_values
@@ -1653,14 +1845,14 @@ class MediaTrackField:
         subvalues = list()
         for subvalue in field_data:
             if all(
-                "label" in subvalue,
-                subvalue["label"] is not None,
-                "kind" in subvalue,
-                subvalue["kind"] is not None,
-                "srclang" in subvalue,
-                subvalue["srclang"] is not None,
-                "url" in subvalue,
-                subvalue["url"] is not None,
+                    "label" in subvalue,
+                    subvalue["label"] is not None,
+                    "kind" in subvalue,
+                    subvalue["kind"] is not None,
+                    "srclang" in subvalue,
+                    subvalue["srclang"] is not None,
+                    "url" in subvalue,
+                    subvalue["url"] is not None,
             ):
                 serialized = f"{subvalue['label']}:{subvalue['kind']}:{subvalue['srclang']}:{os.path.basename(subvalue['url'])}"
                 subvalues.append(serialized)
@@ -1723,7 +1915,7 @@ class EntityReferenceRevisionsField:
             .get(field_name, {})
         )
         subdelimiter = (
-            paragraph_configs.get("subdelimiter", None) or config["subdelimiter"]
+                paragraph_configs.get("subdelimiter", None) or config["subdelimiter"]
         )
 
         subvalues = str(row[field_name]).split(subdelimiter)
@@ -1771,10 +1963,10 @@ class EntityReferenceRevisionsField:
 
                 # Entity reference fields (taxonomy_term and node).
                 if (
-                    self.paragraph_field_definitions[paragraph_type][p_field][
-                        "field_type"
-                    ]
-                    == "entity_reference"
+                        self.paragraph_field_definitions[paragraph_type][p_field][
+                            "field_type"
+                        ]
+                        == "entity_reference"
                 ):
                     entity_reference_field = EntityReferenceField()
                     paragraph = entity_reference_field.create(
@@ -1787,10 +1979,10 @@ class EntityReferenceRevisionsField:
 
                 # Entity reference revision fields (paragraphs).
                 elif (
-                    self.paragraph_field_definitions[paragraph_type][p_field][
-                        "field_type"
-                    ]
-                    == "entity_reference_revisions"
+                        self.paragraph_field_definitions[paragraph_type][p_field][
+                            "field_type"
+                        ]
+                        == "entity_reference_revisions"
                 ):
                     entity_reference_revisions_field = EntityReferenceRevisionsField()
                     paragraph = entity_reference_field.create(
@@ -1803,10 +1995,10 @@ class EntityReferenceRevisionsField:
 
                 # Typed relation fields.
                 elif (
-                    self.paragraph_field_definitions[paragraph_type][p_field][
-                        "field_type"
-                    ]
-                    == "typed_relation"
+                        self.paragraph_field_definitions[paragraph_type][p_field][
+                            "field_type"
+                        ]
+                        == "typed_relation"
                 ):
                     typed_relation_field = TypedRelationField()
                     paragraph = typed_relation_field.create(
@@ -1819,10 +2011,10 @@ class EntityReferenceRevisionsField:
 
                 # Geolocation fields.
                 elif (
-                    self.paragraph_field_definitions[paragraph_type][p_field][
-                        "field_type"
-                    ]
-                    == "geolocation"
+                        self.paragraph_field_definitions[paragraph_type][p_field][
+                            "field_type"
+                        ]
+                        == "geolocation"
                 ):
                     geolocation_field = GeolocationField()
                     paragraph = geolocation_field.create(
@@ -1835,10 +2027,10 @@ class EntityReferenceRevisionsField:
 
                 # Link fields.
                 elif (
-                    self.paragraph_field_definitions[paragraph_type][p_field][
-                        "field_type"
-                    ]
-                    == "link"
+                        self.paragraph_field_definitions[paragraph_type][p_field][
+                            "field_type"
+                        ]
+                        == "link"
                 ):
                     link_field = LinkField()
                     paragraph = link_field.create(
@@ -1851,10 +2043,10 @@ class EntityReferenceRevisionsField:
 
                 # Authority Link fields.
                 elif (
-                    self.paragraph_field_definitions[paragraph_type][p_field][
-                        "field_type"
-                    ]
-                    == "authority_link"
+                        self.paragraph_field_definitions[paragraph_type][p_field][
+                            "field_type"
+                        ]
+                        == "authority_link"
                 ):
                     link_field = AuthorityLinkField()
                     paragraph = link_field.create(
@@ -1915,7 +2107,7 @@ class EntityReferenceRevisionsField:
         return entity
 
     def update(
-        self, config, field_definitions, entity, row, field_name, entity_field_values
+            self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
         """Note: this method appends incoming CSV values to existing values, replaces existing field
         values with incoming values, or deletes all values from fields, depending on whether
@@ -2011,7 +2203,7 @@ class EntityReferenceRevisionsField:
             .get(field_name, {})
         )
         subdelimiter = (
-            paragraph_configs.get("subdelimiter", None) or config["subdelimiter"]
+                paragraph_configs.get("subdelimiter", None) or config["subdelimiter"]
         )
 
         # Cache paragraph field definitions
@@ -2045,10 +2237,10 @@ class EntityReferenceRevisionsField:
                         continue
                     # Entity reference fields (taxonomy term and node).
                     if (
-                        self.paragraph_field_definitions[paragraph_type][field][
-                            "field_type"
-                        ]
-                        == "entity_reference"
+                            self.paragraph_field_definitions[paragraph_type][field][
+                                "field_type"
+                            ]
+                            == "entity_reference"
                     ):
                         serialized_field = EntityReferenceField()
                         paragraph_parts.append(
@@ -2061,10 +2253,10 @@ class EntityReferenceRevisionsField:
                         )
                     # Entity reference revision fields (mostly paragraphs).
                     elif (
-                        self.paragraph_field_definitions[paragraph_type][field][
-                            "field_type"
-                        ]
-                        == "entity_reference_revisions"
+                            self.paragraph_field_definitions[paragraph_type][field][
+                                "field_type"
+                            ]
+                            == "entity_reference_revisions"
                     ):
                         serialized_field = EntityReferenceRevisionsField()
                         paragraph_parts.append(
@@ -2077,10 +2269,10 @@ class EntityReferenceRevisionsField:
                         )
                     # Typed relation fields (currently, only taxonomy term)
                     elif (
-                        self.paragraph_field_definitions[paragraph_type][field][
-                            "field_type"
-                        ]
-                        == "typed_relation"
+                            self.paragraph_field_definitions[paragraph_type][field][
+                                "field_type"
+                            ]
+                            == "typed_relation"
                     ):
                         serialized_field = TypedRelationField()
                         paragraph_parts.append(
@@ -2093,10 +2285,10 @@ class EntityReferenceRevisionsField:
                         )
                     # Geolocation fields.
                     elif (
-                        self.paragraph_field_definitions[paragraph_type][field][
-                            "field_type"
-                        ]
-                        == "geolocation"
+                            self.paragraph_field_definitions[paragraph_type][field][
+                                "field_type"
+                            ]
+                            == "geolocation"
                     ):
                         serialized_field = GeolocationField()
                         paragraph_parts.append(
@@ -2109,10 +2301,10 @@ class EntityReferenceRevisionsField:
                         )
                     # Link fields.
                     elif (
-                        self.paragraph_field_definitions[paragraph_type][field][
-                            "field_type"
-                        ]
-                        == "link"
+                            self.paragraph_field_definitions[paragraph_type][field][
+                                "field_type"
+                            ]
+                            == "link"
                     ):
                         serialized_field = LinkField()
                         paragraph_parts.append(
@@ -2125,10 +2317,10 @@ class EntityReferenceRevisionsField:
                         )
                     # Authority Link fields.
                     elif (
-                        self.paragraph_field_definitions[paragraph_type][field][
-                            "field_type"
-                        ]
-                        == "authority_link"
+                            self.paragraph_field_definitions[paragraph_type][field][
+                                "field_type"
+                            ]
+                            == "authority_link"
                     ):
                         serialized_field = AuthorityLinkField()
                         paragraph_parts.append(
