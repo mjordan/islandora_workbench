@@ -1024,7 +1024,7 @@ def ping_remote_file(config, url):
     """
 
     sections = urllib.parse.urlparse(url)
-    headers = {'user-agent': config["user_agent"]}
+    headers = {"user-agent": config["user_agent"]}
     try:
         response = requests.head(
             url, allow_redirects=True, verify=config["secure_ssl_only"], headers=headers
@@ -9306,10 +9306,13 @@ def check_file_exists(config, filename):
     """
     # It's a remote file.
     if filename.startswith("http"):
-        headers = {'user-agent': config["user_agent"]}
+        headers = {"user-agent": config["user_agent"]}
         try:
             head_response = requests.head(
-                filename, allow_redirects=True, verify=config["secure_ssl_only"], headers=headers
+                filename,
+                allow_redirects=True,
+                verify=config["secure_ssl_only"],
+                headers=headers,
             )
             if head_response.status_code == 200:
                 return True
