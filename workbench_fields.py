@@ -221,7 +221,6 @@ class SimpleField:
                     field_values.append({"value": subvalue})
             field_values = self.dedupe_values(field_values)
             entity[field_name] = field_values
-        print(entity)
         return entity
 
     def dedupe_values(self, values):
@@ -1301,7 +1300,6 @@ class NameField:
         all_names = row[field_name].split(config["subdelimiter"])
         for name in all_names:
             name_parts = name.split(':')
-            field_value = {self.field_names[i]: name_parts[i] for i in range(len(name_parts))}
             field_values.append(field_value)
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if -1 < cardinality < len(field_values):
