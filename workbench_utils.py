@@ -1073,6 +1073,14 @@ def get_nid_from_url_alias(config, url_alias_to_query):
         return False
 
     if url_alias_to_query.startswith("http") is True:
+        # Drupal sometimes returns "http://" instead of "https://" in the "location"
+        # response header. Check for that and replace it if necessary.
+        if url_alias_to_query.startswith("http://") and config["host"].startswith(
+            "https://"
+        ):
+            url_alias_to_query = re.sub(
+                r"^http://", "https://", url_alias_to_query, flags=re.IGNORECASE
+            )
         alias_query_url = f"{url_alias_to_query}?_format=json"
     else:
         alias_query_url = (
@@ -1102,6 +1110,11 @@ def get_mid_from_media_url_alias(config, url_alias):
     int|boolean
         The media ID, or False if the URL cannot be found.
     """
+    # Drupal sometimes returns "http://" instead of "https://" in the "location"
+    # response header. Check for that and replace it if necessary.
+    if url_alias.startswith("http://") and config["host"].startswith("https://"):
+        url_alias = re.sub(r"^http://", "https://", url_alias, flags=re.IGNORECASE)
+
     url = url_alias + "?_format=json"
     response = issue_request(config, "GET", url)
     if response.status_code != 200:
@@ -8963,6 +8976,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             config, "POST", node_endpoint, node_headers, node_json, None
         )
         if node_response.status_code == 201:
+            print("DEBUG headers", node_response.headers["location"])
             node_uri = node_response.headers["location"]
             print('+ Node for child "' + page_title + '" created at ' + node_uri + ".")
             logging.info('Node for child "%s" created at %s.', page_title, node_uri)
