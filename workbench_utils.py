@@ -8976,7 +8976,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             config, "POST", node_endpoint, node_headers, node_json, None
         )
         if node_response.status_code == 201:
-            print("DEBUG headers", node_response.headers["location"])
             node_uri = node_response.headers["location"]
             print('+ Node for child "' + page_title + '" created at ' + node_uri + ".")
             logging.info('Node for child "%s" created at %s.', page_title, node_uri)
