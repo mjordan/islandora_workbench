@@ -3307,7 +3307,20 @@ def update_terms():
                     term_field_values[custom_field],
                 )
 
-            # For non-entity reference and non-typed relation fields (text, etc.).
+            # Name fields.
+            elif field_definitions[custom_field]["field_type"] == "name":
+                link_field = workbench_fields.NameField()
+                term = link_field.update(
+                    config,
+                    field_definitions,
+                    term,
+                    row,
+                    custom_field,
+                    term_field_values[custom_field],
+                )
+
+
+        # For non-entity reference and non-typed relation fields (text, etc.).
             else:
                 simple_field = workbench_fields.SimpleField()
                 term = simple_field.update(
