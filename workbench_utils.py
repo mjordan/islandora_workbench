@@ -1871,6 +1871,12 @@ def check_input(config, args):
     config_keys = list(config.keys())
     config_keys.remove("check")
 
+    if config["task"] in ["create", "create_from_files"]:
+        if config["recovery_mode"] is True:
+            message = '"recovery_mode" option in effect. Items that have already been ingested will be skipped, provided they have unique CSV IDs in the CSV ID to node ID map.'
+            print(message)
+            logging.info(message)
+
     # Check for presence of required config keys, which varies by task.
     if config["task"] == "create":
         if config["nodes_only"] is True:
@@ -7916,7 +7922,7 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     else:
         return
 
-    # First, confirm the databae exists; if not, tell the user and exit.
+    # First, confirm the database exists; if not, tell the user and exit.
     if config["csv_id_to_node_id_map_path"] is not False:
         if not os.path.exists(config["csv_id_to_node_id_map_path"]):
             message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
@@ -8769,6 +8775,13 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         # Only want files, not directories.
         if os.path.isdir(os.path.join(page_dir_path, page_file_name)):
             continue
+
+        if config["recovery_mode"] is True:
+            nid_in_map = id_in_csv_id_to_node_id_map(config, page_file_name, parent_id)
+            if nid_in_map is not False:
+                message = f"Page/child file {page_file_name} has already been ingested at ({config['host']}/node/{nid_in_map}), skipping it."
+                logging.info(message)
+                continue
 
         filename_without_extension = os.path.splitext(page_file_name)[0]
         filename_segments = filename_without_extension.split(
@@ -11436,6 +11449,55 @@ def populate_csv_id_to_node_id_map(
         ),
         db_file_path=config["csv_id_to_node_id_map_path"],
     )
+
+
+def id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None):
+    """Query the CSV ID to node ID map to check for a CSV ID, or in the case of pages/children
+       in directories, for the filename.
+
+    Params
+    ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        csv_id : string
+            The ID from the input CSV, or in the case of pages/children in directories,
+            the filename.
+        parent_csv_id: None|string
+            The parent ID, used only for pages/children in directories to disambiguate
+            non-unique filenames across directories processed during the same job.
+    Return
+    ------
+        bool|str
+            The item's node_id if the item is in the map, False if not.
+    """
+    # Confirm the database exists; if not, tell the user and exit.
+    if config["csv_id_to_node_id_map_path"] is not False:
+        if not os.path.exists(config["csv_id_to_node_id_map_path"]):
+            message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+    # If database exists, query it.
+    if parent_csv_id is None:
+        query = "select node_id from csv_id_to_node_id_map where csv_id = ? order by timestamp desc limit 1"
+        values = (csv_id,)
+    else:
+        query = "select node_id from csv_id_to_node_id_map where parent_csv_id = ? and csv_id = ? order by timestamp desc limit 1"
+        values = (
+            parent_csv_id,
+            csv_id,
+        )
+    csv_id_map_result = sqlite_manager(
+        config,
+        operation="select",
+        query=query,
+        values=values,
+        db_file_path=config["csv_id_to_node_id_map_path"],
+    )
+    if len(csv_id_map_result) > 0:
+        return str(csv_id_map_result[0][0])
+    else:
+        return False
 
 
 def get_term_field_values(config, term_id):
