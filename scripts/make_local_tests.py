@@ -48,7 +48,9 @@ if os.path.exists(local_tests_dir):
 
 shutil.copytree(tests_dir, local_tests_dir, dirs_exist_ok=True)
 
-for filepath in glob.iglob(f"{local_tests_dir}/**/*.yml", recursive=True):
+for filepath in list(glob.iglob(f"{local_tests_dir}/**/*.yml", recursive=True)) + list(
+    glob.iglob(f"{local_tests_dir}/**/*.py", recursive=True)
+):
     f = open(filepath)
     config = f.read()
     config = config.replace("https://islandora.dev", args.host)
