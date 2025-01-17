@@ -51,12 +51,9 @@ shutil.copytree(tests_dir, local_tests_dir, dirs_exist_ok=True)
 for filepath in glob.iglob(f"{local_tests_dir}/**/*.yml", recursive=True):
     f = open(filepath)
     config = f.read()
-    if args.host != "https://islandora.traefik.me":
-        config = config.replace("https://islandora.dev", args.host)
-    if args.username != "admin":
-        config = config.replace("admin", args.username)
-    if args.password != "password":
-        config = config.replace("password", args.password)
+    config = config.replace("https://islandora.dev", args.host)
+    config = config.replace("admin", args.username)
+    config = config.replace("password", args.password)
     config = config.replace("tests/assets/", "tests_local/assets/")
     f = open(filepath, "w")
     f.write(config)
