@@ -1,7 +1,7 @@
 task: create
 allow_adding_terms: false
 allow_missing_files: true
-host: https://islandora.traefik.me
+host: https://islandora.dev
 username: admin
 password: password
 input_dir: tests/assets/taxonomies_test

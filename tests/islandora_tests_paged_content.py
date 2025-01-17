@@ -1,4 +1,4 @@
-"""unittest tests that require a live Drupal at https://islandora.traefik.me. In most cases, the host URL,
+"""unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
    credentials, etc. are in a configuration file referenced in the test.
 
    This test file contains tests for paged content. Files islandora_tests.py, islandora_tests_paged_check.py,
@@ -39,7 +39,7 @@ class TestCreatePagedContent(unittest.TestCase):
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_create_paged_content(self):
         requests.packages.urllib3.disable_warnings()
@@ -124,7 +124,7 @@ class TestCreatePagedContentFromDirectories(unittest.TestCase):
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_create_paged_content_from_directories(self):
         requests.packages.urllib3.disable_warnings()
@@ -233,7 +233,7 @@ class TestCreatePagedContentFromDirectoriesPageFilesSourceDirField(unittest.Test
 
         self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
 
-        self.temp_dir = tempfile.gettempdir()
+        self.temp_dir = "/tmp"
 
     def test_create_paged_content_from_directories(self):
         requests.packages.urllib3.disable_warnings()

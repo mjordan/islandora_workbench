@@ -14,7 +14,12 @@ jobs:
             CMD_BUILD: pyinstaller workbench --onefile --name workbench-macos
             OUT_FILE_NAME: workbench-macos
             ASSET_MIME: application/zip
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
+            TARGET: linux
+            CMD_BUILD: pyinstaller workbench --onefile --name workbench-linux
+            OUT_FILE_NAME: workbench-linux
+            ASSET_MIME: application/zip
+          - os: ubuntu-24.04
             TARGET: linux
             CMD_BUILD: pyinstaller workbench --onefile --name workbench-linux
             OUT_FILE_NAME: workbench-linux

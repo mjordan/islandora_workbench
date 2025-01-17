@@ -1,5 +1,5 @@
 task: create
-host: https://islandora.traefik.me
+host: https://islandora.dev
 username: admin
 password: password
 input_dir: tests/assets/create_with_field_templates_test
