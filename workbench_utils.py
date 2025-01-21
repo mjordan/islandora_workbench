@@ -8777,7 +8777,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             continue
 
         if config["recovery_mode"] is True:
-            nid_in_map = id_in_csv_id_to_node_id_map(config, page_file_name, parent_id)
+            nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(
+                config, page_file_name, parent_id
+            )
             if nid_in_map is not False:
                 message = f"Page/child file {page_file_name} has already been ingested at ({config['host']}/node/{nid_in_map}), skipping it."
                 logging.info(message)
@@ -11451,17 +11453,20 @@ def populate_csv_id_to_node_id_map(
     )
 
 
-def id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None):
+def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None):
     """Query the CSV ID to node ID map to check for a CSV ID, or in the case of pages/children
-       in directories, for the filename.
+       in directories, for the filename. Used only during recovery mode.
+
+       Note: If the CSV ID / filename exists in more than one row, only the most
+       recent corresponding node ID is returned.
 
     Params
     ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
         csv_id : string
-            The ID from the input CSV, or in the case of pages/children in directories,
-            the filename.
+            The ID from the input CSV, or in the case of pages/children in directories, the
+            filename.
         parent_csv_id: None|string
             The parent ID, used only for pages/children in directories to disambiguate
             non-unique filenames across directories processed during the same job.
@@ -11477,7 +11482,8 @@ def id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None):
             logging.error(message)
             sys.exit("Error: " + message)
 
-    # If database exists, query it.
+    # If database exists, query it. Ordering desc by timestamp should get us the latest row if more than
+    # one row meets the other criteria.
     if parent_csv_id is None:
         query = "select node_id from csv_id_to_node_id_map where csv_id = ? order by timestamp desc limit 1"
         values = (csv_id,)

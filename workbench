@@ -112,7 +112,9 @@ def create():
     row_count = 0
     for row in csv_data:
         if config["recovery_mode"] is True:
-            nid_in_map = id_in_csv_id_to_node_id_map(config, row[config["id_field"]])
+            nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(
+                config, row[config["id_field"]]
+            )
             if nid_in_map is not False:
                 message = f"Item in row {row[config['id_field']]} has already been ingested at ({config['host']}/node/{nid_in_map}), skipping it."
                 logging.info(message)
@@ -2323,7 +2325,7 @@ def create_from_files():
     for file_name in files:
 
         if config["recovery_mode"] is True:
-            nid_in_map = id_in_csv_id_to_node_id_map(config, file_name)
+            nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(config, file_name)
             if nid_in_map is not False:
                 message = f"File {file_name} has already been ingested at ({config['host']}/node/{nid_in_map}), skipping it."
                 logging.info(message)
