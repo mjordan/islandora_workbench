@@ -1873,7 +1873,7 @@ def check_input(config, args):
 
     if config["task"] in ["create", "create_from_files"]:
         if config["recovery_mode"] is True:
-            message = '"recovery_mode" option in effect. Items that have already been ingested will be skipped, provided they have unique CSV IDs in the CSV ID to node ID map.'
+            message = '"recovery_mode" option in effect. Items that have already been ingested will be skipped, using their CSV ID in the CSV ID to node ID map.'
             print(message)
             logging.info(message)
 
@@ -9169,11 +9169,15 @@ def get_rollback_csv_filepath(config):
     else:
         rollback_csv_filename_basename = "rollback"
 
-    if config["timestamp_rollback"] is True:
+    if config["timestamp_rollback"] is True or config["recovery_mode"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
 
     if config["timestamp_rollback"] is True:
         rollback_csv_filename = f"{rollback_csv_filename_basename}.{now_string}.csv"
+    elif config["recovery_mode"] is True:
+        rollback_csv_filename = (
+            f"{rollback_csv_filename_basename}.{now_string}.recovery_mode.csv"
+        )
     else:
         rollback_csv_filename = f"{rollback_csv_filename_basename}.csv"
 
@@ -9255,13 +9259,18 @@ def get_rollback_config_filepath(config):
     else:
         rb_config_file_dir = ""
 
-    if config["timestamp_rollback"] is True:
+    if config["timestamp_rollback"] is True or config["recovery_mode"] is True:
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
 
     if config["timestamp_rollback"] is True:
         rollback_config_filepath = os.path.join(
             f"{rb_config_file_dir}",
             f"{rollback_config_filename_basename}.{now_string}.yml",
+        )
+    elif config["recovery_mode"] is True:
+        rollback_config_filepath = os.path.join(
+            f"{rb_config_file_dir}",
+            f"{rollback_config_filename_basename}.{now_string}.recovery_mode.yml",
         )
     else:
         rollback_config_filepath = os.path.join(
@@ -11340,19 +11349,15 @@ def sqlite_manager(
         return False
 
     if db_file_path is None:
-        db_file_name = config["sqlite_db_filename"]
-    else:
-        db_file_name = db_file_path
+        db_file_path = config["sqlite_db_filename"]
 
-    if os.path.isabs(db_file_name):
-        db_path = db_file_name
-    else:
-        db_path = os.path.join(config["temp_dir"], db_file_name)
+    db_path = os.path.abspath(db_file_path)
 
     # Only create the database if the database file does not exist. Note: Sqlite3 creates the db file
     # automatically in its .connect method, so you only need to use this operation if you want to
     # create the db prior to creating a table. No need to use it as a prerequisite for creating a table.
     if operation == "create_database":
+        # Already exists and is a file (assumes it's an SQLite database file).
         if os.path.isfile(db_path):
             return False
         else:
@@ -11373,7 +11378,6 @@ def sqlite_manager(
         ).fetchall()
         # Only create the table if it doesn't exist.
         if tables == []:
-            # cur = con.cursor()
             res = cur.execute(query)
             con.close()
             return res
@@ -11418,10 +11422,12 @@ def prepare_csv_id_to_node_id_map(config):
     """Creates the SQLite database used to map CSV row IDs to newly create node IDs."""
     if config["csv_id_to_node_id_map_path"] is False:
         return None
+
     create_table_sql = (
         "CREATE TABLE csv_id_to_node_id_map (timestamp TIMESTAMP DEFAULT (datetime('now','localtime')) NOT NULL, "
         + " config_file TEXT, parent_csv_id TEXT, parent_node_id, csv_id TEXT, node_id TEXT)"
     )
+
     sqlite_manager(
         config,
         operation="create_table",

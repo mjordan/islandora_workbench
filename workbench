@@ -3783,6 +3783,16 @@ check_drupal_core_version(config)
 
 csv_subset_warning(config)
 
+if config["task"] in ["create", "create_from_files"]:
+    logging.info(
+        f'Using the CSV ID to node ID map at "{config["csv_id_to_node_id_map_path"]}".'
+    )
+
+    if config["recovery_mode"] is True:
+        message = '"recovery_mode" option in effect. Items that have already been ingested will be skipped, using their CSV ID in the CSV ID to node ID map.'
+        print(message)
+        logging.info(message)
+
 # Apparently, there's no built-in way of getting the number of items in a
 # DictReader, so we read the CSV file, convert it to a list, and get its length.
 if config["progress_bar"] is True:
