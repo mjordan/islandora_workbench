@@ -295,7 +295,7 @@ class WorkbenchConfig:
             "media_type_by_media_use": False,
             "paged_content_ignore_files": ["Thumbs.db"],
             "include_password_in_rollback_config_file": False,
-            "recovery_mode": False,
+            "recovery_mode_starting_from_node_id": False,
         }
 
     # Tests validity and existence of configuration file path.

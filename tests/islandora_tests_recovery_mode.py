@@ -1,293 +1,638 @@
-"""unittest tests that require a live Drupal at https://islandora.traefik.me. In most cases, the host URL,
+"""unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
    credentials, etc. are in a configuration file referenced in the test.
 
-   This test file contains tests for paged content. Files islandora_tests.py, islandora_tests_paged_check.py,
-   and islandora_tests_hooks.py also contain tests that interact with an Islandora instance.
+   This test file contains tests for creating content using "recovery mode".
 """
 
 import sys
 import os
 from ruamel.yaml import YAML
-import tempfile
+import requests
 import subprocess
-import argparse
 import requests
 import json
-import urllib.parse
 import unittest
+import shutil
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
 
 
 class TestCreateRecoveryModeSingleItems(unittest.TestCase):
-
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.create_config_file_path = os.path.join(
-            self.current_dir, "assets", "create_test", "create.yml"
+
+        self.empty_db_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_tests_csv_to_node_id_map.db.empty",
         )
-        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.test_db_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_tests_csv_to_node_id_map.db",
+        )
+        shutil.copyfile(self.empty_db_path, self.test_db_path)
 
     def test_create(self):
-        self.nids = list()
-        create_output = subprocess.check_output(self.create_cmd)
-        create_output = create_output.decode().strip()
-        create_lines = create_output.splitlines()
-        for line in create_lines:
+        requests.packages.urllib3.disable_warnings()
+
+        # First create 10 "stale" nodes to populate the CSV ID to node ID map with IDs
+        # that will be duplicates of ones created in the next block.
+        self.create_stale_config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_part.yml",
+        )
+        self.stale_create_cmd = [
+            "./workbench",
+            "--config",
+            self.create_stale_config_file_path,
+        ]
+
+        self.stale_nids = list()
+        stale_create_output = subprocess.check_output(self.stale_create_cmd)
+        stale_create_output = stale_create_output.decode().strip()
+        stale_create_lines = stale_create_output.splitlines()
+        for line in stale_create_lines:
             if "created at" in line:
                 nid = line.rsplit("/", 1)[-1]
                 nid = nid.strip(".")
-                self.nids.append(nid)
+                self.stale_nids.append(nid)
 
-        self.assertEqual(len(self.nids), 2)
+        self.assertEqual(len(self.stale_nids), 10)
+
+        # Create 10 nodes to simulate the nodes that were successfully created before
+        # the create task got "interruped".
+        self.create_part_config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_part.yml",
+        )
+        self.part_create_cmd = [
+            "./workbench",
+            "--config",
+            self.create_part_config_file_path,
+        ]
+
+        self.part_nids = list()
+        part_create_output = subprocess.check_output(self.part_create_cmd)
+        part_create_output = part_create_output.decode().strip()
+        part_create_lines = part_create_output.splitlines()
+        for line in part_create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                self.part_nids.append(nid)
+
+        self.assertEqual(len(self.part_nids), 10)
+
+        # Then create 12 more nodes in recovery mode from the same input CSV.
+        self.create_full_config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_full.yml",
+        )
+        self.full_create_cmd = [
+            "./workbench",
+            "--config",
+            self.create_full_config_file_path,
+            "--recovery_mode_starting_from_node_id",
+            self.part_nids[0],
+        ]
+
+        self.full_nids = list()
+        full_create_output = subprocess.check_output(self.full_create_cmd)
+        full_create_output = full_create_output.decode().strip()
+        full_create_lines = full_create_output.splitlines()
+        for line in full_create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                self.full_nids.append(nid)
+
+        # If only 12 nodes werer created, recovery mode worked.
+        self.assertEqual(len(self.full_nids), 12)
 
     def tearDown(self):
-        for nid in self.nids:
+        for nid in self.stale_nids:
             quick_delete_cmd = [
                 "./workbench",
                 "--config",
-                self.create_config_file_path,
+                self.create_part_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.traefik.me/node/" + nid,
+                "https://islandora.dev/node/" + nid,
             ]
-            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd)
 
-        self.rollback_file_path = os.path.join(
-            self.current_dir, "assets", "create_test", "rollback.csv"
+        for nid in self.part_nids:
+            quick_delete_cmd = [
+                "./workbench",
+                "--config",
+                self.create_part_config_file_path,
+                "--quick_delete_node",
+                "https://islandora.dev/node/" + nid,
+            ]
+            subprocess.check_output(quick_delete_cmd)
+
+        for nid in self.full_nids:
+            quick_delete_cmd = [
+                "./workbench",
+                "--config",
+                self.create_full_config_file_path,
+                "--quick_delete_node",
+                "https://islandora.dev/node/" + nid,
+            ]
+            subprocess.check_output(quick_delete_cmd)
+
+        self.preprocessed_part_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_part.csv.preprocessed",
         )
-        if os.path.exists(self.rollback_file_path):
-            os.remove(self.rollback_file_path)
+        if os.path.exists(self.preprocessed_part_file_path):
+            os.remove(self.preprocessed_part_file_path)
 
-        self.preprocessed_file_path = os.path.join(
-            self.current_dir, "assets", "create_test", "metadata.csv.preprocessed"
+        self.preprocessed_full_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_full.csv.preprocessed",
         )
-        if os.path.exists(self.preprocessed_file_path):
-            os.remove(self.preprocessed_file_path)
+        if os.path.exists(self.preprocessed_full_file_path):
+            os.remove(self.preprocessed_full_file_path)
 
-        # @todo: remove the map, which will be in [temp_dir]/recovery_mode_tests_csv_to_node_id_map.db
+        if os.path.exists(self.test_db_path):
+            os.remove(self.test_db_path)
+
+        self.rollback_part_csv_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_part.csv"
+        )
+        if os.path.exists(self.rollback_part_csv_file_path):
+            os.remove(self.rollback_part_csv_file_path)
+        self.rollback_part_config_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_part.yml"
+        )
+        if os.path.exists(self.rollback_part_config_file_path):
+            os.remove(self.rollback_part_config_file_path)
+
+        self.rollback_full_csv_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_full.csv"
+        )
+        if os.path.exists(self.rollback_full_csv_file_path):
+            os.remove(self.rollback_full_csv_file_path)
+        self.rollback_full_config_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_full.yml"
+        )
+        if os.path.exists(self.rollback_full_config_file_path):
+            os.remove(self.rollback_full_config_file_path)
 
 
-'''
-class TestCreatePagedContentFromDirectories(unittest.TestCase):
+class TestCreateRecoveryModeSingleItemsWithParentId(unittest.TestCase):
+    current_dir = os.path.dirname(os.path.abspath(__file__))
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.create_config_file_path = os.path.join(
+        self.empty_db_path = os.path.join(
             self.current_dir,
             "assets",
-            "create_paged_content_from_directories_test",
-            "books.yml",
+            "recovery_mode_test",
+            "recovery_mode_tests_csv_to_node_id_map.db.empty",
         )
+        self.test_db_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_tests_csv_to_node_id_map.db",
+        )
+        shutil.copyfile(self.empty_db_path, self.test_db_path)
 
-        yaml = YAML()
-        with open(self.create_config_file_path, "r") as f:
-            config_file_contents = f.read()
-        config_data = yaml.load(config_file_contents)
-        config = {}
-        for k, v in config_data.items():
-            config[k] = v
-        self.islandora_host = config["host"]
-        self.islandora_username = config["username"]
-        self.islandora_password = config["password"]
-
-        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-
-        self.temp_dir = tempfile.gettempdir()
-
-    def test_create_paged_content_from_directories(self):
+    def test_create(self):
         requests.packages.urllib3.disable_warnings()
-        self.nids = list()
-        create_output = subprocess.check_output(self.create_cmd)
-        create_output = create_output.decode().strip()
 
-        # Write a file to the system's temp directory containing the node IDs of the
-        # nodes created during this test so they can be deleted in tearDown().
-        create_lines = create_output.splitlines()
-        for line in create_lines:
+        # First create 10 "stale" nodes to populate the CSV ID to node ID map with IDs
+        # that will be duplicates of ones created in the next block.
+        self.create_stale_config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_part_with_parent_id.yml",
+        )
+        self.stale_create_cmd = [
+            "./workbench",
+            "--config",
+            self.create_stale_config_file_path,
+        ]
+
+        self.stale_nids = list()
+        stale_create_output = subprocess.check_output(self.stale_create_cmd)
+        stale_create_output = stale_create_output.decode().strip()
+        stale_create_lines = stale_create_output.splitlines()
+        for line in stale_create_lines:
             if "created at" in line:
                 nid = line.rsplit("/", 1)[-1]
                 nid = nid.strip(".")
-                # E.g. a URL alias.
-                if workbench_utils.value_is_numeric(nid) is False:
-                    url = line[line.find("http") :].strip(".")
-                    nid = workbench_utils.get_nid_from_url_without_config(url)
-                self.nids.append(nid)
+                self.stale_nids.append(nid)
 
-        self.assertEqual(len(self.nids), 4)
+        self.assertEqual(len(self.stale_nids), 10)
 
-        # Test a page object's 'field_member_of' value to see if it matches its
-        # parent's node ID. In this test, we'll test the second page. Note: the
-        # metadata CSV file used to create the paged content and page objects
-        # uses hard-coded term IDs from the Islandora Models taxonomy as used
-        # in the Islandora Playbook. If they change or are different in the
-        # Islandora this test is running against, this test will fail. Also note
-        # that this test creates media and does not delete them.
-        parent_node_id_to_test = self.nids[0]
-        # Get the REST feed for the parent node's members.
-        members_url = (
-            self.islandora_host
-            + "/node/"
-            + parent_node_id_to_test
-            + "/members?_format=json"
+        # Create 10 nodes to simulate the nodes that were successfully created before
+        # the create task got "interruped".
+        self.create_part_config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_part_with_parent_id.yml",
         )
-        # Need to provide credentials for this REST export.
-        members_response = requests.get(
-            members_url,
-            auth=(self.islandora_username, self.islandora_password),
-            verify=False,
-        )
-        members = json.loads(members_response.text)
+        self.part_create_cmd = [
+            "./workbench",
+            "--config",
+            self.create_part_config_file_path,
+        ]
 
-        expected_member_weights = [1, 2, 3]
-        retrieved_member_weights = list()
-        for member in members:
-            retrieved_member_weights.append(int(member["field_weight"][0]["value"]))
-            # Test that each page indeed a member of the first node created during this test.
-            self.assertEqual(
-                int(parent_node_id_to_test),
-                int(member["field_member_of"][0]["target_id"]),
+        self.part_nids = list()
+        part_create_output = subprocess.check_output(self.part_create_cmd)
+        part_create_output = part_create_output.decode().strip()
+        part_create_lines = part_create_output.splitlines()
+        for line in part_create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                self.part_nids.append(nid)
+
+        self.assertEqual(len(self.part_nids), 10)
+
+        # Then create 12 more nodes in recovery mode from the same input CSV.
+        self.create_full_config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_full_with_parent_id.yml",
+        )
+        self.full_create_cmd = [
+            "./workbench",
+            "--config",
+            self.create_full_config_file_path,
+            "--recovery_mode_starting_from_node_id",
+            self.part_nids[0],
+        ]
+
+        self.full_nids = list()
+        full_create_output = subprocess.check_output(self.full_create_cmd)
+        full_create_output = full_create_output.decode().strip()
+        full_create_lines = full_create_output.splitlines()
+        for line in full_create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                self.full_nids.append(nid)
+
+        # If only 12 nodes werer created, recovery mode worked.
+        self.assertEqual(len(self.full_nids), 12)
+
+        # Test that the correct parent node ID was assigned to children.
+        node_with_children_nid = None
+        for node_id in self.part_nids:
+            node_url = (
+                "https://islandora.dev/node/" + str(node_id) + "?_format=json"
             )
+            node_response = requests.get(node_url, verify=False)
+            node = json.loads(node_response.text)
+            if node["title"][0]["value"].endswith("is parent"):
+                node_with_children_nid = node["nid"][0]["value"]
 
-        # Test that the weights assigned to the three pages are what we expect.
-        self.assertEqual(expected_member_weights, retrieved_member_weights)
+        for node_id in self.full_nids:
+            node_url = (
+                "https://islandora.dev/node/" + str(node_id) + "?_format=json"
+            )
+            node_response = requests.get(node_url, verify=False)
+            node = json.loads(node_response.text)
+            # Check to see whether nodes that are supposed to be children of node titled
+            # "Recovery mode test single 008 is parent" do in fact have its node ID in their
+            # field_member_of, and whether nodes that are not supposed to be children of
+            # that node have nothing in field_member_of
+            if node["title"][0]["value"].endswith("is child of 8"):
+                self.assertEqual(
+                    node["field_member_of"][0]["target_id"], node_with_children_nid
+                )
+            else:
+                self.assertEqual(len(node["field_member_of"]), 0)
 
     def tearDown(self):
-        for nid in self.nids:
+        for nid in self.stale_nids:
             quick_delete_cmd = [
                 "./workbench",
                 "--config",
-                self.create_config_file_path,
+                self.create_stale_config_file_path,
                 "--quick_delete_node",
-                f"{self.islandora_host}/node/{nid}",
+                "https://islandora.dev/node/" + nid,
             ]
-            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd)
 
-        preprocessed_csv_path = os.path.join(self.temp_dir, "metadata.csv.preprocessed")
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
+        for nid in self.part_nids:
+            quick_delete_cmd = [
+                "./workbench",
+                "--config",
+                self.create_part_config_file_path,
+                "--quick_delete_node",
+                "https://islandora.dev/node/" + nid,
+            ]
+            subprocess.check_output(quick_delete_cmd)
 
-        rollback_file_path = os.path.join(
+        for nid in self.full_nids:
+            quick_delete_cmd = [
+                "./workbench",
+                "--config",
+                self.create_full_config_file_path,
+                "--quick_delete_node",
+                "https://islandora.dev/node/" + nid,
+            ]
+            subprocess.check_output(quick_delete_cmd)
+
+        self.preprocessed_part_file_path = os.path.join(
             self.current_dir,
             "assets",
-            "create_paged_content_from_directories_test",
-            "samplebooks",
-            "rollback.csv",
+            "recovery_mode_test",
+            "recovery_mode_single_part_with_parent_id.csv.preprocessed",
         )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
+        if os.path.exists(self.preprocessed_part_file_path):
+            os.remove(self.preprocessed_part_file_path)
+
+        self.preprocessed_full_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_single_full_with_parent_id.csv.preprocessed",
+        )
+        if os.path.exists(self.preprocessed_full_file_path):
+            os.remove(self.preprocessed_full_file_path)
+
+        if os.path.exists(self.test_db_path):
+            os.remove(self.test_db_path)
+
+        self.rollback_part_csv_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_part.csv"
+        )
+        if os.path.exists(self.rollback_part_csv_file_path):
+            os.remove(self.rollback_part_csv_file_path)
+        self.rollback_part_config_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_part.yml"
+        )
+        if os.path.exists(self.rollback_part_config_file_path):
+            os.remove(self.rollback_part_config_file_path)
+
+        self.rollback_full_csv_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_full.csv"
+        )
+        if os.path.exists(self.rollback_full_csv_file_path):
+            os.remove(self.rollback_full_csv_file_path)
+        self.rollback_full_config_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_full.yml"
+        )
+        if os.path.exists(self.rollback_full_config_file_path):
+            os.remove(self.rollback_full_config_file_path)
 
 
-class TestCreatePagedContentFromDirectoriesPageFilesSourceDirField(unittest.TestCase):
+class TestCreateRecoveryModePagedItemsFromDirectories(unittest.TestCase):
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    empty_db_path = os.path.join(
+        current_dir,
+        "assets",
+        "recovery_mode_test",
+        "recovery_mode_tests_csv_to_node_id_map.db.empty",
+    )
+    test_db_path = os.path.join(
+        current_dir,
+        "assets",
+        "recovery_mode_test",
+        "recovery_mode_tests_csv_to_node_id_map.db",
+    )
+
+    rollback_part_config_file_path = os.path.join(
+        current_dir,
+        "assets",
+        "recovery_mode_test",
+        "rollback_paged_part.yml",
+    )
+    rollback_full_config_file_path = os.path.join(
+        current_dir,
+        "assets",
+        "recovery_mode_test",
+        "rollback_paged_full.yml",
+    )
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.create_config_file_path = os.path.join(
+        shutil.copyfile(self.empty_db_path, self.test_db_path)
+
+    def test_create(self):
+        requests.packages.urllib3.disable_warnings()
+
+        # First create 2 books, each with 10 pages. to populat the map with  "stale" nodes
+        # that will be duplicates of ones created in the next block.
+        self.create_stale_config_file_path = os.path.join(
             self.current_dir,
             "assets",
-            "create_paged_content_from_directories_test",
-            "books_page_files_source_dir_field.yml",
+            "recovery_mode_test",
+            "recovery_mode_paged_content_full.yml",
         )
+        self.stale_create_cmd = [
+            "./workbench",
+            "--config",
+            self.create_stale_config_file_path,
+        ]
 
-        yaml = YAML()
-        with open(self.create_config_file_path, "r") as f:
-            config_file_contents = f.read()
-        config_data = yaml.load(config_file_contents)
-        config = {}
-        for k, v in config_data.items():
-            config[k] = v
-        self.islandora_host = config["host"]
-        self.islandora_username = config["username"]
-        self.islandora_password = config["password"]
-
-        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
-
-        self.temp_dir = tempfile.gettempdir()
-
-    def test_create_paged_content_from_directories(self):
-        requests.packages.urllib3.disable_warnings()
-        self.nids = list()
-        create_output = subprocess.check_output(self.create_cmd)
-        create_output = create_output.decode().strip()
-
-        # Write a file to the system's temp directory containing the node IDs of the
-        # nodes created during this test so they can be deleted in tearDown().
-        create_lines = create_output.splitlines()
-        for line in create_lines:
+        self.stale_nids = list()
+        stale_create_output = subprocess.check_output(self.stale_create_cmd)
+        stale_create_output = stale_create_output.decode().strip()
+        stale_create_lines = stale_create_output.splitlines()
+        for line in stale_create_lines:
             if "created at" in line:
                 nid = line.rsplit("/", 1)[-1]
                 nid = nid.strip(".")
-                # E.g. a URL alias.
-                if workbench_utils.value_is_numeric(nid) is False:
-                    url = line[line.find("http") :].strip(".")
-                    nid = workbench_utils.get_nid_from_url_without_config(url)
-                self.nids.append(nid)
+                self.stale_nids.append(nid)
 
-        self.assertEqual(len(self.nids), 4)
+        self.assertEqual(len(self.stale_nids), 22)
 
-        # Test a page object's 'field_member_of' value to see if it matches its
-        # parent's node ID. In this test, we'll test the second page. Note: the
-        # metadata CSV file used to create the paged content and page objects
-        # uses hard-coded term IDs from the Islandora Models taxonomy as used
-        # in the Islandora Playbook. If they change or are different in the
-        # Islandora this test is running against, this test will fail. Also note
-        # that this test creates media and does not delete them.
-        parent_node_id_to_test = self.nids[0]
-        # Get the REST feed for the parent node's members.
-        members_url = (
-            self.islandora_host
-            + "/node/"
-            + parent_node_id_to_test
-            + "/members?_format=json"
-        )
-        # Need to provide credentials for this REST export.
-        members_response = requests.get(
-            members_url,
-            auth=(self.islandora_username, self.islandora_password),
-            verify=False,
-        )
-        members = json.loads(members_response.text)
-
-        expected_member_weights = [1, 2, 3]
-        retrieved_member_weights = list()
-        for member in members:
-            retrieved_member_weights.append(int(member["field_weight"][0]["value"]))
-            # Test that each page indeed a member of the first node created during this test.
-            self.assertEqual(
-                int(parent_node_id_to_test),
-                int(member["field_member_of"][0]["target_id"]),
-            )
-
-        # Test that the weights assigned to the three pages are what we expect.
-        self.assertEqual(expected_member_weights, retrieved_member_weights)
-
-    def tearDown(self):
-        for nid in self.nids:
-            quick_delete_cmd = [
-                "./workbench",
-                "--config",
-                self.create_config_file_path,
-                "--quick_delete_node",
-                f"{self.islandora_host}/node/{nid}",
-            ]
-            quick_delete_output = subprocess.check_output(quick_delete_cmd)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "metadata_page_files_source_dir_field.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        rollback_file_path = os.path.join(
+        # Delete these nodes and media. We need to use the rollback.yml here because
+        # Drupal may return a node's path, not its node ID.
+        self.rollback_stale_config_file_path = os.path.join(
             self.current_dir,
             "assets",
-            "create_paged_content_from_directories_test",
-            "samplebooks",
-            "rollback.csv",
+            "recovery_mode_test",
+            "rollback_paged_full.yml",
         )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-'''
+        self.rollback_stale_cmd = [
+            "./workbench",
+            "--config",
+            self.rollback_stale_config_file_path,
+        ]
+        subprocess.check_output(self.rollback_stale_cmd)
+
+        # Then load the "part" content - 1 book node and 6 page nodes.
+        self.create_part_config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_paged_content_part.yml",
+        )
+        self.create_part_cmd = [
+            "./workbench",
+            "--config",
+            self.create_part_config_file_path,
+        ]
+
+        self.part_nids = list()
+        part_create_output = subprocess.check_output(self.create_part_cmd)
+        part_create_output = part_create_output.decode().strip()
+        part_create_lines = part_create_output.splitlines()
+        for line in part_create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                self.part_nids.append(nid)
+
+        self.assertEqual(len(self.part_nids), 7)
+
+        # Get the 4th line of the rollback_paged_part.csv, which will be the highest node ID created
+        # in the "part" ingest (the first line is 'node_id', the 2 lines of comments). We use this to
+        # populate the "--recovery_mode_starting_from_node_id" argument.
+        rollback_part_csv_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "rollback_paged_part.csv",
+        )
+        with open(rollback_part_csv_file_path, "r") as f:
+            recovery_mode_start_from_node_id = f.readlines()[3].strip()
+
+        # Load all pages in recovery mode.
+        recovery_mode_create_config_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "recovery_mode_paged_content_full.yml",
+        )
+        recovery_mode_create_cmd = [
+            "./workbench",
+            "--config",
+            recovery_mode_create_config_file_path,
+            "--recovery_mode_starting_from_node_id",
+            recovery_mode_start_from_node_id,
+        ]
+
+        recovery_mode_create_nids = list()
+        recovery_mode_create_output = subprocess.check_output(recovery_mode_create_cmd)
+        recovery_mode_create_output = recovery_mode_create_output.decode().strip()
+        recovery_mode_create_lines = recovery_mode_create_output.splitlines()
+        for line in recovery_mode_create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                recovery_mode_create_nids.append(nid)
+
+        # If recovery mode worked, only 15 nodes are created.
+        self.assertEqual(len(recovery_mode_create_nids), 15)
+
+        # Even though we know the expected number of nodes were created in the part and full
+        # create tasks, we need to confirm that the field_member_of in each child node was
+        # populated correctly, like we did in TestCreateRecoveryModeSingleItemsWithParentId.
+
+        # Get the lines in the part and full rollback CSV files. These are the
+        # node IDs (the *_nids lists above may contain paths, not node ID.).
+        with open(rollback_part_csv_file_path, "r") as f:
+            rollback_part_csv_file_lines = f.readlines()
+            part_nodes_nids = rollback_part_csv_file_lines[3:]
+
+        rollback_full_csv_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "recovery_mode_test",
+            "rollback_paged_full.csv",
+        )
+        with open(rollback_full_csv_file_path, "r") as f:
+            rollback_fullt_csv_file_lines = f.readlines()
+            full_nodes_nids = rollback_fullt_csv_file_lines[3:]
+
+        all_node_ids = part_nodes_nids + full_nodes_nids
+
+        # Get the book node's node IDs
+        for node_id in all_node_ids:
+            node_url = (
+                "https://islandora.dev/node/"
+                + str(node_id).strip()
+                + "?_format=json"
+            )
+            node_response = requests.get(node_url, verify=False)
+            node = json.loads(node_response.text)
+            if node["title"][0]["value"].endswith("book 1 (parent)"):
+                book_1_node_id = node_id
+            if node["title"][0]["value"].endswith("book 2 (parent)"):
+                book_2_node_id = node_id
+
+        for node_id in all_node_ids:
+            node_url = (
+                "https://islandora.dev/node/"
+                + str(node_id).strip()
+                + "?_format=json"
+            )
+            node_response = requests.get(node_url, verify=False)
+            node = json.loads(node_response.text)
+            # Check to see whether nodes that are supposed to be children of the books
+            # do in fact have its node ID in their field_member_of.
+            if (
+                "book 1" in node["title"][0]["value"]
+                and "book 1 (parent)" not in node["title"][0]["value"]
+            ):
+                self.assertEqual(len(node["field_member_of"]), book_1_node_id)
+            if (
+                "book 2" in node["title"][0]["value"]
+                and "book 2 (parent)" not in node["title"][0]["value"]
+            ):
+                self.assertEqual(len(node["field_member_of"]), book_2_node_id)
+
+        # Delete the nodes and media created during the "part" ingest.
+        rollback_part_cmd = [
+            "./workbench",
+            "--config",
+            self.rollback_part_config_file_path,
+        ]
+        subprocess.check_output(rollback_part_cmd)
+
+        # Delete the nodes and media created during the "full" ingest.
+        rollback_full_cmd = [
+            "./workbench",
+            "--config",
+            self.rollback_full_config_file_path,
+        ]
+        subprocess.check_output(rollback_full_cmd)
+
+    def tearDown(self):
+        if os.path.exists(self.test_db_path):
+            os.remove(self.test_db_path)
+
+        if os.path.exists(self.rollback_part_config_file_path):
+            os.remove(self.rollback_part_config_file_path)
+
+        if os.path.exists(self.rollback_full_config_file_path):
+            os.remove(self.rollback_full_config_file_path)
+
+        rollback_part_csv_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_paged_part.csv"
+        )
+        if os.path.exists(rollback_part_csv_file_path):
+            os.remove(rollback_part_csv_file_path)
+
+        rollback_full_csv_file_path = os.path.join(
+            self.current_dir, "assets", "recovery_mode_test", "rollback_paged_full.csv"
+        )
+        if os.path.exists(rollback_full_csv_file_path):
+            os.remove(rollback_full_csv_file_path)
 
 
 if __name__ == "__main__":

@@ -89,6 +89,7 @@ def create():
     if (
         "parent_id" in csv_column_headers
         and config["query_csv_id_to_node_id_map_for_parents"] is False
+        and config["recovery_mode_starting_from_node_id"] is False
     ):
         message = "Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
         print(message)
@@ -111,10 +112,14 @@ def create():
 
     row_count = 0
     for row in csv_data:
-        if config["recovery_mode"] is True:
+        if (
+            config["recovery_mode_starting_from_node_id"] is not False
+            and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+        ):
             nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(
                 config, row[config["id_field"]]
             )
+
             if nid_in_map is not False:
                 message = f"Item in row {row[config['id_field']]} has already been ingested at ({config['host']}/node/{nid_in_map}), skipping it."
                 logging.info(message)
@@ -125,6 +130,26 @@ def create():
                     create_children_from_directory(config, row, nid_in_map)
 
                 continue
+
+            # If we have gotten this far, the current row has not been created in Drupal.
+            if "parent_id" in csv_column_headers and len(row["parent_id"]) > 0:
+                parent_node_id_query = "select node_id from csv_id_to_node_id_map where csv_id = ? and node_id >= ? order by timestamp desc limit 1"
+                parent_in_id_map_result = sqlite_manager(
+                    config,
+                    operation="select",
+                    query=parent_node_id_query,
+                    values=(
+                        row["parent_id"],
+                        config["recovery_mode_starting_from_node_id"],
+                    ),
+                    db_file_path=config["csv_id_to_node_id_map_path"],
+                )
+                if len(parent_in_id_map_result) > 0:
+                    row["field_member_of"] = str(parent_in_id_map_result[0][0])
+                else:
+                    message = f'Recovery mode was unable to find the node ID for the parent CSV row "{row["parent_id"]}" in theh CSV ID to node ID map.'
+                    print("Warning: " + message)
+                    logging.warning(message)
 
         if (
             "node_exists_verification_view_endpoint" in config
@@ -2324,9 +2349,12 @@ def create_from_files():
     file_count = 0
     for file_name in files:
 
-        if config["recovery_mode"] is True:
+        if (
+            config["recovery_mode_starting_from_node_id"] is not False
+            and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+        ):
             nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(config, file_name)
-            if nid_in_map is not False:
+            if nid_in_map is not False or not None:
                 message = f"File {file_name} has already been ingested at ({config['host']}/node/{nid_in_map}), skipping it."
                 logging.info(message)
                 file_count += 1
@@ -3590,6 +3618,12 @@ parser.add_argument(
     "--csv_stop_row",
     help="Overrides the 'csv_stop_row' configuration setting.",
 )
+parser.add_argument(
+    "--recovery_mode_starting_from_node_id",
+    help="Overrides the 'recovery_mode_starting_from_node_id' configuration setting.",
+)
+
+
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
 
@@ -3626,6 +3660,11 @@ if args.csv_start_row is not None:
     config["csv_start_row"] = int(args.csv_start_row)
 if args.csv_stop_row is not None:
     config["csv_stop_row"] = int(args.csv_stop_row)
+if args.recovery_mode_starting_from_node_id is not None:
+    config["recovery_mode_starting_from_node_id"] = (
+        args.recovery_mode_starting_from_node_id
+    )
+
 
 if args.print_config is True:
     print("\nCurrent Islandora Workbench configuration, including defaults")
@@ -3787,9 +3826,11 @@ if config["task"] in ["create", "create_from_files"]:
     logging.info(
         f'Using the CSV ID to node ID map at "{config["csv_id_to_node_id_map_path"]}".'
     )
-
-    if config["recovery_mode"] is True:
-        message = '"recovery_mode" option in effect. Items that have already been ingested will be skipped, using their CSV ID in the CSV ID to node ID map.'
+    if (
+        config["recovery_mode_starting_from_node_id"] is not False
+        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+    ):
+        message = f'"recovery_mode" option in effect. Items that have already been ingested with node IDs starting at {config["recovery_mode_starting_from_node_id"]} will be skipped.'
         print(message)
         logging.info(message)
 

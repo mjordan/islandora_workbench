@@ -1,0 +1,12 @@
+task: create
+host: https://islandora.dev
+username: admin
+password: password
+input_dir: tests/assets/recovery_mode_test
+input_csv: recovery_mode_single_part.csv
+csv_id_to_node_id_map_path: tests/assets/recovery_mode_test/recovery_mode_tests_csv_to_node_id_map.db
+rollback_config_file_path: tests/assets/recovery_mode_test/rollback_part.yml
+rollback_csv_file_path: tests/assets/recovery_mode_test/rollback_part.csv
+include_password_in_rollback_config_file: true
+secure_ssl_only: false
+nodes_only: true 
