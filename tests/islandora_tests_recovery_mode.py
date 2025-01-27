@@ -298,18 +298,14 @@ class TestCreateRecoveryModeSingleItemsWithParentId(unittest.TestCase):
         # Test that the correct parent node ID was assigned to children.
         node_with_children_nid = None
         for node_id in self.part_nids:
-            node_url = (
-                "https://islandora.dev/node/" + str(node_id) + "?_format=json"
-            )
+            node_url = "https://islandora.dev/node/" + str(node_id) + "?_format=json"
             node_response = requests.get(node_url, verify=False)
             node = json.loads(node_response.text)
             if node["title"][0]["value"].endswith("is parent"):
                 node_with_children_nid = node["nid"][0]["value"]
 
         for node_id in self.full_nids:
-            node_url = (
-                "https://islandora.dev/node/" + str(node_id) + "?_format=json"
-            )
+            node_url = "https://islandora.dev/node/" + str(node_id) + "?_format=json"
             node_response = requests.get(node_url, verify=False)
             node = json.loads(node_response.text)
             # Check to see whether nodes that are supposed to be children of node titled
@@ -564,9 +560,7 @@ class TestCreateRecoveryModePagedItemsFromDirectories(unittest.TestCase):
         # Get the book node's node IDs
         for node_id in all_node_ids:
             node_url = (
-                "https://islandora.dev/node/"
-                + str(node_id).strip()
-                + "?_format=json"
+                "https://islandora.dev/node/" + str(node_id).strip() + "?_format=json"
             )
             node_response = requests.get(node_url, verify=False)
             node = json.loads(node_response.text)
@@ -577,9 +571,7 @@ class TestCreateRecoveryModePagedItemsFromDirectories(unittest.TestCase):
 
         for node_id in all_node_ids:
             node_url = (
-                "https://islandora.dev/node/"
-                + str(node_id).strip()
-                + "?_format=json"
+                "https://islandora.dev/node/" + str(node_id).strip() + "?_format=json"
             )
             node_response = requests.get(node_url, verify=False)
             node = json.loads(node_response.text)
