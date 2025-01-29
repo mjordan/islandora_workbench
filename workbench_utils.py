@@ -6765,6 +6765,18 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
                     field_name,
                 )
 
+            # Entity reference revision fields (paragraphs).
+            elif (
+                vocab_field_definitions[field_name]["field_type"]
+                == "entity_reference_revisions"
+            ):
+                entity_reference_revisions_field = (
+                    workbench_fields.EntityReferenceRevisionsField()
+                )
+                term_field_data = entity_reference_revisions_field.create(
+                    config, vocab_field_definitions, term_field_data, term_csv_row, field_name,
+                )
+            
             # Typed relation fields.
             elif vocab_field_definitions[field_name]["field_type"] == "typed_relation":
                 typed_relation_field = workbench_fields.TypedRelationField()
