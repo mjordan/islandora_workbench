@@ -1,5 +1,4 @@
-"""Utility functions for Islandora Workbench.
-"""
+"""Utility functions for Islandora Workbench."""
 
 import os
 import sys
@@ -6774,9 +6773,13 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
                     workbench_fields.EntityReferenceRevisionsField()
                 )
                 term_field_data = entity_reference_revisions_field.create(
-                    config, vocab_field_definitions, term_field_data, term_csv_row, field_name,
+                    config,
+                    vocab_field_definitions,
+                    term_field_data,
+                    term_csv_row,
+                    field_name,
                 )
-            
+
             # Typed relation fields.
             elif vocab_field_definitions[field_name]["field_type"] == "typed_relation":
                 typed_relation_field = workbench_fields.TypedRelationField()

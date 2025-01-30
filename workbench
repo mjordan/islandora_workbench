@@ -3299,7 +3299,11 @@ def update_terms():
                     workbench_fields.EntityReferenceRevisionsField()
                 )
                 term = entity_reference_revisions_field.update(
-                    config, field_definitions, term, row, custom_field,
+                    config,
+                    field_definitions,
+                    term,
+                    row,
+                    custom_field,
                     term_field_values[custom_field],
                 )
 
