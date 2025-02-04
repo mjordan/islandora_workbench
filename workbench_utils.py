@@ -10123,7 +10123,7 @@ def download_file_from_drupal(config, node_id):
                             return False
                     else:
                         logging.warning(
-                            f'Node {node_id} in new Summit has no files in "{file_field_name}".'
+                            f'Node {node_id} has no files in "{file_field_name}".'
                         )
                         return False
                 else:
