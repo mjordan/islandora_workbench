@@ -3884,6 +3884,10 @@ try:
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         os.environ.pop("ISLANDORA_WORKBENCH_SECONDARY_TASKS")
 
+    if config["completion_message"] is not None:
+        print(config["completion_message"])
+        logging.info(config["completion_message"])
+
 
 except KeyboardInterrupt:
     print("Exiting before entire CSV processed. See log for more info.")
