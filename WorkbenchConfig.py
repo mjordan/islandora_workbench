@@ -287,10 +287,10 @@ class WorkbenchConfig:
             "csv_value_templates_rand_length": 5,
             "allow_csv_value_templates_if_field_empty": [],
             "remind_user_to_run_check": False,
+            "completion_message": None,
             "media_type_by_media_use": False,
             "paged_content_ignore_files": ["Thumbs.db"],
             "include_password_in_rollback_config_file": False,
-            "completion_message": None,
         }
 
     # Tests validity and existence of configuration file path.
