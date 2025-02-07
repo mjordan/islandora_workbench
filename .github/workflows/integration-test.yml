@@ -59,3 +59,6 @@ jobs:
 
       - name: Run islandora_tests  
         run: python tests/islandora_tests.py
+
+      - name: Run islandora_tests_recovery_mode
+        run: python tests/islandora_tests_recovery_mode.py        
