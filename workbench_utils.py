@@ -1883,6 +1883,15 @@ def check_input(config, args):
     config_keys = list(config.keys())
     config_keys.remove("check")
 
+    if config["task"] in ["create", "create_from_files"]:
+        if (
+            config["recovery_mode_starting_from_node_id"] is not False
+            and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+        ):
+            message = f'"recovery_mode" option in effect. Items that have already been ingested with node IDs starting at {config["recovery_mode_starting_from_node_id"]} will be skipped.'
+            print(message)
+            logging.info(message)
+
     # Check for presence of required config keys, which varies by task.
     if config["task"] == "create":
         if config["nodes_only"] is True:
@@ -7944,7 +7953,7 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     else:
         return
 
-    # First, confirm the databae exists; if not, tell the user and exit.
+    # First, confirm the database exists; if not, tell the user and exit.
     if config["csv_id_to_node_id_map_path"] is not False:
         if not os.path.exists(config["csv_id_to_node_id_map_path"]):
             message = f"Can't find CSV ID to node ID database path at {config['csv_id_to_node_id_map_path']}."
@@ -8798,6 +8807,19 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         if os.path.isdir(os.path.join(page_dir_path, page_file_name)):
             continue
 
+        if (
+            config["recovery_mode_starting_from_node_id"] is not False
+            and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+            and parent_id is not None
+        ):
+            nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(
+                config, page_file_name, parent_id
+            )
+            if nid_in_map is not False:
+                message = f"Page/child file {page_file_name} has already been ingested at ({config['host']}/node/{nid_in_map}), skipping it."
+                logging.info(message)
+                continue
+
         filename_without_extension = os.path.splitext(page_file_name)[0]
         filename_segments = filename_without_extension.split(
             config["paged_content_sequence_separator"]
@@ -9182,11 +9204,21 @@ def get_rollback_csv_filepath(config):
     else:
         rollback_csv_filename_basename = "rollback"
 
-    if config["timestamp_rollback"] is True:
+    if config["timestamp_rollback"] is True or (
+        config["recovery_mode_starting_from_node_id"] is not False
+        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+    ):
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
 
     if config["timestamp_rollback"] is True:
         rollback_csv_filename = f"{rollback_csv_filename_basename}.{now_string}.csv"
+    elif (
+        config["recovery_mode_starting_from_node_id"] is not False
+        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+    ):
+        rollback_csv_filename = (
+            f"{rollback_csv_filename_basename}.{now_string}.recovery_mode.csv"
+        )
     else:
         rollback_csv_filename = f"{rollback_csv_filename_basename}.csv"
 
@@ -9268,13 +9300,24 @@ def get_rollback_config_filepath(config):
     else:
         rb_config_file_dir = ""
 
-    if config["timestamp_rollback"] is True:
+    if config["timestamp_rollback"] is True or (
+        config["recovery_mode_starting_from_node_id"] is not False
+        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+    ):
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
 
     if config["timestamp_rollback"] is True:
         rollback_config_filepath = os.path.join(
             f"{rb_config_file_dir}",
             f"{rollback_config_filename_basename}.{now_string}.yml",
+        )
+    elif (
+        config["recovery_mode_starting_from_node_id"] is not False
+        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+    ):
+        rollback_config_filepath = os.path.join(
+            f"{rb_config_file_dir}",
+            f"{rollback_config_filename_basename}.{now_string}.recovery_mode.yml",
         )
     else:
         rollback_config_filepath = os.path.join(
@@ -11353,19 +11396,15 @@ def sqlite_manager(
         return False
 
     if db_file_path is None:
-        db_file_name = config["sqlite_db_filename"]
-    else:
-        db_file_name = db_file_path
+        db_file_path = config["sqlite_db_filename"]
 
-    if os.path.isabs(db_file_name):
-        db_path = db_file_name
-    else:
-        db_path = os.path.join(config["temp_dir"], db_file_name)
+    db_path = os.path.abspath(db_file_path)
 
     # Only create the database if the database file does not exist. Note: Sqlite3 creates the db file
     # automatically in its .connect method, so you only need to use this operation if you want to
     # create the db prior to creating a table. No need to use it as a prerequisite for creating a table.
     if operation == "create_database":
+        # Already exists and is a file (assumes it's an SQLite database file).
         if os.path.isfile(db_path):
             return False
         else:
@@ -11386,7 +11425,6 @@ def sqlite_manager(
         ).fetchall()
         # Only create the table if it doesn't exist.
         if tables == []:
-            # cur = con.cursor()
             res = cur.execute(query)
             con.close()
             return res
@@ -11401,6 +11439,7 @@ def sqlite_manager(
         try:
             con = sqlite3.connect(db_path)
             con.row_factory = sqlite3.Row
+            # con.set_trace_callback(print)
             cur = con.cursor()
             res = cur.execute(query, values).fetchall()
             con.close()
@@ -11431,10 +11470,12 @@ def prepare_csv_id_to_node_id_map(config):
     """Creates the SQLite database used to map CSV row IDs to newly create node IDs."""
     if config["csv_id_to_node_id_map_path"] is False:
         return None
+
     create_table_sql = (
         "CREATE TABLE csv_id_to_node_id_map (timestamp TIMESTAMP DEFAULT (datetime('now','localtime')) NOT NULL, "
         + " config_file TEXT, parent_csv_id TEXT, parent_node_id, csv_id TEXT, node_id TEXT)"
     )
+
     sqlite_manager(
         config,
         operation="create_table",
@@ -11464,6 +11505,60 @@ def populate_csv_id_to_node_id_map(
         ),
         db_file_path=config["csv_id_to_node_id_map_path"],
     )
+
+
+def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None):
+    """Query the CSV ID to node ID map to check for a CSV ID, or in the case of pages/children
+       in directories, for the filename. Used only during recovery mode.
+
+       Note: If the CSV ID / filename exists in more than one row, only the most
+       recent corresponding node ID is returned.
+
+    Params
+    ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        csv_id : string
+            The ID from the input CSV, or in the case of pages/children in directories, the
+            filename.
+        parent_csv_id: None|string
+            The parent ID, used only for pages/children in directories to disambiguate
+            non-unique filenames across directories processed during the same job.
+    Return
+    ------
+        bool|str
+            The item's node_id if the item is in the map, False if not.
+    """
+    # Confirm the database exists; if not, tell the user and exit.
+    if config["csv_id_to_node_id_map_path"] is not False:
+        if not os.path.exists(config["csv_id_to_node_id_map_path"]):
+            message = f"Can't find CSV ID to node ID database at {config['csv_id_to_node_id_map_path']}."
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+    # If database exists, query it. Ordering desc by timestamp will get us the latest row if more
+    # than one row meets the other criteria. "+ 0" casts the node_id column value as an integer.
+    if parent_csv_id is None:
+        query = "select node_id from csv_id_to_node_id_map where csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
+        values = (csv_id, int(config["recovery_mode_starting_from_node_id"]))
+    else:
+        query = "select node_id from csv_id_to_node_id_map where parent_csv_id = ? and csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
+        values = (
+            parent_csv_id,
+            csv_id,
+            int(config["recovery_mode_starting_from_node_id"]),
+        )
+    csv_id_map_result = sqlite_manager(
+        config,
+        operation="select",
+        query=query,
+        values=values,
+        db_file_path=config["csv_id_to_node_id_map_path"],
+    )
+    if len(csv_id_map_result) > 0:
+        return str(csv_id_map_result[0][0])
+    else:
+        return False
 
 
 def get_term_field_values(config, term_id):

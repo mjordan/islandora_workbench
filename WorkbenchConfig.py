@@ -69,17 +69,20 @@ class WorkbenchConfig:
         config["current_config_file_path"] = os.path.abspath(self.args.config)
         config["field_text_format_ids"] = self.get_field_level_text_output_formats()
 
+        if "csv_id_to_node_id_map_dir" in user_mods:
+            config["csv_id_to_node_id_map_dir"] = user_mods["csv_id_to_node_id_map_dir"]
+        if "csv_id_to_node_id_map_filename" in user_mods:
+            config["csv_id_to_node_id_map_filename"] = user_mods[
+                "csv_id_to_node_id_map_filename"
+            ]
         if "csv_id_to_node_id_map_path" in user_mods:
-            if user_mods["csv_id_to_node_id_map_path"] is not False:
-                if os.path.isabs(config["csv_id_to_node_id_map_path"]) is False:
-                    config["csv_id_to_node_id_map_path"] = os.path.join(
-                        config["temp_dir"], "csv_id_to_node_id_map.db"
-                    )
-            else:
-                config["csv_id_to_node_id_map_path"] = False
+            config["csv_id_to_node_id_map_path"] = user_mods[
+                "csv_id_to_node_id_map_path"
+            ]
         else:
             config["csv_id_to_node_id_map_path"] = os.path.join(
-                config["temp_dir"], "csv_id_to_node_id_map.db"
+                config["csv_id_to_node_id_map_dir"],
+                config["csv_id_to_node_id_map_filename"],
             )
 
         if "page_files_source_dir_field" in user_mods:
@@ -238,6 +241,8 @@ class WorkbenchConfig:
             "list_missing_drupal_fields": False,
             "secondary_tasks": None,
             "sqlite_db_filename": "workbench_temp_data.db",
+            "csv_id_to_node_id_map_dir": tempfile.gettempdir(),
+            "csv_id_to_node_id_map_filename": "csv_id_to_node_id_map.db",
             "fixity_algorithm": None,
             "validate_fixity_during_check": False,
             "output_csv_include_input_csv": False,
@@ -291,6 +296,7 @@ class WorkbenchConfig:
             "media_type_by_media_use": False,
             "paged_content_ignore_files": ["Thumbs.db"],
             "include_password_in_rollback_config_file": False,
+            "recovery_mode_starting_from_node_id": False,
         }
 
     # Tests validity and existence of configuration file path.

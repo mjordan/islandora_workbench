@@ -1,0 +1,15 @@
+paged_content_from_directories: true
+paged_content_page_model_tid: http://id.loc.gov/ontologies/bibframe/part
+paged_content_sequence_separator: _
+paged_content_image_file_extension: gif
+task: create
+host: https://islandora.dev
+username: admin
+password: password
+input_dir: tests/assets/recovery_mode_test/pages_from_directories_full
+csv_id_to_node_id_map_path: tests/assets/recovery_mode_test/recovery_mode_tests_csv_to_node_id_map.db
+rollback_config_file_path: tests/assets/recovery_mode_test/rollback_paged_full.yml
+rollback_csv_file_path: tests/assets/recovery_mode_test/rollback_paged_full.csv
+include_password_in_rollback_config_file: true
+standalone_media_url: true
+secure_ssl_only: false
