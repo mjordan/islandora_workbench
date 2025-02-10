@@ -496,7 +496,7 @@ class TestCreateRecoveryModePagedItemsFromDirectories(unittest.TestCase):
         self.assertEqual(len(self.part_nids), 7)
 
         # Get the 4th line of the rollback_paged_part.csv, which will be the highest node ID created
-        # in the "part" ingest (the first line is 'node_id', the 2 lines of comments). We use this to
+        # in the "part" ingest (the first line is 'node_id', then 2 lines of comments). We use this to
         # populate the "--recovery_mode_starting_from_node_id" argument.
         rollback_part_csv_file_path = os.path.join(
             self.current_dir,
@@ -537,10 +537,10 @@ class TestCreateRecoveryModePagedItemsFromDirectories(unittest.TestCase):
 
         # Even though we know the expected number of nodes were created in the part and full
         # create tasks, we need to confirm that the field_member_of in each child node was
-        # populated correctly, like we did in TestCreateRecoveryModeSingleItemsWithParentId.
+        # populated correctly, like we did in TestCreateRecoveryModeSingleItemsWithParentId().
 
         # Get the lines in the part and full rollback CSV files. These are the
-        # node IDs (the *_nids lists above may contain paths, not node ID.).
+        # node IDs (the *_nids lists above may contain URL aliases, not node IDs).
         with open(rollback_part_csv_file_path, "r") as f:
             rollback_part_csv_file_lines = f.readlines()
             part_nodes_nids = rollback_part_csv_file_lines[3:]
@@ -557,12 +557,15 @@ class TestCreateRecoveryModePagedItemsFromDirectories(unittest.TestCase):
 
         all_node_ids = part_nodes_nids + full_nodes_nids
 
-        # Get the book node's node IDs
+        # Get the two book nodes' node IDs.
         for node_id in all_node_ids:
             node_url = (
                 "https://islandora.dev/node/" + str(node_id).strip() + "?_format=json"
             )
             node_response = requests.get(node_url, verify=False)
+
+            self.assertEqual(node_response.status_code, 200)
+
             node = json.loads(node_response.text)
             if node["title"][0]["value"].endswith("book 1 (parent)"):
                 book_1_node_id = node_id
