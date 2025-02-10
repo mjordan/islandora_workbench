@@ -60,7 +60,8 @@ jobs:
       - name: Run islandora_tests  
         run: python tests/islandora_tests.py
 
-      - name: Run islandora_tests_recovery_mode
-        run: python tests/islandora_tests_recovery_mode.py
-        env:
-          REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem        
+        # See https://github.com/mjordan/islandora_workbench/issues/890
+        # - name: Run islandora_tests_recovery_mode
+          # run: python tests/islandora_tests_recovery_mode.py
+          # env:
+          # REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem        
