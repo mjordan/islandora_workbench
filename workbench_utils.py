@@ -1021,11 +1021,12 @@ def ping_remote_file(config, url):
     -------
     int|None
     """
+    headers = {"User-Agent": config["user_agent"]}
 
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.head(
-            url, allow_redirects=True, verify=config["secure_ssl_only"]
+            url, allow_redirects=True, verify=config["secure_ssl_only"], headers=headers
         )
         return response.status_code
     except requests.exceptions.Timeout as err_timeout:
@@ -9965,6 +9966,8 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
 
 
 def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
+    headers = {"User-Agent": config["user_agent"]}
+
     sections = urllib.parse.urlparse(url)
     try:
         if config["secure_ssl_only"] is False:
@@ -9972,7 +9975,11 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
         # Do not cache the responses for downloaded files in requests_cache
         with requests_cache.disabled():
             response = requests.get(
-                url, allow_redirects=True, stream=True, verify=config["secure_ssl_only"]
+                url,
+                allow_redirects=True,
+                stream=True,
+                verify=config["secure_ssl_only"],
+                headers=headers,
             )
     except requests.exceptions.Timeout as err_timeout:
         message = (
