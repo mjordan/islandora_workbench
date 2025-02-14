@@ -9030,6 +9030,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             write_rollback_node_id(
                 config,
                 node_nid,
+                "",
                 page_title,
                 page_file_path,
                 parent_node_id,
@@ -9384,7 +9385,9 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
         if config["rollback_file_include_node_info"] is False:
             rollback_csv_file.write("node_id" + "\n")
         else:
-            rollback_csv_file.write("node_id,title,field_member_of,file" + "\n")
+            rollback_csv_file.write(
+                f"node_id,{config['id_field']},title,field_member_of,file" + "\n"
+            )
         rollback_csv_comments = get_rollback_config_comments(config)
         rollback_csv_file.write(rollback_csv_comments)
         rollback_csv_file.close()
@@ -9399,7 +9402,13 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
 
 
 def write_rollback_node_id(
-    config, node_id, node_title, node_file_path, member_of, path_to_rollback_csv_file
+    config,
+    node_id,
+    id,
+    node_title,
+    node_file_path,
+    member_of,
+    path_to_rollback_csv_file,
 ):
     """Appends a row to the CSV file located at path_to_rollback_csv_file."""
     """Parameters
@@ -9408,6 +9417,9 @@ def write_rollback_node_id(
             The configuration settings defined by workbench_config.get_config().
         node_id : str
             The node ID to write to the file.
+        id : str
+            The CSV ID to write to the file. Empty for pages created from directories,
+            or for files used in create_from files tasks.
         node_title : str
             The title of the node.
         node_file_path : str
@@ -9431,11 +9443,18 @@ def write_rollback_node_id(
         )
         rollback_csv_writer = csv.DictWriter(
             rollback_csv_file,
-            fieldnames=["node_id", "title", "field_member_of", "file"],
+            fieldnames=[
+                "node_id",
+                config["id_field"],
+                "title",
+                "field_member_of",
+                "file",
+            ],
         )
         rollback_csv_writer.writerow(
             {
                 "node_id": node_id,
+                config["id_field"]: id,
                 "title": node_title,
                 "field_member_of": member_of,
                 "file": node_file_path,

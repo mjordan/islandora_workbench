@@ -470,6 +470,7 @@ def create():
             write_rollback_node_id(
                 config,
                 node_id,
+                row[config["id_field"]],
                 row["title"],
                 file_column,
                 member_of,
@@ -2425,6 +2426,7 @@ def create_from_files():
             write_rollback_node_id(
                 config,
                 node_nid,
+                "",
                 filename_without_extension,
                 file_name,
                 "",
