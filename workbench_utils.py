@@ -10714,12 +10714,16 @@ def csv_subset_warning(config):
     """Create a message indicating that the csv_start_row and csv_stop_row config
     options are present and that a subset of the input CSV will be used.
     """
+    csv_data = list(get_csv_data(config))
+    start_row_id = csv_data[0][config["id_field"]]
+    stop_row_id = csv_data[-1][config["id_field"]]
+
     if config["csv_start_row"] != 0 or config["csv_stop_row"] is not None:
-        message = f"Using a subset of the input CSV (will start at row {config['csv_start_row']}, stop at row {config['csv_stop_row']})."
+        message = f"Using a subset of the input CSV (will start at row {config['csv_start_row']} / row ID \"{start_row_id}\", stop at row {config['csv_stop_row']} / row ID \"{stop_row_id}\")."
         if config["csv_start_row"] != 0 and config["csv_stop_row"] is None:
-            message = f"Using a subset of the input CSV (will start at row {config['csv_start_row']})."
+            message = f"Using a subset of the input CSV (will start at row {config['csv_start_row']} / row ID {start_row_id})."
         if config["csv_start_row"] == 0 and config["csv_stop_row"] is not None:
-            message = f"Using a subset of the input CSV (will stop at row {config['csv_stop_row']})."
+            message = f"Using a subset of the input CSV (will stop at row {config['csv_stop_row']} / row ID {stop_row_id})."
         print(message)
         logging.info(message)
 

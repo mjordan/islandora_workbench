@@ -3839,7 +3839,8 @@ logging.info(message)
 
 check_drupal_core_version(config)
 
-csv_subset_warning(config)
+if config["task"] != "create_from_files":
+    csv_subset_warning(config)
 
 if config["task"] in ["create", "create_from_files"]:
     logging.info(
