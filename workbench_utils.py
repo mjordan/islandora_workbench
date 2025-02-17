@@ -15,6 +15,8 @@ import random
 import uuid
 import datetime
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 import subprocess
 import hashlib
 import mimetypes
@@ -235,175 +237,203 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
     -------
     requests.Response
     """
-    if config["secure_ssl_only"] is False:
-        requests.packages.urllib3.disable_warnings()
-
-    if not config["password"]:
-        message = (
-            'Password for Drupal user not found. Please add the "password" option to your configuration '
-            + "file or provide the Drupal user's password in your ISLANDORA_WORKBENCH_PASSWORD environment variable."
+    with requests.Session() as session:
+        retries = Retry(
+            total=config["http_max_retries"],
+            backoff_factor=config["http_backoff_factor"],
+            status_forcelist=config["http_retry_on_status_codes"],
+            allowed_methods=config["http_retry_allowed_methods"],
         )
-        logging.error(message)
-        sys.exit("Error: " + message)
+        session.mount("http://", HTTPAdapter(max_retries=retries))
+        session.mount("https://", HTTPAdapter(max_retries=retries))
+        try:
+            if config["secure_ssl_only"] is False:
+                requests.packages.urllib3.disable_warnings()
 
-    if config["check"] is False:
-        if (
-            "pause" in config
-            and method in ["POST", "PUT", "PATCH", "DELETE"]
-            and value_is_numeric(config["pause"])
-        ):
-            time.sleep(int(config["pause"]))
+            if not config["password"]:
+                message = (
+                    'Password for Drupal user not found. Please add the "password" option to your configuration '
+                    + "file or provide the Drupal user's password in your ISLANDORA_WORKBENCH_PASSWORD environment variable."
+                )
+                logging.error(message)
+                sys.exit("Error: " + message)
 
-    if headers is None:
-        headers = dict()
+            if config["check"] is False:
+                if (
+                    "pause" in config
+                    # and method in ["POST", "PUT", "PATCH", "DELETE"]
+                    and value_is_numeric(config["pause"])
+                ):
+                    time.sleep(int(config["pause"]))
 
-    if query is None:
-        query = dict()
+            if headers is None:
+                headers = dict()
 
-    headers.update({"User-Agent": config["user_agent"]})
+            if query is None:
+                query = dict()
 
-    # The trailing / is stripped in config, but we do it here too, just in case.
-    config["host"] = config["host"].rstrip("/")
-    if config["host"] in path:
-        url = path
-    else:
-        # Since we remove the trailing / from the hostname, we need to ensure
-        # that there is a / separating the host from the path.
-        if not path.startswith("/"):
-            path = "/" + path
-        url = config["host"] + path
+            headers.update({"User-Agent": config["user_agent"]})
 
-    if config["log_request_url"] is True:
-        logging.info(method + " " + url)
+            # The trailing / is stripped in config, but we do it here too, just in case.
+            config["host"] = config["host"].rstrip("/")
+            if config["host"] in path:
+                url = path
+            else:
+                # Since we remove the trailing / from the hostname, we need to ensure
+                # that there is a / separating the host from the path.
+                if not path.startswith("/"):
+                    path = "/" + path
+                url = config["host"] + path
 
-    if method == "GET":
-        if config["log_headers"] is True:
-            logging.info(headers)
-        response = requests.get(
-            url,
-            allow_redirects=config["allow_redirects"],
-            verify=config["secure_ssl_only"],
-            auth=(config["username"], config["password"]),
-            params=query,
-            headers=headers,
-        )
-    if method == "HEAD":
-        if config["log_headers"] is True:
-            logging.info(headers)
-        response = requests.head(
-            url,
-            allow_redirects=config["allow_redirects"],
-            verify=config["secure_ssl_only"],
-            auth=(config["username"], config["password"]),
-            headers=headers,
-        )
-    if method == "POST":
-        if config["log_headers"] is True:
-            logging.info(headers)
-        if config["log_json"] is True:
-            logging.info(json)
-        response = requests.post(
-            url,
-            allow_redirects=config["allow_redirects"],
-            stream=True,
-            verify=config["secure_ssl_only"],
-            auth=(config["username"], config["password"]),
-            headers=headers,
-            json=json,
-            data=data,
-        )
-    if method == "PUT":
-        if config["log_headers"] is True:
-            logging.info(headers)
-        if config["log_json"] is True:
-            logging.info(json)
-        response = requests.put(
-            url,
-            allow_redirects=config["allow_redirects"],
-            stream=True,
-            verify=config["secure_ssl_only"],
-            auth=(config["username"], config["password"]),
-            headers=headers,
-            json=json,
-            data=data,
-        )
-    if method == "PATCH":
-        if config["log_headers"] is True:
-            logging.info(headers)
-        if config["log_json"] is True:
-            logging.info(json)
-        response = requests.patch(
-            url,
-            allow_redirects=config["allow_redirects"],
-            stream=True,
-            verify=config["secure_ssl_only"],
-            auth=(config["username"], config["password"]),
-            headers=headers,
-            json=json,
-            data=data,
-        )
-    if method == "DELETE":
-        if config["log_headers"] is True:
-            logging.info(headers)
-        response = requests.delete(
-            url,
-            allow_redirects=config["allow_redirects"],
-            verify=config["secure_ssl_only"],
-            auth=(config["username"], config["password"]),
-            headers=headers,
-        )
+            if config["log_request_url"] is True:
+                logging.info(method + " " + url)
 
-    if config["log_response_status_code"] is True:
-        logging.info(response.status_code)
+            if method == "GET":
+                if config["log_headers"] is True:
+                    logging.info(headers)
+                response = session.get(
+                    url,
+                    allow_redirects=config["allow_redirects"],
+                    verify=config["secure_ssl_only"],
+                    auth=(config["username"], config["password"]),
+                    params=query,
+                    headers=headers,
+                )
+            if method == "HEAD":
+                if config["log_headers"] is True:
+                    logging.info(headers)
+                response = session.head(
+                    url,
+                    allow_redirects=config["allow_redirects"],
+                    verify=config["secure_ssl_only"],
+                    auth=(config["username"], config["password"]),
+                    headers=headers,
+                )
+            if method == "POST":
+                if config["log_headers"] is True:
+                    logging.info(headers)
+                if config["log_json"] is True:
+                    logging.info(json)
+                response = session.post(
+                    url,
+                    allow_redirects=config["allow_redirects"],
+                    stream=True,
+                    verify=config["secure_ssl_only"],
+                    auth=(config["username"], config["password"]),
+                    headers=headers,
+                    json=json,
+                    data=data,
+                )
+            if method == "PUT":
+                if config["log_headers"] is True:
+                    logging.info(headers)
+                if config["log_json"] is True:
+                    logging.info(json)
+                response = session.put(
+                    url,
+                    allow_redirects=config["allow_redirects"],
+                    stream=True,
+                    verify=config["secure_ssl_only"],
+                    auth=(config["username"], config["password"]),
+                    headers=headers,
+                    json=json,
+                    data=data,
+                )
+            if method == "PATCH":
+                if config["log_headers"] is True:
+                    logging.info(headers)
+                if config["log_json"] is True:
+                    logging.info(json)
+                response = session.patch(
+                    url,
+                    allow_redirects=config["allow_redirects"],
+                    stream=True,
+                    verify=config["secure_ssl_only"],
+                    auth=(config["username"], config["password"]),
+                    headers=headers,
+                    json=json,
+                    data=data,
+                )
+            if method == "DELETE":
+                if config["log_headers"] is True:
+                    logging.info(headers)
+                response = session.delete(
+                    url,
+                    allow_redirects=config["allow_redirects"],
+                    verify=config["secure_ssl_only"],
+                    auth=(config["username"], config["password"]),
+                    headers=headers,
+                )
 
-    if config["log_response_body"] is True:
-        logging.info(response.text)
+            if config["log_response_status_code"] is True:
+                logging.info(response.status_code)
 
-    response_time = response.elapsed.total_seconds()
-    average_response_time = calculate_response_time_trend(config, response_time)
+            if config["log_response_body"] is True:
+                logging.info(response.text)
 
-    log_response_time_value = copy.copy(config["log_response_time"])
-    if "adaptive_pause" in config and value_is_numeric(config["adaptive_pause"]):
-        # Pause defined in config['adaptive_pause'] is included in the response time,
-        # so we subtract it to get the "unpaused" response time.
-        if average_response_time is not None and (
-            response_time - int(config["adaptive_pause"])
-        ) > (average_response_time * int(config["adaptive_pause_threshold"])):
-            message = (
-                "HTTP requests paused for "
-                + str(config["adaptive_pause"])
-                + " seconds because request in next log entry "
-                + "exceeded adaptive threshold of "
-                + str(config["adaptive_pause_threshold"])
-                + "."
-            )
-            time.sleep(int(config["adaptive_pause"]))
-            logging.info(message)
-            # Enable response time logging if we surpass the adaptive pause threashold.
-            config["log_response_time"] = True
+            response_time = response.elapsed.total_seconds()
+            average_response_time = calculate_response_time_trend(config, response_time)
 
-    if config["log_response_time"] is True:
-        parsed_query_string = urllib.parse.urlparse(url).query
-        if len(parsed_query_string):
-            url_for_logging = (
-                urllib.parse.urlparse(url).path + "?" + parsed_query_string
-            )
-        else:
-            url_for_logging = urllib.parse.urlparse(url).path
-        if "adaptive_pause" in config and value_is_numeric(config["adaptive_pause"]):
-            response_time = response_time - int(config["adaptive_pause"])
-        response_time_trend_entry = {
-            "method": method,
-            "response": response.status_code,
-            "url": url_for_logging,
-            "response_time": response_time,
-            "average_response_time": average_response_time,
-        }
-        logging.info(response_time_trend_entry)
-        # Set this config option back to what it was before we updated in above.
-        config["log_response_time"] = log_response_time_value
+            log_response_time_value = copy.copy(config["log_response_time"])
+            if "adaptive_pause" in config and value_is_numeric(
+                config["adaptive_pause"]
+            ):
+                # Pause defined in config['adaptive_pause'] is included in the response time,
+                # so we subtract it to get the "unpaused" response time.
+                if average_response_time is not None and (
+                    response_time - int(config["adaptive_pause"])
+                ) > (average_response_time * int(config["adaptive_pause_threshold"])):
+                    message = (
+                        "HTTP requests paused for "
+                        + str(config["adaptive_pause"])
+                        + " seconds because request in next log entry "
+                        + "exceeded adaptive threshold of "
+                        + str(config["adaptive_pause_threshold"])
+                        + "."
+                    )
+                    time.sleep(int(config["adaptive_pause"]))
+                    logging.info(message)
+                    # Enable response time logging if we surpass the adaptive pause threashold.
+                    config["log_response_time"] = True
 
-    return response
+            if config["log_response_time"] is True:
+                parsed_query_string = urllib.parse.urlparse(url).query
+                if len(parsed_query_string):
+                    url_for_logging = (
+                        urllib.parse.urlparse(url).path + "?" + parsed_query_string
+                    )
+                else:
+                    url_for_logging = urllib.parse.urlparse(url).path
+                if "adaptive_pause" in config and value_is_numeric(
+                    config["adaptive_pause"]
+                ):
+                    response_time = response_time - int(config["adaptive_pause"])
+                response_time_trend_entry = {
+                    "method": method,
+                    "response": response.status_code,
+                    "url": url_for_logging,
+                    "response_time": response_time,
+                    "average_response_time": average_response_time,
+                }
+                logging.info(response_time_trend_entry)
+                # Set this config option back to what it was before we updated in above.
+                config["log_response_time"] = log_response_time_value
+            return response
+        except requests.exceptions.Timeout as err_timeout:
+            message = f'Workbench timed out while requesting "{url}".'
+            logging.error(message)
+            logging.error(err_timeout)
+            sys.exit("Error: " + message)
+        except requests.exceptions.ConnectionError as error_connection:
+            message = f'Workbench could not connect to {config["host"]} while requesting "{url}".'
+            logging.error(message)
+            logging.error(error_connection)
+            sys.exit("Error: " + message)
+        except requests.exceptions.RequestException as request_error:
+            message = f'Workbench encountered an exception while requesting "{url}".'
+            logging.error(message)
+            logging.error(request_error)
+            sys.exit("Error: " + message)
 
 
 def convert_semver_to_number(version_string):
