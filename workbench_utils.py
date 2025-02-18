@@ -6011,15 +6011,36 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
 
-            # Skip rows specified not in config['csv_rows_to_process'].
+            csv_rows_to_process_allowed_tasks = ["create", "update"]
+            # Skip rows specified not in config['csv_rows_to_process'] if its value is a path to a file.
             if (
                 "csv_rows_to_process" in config
+                and config["task"] in csv_rows_to_process_allowed_tasks
                 and len(config["csv_rows_to_process"]) > 0
+                and isinstance(config["csv_rows_to_process"], str)
+            ):
+                path_to_ids_file = os.path.abspath(config["csv_rows_to_process"])
+                if os.path.exists(path_to_ids_file):
+                    with open(path_to_ids_file) as fh:
+                        ids_to_process = fh.read().splitlines()
+                        ids_to_process = [x for x in ids_to_process if x]
+                else:
+                    message = f'File identified in the "csv_rows_to_process" config setting ({path_to_ids_file}) cannot be found.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                if row[config["id_field"]] not in ids_to_process:
+                    continue
+
+            # Skip rows specified not in config['csv_rows_to_process'] if its value is a list.
+            if (
+                "csv_rows_to_process" in config
+                and config["task"] in csv_rows_to_process_allowed_tasks
+                and len(config["csv_rows_to_process"]) > 0
+                and isinstance(config["csv_rows_to_process"], list)
             ):
                 if row[config["id_field"]] not in config["csv_rows_to_process"]:
                     continue
 
-            # WIP on #812.
             # Apply the "is" and "isnot" csv_row_filters defined defined above.
             # If the field/value combo is in the 'isnot' list, skip this row.
             filter_out_this_csv_row = False
@@ -6634,6 +6655,12 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
             response.status_code,
             response.text,
         )
+        logging.error(
+            'JSON request body used in previous POST to "%s" was %s.',
+            term_endpoint,
+            term,
+        )
+
         return False
 
 
