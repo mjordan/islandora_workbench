@@ -984,6 +984,11 @@ def update():
                     config["host"] + "/node/" + row["node_id"],
                     node_response.status_code,
                 )
+                logging.error(
+                    'JSON request body used in previous PATCH to "%s" was %s.',
+                    node_endpoint,
+                    node,
+                )
 
             # Execute node-specific post-create scripts, if any are configured.
             if "node_post_update" in config and len(config["node_post_update"]) > 0:
@@ -2479,6 +2484,11 @@ def create_from_files():
                 os.path.join(config["input_dir"], file_name),
                 node_response.status_code,
             )
+            logging.error(
+                'JSON request body used in previous POST to "%s" was %s.',
+                node_endpoint,
+                node_json,
+            )
 
         if config["progress_bar"] is True:
             file_count += 1
@@ -3449,6 +3459,11 @@ def update_terms():
                 print("Warning: " + message)
                 logging.warning(
                     f"{message} HTTP response code was {term_response.status_code}. Response body was {term_response.text}."
+                )
+                logging.error(
+                    'JSON request body used in previous PATCH to "%s" was %s.',
+                    term_endpoint,
+                    term,
                 )
 
             if config["progress_bar"] is True:
