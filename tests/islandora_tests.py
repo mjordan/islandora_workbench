@@ -9,16 +9,13 @@ import sys
 import os
 import glob
 from ruamel.yaml import YAML
-import tempfile
 import subprocess
 import argparse
 import requests
 import json
-import urllib.parse
 import unittest
 import time
 import copy
-import csv
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
