@@ -3865,9 +3865,34 @@ if config["task"] in ["create", "create_from_files"]:
         config["recovery_mode_starting_from_node_id"] is not False
         and config["recovery_mode_starting_from_node_id"].isnumeric() is True
     ):
-        message = f'"recovery_mode" option in effect. Items that have already been ingested with node IDs starting at {config["recovery_mode_starting_from_node_id"]} will be skipped.'
+        query = "select * from csv_id_to_node_id_map where config_file = ?"
+        values = (config["config_file"],)
+        csv_id_map_result = sqlite_manager(
+            config,
+            operation="select",
+            query=query,
+            values=values,
+            db_file_path=config["csv_id_to_node_id_map_path"],
+        )
+        if len(csv_id_map_result) > 0:
+            last_csv_id = str(csv_id_map_result[-1][4])
+            last_node_id = str(csv_id_map_result[-1][5])
+            print(last_csv_id, "/", last_node_id)
+            in_map_message = (
+                f'Nodes for {len(csv_id_map_result)} rows in the input CSV "{config["input_csv"]}" have already been created '
+                + f'(last entry in the CSV ID to node ID map is for CSV row "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
+            )
+        else:
+            in_map_message = f'Cannot find any entries in the CSV ID to node ID map created using the configuration file "{config["config_file"]}".'
+
+        message = (
+            f'"recovery_mode" option in effect. Items that have already been ingested with node IDs starting at '
+            + '{config["recovery_mode_starting_from_node_id"]} will be skipped.'
+        )
         print(message)
         logging.info(message)
+        print(in_map_message)
+        logging.info(in_map_message)
 
 # Apparently, there's no built-in way of getting the number of items in a
 # DictReader, so we read the CSV file, convert it to a list, and get its length.
