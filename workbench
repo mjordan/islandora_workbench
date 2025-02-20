@@ -3887,7 +3887,7 @@ if config["task"] in ["create", "create_from_files"]:
 
         message = (
             f'"recovery_mode" option in effect. Items that have already been ingested with node IDs starting at '
-            + '{config["recovery_mode_starting_from_node_id"]} will be skipped.'
+            + f'{config["recovery_mode_starting_from_node_id"]} will be skipped.'
         )
         print(message)
         logging.info(message)
