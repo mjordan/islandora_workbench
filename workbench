@@ -491,7 +491,7 @@ def create():
                     row_position = get_percentage(row_count, num_csv_records)
                     row_position_message = f" ({int(row_position)}%)"
                 print(
-                    f'Node for "{row["title"]}" (record {id_field}) crated at {node_uri}{row_position_message}.'
+                    f'Node for "{row["title"]}" (record {id_field}) created at {node_uri}{row_position_message}.'
                 )
 
             logging.info(
@@ -1030,6 +1030,8 @@ def delete():
 
     row_count = 0
     for row in csv_data:
+        row_count += 1
+        row_position_message = ""
         # Delete expired items from request_cache before processing a row.
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)
@@ -1092,12 +1094,11 @@ def delete():
         node_response = issue_request(config, "DELETE", node_endpoint)
         if node_response.status_code == 204:
             if config["progress_bar"] is False:
+                if config["show_percentage_of_csv_input_processed"] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    row_position_message = f" ({int(row_position)}%)"
                 print(
-                    "Node "
-                    + config["host"]
-                    + "/node/"
-                    + str(row["node_id"])
-                    + " deleted."
+                    f'Node { config["host"]}/node/{row["node_id"]} deleted{row_position_message}.'
                 )
             logging.info(
                 "Node %s deleted.", config["host"] + "/node/" + str(row["node_id"])
