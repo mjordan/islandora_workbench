@@ -112,6 +112,8 @@ def create():
 
     row_count = 0
     for row in csv_data:
+        row_count += 1
+        row_position_message = ""
         if (
             config["recovery_mode_starting_from_node_id"] is not False
             and config["recovery_mode_starting_from_node_id"].isnumeric() is True
@@ -123,7 +125,6 @@ def create():
             if nid_in_map is not False:
                 message = f"Item in row {row[config['id_field']]} has already been ingested at ({config['host']}/node/{nid_in_map}), skipping it."
                 logging.info(message)
-                row_count += 1
 
                 # Recover paged content from directories that have the current node as their parent.
                 if config["paged_content_from_directories"] is True:
@@ -486,15 +487,13 @@ def create():
                 logging.warning(unpopulated_member_of_log_message)
 
             if config["progress_bar"] is False:
+                if config["show_percentage_of_csv_input_processed"] is True:
+                    row_position = get_percentage(row_count, num_csv_records)
+                    row_position_message = f" ({int(row_position)}%)"
                 print(
-                    'Node for "'
-                    + row["title"]
-                    + '" (record '
-                    + id_field
-                    + ") created at "
-                    + node_uri
-                    + "."
+                    f'Node for "{row["title"]}" (record {id_field}) crated at {node_uri}{row_position_message}.'
                 )
+
             logging.info(
                 'Node for "%s" (record %s) created at %s.',
                 row["title"],
@@ -540,7 +539,6 @@ def create():
                     logging.error("Post node create script " + command + " failed.")
 
         if config["progress_bar"] is True:
-            row_count += 1
             row_position = get_percentage(row_count, num_csv_records)
             pbar(row_position)
 
@@ -727,6 +725,8 @@ def update():
 
     row_count = 0
     for row in csv_data:
+        row_count += 1
+        row_position_message = ""
         # WIP on #785: print("DEBUG from within update()", row)
         # Delete expired items from request_cache before processing a row.
         if config["enable_http_cache"] is True:
@@ -960,12 +960,11 @@ def update():
 
             if node_response.status_code == 200:
                 if config["progress_bar"] is False:
+                    if config["show_percentage_of_csv_input_processed"] is True:
+                        row_position = get_percentage(row_count, num_csv_records)
+                        row_position_message = f" ({int(row_position)}%)"
                     print(
-                        "Node "
-                        + config["host"]
-                        + "/node/"
-                        + str(row["node_id"])
-                        + " updated."
+                        f'Node { config["host"]}/node/{row["node_id"]} updated{row_position_message}.'
                     )
                 logging.info(
                     "Node %s updated.", config["host"] + "/node/" + str(row["node_id"])
@@ -1012,7 +1011,7 @@ def update():
                         logging.error("Post node update script " + command + " failed.")
 
             if config["progress_bar"] is True:
-                row_count += 1
+                # row_count += 1
                 row_position = get_percentage(row_count, num_csv_records)
                 pbar(row_position)
 
