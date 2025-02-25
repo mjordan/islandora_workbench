@@ -1026,6 +1026,18 @@ def delete():
     print(message)
     logging.info(message)
 
+    if config["prompt_user_before_delete_task"] is True:
+        csv_data_to_count = get_csv_data(config)
+        num_nodes_to_delete = len(list(csv_data_to_count))
+        if config["delete_media_with_nodes"] is True:
+            delete_prompt = f"You are about to delete {num_nodes_to_delete} nodes and their attached media. Continue? (y/n) "
+        else:
+            delete_prompt = f"You are about to delete {num_nodes_to_delete} nodes but not their attached media. Continue? (y/n) "
+        delete_response = input(delete_prompt)
+        if delete_response != "y":
+            logging.info('Response to confirmation to delete was not "y", exiting.')
+            sys.exit('You didn\'t respond "y", exiting.')
+
     csv_data = get_csv_data(config)
 
     row_count = 0
