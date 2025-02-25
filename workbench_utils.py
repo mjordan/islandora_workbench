@@ -1915,6 +1915,10 @@ def check_input(config, args):
     config_keys.remove("check")
 
     if config["task"] in ["create", "create_from_files"]:
+        if config["csv_id_to_node_id_map_dir"] == config["temp_dir"]:
+            message = f'You should set your "csv_id_to_node_id_map_dir" config setting to a location other than your system\'s temporary directory.'
+            print("Warning: " + message)
+            logging.warning(message)
         if (
             config["recovery_mode_starting_from_node_id"] is not False
             and config["recovery_mode_starting_from_node_id"].isnumeric() is True
@@ -2403,7 +2407,7 @@ def check_input(config, args):
         # in the CSV file 'field_member_of' is mandatory.
         if "parent_id" in csv_column_headers:
             if "field_weight" not in csv_column_headers:
-                message = 'If ingesting paged content, or compound objects where order is required a "field_weight" column is required.'
+                message = 'If you are ingesting compound objects, a "field_weight" column is required in your input CSV file.'
                 logging.info(message)
             if "field_member_of" not in csv_column_headers:
                 message = 'If your CSV file contains a "parent_id" column, it must also contain a "field_member_of" column (with empty values in child rows).'
