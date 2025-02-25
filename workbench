@@ -2650,8 +2650,7 @@ def export_csv():
                     )
                     output_row[fieldname_to_serialize] = csv_data
 
-            if os.path.isdir(config["export_file_directory"]) is False:
-                # if config["export_file_directory"] is not None:
+            if os.path.isdir(config["export_file_directory"]) is True:
                 downloaded_file_name = download_file_from_drupal(config, row["node_id"])
                 output_row["file"] = downloaded_file_name
         else:

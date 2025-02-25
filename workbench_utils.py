@@ -10177,7 +10177,7 @@ def download_file_from_drupal(config, node_id):
             for file_field_name in file_fields:
                 if file_field_name in media:
                     if (
-                        len(media[file_field_name])
+                        len(media[file_field_name]) > 0
                         and media["field_media_use"][0]["target_id"]
                         == config["export_file_media_use_term_id"]
                     ):
@@ -10219,11 +10219,6 @@ def download_file_from_drupal(config, node_id):
                             )
                             logging.error(message)
                             return False
-                    else:
-                        logging.warning(
-                            f'Node {node_id} has no files in "{file_field_name}".'
-                        )
-                        return False
                 else:
                     continue
     else:
