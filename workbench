@@ -2512,7 +2512,10 @@ def export_csv():
     print(message)
     logging.info(message)
 
-    if os.path.isdir(config["export_file_directory"]) is False:
+    if (
+        config["export_file_directory"] is not None
+        and os.path.isdir(config["export_file_directory"]) is False
+    ):
         message = f'Path in configuration setting "export_file_directory" ("{config["export_file_directory"]}") does not exist.'
         logging.error(message)
         sys.exit("Error: " + message)
@@ -2650,7 +2653,10 @@ def export_csv():
                     )
                     output_row[fieldname_to_serialize] = csv_data
 
-            if os.path.isdir(config["export_file_directory"]) is True:
+            if (
+                config["export_file_directory"] is not None
+                and os.path.isdir(config["export_file_directory"]) is True
+            ):
                 downloaded_file_name = download_file_from_drupal(config, row["node_id"])
                 output_row["file"] = downloaded_file_name
         else:
