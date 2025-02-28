@@ -32,13 +32,20 @@ class WorkbenchConfig:
         user_mods = self.get_user_config()
         # If the password is not set in the config file, or in the environment
         # variable, prompt the user for the password.
-        if "password" not in user_mods:
-            if "ISLANDORA_WORKBENCH_PASSWORD" in os.environ:
-                config["password"] = os.environ["ISLANDORA_WORKBENCH_PASSWORD"]
-            else:
-                config["password"] = getpass(
-                    f"Password for Drupal user {user_mods['username']}:"
-                )
+        try:
+            if "password" not in user_mods:
+                if "ISLANDORA_WORKBENCH_PASSWORD" in os.environ:
+                    config["password"] = os.environ["ISLANDORA_WORKBENCH_PASSWORD"]
+                else:
+                    config["password"] = getpass(
+                        f"Password for Drupal user {user_mods['username']}:"
+                    )
+        except KeyboardInterrupt:
+            try:
+                sys.exit(0)
+            except SystemExit:
+                os._exit(0)
+
         # Blend defaults with user mods
         for key, value in user_mods.items():
             config[key] = value
@@ -309,6 +316,7 @@ class WorkbenchConfig:
             "media_type_by_media_use": False,
             "paged_content_ignore_files": ["Thumbs.db"],
             "include_password_in_rollback_config_file": False,
+            "remove_password_from_config_file": False,
             "recovery_mode_starting_from_node_id": False,
         }
 

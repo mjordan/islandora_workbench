@@ -3689,6 +3689,16 @@ except Exception as e:
     sys.exit(str(e))
 config = workbench_config.get_config()
 
+if config["remove_password_from_config_file"] is True:
+    with open(config["config_file"], "r+") as config_file_to_remove_password_from_fh:
+        config_file_contents = config_file_to_remove_password_from_fh.readlines()
+        config_file_contents = [
+            line for line in config_file_contents if not line.startswith("password")
+        ]
+        config_file_to_remove_password_from_fh.seek(0)
+        config_file_to_remove_password_from_fh.writelines(config_file_contents)
+        config_file_to_remove_password_from_fh.truncate()
+
 # Override configuration settings that are provided as command-line arguments.
 if args.input_csv is not None:
     config["input_csv"] = args.input_csv
