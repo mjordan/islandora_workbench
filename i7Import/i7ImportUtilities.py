@@ -57,6 +57,7 @@ class i7ImportUtilities:
         "rows": 100000,
         "secure_ssl_only": True,
         "pids": False,
+        "pids_to_skip": [],
     }
 
     def get_config(self):
