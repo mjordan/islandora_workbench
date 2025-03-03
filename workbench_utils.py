@@ -8089,6 +8089,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
         return
 
     # Iterate through the CSV and validate each taxonomy fields's values.
+    if "task" == "update_terms":
+        config["id_field"] = "term_id"
+
     new_term_names_in_csv_results = []
     for count, row in enumerate(csv_data, start=1):
         for column_name in fields_with_vocabularies:
