@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """Iterates over all nodes that are parents and warms the cache of the
-   View that generates the node's IIIF Manifest at /node/xxx/book-manifest.
+View that generates the node's IIIF Manifest at /node/xxx/book-manifest.
 """
 
 import sys

@@ -1,5 +1,4 @@
-"""unittest tests for Drupal REST JSON field handlers. Do not require a live Drupal.
-"""
+"""unittest tests for Drupal REST JSON field handlers. Do not require a live Drupal."""
 
 import sys
 import os

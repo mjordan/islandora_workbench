@@ -1,7 +1,7 @@
 """unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
-   credentials, etc. are in a configuration file referenced in the test.
+credentials, etc. are in a configuration file referenced in the test.
 
-   This test file contains tests for creating content using "recovery mode".
+This test file contains tests for creating content using "recovery mode".
 """
 
 import sys

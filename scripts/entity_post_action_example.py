@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """Example/template entity post-action script.
-   Docs at https://mjordan.github.io/islandora_workbench_docs/hooks/.
+Docs at https://mjordan.github.io/islandora_workbench_docs/hooks/.
 """
 
 import sys

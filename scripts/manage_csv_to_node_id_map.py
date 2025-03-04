@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 """Utility script to dump the CSV ID to Node ID map from its SQLite database, or to remove
-   entries from the database with specificed config files names or prior to/before a provided timestamp.
+entries from the database with specificed config files names or prior to/before a provided timestamp.
 
-   Usage: python dump_id_map.py --db_path csv_id_to_node_id_map.db --csv_path /tmp/test.csv
-          python dump_id_map.py --db_path csv_id_to_node_id_map.db --csv_path /tmp/test.csv --nonunique csv_id
+Usage: python dump_id_map.py --db_path csv_id_to_node_id_map.db --csv_path /tmp/test.csv
+       python dump_id_map.py --db_path csv_id_to_node_id_map.db --csv_path /tmp/test.csv --nonunique csv_id
 
-          python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_before "2023-05-29 19:17"
-          python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_after "2023-05-22"
-          python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_with_config_files create.yml,test_dir/create_testing.yml
-          python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_for_deleted_nodes https://islandora.traefik.me
+       python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_before "2023-05-29 19:17"
+       python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_after "2023-05-22"
+       python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_with_config_files create.yml,test_dir/create_testing.yml
+       python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_for_deleted_nodes https://islandora.traefik.me
 """
 
 import os

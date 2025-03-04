@@ -1,13 +1,13 @@
 """Utility script to replace host, username, and password values in
-   Islandora Workbench test config files.
+Islandora Workbench test config files.
 
-   Usage (run from within the workbench directory):
+Usage (run from within the workbench directory):
 
-   python scripts/make_local_tests.py
+python scripts/make_local_tests.py
 
-   or, with any of the optional arguments:
+or, with any of the optional arguments:
 
-   python scripts/make_local_tests.py --host http://localhost:8080 --username mark --password islandora
+python scripts/make_local_tests.py --host http://localhost:8080 --username mark --password islandora
 """
 
 import os

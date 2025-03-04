@@ -1,8 +1,8 @@
 """unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
-   credentials, etc. are in a configuration file referenced in the test.
+credentials, etc. are in a configuration file referenced in the test.
 
-   Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
-   contain tests that interact with an Islandora instance.
+Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
+contain tests that interact with an Islandora instance.
 """
 
 import sys

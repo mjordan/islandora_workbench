@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 """Script for exporting Islandora 7 content (metadata and OBJ datastreams). See
-   https://mjordan.github.io/islandora_workbench_docs/exporting_islandora_7_content/
-   for more info.
+https://mjordan.github.io/islandora_workbench_docs/exporting_islandora_7_content/
+for more info.
 """
 
 import os

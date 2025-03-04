@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 """Sample field preprocessor script. Takes input, converts it to upper case,
-   then prints it to stdout. Back in workbench, the printed output replaces
-   the field's original value.
+then prints it to stdout. Back in workbench, the printed output replaces
+the field's original value.
 """
 
 import sys

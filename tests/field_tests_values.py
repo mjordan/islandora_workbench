@@ -1,7 +1,7 @@
 """unittest tests for the 'remove_invalid_values' methods in Drupal REST JSON field handlers.
-   Do not require a live Drupal.
+Do not require a live Drupal.
 
-   Incomplete. Tracking issue is https://github.com/mjordan/islandora_workbench/issues/424.
+Incomplete. Tracking issue is https://github.com/mjordan/islandora_workbench/issues/424.
 """
 
 import sys

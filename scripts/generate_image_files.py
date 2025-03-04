@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """Script to generate simple image files based on a list of titles.
-   Requires ImageMagik's convert command.
+Requires ImageMagik's convert command.
 """
 
 import os

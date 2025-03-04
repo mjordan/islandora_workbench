@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-"""WIP on #603.
-"""
+"""WIP on #603."""
 
 import sys
 import json

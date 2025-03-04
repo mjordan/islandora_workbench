@@ -1,5 +1,4 @@
-"""unittest tests that do not require a live Drupal.
-"""
+"""unittest tests that do not require a live Drupal."""
 
 import sys
 import os

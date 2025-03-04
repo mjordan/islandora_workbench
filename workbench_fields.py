@@ -1,20 +1,20 @@
 """Classes for Drupal field operations.
 
-   Support for additional field types should be added as new classes here,
-   with accompanying tests in field_tests.py and field_tests_values.py.
+Support for additional field types should be added as new classes here,
+with accompanying tests in field_tests.py and field_tests_values.py.
 
-   Note: If new field types are added to workbench_fields.py, corresponding logic must
-   be added to functions in other Workbench modules (e.g. workbench_utils, workbench)
-   that create, update, or export Drupal entities. Those places are commented in the
-   code with either:
+Note: If new field types are added to workbench_fields.py, corresponding logic must
+be added to functions in other Workbench modules (e.g. workbench_utils, workbench)
+that create, update, or export Drupal entities. Those places are commented in the
+code with either:
 
-   # Assemble Drupal field structures from CSV data. If new field types are added to
-   # workbench_fields.py, they need to be registered in the following if/elif/else block.
+# Assemble Drupal field structures from CSV data. If new field types are added to
+# workbench_fields.py, they need to be registered in the following if/elif/else block.
 
-   or
+or
 
-   # Assemble CSV output Drupal field data. If new field types are added to
-   # workbench_fields.py, they need to be registered in the following if/elif/else block.
+# Assemble CSV output Drupal field data. If new field types are added to
+# workbench_fields.py, they need to be registered in the following if/elif/else block.
 """
 
 import json

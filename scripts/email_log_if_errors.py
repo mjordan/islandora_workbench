@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """Islandora Workbench shutdown script to send a the log file to someone
-   if it contains any ERROR entries.
+if it contains any ERROR entries.
 """
 
 import smtplib

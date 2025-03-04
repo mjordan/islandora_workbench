@@ -2,7 +2,7 @@
 
 """Example bootstrap script that logs sys.args.
 
-   These scripts must be executable.
+These scripts must be executable.
 """
 
 import sys
