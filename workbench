@@ -3668,6 +3668,10 @@ parser.add_argument(
     "--recovery_mode_starting_from_node_id",
     help="Overrides the 'recovery_mode_starting_from_node_id' configuration setting.",
 )
+parser.add_argument(
+    "--path_to_workbench_script",
+    help="Overrides the 'path_to_workbench_script' configuration setting.",
+)
 
 
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
@@ -3720,6 +3724,8 @@ if args.recovery_mode_starting_from_node_id is not None:
     config["recovery_mode_starting_from_node_id"] = (
         args.recovery_mode_starting_from_node_id
     )
+if args.path_to_workbench_script is not None:
+    config["path_to_workbench_script"] = args.path_to_workbench_script
 
 
 if args.print_config is True:
