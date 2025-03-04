@@ -1,13 +1,13 @@
 """Utility script to replace host, username, and password values in
-   Islandora Workbench test config files.
+Islandora Workbench test config files.
 
-   Usage (run from within the workbench directory):
+Usage (run from within the workbench directory):
 
-   python scripts/make_local_tests.py
+python scripts/make_local_tests.py
 
-   or, with any of the optional arguments:
+or, with any of the optional arguments:
 
-   python scripts/make_local_tests.py --host http://localhost:8080 --username mark --password islandora
+python scripts/make_local_tests.py --host http://localhost:8080 --username mark --password islandora
 """
 
 import os
@@ -15,6 +15,7 @@ import sys
 import shutil
 import glob
 import argparse
+import re
 
 current_dir = os.getcwd()
 path_to_workbench = os.path.join(current_dir, "workbench")
@@ -55,7 +56,7 @@ for filepath in list(glob.iglob(f"{local_tests_dir}/**/*.yml", recursive=True)) 
     config = f.read()
     config = config.replace("https://islandora.dev", args.host)
     config = config.replace("admin", args.username)
-    config = config.replace("password", args.password)
+    config = re.sub("password$", args.password, config, 0, re.MULTILINE)
     config = config.replace("tests/assets/", "tests_local/assets/")
     f = open(filepath, "w")
     f.write(config)
