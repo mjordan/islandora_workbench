@@ -3,18 +3,10 @@
 Support for additional field types should be added as new classes here,
 with accompanying tests in field_tests.py and field_tests_values.py.
 
-Note: If new field types are added to workbench_fields.py, corresponding logic must
-be added to functions in other Workbench modules (e.g. workbench_utils, workbench)
-that create, update, or export Drupal entities. Those places are commented in the
-code with either:
+Note: If new field types are added to workbench_fields.py, you must also update the WorkbenchFieldFactory
+class at the bottom of this file to include the new field type and its corresponding class. This is used
+by workbench and workbench_utils.py to instantiate the correct class for each field type.
 
-# Assemble Drupal field structures from CSV data. If new field types are added to
-# workbench_fields.py, they need to be registered in the following if/elif/else block.
-
-or
-
-# Assemble CSV output Drupal field data. If new field types are added to
-# workbench_fields.py, they need to be registered in the following if/elif/else block.
 """
 
 from collections import OrderedDict
@@ -2073,3 +2065,32 @@ class EntityReferenceRevisionsField(WorkbenchField):
         elif len(subvalues) == 0:
             return None
         return subvalues[0]
+
+
+class WorkbenchFieldFactory:
+
+    @staticmethod
+    def get_field_handler(field_type: str) -> WorkbenchField:
+        """Returns a WorkbenchField subclass based on the field type."""
+        """Parameters
+        field_type : string
+            The Drupal field type.
+        Returns
+        -------
+        WorkbenchField
+            A WorkbenchField subclass.
+        """
+        field_to_class_map = {
+            "entity_reference": "EntityReferenceField",
+            "entity_reference_revisions": "EntityReferenceRevisionsField",
+            "typed_relation": "TypedRelationField",
+            "authority_link": "AuthorityLinkField",
+            "media_track": "MediaTrackField",
+            "geolocation": "GeolocationField",
+            "link": "LinkField",
+        }
+        """Returns a WorkbenchField subclass based on the field type."""
+        if field_type in field_to_class_map:
+            return globals()[field_to_class_map[field_type]]()
+        else:
+            return SimpleField()
