@@ -5389,5 +5389,55 @@ class TestWorkbenchFields(unittest.TestCase):
             )
 
 
+class TestWorkbenchFieldFactory(unittest.TestCase):
+    def test_generate_expected_fields(self):
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("link"),
+            workbench_fields.LinkField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("typed_relation"),
+            workbench_fields.TypedRelationField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler(
+                "entity_reference"
+            ),
+            workbench_fields.EntityReferenceField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler(
+                "entity_reference_revisions"
+            ),
+            workbench_fields.EntityReferenceRevisionsField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("geolocation"),
+            workbench_fields.GeolocationField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("authority_link"),
+            workbench_fields.AuthorityLinkField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("media_track"),
+            workbench_fields.MediaTrackField,
+        )
+
+    def test_generate_default_field(self):
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("default"),
+            workbench_fields.SimpleField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler(""),
+            workbench_fields.SimpleField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("anything"),
+            workbench_fields.SimpleField,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
