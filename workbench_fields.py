@@ -17,14 +17,179 @@ or
 # workbench_fields.py, they need to be registered in the following if/elif/else block.
 """
 
-import json
+from collections import OrderedDict
+
 from workbench_utils import *
 
 
-class SimpleField:
+class WorkbenchField:
+    """Base class for field operations. All subclasses must implement the create(),
+    update(), remove_invalid_values(), and serialize() methods. Subclasses may also
+    implement the split_string() method, which is called in the common create()."""
+
+    def create(
+        self,
+        config: dict,
+        field_definitions: dict,
+        entity: dict,
+        row: OrderedDict,
+        field_name: str,
+    ) -> dict:
+        """Parameters
+        ----------
+         config : dict
+             The configuration settings defined by workbench_config.get_config().
+         field_definitions : dict
+             The field definitions object defined by get_field_definitions().
+         entity : dict
+             The dict that will be POSTed to Drupal as JSON.
+         row : OrderedDict.
+             The current CSV record.
+         field_name : string
+             The Drupal fieldname/CSV column header.
+         Returns
+         -------
+         dictionary
+             A dictionary representing the entity that is POSTed to Drupal as JSON.
+        """
+        if not row[field_name]:
+            return entity
+
+        id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
+        subvalues = self.split_string(
+            config, row[field_name]
+        )  # Split string into list of values
+        subvalues = self.dedupe_values(subvalues)
+
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        if -1 < cardinality < len(subvalues):
+            subvalues = subvalues[:cardinality]
+            log_field_cardinality_violation(
+                field_name,
+                id_field,
+                str(cardinality),
+            )
+        entity[field_name] = subvalues
+
+        return entity
+
+    def update(
+        self,
+        config: dict,
+        field_definitions: dict,
+        entity: dict,
+        row: OrderedDict,
+        field_name: string,
+        entity_field_values: list,
+    ) -> dict:
+        """Note: this method appends incoming CSV values to existing values, replaces existing field
+        values with incoming values, or deletes all values from fields, depending on whether
+        config['update_mode'] is 'append', 'replace', or 'delete'. It does not replace individual
+        values within fields.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            entity : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            entity_field_values : list
+                List of dictionaries containing existing value(s) for field_name in the entity being updated.
+            Returns
+            -------
+            dictionary
+                A dictionary representing the entity that is PATCHed to Drupal as JSON.
+        """
+        raise Exception("The update method must be implemented in all subclasses.")
+
+    @staticmethod
+    def dedupe_values(values: list) -> list:
+        """Removes duplicate entries from 'values'."""
+        """Parameters
+           ----------
+            values : list
+                List containing value(s) to dedupe. Members could be strings
+                from CSV or dictionairies.
+            Returns
+            -------
+            list
+                A list of unique field values.
+        """
+        return deduplicate_field_values(values)
+
+    def remove_invalid_values(
+        self, config: dict, field_definitions: dict, field_name: str, values: list
+    ) -> list:
+        """Removes invalid entries from 'values'."""
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            values : list
+                List containing strings split from CSV values.
+            Returns
+            -------
+            list
+                A list of valid field values.
+        """
+        raise Exception(
+            "The remove_invalid_values method must be implemented in all subclasses."
+        )
+
+    def serialize(
+        self, config: dict, field_definitions: dict, field_name: str, field_data: str
+    ) -> str:
+        """Serialized values into a format consistent with Workbench's CSV-field input format."""
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            string
+                A string structured same as the Workbench CSV field data for this field type,
+                or None if there is nothing to return.
+        """
+        raise Exception("The serialize method must be implemented in all subclasses.")
+
+    def split_string(self, config: dict, value: str):
+        """Splits a string into a list of values. Called in common create() and update() methods."""
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            value : string
+                A string to split.
+            Returns
+            -------
+            list
+                A list of values.
+        """
+        raise Exception(
+            "The split_string method must be implemented in any subclass that wishes to use it."
+        )
+
+
+class SimpleField(WorkbenchField):
     """Functions for handling fields with text and other "simple" Drupal field data types,
     e.g. fields that have a "{'value': 'xxx'}" structure such as plain text fields, ETDF
-    fields. All functions return a "entity" dictionary that is passed to Requests' "json"
+    fields. All functions return an "entity" dictionary that is passed to Requests' "json"
     parameter.
 
     Note that text fields that are "formatted" (i.e., use text formats/output filters)
@@ -125,7 +290,7 @@ class SimpleField:
             Returns
             -------
             dictionary
-                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
+                A dictionary representing the entity that is PATCHed to Drupal as JSON.
         """
         if config["update_mode"] == "delete":
             entity[field_name] = []
@@ -223,20 +388,6 @@ class SimpleField:
             entity[field_name] = field_values
 
         return entity
-
-    def dedupe_values(self, values):
-        """Removes duplicate entries from 'values'."""
-        """Parameters
-           ----------
-            values : list
-                List containing value(s) to dedupe. Members could be strings
-                from CSV or dictionairies.
-            Returns
-            -------
-            list
-                A list of unique field values.
-        """
-        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'."""
@@ -367,9 +518,9 @@ class SimpleField:
             return subvalues[0]
 
 
-class GeolocationField:
+class GeolocationField(WorkbenchField):
     """Functions for handling fields with 'geolocation' Drupal field data type.
-    All functions return a "entity" dictionary that is passed to Requests'
+    All functions return an "entity" dictionary that is passed to Requests'
     "json" parameter.
 
     Note: this class assumes that the entity has the field identified in 'field_name'.
@@ -378,41 +529,10 @@ class GeolocationField:
     """
 
     def create(self, config, field_definitions, entity, row, field_name):
-        """Parameters
-        ----------
-         config : dict
-             The configuration settings defined by workbench_config.get_config().
-         field_definitions : dict
-             The field definitions object defined by get_field_definitions().
-         entity : dict
-             The dict that will be POSTed to Drupal as JSON.
-         row : OrderedDict.
-             The current CSV record.
-         field_name : string
-             The Drupal fieldname/CSV column header.
-         Returns
-         -------
-         dictionary
-             A dictionary represeting the entity that is POSTed to Drupal as JSON.
-        """
-        if not row[field_name]:
-            return entity
+        return super().create(config, field_definitions, entity, row, field_name)
 
-        id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-        subvalues = split_geolocation_string(config, row[field_name])
-        subvalues = self.dedupe_values(subvalues)
-
-        cardinality = int(field_definitions[field_name].get("cardinality", -1))
-        if -1 < cardinality < len(subvalues):
-            subvalues = subvalues[:cardinality]
-            log_field_cardinality_violation(
-                field_name,
-                id_field,
-                cardinality,
-            )
-        entity[field_name] = subvalues
-
-        return entity
+    def split_string(self, config: dict, value: str):
+        return split_geolocation_string(config, value)
 
     def update(
         self, config, field_definitions, entity, row, field_name, entity_field_values
@@ -439,7 +559,7 @@ class GeolocationField:
             Returns
             -------
             dictionary
-                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
+                A dictionary representing the entity that is PATCHed to Drupal as JSON.
         """
         if config["update_mode"] == "delete":
             entity[field_name] = []
@@ -460,7 +580,7 @@ class GeolocationField:
 
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "replace":
-            subvalues = split_geolocation_string(config, row[field_name])
+            subvalues = self.split_string(config, row[field_name])
             subvalues = self.dedupe_values(subvalues)
             field_values = []
             for subvalue in subvalues:
@@ -473,7 +593,7 @@ class GeolocationField:
             entity[field_name] = field_values
 
         if config["update_mode"] == "append":
-            subvalues = split_geolocation_string(config, row[field_name])
+            subvalues = self.split_string(config, row[field_name])
             subvalues = self.dedupe_values(subvalues)
             for subvalue in subvalues:
                 entity_field_values.append(subvalue)
@@ -486,20 +606,6 @@ class GeolocationField:
 
         entity[field_name] = self.dedupe_values(entity[field_name])
         return entity
-
-    def dedupe_values(self, values):
-        """Removes duplicate entries from 'values'."""
-        """Parameters
-           ----------
-            values : list
-                List containing value(s) to dedupe. Members could be strings
-                from CSV or dictionairies.
-            Returns
-            -------
-            list
-                A list of unique field values.
-        """
-        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'."""
@@ -566,7 +672,7 @@ class GeolocationField:
             return subvalues[0]
 
 
-class LinkField:
+class LinkField(WorkbenchField):
     """Functions for handling fields with 'link' Drupal field data type.
     All functions return a "entity" dictionary that is passed to Requests'
     "json" parameter.
@@ -577,42 +683,10 @@ class LinkField:
     """
 
     def create(self, config, field_definitions, entity, row, field_name):
-        """Parameters
-        ----------
-         config : dict
-             The configuration settings defined by workbench_config.get_config().
-         field_definitions : dict
-             The field definitions object defined by get_field_definitions().
-         entity : dict
-             The dict that will be POSTed to Drupal as JSON.
-         row : OrderedDict.
-             The current CSV record.
-         field_name : string
-             The Drupal fieldname/CSV column header.
-         Returns
-         -------
-         dictionary
-             A dictionary represeting the entity that is POSTed to Drupal as JSON.
-        """
-        if not row[field_name]:
-            return entity
+        return super().create(config, field_definitions, entity, row, field_name)
 
-        id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-
-        subvalues = split_link_string(config, row[field_name])
-        subvalues = self.dedupe_values(subvalues)
-
-        cardinality = int(field_definitions[field_name].get("cardinality", -1))
-        if -1 < cardinality < len(subvalues):
-            subvalues = subvalues[:cardinality]
-            log_field_cardinality_violation(
-                field_name,
-                id_field,
-                cardinality,
-            )
-        entity[field_name] = subvalues
-
-        return entity
+    def split_string(self, config: dict, value: str):
+        return split_link_string(config, value)
 
     def update(
         self, config, field_definitions, entity, row, field_name, entity_field_values
@@ -639,7 +713,7 @@ class LinkField:
             Returns
             -------
             dictionary
-                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
+                A dictionary representing the entity that is PATCHed to Drupal as JSON.
         """
         if config["update_mode"] == "delete":
             entity[field_name] = []
@@ -661,7 +735,7 @@ class LinkField:
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "replace":
             field_values = []
-            subvalues = split_link_string(config, row[field_name])
+            subvalues = self.split_string(config, row[field_name])
             subvalues = self.dedupe_values(subvalues)
             if -1 < cardinality < len(subvalues):
                 log_field_cardinality_violation(
@@ -672,7 +746,7 @@ class LinkField:
                 field_values.append(subvalue)
             entity[field_name] = field_values
         if config["update_mode"] == "append":
-            subvalues = split_link_string(config, row[field_name])
+            subvalues = self.split_string(config, row[field_name])
             subvalues = self.dedupe_values(subvalues)
             for subvalue in subvalues:
                 entity_field_values.append(subvalue)
@@ -684,20 +758,6 @@ class LinkField:
             entity[field_name] = entity_field_values
 
         return entity
-
-    def dedupe_values(self, values):
-        """Removes duplicate entries from 'values'."""
-        """Parameters
-           ----------
-            values : list
-                List containing value(s) to dedupe. Members could be strings
-                from CSV or dictionairies.
-            Returns
-            -------
-            list
-                A list of unique field values.
-        """
-        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'."""
@@ -771,7 +831,7 @@ class LinkField:
             return subvalues[0]
 
 
-class EntityReferenceField:
+class EntityReferenceField(WorkbenchField):
     """Functions for handling fields with 'entity_reference' Drupal field data type.
     All functions return a "entity" dictionary that is passed to Requests' "json"
     parameter.
@@ -797,7 +857,7 @@ class EntityReferenceField:
          Returns
          -------
          dictionary
-             A dictionary represeting the entity that is POSTed to Drupal as JSON.
+             A dictionary representing the entity that is POSTed to Drupal as JSON.
         """
         if not row[field_name]:
             return entity
@@ -943,20 +1003,6 @@ class EntityReferenceField:
 
         return entity
 
-    def dedupe_values(self, values):
-        """Removes duplicate entries from 'values'."""
-        """Parameters
-           ----------
-            values : list
-                List containing value(s) to dedupe. Members could be strings
-                from CSV or dictionairies.
-            Returns
-            -------
-            list
-                A list of unique field values.
-        """
-        return deduplicate_field_values(values)
-
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'."""
         """Parameters
@@ -1031,7 +1077,7 @@ class EntityReferenceField:
             return subvalues[0]
 
 
-class TypedRelationField:
+class TypedRelationField(WorkbenchField):
     """Functions for handling fields with 'typed_relation' Drupal field data type.
     All functions return a "entity" dictionary that is passed to Requests' "json"
     parameter.
@@ -1060,7 +1106,7 @@ class TypedRelationField:
          Returns
          -------
          dictionary
-             A dictionary represeting the entity that is POSTed to Drupal as JSON.
+             A dictionary representing the entity that is POSTed to Drupal as JSON.
         """
         if not row[field_name]:
             return entity
@@ -1113,7 +1159,7 @@ class TypedRelationField:
             Returns
             -------
             dictionary
-                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
+                A dictionary representing the entity that is PATCHed to Drupal as JSON.
         """
         if config["update_mode"] == "delete":
             entity[field_name] = []
@@ -1175,20 +1221,6 @@ class TypedRelationField:
                 entity[field_name] = entity_field_values
 
         return entity
-
-    def dedupe_values(self, values):
-        """Removes duplicate entries from 'values'."""
-        """Parameters
-           ----------
-            values : list
-                List containing value(s) to dedupe. Members could be strings
-                from CSV or dictionairies.
-            Returns
-            -------
-            list
-                A list of unique field values.
-        """
-        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'."""
@@ -1262,7 +1294,7 @@ class TypedRelationField:
             return subvalues[0]
 
 
-class AuthorityLinkField:
+class AuthorityLinkField(WorkbenchField):
     """Functions for handling fields with 'authority_link' Drupal field data type.
     All functions return a "entity" dictionary that is passed to Requests' "json"
     parameter.
@@ -1273,37 +1305,10 @@ class AuthorityLinkField:
     """
 
     def create(self, config, field_definitions, entity, row, field_name):
-        """Parameters
-        ----------
-         config : dict
-             The configuration settings defined by workbench_config.get_config().
-         field_definitions : dict
-             The field definitions object defined by get_field_definitions().
-         entity : dict
-             The dict that will be POSTed to Drupal as JSON.
-         row : OrderedDict.
-             The current CSV record.
-         field_name : string
-             The Drupal fieldname/CSV column header.
-         Returns
-         -------
-         dictionary
-             A dictionary represeting the entity that is POSTed to Drupal as JSON.
-        """
-        if not row[field_name]:
-            return entity
+        return super().create(config, field_definitions, entity, row, field_name)
 
-        id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-        subvalues = split_authority_link_string(config, row[field_name])
-        subvalues = self.dedupe_values(subvalues)
-
-        cardinality = int(field_definitions[field_name].get("cardinality", -1))
-        if -1 < cardinality < len(subvalues):
-            subvalues = subvalues[:cardinality]
-            log_field_cardinality_violation(field_name, id_field, str(cardinality))
-        entity[field_name] = subvalues
-
-        return entity
+    def split_string(self, config: dict, value: str):
+        return split_authority_link_string(config, value)
 
     def update(
         self, config, field_definitions, entity, row, field_name, entity_field_values
@@ -1352,7 +1357,7 @@ class AuthorityLinkField:
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "replace":
             field_values = []
-            subvalues = split_authority_link_string(config, row[field_name])
+            subvalues = self.split_string(config, row[field_name])
             subvalues = self.dedupe_values(subvalues)
             if -1 < cardinality < len(subvalues):
                 log_field_cardinality_violation(
@@ -1363,7 +1368,7 @@ class AuthorityLinkField:
                 field_values.append(subvalue)
             entity[field_name] = field_values
         if config["update_mode"] == "append":
-            subvalues = split_authority_link_string(config, row[field_name])
+            subvalues = self.split_string(config, row[field_name])
             for subvalue in subvalues:
                 entity_field_values.append(subvalue)
             if -1 < cardinality < len(entity_field_values):
@@ -1375,20 +1380,6 @@ class AuthorityLinkField:
                 entity[field_name] = entity_field_values
 
         return entity
-
-    def dedupe_values(self, values):
-        """Removes duplicate entries from 'values'."""
-        """Parameters
-           ----------
-            values : list
-                List containing value(s) to dedupe. Members could be strings
-                from CSV or dictionairies.
-            Returns
-            -------
-            list
-                A list of unique field values.
-        """
-        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'."""
@@ -1469,7 +1460,7 @@ class AuthorityLinkField:
             return subvalues[0]
 
 
-class MediaTrackField:
+class MediaTrackField(WorkbenchField):
     """Functions for handling fields with "media_track" Drupal (Islandora) field data type.
     All functions return a "entity" dictionary that is passed to Requests' "json"
     parameter.
@@ -1480,68 +1471,14 @@ class MediaTrackField:
     """
 
     def create(self, config, field_definitions, entity, row, field_name):
-        """Parameters
-        ----------
-         config : dict
-             The configuration settings defined by workbench_config.get_config().
-         field_definitions : dict
-             The field definitions object defined by get_field_definitions().
-         entity : dict
-             The dict that will be POSTed to Drupal as JSON.
-         row : OrderedDict.
-             The current CSV record.
-         field_name : string
-             The Drupal fieldname/CSV column header.
-         Returns
-         -------
-         dictionary
-             A dictionary represeting the entity that is POSTed to Drupal as JSON.
-        """
-        if not row[field_name]:
-            return entity
+        return super().create(config, field_definitions, entity, row, field_name)
 
-        id_field = row.get(config.get("id_field", "not_applicable"), "not_applicable")
-        subvalues = split_media_track_string(config, row[field_name])
-        subvalues = self.dedupe_values(subvalues)
-        cardinality = int(field_definitions[field_name].get("cardinality", -1))
-        if -1 < cardinality < len(subvalues):
-            subvalues = subvalues[:cardinality]
-            log_field_cardinality_violation(
-                field_name,
-                id_field,
-                cardinality,
-            )
-        entity[field_name] = subvalues
-
-        return entity
+    def split_string(self, config: dict, value: str):
+        return split_media_track_string(config, value)
 
     def update(
         self, config, field_definitions, entity, row, field_name, entity_field_values
     ):
-        """Note: this method appends incoming CSV values to existing values, replaces existing field
-        values with incoming values, or deletes all values from fields, depending on whether
-        config['update_mode'] is 'append', 'replace', or 'delete'. It doesn not replace individual
-        values within fields.
-        """
-        """Parameters
-           ----------
-            config : dict
-                The configuration settings defined by workbench_config.get_config().
-            field_definitions : dict
-                The field definitions object defined by get_field_definitions().
-            entity : dict
-                The dict that will be POSTed to Drupal as JSON.
-            row : OrderedDict.
-                The current CSV record.
-            field_name : string
-                The Drupal fieldname/CSV column header.
-            entity_field_values : list
-                List of dictionaries containing existing value(s) for field_name in the entity being updated.
-            Returns
-            -------
-            dictionary
-                A dictionary represeting the entity that is PATCHed to Drupal as JSON.
-        """
         if config["update_mode"] == "delete":
             entity[field_name] = []
             return entity
@@ -1555,7 +1492,7 @@ class MediaTrackField:
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
         if config["update_mode"] == "replace":
             field_values = []
-            subvalues = split_media_track_string(config, row[field_name])
+            subvalues = self.split_string(config, row[field_name])
             subvalues = self.dedupe_values(subvalues)
             if -1 < cardinality < len(subvalues):
                 log_field_cardinality_violation(
@@ -1566,7 +1503,7 @@ class MediaTrackField:
                 field_values.append(subvalue)
             entity[field_name] = field_values
         if config["update_mode"] == "append":
-            subvalues = split_media_track_string(config, row[field_name])
+            subvalues = self.split_string(config, row[field_name])
             for subvalue in subvalues:
                 entity_field_values.append(subvalue)
             if -1 < cardinality < len(entity_field_values):
@@ -1577,20 +1514,6 @@ class MediaTrackField:
             else:
                 entity[field_name] = entity_field_values
         return entity
-
-    def dedupe_values(self, values):
-        """Removes duplicate entries from 'values'."""
-        """Parameters
-           ----------
-            values : list
-                List containing value(s) to dedupe. Members could be strings
-                from CSV or dictionairies.
-            Returns
-            -------
-            list
-                A list of unique field values.
-        """
-        return deduplicate_field_values(values)
 
     def remove_invalid_values(self, config, field_definitions, field_name, values):
         """Removes invalid entries from 'values'."""
@@ -1677,7 +1600,7 @@ class MediaTrackField:
             return subvalues[0]
 
 
-class EntityReferenceRevisionsField:
+class EntityReferenceRevisionsField(WorkbenchField):
     """Functions for handling fields with 'entity_reference_revisions' Drupal field
     data type. This field *can* reference nodes, taxonomy terms, and media, but
     workbench only supports paragraphs for now.
@@ -1968,20 +1891,6 @@ class EntityReferenceRevisionsField:
                 )
                 entity[field_name] = entity[field_name][slice(0, cardinality)]
             return entity
-
-    def dedupe_values(self, values):
-        """Removes duplicate entries from 'values'."""
-        """Parameters
-           ----------
-            values : list
-                List containing value(s) to dedupe. Members could be strings
-                from CSV or dictionairies.
-            Returns
-            -------
-            list
-                A list of unique field values.
-        """
-        return deduplicate_field_values(values)
 
     def serialize(self, config, field_definitions, field_name, field_data):
         """Serialized values into a format consistent with Workbench's CSV-field input format."""
