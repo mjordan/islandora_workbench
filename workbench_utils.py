@@ -368,6 +368,9 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
             if config["log_response_status_code"] is True:
                 logging.info(response.status_code)
 
+            if config["log_response_headers"] is True:
+                logging.info(f"Respone headers: {response.headers}")
+
             if config["log_response_body"] is True:
                 logging.info(response.text)
 
@@ -1058,6 +1061,19 @@ def ping_remote_file(config, url):
         response = requests.head(
             url, allow_redirects=True, verify=config["secure_ssl_only"], headers=headers
         )
+
+        if config["log_request_url"] is True:
+            logging.info(f"HEAD {url}")
+
+        if config["log_response_status_code"] is True:
+            logging.info(response.status_code)
+
+        if config["log_response_headers"] is True:
+            logging.info(f"Respone headers: {response.headers}")
+
+        if config["log_response_body"] is True:
+            logging.info(response.text)
+
         return response.status_code
     except requests.exceptions.Timeout as err_timeout:
         message = (
