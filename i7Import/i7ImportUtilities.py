@@ -6,23 +6,49 @@ import logging
 import xml.etree.ElementTree as ET
 import sys
 import os
+import urllib.parse
 from rich.console import Console
 from rich.table import Table
 
 
+def _params_to_querystring(params: dict) -> str:
+    querystring = ""
+    for key, value in params.items():
+        if len(querystring) > 0:
+            querystring += "&"
+        if isinstance(value, list):
+            temp = [f"{key}={urllib.parse.quote_plus(str(item))}" for item in value]
+            querystring += "&".join(temp)
+        else:
+            querystring += f"{key}={urllib.parse.quote_plus(str(value))}"
+    return querystring
+
+
+def get_extension_from_mimetype(mimetype):
+    # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
+    # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
+    # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
+    custom_map = {"image/jpeg": ".jpg", "image/jp2": ".jp2", "image/png": ".png"}
+    if mimetype in custom_map:
+        return custom_map[mimetype]
+    else:
+        return mimetypes.guess_extension(mimetype)
+
+
+def get_metadata_solr_request(location):
+    with open(location, "r") as file:
+        solr_metadata_request = file.read()
+    return solr_metadata_request
+
+
 class i7ImportUtilities:
+
+    logger = None
 
     def __init__(self, config_location):
         self.config_location = config_location
         self.config = self.get_config()
         self.validate()
-        logging.basicConfig(
-            filename=self.config["log_file_path"],
-            level=logging.INFO,
-            filemode="a",
-            format="%(asctime)s - %(levelname)s - %(message)s",
-            datefmt="%d-%b-%y %H:%M:%S",
-        )
 
     default_config = {
         "solr_base_url": "http://localhost:8080/solr",
@@ -56,16 +82,16 @@ class i7ImportUtilities:
         "start": 0,
         "rows": 100000,
         "secure_ssl_only": True,
-        "pids": False,
+        "pids_to_use": False,
         "pids_to_skip": [],
+        "paginate": False,
     }
 
     def get_config(self):
-        yaml = YAML()
         config = self.default_config
         with open(self.config_location, "r") as stream:
             try:
-                loaded = yaml.load(stream)
+                loaded = YAML(typ="safe").load(stream)
             except OSError:
                 print("Failed")
         for key, value in loaded.items():
@@ -76,23 +102,21 @@ class i7ImportUtilities:
             config["debug"] = True
         return config
 
-    def get_metadata_solr_request(self, location):
-        with open(location, "r") as file:
-            solr_metadata_request = file.read()
-        return solr_metadata_request
+    def get_logger(self):
+        if self.logger is None:
+            self._configure_logger()
+        return self.logger
 
-    def get_extension_from_mimetype(self, mimetype):
-        # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
-        # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
-        # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
-        map = {"image/jpeg": ".jpg", "image/jp2": ".jp2", "image/png": ".png"}
-        if mimetype in map:
-            return map[mimetype]
-        else:
-            return mimetypes.guess_extension(mimetype)
-
-    def get_percentage(self, part, whole):
-        return 100 * float(part) / float(whole)
+    def _configure_logger(self):
+        self.logger = logging.getLogger("i7ImportUtilities")
+        self.logger.setLevel(logging.DEBUG if self.config["debug"] else logging.INFO)
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        formatter.datefmt = "%d-%b-%y %H:%M:%S"
+        handler = logging.FileHandler(self.config["log_file_path"], mode="a")
+        handler.setLevel(logging.DEBUG if self.config["debug"] else logging.INFO)
+        handler.setFormatter(formatter)
+        self.logger.propagate = False
+        self.logger.addHandler(handler)
 
     def parse_rels_ext(self, pid):
         rels_ext_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/RELS-EXT/download"
@@ -123,75 +147,88 @@ class i7ImportUtilities:
                 return rel_ext
             else:
                 message = f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}"
-                logging.error(
-                    f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}"
-                )
-                if self.config["debug"]:
-                    print(message)
+                self.get_logger().error(message)
+
         except requests.exceptions.RequestException as e:
+            self.get_logger().error(e)
             raise SystemExit(e)
 
-    def get_default_metadata_solr_request(self):
-        # This query gets all fields in the index. Does not need to be user-configurable.
+    def _get_all_solr_fields(self):
         fields_solr_url = (
-            f"{self.config['solr_base_url']}/select?q=*:*&wt=csv&rows=0&fl=*"
+            f"{self.config['solr_base_url']}/admin/luke?wt=json&schema=show"
         )
-
-        # Get the complete field list from Solr and filter it. The filtered field list is
-        # then used in another query to get the populated CSV data.
         try:
             field_list_response = requests.get(
                 verify=self.config["secure_ssl_only"],
                 url=fields_solr_url,
                 allow_redirects=True,
             )
-            raw_field_list = field_list_response.content.decode()
+            raw_data = field_list_response.json()
+            raw_field_list = raw_data["fields"]
+            return raw_field_list.keys()
         except requests.exceptions.RequestException as e:
+            self.get_logger().error(e)
             raise SystemExit(e)
 
-        field_list = raw_field_list.split(",")
+    def get_solr_field_list(self):
+        # This query gets all fields in the index. Does not need to be user-configurable.
+        field_list = self._get_all_solr_fields()
+
         filtered_field_list = [
-            keep for keep in field_list if re.search(self.config["field_pattern"], keep)
-        ]
-        filtered_field_list = [
-            discard
-            for discard in filtered_field_list
-            if not re.search(self.config["field_pattern_do_not_want"], discard)
+            keep
+            for keep in field_list
+            if re.search(self.config["field_pattern"], keep)
+            and not re.search(self.config["field_pattern_do_not_want"], keep)
         ]
 
         # Add required fieldnames.
         self.config["standard_fields"].reverse()
         for standard_field in self.config["standard_fields"]:
-            filtered_field_list.insert(0, standard_field)
+            if standard_field not in filtered_field_list:
+                filtered_field_list.insert(0, standard_field)
+        return filtered_field_list
+
+    def get_default_metadata_solr_request(self):
+        filtered_field_list = self.get_solr_field_list()
         fields_param = ",".join(filtered_field_list)
-        query = f"{self.config['solr_base_url']}/select?q=PID:{self.config['namespace']}*&wt=csv&start={self.config['start']}&rows={self.config['rows']}&fl={fields_param}"
+
+        params = {
+            "q": f"PID:{self.config['namespace']}*",
+            "wt": "json",
+            "start": self.config["start"],
+            "rows": self.config["rows"],
+            "fl": fields_param,
+            "fq": [],
+        }
 
         if self.config["collection"]:
             collection = self.config["collection"]
-            query = f'{query}&fq=RELS_EXT_isMemberOfCollection_uri_s: "info:fedora/{collection}"'
+            params["fq"].append(
+                f'RELS_EXT_isMemberOfCollection_uri_s:"info:fedora/{collection}"'
+            )
         if self.config["content_model"]:
             model = self.config["content_model"]
-            query = f'{query}&fq=RELS_EXT_hasModel_uri_s:"info:fedora/{model}"'
+            params["fq"].append(f'RELS_EXT_hasModel_uri_s:"info:fedora/{model}"')
         if self.config["solr_filters"]:
             for key, value in self.config["solr_filters"].items():
-                query = f'{query}&fq={key}:"{value}"'
+                params["fq"].append(f'{key}:"{value}"')
         fedora_prefix = 'RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/'
         if self.config["collections"]:
             collections = self.config["collections"]
             fedora_collections = []
             for collection in collections:
                 fedora_collections.append(f'{fedora_prefix}"{collection}"')
-            fq_string = "&fq=" + " or ".join(fedora_collections)
-            query = f"{query}{fq_string}"
-        if self.config["pids"]:
-            pids_to_use = []
-            for candidate in self.config["pids"]:
-                pids_to_use.append(f"PID:{candidate}")
-            fq_string = "&fq=" + " or ".join(pids_to_use)
-            query = f"{query}{fq_string}"
+            fq_string = " or ".join(fedora_collections)
+            params["fq"].append(fq_string)
+        if self.config["pids_to_use"]:
+            pids_to_use = [f'PID:"{pid}"' for pid in self.config["pids_to_use"]]
+            fq_string = " or ".join(pids_to_use)
+            params["fq"].append(fq_string)
 
         # Get the populated CSV from Solr, with the object namespace and field list filters applied.
-        return query
+        querystring = _params_to_querystring(params)
+        self.get_logger().debug(f"Default Solr Querystring: {querystring}")
+        return f"{self.config['solr_base_url']}/select?" + querystring
 
     # Validates config.
     def validate(self):
@@ -200,12 +237,14 @@ class i7ImportUtilities:
             message = f"'get_file_url' and 'fetch_files' cannot both be selected."
             error_messages.append(message)
         if error_messages:
-            sys.exit("Error: " + message)
+            self.get_logger().error("Error: " + "\n".join(error_messages))
+            sys.exit("Error: " + "\n".join(error_messages))
 
     # Gets file from i7 installation
     def get_i7_asset(self, pid, datastream):
         try:
             obj_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/{datastream}/download"
+            self.get_logger().debug(f"Attempting to download {obj_url}")
             if self.config["get_file_url"]:
                 obj_download_response = requests.head(url=obj_url, allow_redirects=True)
             else:
@@ -217,7 +256,7 @@ class i7ImportUtilities:
             if obj_download_response.status_code == 200:
                 # Get MIMETYPE from 'Content-Type' header
                 obj_mimetype = obj_download_response.headers["content-type"]
-                obj_extension = self.get_extension_from_mimetype(obj_mimetype)
+                obj_extension = get_extension_from_mimetype(obj_mimetype)
                 if self.config["fetch_files"] and obj_extension:
                     obj_filename = pid.replace(":", "_")
                     obj_basename = obj_filename + obj_extension
@@ -231,11 +270,11 @@ class i7ImportUtilities:
                 if self.config["get_file_url"] and obj_extension:
                     return obj_url
                 if obj_download_response.status_code == 404:
-                    logging.warning(f"{obj_url} not found.")
+                    self.get_logger().warning(f"{obj_url} not found.")
                     return None
 
         except requests.exceptions.RequestException as e:
-            logging.info(e)
+            self.get_logger().error(e)
             return None
 
     # Convenience function for debugging - Prints config to console screen.
