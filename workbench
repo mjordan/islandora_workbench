@@ -148,7 +148,7 @@ def create():
                 if len(parent_in_id_map_result) > 0:
                     row["field_member_of"] = str(parent_in_id_map_result[0][0])
                 else:
-                    message = f'Recovery mode was unable to find the node ID for the parent CSV row "{row["parent_id"]}" in theh CSV ID to node ID map.'
+                    message = f'Recovery mode was unable to find the node ID for the parent CSV row "{row["parent_id"]}" in the CSV ID to node ID map.'
                     print("Warning: " + message)
                     logging.warning(message)
 
