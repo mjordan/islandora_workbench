@@ -2074,6 +2074,117 @@ class EntityReferenceRevisionsField(WorkbenchField):
         return subvalues[0]
 
 
+class LinkedDataField(LinkField):
+    """Linked Data Field is very similar to a Link field except it has a different JSON dictionary keys serialization"""
+
+    def update(
+        self, config, field_definitions, entity, row, field_name, entity_field_values
+    ):
+        """Note: this method appends incoming CSV values to existing values, replaces existing field
+        values with incoming values, or deletes all values from fields, depending on whether
+        config['update_mode'] is 'append', 'replace', or 'delete'. It does not replace individual
+        values within fields.
+        """
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            entity : dict
+                The dict that will be POSTed to Drupal as JSON.
+            row : OrderedDict.
+                The current CSV record.
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            entity_field_values : list
+                List of dictionaries containing existing value(s) for field_name in the entity being updated.
+            Returns
+            -------
+            dictionary
+                A dictionary representing the entity that is PATCHed to Drupal as JSON.
+        """
+        if config["update_mode"] == "delete":
+            entity[field_name] = []
+            return entity
+
+        if not row[field_name]:
+            return entity
+
+        if field_name not in entity:
+            entity[field_name] = []
+
+        if config["task"] == "update":
+            entity_id_field = "node_id"
+        else:
+            return entity
+
+        if config["update_mode"] not in ["append", "replace"]:
+            return entity
+
+        cardinality = int(field_definitions[field_name].get("cardinality", -1))
+        subvalues = []
+        if config["update_mode"] == "append":
+            # For append add existing values, then new values and then dedupe and replace
+            subvalues.extend(entity_field_values)
+        subvalues.extend(self.split_string(config, row[field_name]))
+        subvalues = self.dedupe_values(subvalues)
+
+        if -1 < cardinality < len(subvalues):
+            log_field_cardinality_violation(
+                field_name, row[entity_id_field], str(cardinality)
+            )
+            subvalues = subvalues[:cardinality]
+        entity[field_name] = subvalues
+
+        return entity
+
+    def serialize(self, config, field_definitions, field_name, field_data):
+        """Serialized values into a format consistent with Workbench's CSV-field input format."""
+        """Parameters
+           ----------
+            config : dict
+                The configuration settings defined by workbench_config.get_config().
+            field_definitions : dict
+                The field definitions object defined by get_field_definitions().
+            field_name : string
+                The Drupal fieldname/CSV column header.
+            field_data : string
+                Raw JSON from the field named 'field_name'.
+            Returns
+            -------
+            string
+                A string structured same as the Workbench CSV field data for this field type.
+                or None if there is nothing to return.
+        """
+        if "field_type" not in field_definitions[field_name]:
+            return None
+
+        subvalues = list()
+        for subvalue in field_data:
+            if (
+                "value" in subvalue
+                and subvalue["value"] is not None
+                and subvalue["value"] != ""
+            ):
+                subvalues.append(subvalue["url"] + "%%" + subvalue["value"])
+            else:
+                subvalues.append(subvalue["url"])
+
+        if len(subvalues) > 1:
+            return config["subdelimiter"].join(subvalues)
+        elif len(subvalues) == 0:
+            return None
+        else:
+            return subvalues[0]
+
+    def split_string(self, config: dict, value: str):
+        """Linked Data fields have different keys."""
+        return_list = split_link_string(config, value)
+        new_list = [{"url": d["uri"], "value": d["title"]} for d in return_list]
+        return new_list
+
+
 class WorkbenchFieldFactory:
 
     @staticmethod
@@ -2095,6 +2206,7 @@ class WorkbenchFieldFactory:
             "media_track": "MediaTrackField",
             "geolocation": "GeolocationField",
             "link": "LinkField",
+            "linked_data_field": "LinkedDataField",
         }
         """Returns a WorkbenchField subclass based on the field type."""
         if field_type in field_to_class_map:
