@@ -1,8 +1,8 @@
 """unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
-   credentials, etc. are in a configuration file referenced in the test.
+credentials, etc. are in a configuration file referenced in the test.
 
-   Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
-   contain tests that interact with an Islandora instance.
+Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
+contain tests that interact with an Islandora instance.
 """
 
 import sys
@@ -761,8 +761,8 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
             os.remove(google_sheet_csv_path)
 
         secondary_task_google_sheets_csv_paths = glob.glob(
-            "*secondary_task_with_google_sheets_and_excel_test_google_sheets_secondary*",
-            root_dir=self.temp_dir,
+            self.temp_dir
+            + "/**secondary_task_with_google_sheets_and_excel_test_google_sheets_secondary*"
         )
         for secondary_csv_file_path in secondary_task_google_sheets_csv_paths:
             if os.path.exists(os.path.join(self.temp_dir, secondary_csv_file_path)):
@@ -861,8 +861,7 @@ class TestSecondaryTaskWithExcel(unittest.TestCase):
             os.remove(excel_csv_path)
 
         secondary_task_excel_csv_paths = glob.glob(
-            "*secondary_task_with_google_sheets_and_excel_test_excel_secondary*",
-            root_dir=self.temp_dir,
+            "/**secondary_task_with_google_sheets_and_excel_test_google_sheets_secondary*"
         )
         for secondary_csv_file_path in secondary_task_excel_csv_paths:
             if os.path.exists(os.path.join(self.temp_dir, secondary_csv_file_path)):

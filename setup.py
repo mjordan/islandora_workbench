@@ -21,6 +21,6 @@ setup(
         "typing-extensions",
         "rich",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     py_modules=[],
 )
