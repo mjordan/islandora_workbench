@@ -1921,7 +1921,7 @@ def check_input(config, args):
             logging.warning(message)
         if (
             config["recovery_mode_starting_from_node_id"] is not False
-            and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+            and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
         ):
             message = f'"recovery_mode" option in effect. Items that have already been ingested with node IDs starting at {config["recovery_mode_starting_from_node_id"]} will be skipped.'
             print(message)
@@ -8871,7 +8871,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
         if (
             config["recovery_mode_starting_from_node_id"] is not False
-            and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+            and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
             and parent_id is not None
         ):
             nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(
@@ -9269,7 +9269,7 @@ def get_rollback_csv_filepath(config):
 
     if config["timestamp_rollback"] is True or (
         config["recovery_mode_starting_from_node_id"] is not False
-        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+        and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
 
@@ -9277,7 +9277,7 @@ def get_rollback_csv_filepath(config):
         rollback_csv_filename = f"{rollback_csv_filename_basename}.{now_string}.csv"
     elif (
         config["recovery_mode_starting_from_node_id"] is not False
-        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+        and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
         rollback_csv_filename = (
             f"{rollback_csv_filename_basename}.{now_string}.recovery_mode.csv"
@@ -9365,7 +9365,7 @@ def get_rollback_config_filepath(config):
 
     if config["timestamp_rollback"] is True or (
         config["recovery_mode_starting_from_node_id"] is not False
-        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+        and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
 
@@ -9376,7 +9376,7 @@ def get_rollback_config_filepath(config):
         )
     elif (
         config["recovery_mode_starting_from_node_id"] is not False
-        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+        and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
         rollback_config_filepath = os.path.join(
             f"{rb_config_file_dir}",

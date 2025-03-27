@@ -116,7 +116,7 @@ def create():
         row_position_message = ""
         if (
             config["recovery_mode_starting_from_node_id"] is not False
-            and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+            and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
         ):
             nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(
                 config, row[config["id_field"]]
@@ -2369,7 +2369,7 @@ def create_from_files():
 
         if (
             config["recovery_mode_starting_from_node_id"] is not False
-            and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+            and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
         ):
             nid_in_map = recovery_mode_id_in_csv_id_to_node_id_map(config, file_name)
             if nid_in_map is not False or not None:
@@ -3885,7 +3885,7 @@ if config["task"] in ["create", "create_from_files"]:
     )
     if (
         config["recovery_mode_starting_from_node_id"] is not False
-        and config["recovery_mode_starting_from_node_id"].isnumeric() is True
+        and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
         query = "select * from csv_id_to_node_id_map where config_file = ?"
         values = (config["config_file"],)
