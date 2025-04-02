@@ -9826,7 +9826,10 @@ def check_file_exists(config, filename):
             headers = {"User-Agent": config["user_agent"]}
 
             head_response = requests.head(
-                filename, allow_redirects=True, verify=config["secure_ssl_only"], headers=headers
+                filename,
+                allow_redirects=True,
+                verify=config["secure_ssl_only"],
+                headers=headers,
             )
             if head_response.status_code == 200:
                 return True
