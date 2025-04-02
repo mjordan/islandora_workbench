@@ -1155,7 +1155,7 @@ def get_mid_from_media_url_alias(config, url_alias):
 
 
 def get_nid_from_url_without_config(url):
-    """Gets a node ID from a raw URL, with no accompanying config data. Useful
+    """Gets a node ID from a raw Drupal URL, with no accompanying config data. Useful
        within integration tests where the config is not directly accessible.
 
     Parameters
@@ -1168,7 +1168,7 @@ def get_nid_from_url_without_config(url):
         The node ID, or False if the URL cannot be found.
     """
     url = url + "?_format=json"
-    response = requests.get(url)
+    response = requests.get(url, verify=False)
     if response.status_code != 200:
         return False
     else:
@@ -8959,10 +8959,60 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 {"target_id": paged_content_model_tid, "target_type": "taxonomy_term"}
             ]
 
-        if "field_display_hints" in parent_csv_record:
-            node_json["field_display_hints"] = [
+        # Add field_viewer_override if defined in CSV or config.
+        if "paged_content_page_viewer_override" in config:
+            if (
+                value_is_numeric(config["paged_content_page_viewer_override"]) is False
+                and config["paged_content_page_viewer_override"].startswith("http")
+                is True
+            ):
+                page_viewer_override_tid_info = get_all_representations_of_term(
+                    config,
+                    vocab_id="islandora_display",
+                    uri=config["paged_content_page_viewer_override"],
+                )
+                page_viewer_override_tid = page_viewer_override_tid_info["term_id"]
+            elif (
+                value_is_numeric(config["paged_content_page_viewer_override"]) is False
+                and config["paged_content_page_viewer_override"].startswith("http")
+                is False
+            ):
+                page_viewer_override_tid_info = get_all_representations_of_term(
+                    config,
+                    vocab_id="islandora_display",
+                    name=config["paged_content_page_viewer_override"],
+                )
+                page_viewer_override_tid = page_viewer_override_tid_info["term_id"]
+            else:
+                page_viewer_override_tid = config["paged_content_page_viewer_override"]
+
+        if (
+            "field_viewer_override" in parent_csv_record
+            and "paged_content_page_viewer_override" in config
+        ):
+            node_json["field_viewer_override"] = [
                 {
-                    "target_id": parent_csv_record["field_display_hints"],
+                    "target_id": page_viewer_override_tid,
+                    "target_type": "taxonomy_term",
+                }
+            ]
+        if (
+            "field_viewer_override" in parent_csv_record
+            and "paged_content_page_viewer_override" not in config
+        ):
+            node_json["field_viewer_override"] = [
+                {
+                    "target_id": parent_csv_record["field_viewer_override"],
+                    "target_type": "taxonomy_term",
+                }
+            ]
+        if (
+            "field_viewer_override" not in parent_csv_record
+            and "paged_content_page_viewer_override" in config
+        ):
+            node_json["field_viewer_override"] = [
+                {
+                    "target_id": page_viewer_override_tid,
                     "target_type": "taxonomy_term",
                 }
             ]
@@ -8987,7 +9037,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 if inherited_field in [
                     "title",
                     "field_model",
-                    "field_display_hints",
+                    "field_viewer_override",
                     "uid",
                     "created",
                 ]:
