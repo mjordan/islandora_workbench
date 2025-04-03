@@ -8959,7 +8959,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 {"target_id": paged_content_model_tid, "target_type": "taxonomy_term"}
             ]
 
-        # Add field_viewer_override if defined in CSV or config.
+        # Add viewer override if defined in CSV or config.
         if "paged_content_page_viewer_override" in config:
             if (
                 value_is_numeric(config["paged_content_page_viewer_override"]) is False
@@ -8986,31 +8986,32 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             else:
                 page_viewer_override_tid = config["paged_content_page_viewer_override"]
 
+        viewer_override_fieldname = config["viewer_override_fieldname"]
         if (
-            "field_viewer_override" in parent_csv_record
+            viewer_override_fieldname in parent_csv_record
             and "paged_content_page_viewer_override" in config
         ):
-            node_json["field_viewer_override"] = [
+            node_json[viewer_override_fieldname] = [
                 {
                     "target_id": page_viewer_override_tid,
                     "target_type": "taxonomy_term",
                 }
             ]
         if (
-            "field_viewer_override" in parent_csv_record
+            viewer_override_fieldname in parent_csv_record
             and "paged_content_page_viewer_override" not in config
         ):
-            node_json["field_viewer_override"] = [
+            node_json[viewer_override_fieldname] = [
                 {
                     "target_id": parent_csv_record["field_viewer_override"],
                     "target_type": "taxonomy_term",
                 }
             ]
         if (
-            "field_viewer_override" not in parent_csv_record
+            viewer_override_fieldname not in parent_csv_record
             and "paged_content_page_viewer_override" in config
         ):
-            node_json["field_viewer_override"] = [
+            node_json[viewer_override_fieldname] = [
                 {
                     "target_id": page_viewer_override_tid,
                     "target_type": "taxonomy_term",
@@ -9037,9 +9038,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 if inherited_field in [
                     "title",
                     "field_model",
-                    "field_viewer_override",
                     "uid",
                     "created",
+                    config["viewer_override_fieldname"],
                 ]:
                     continue
 
