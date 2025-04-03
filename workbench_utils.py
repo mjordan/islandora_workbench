@@ -10217,18 +10217,24 @@ def download_file_from_drupal(config, node_id):
             try:
                 os.mkdir(config["export_file_directory"])
             except Exception as e:
-                message = (f'Path "export_file_directory" ("{config["export_file_directory"]}") '
-                          f'is not writable: {str(e)}')
+                message = (
+                    f'Path "export_file_directory" ("{config["export_file_directory"]}") '
+                    f"is not writable: {str(e)}"
+                )
                 logging.error(message)
                 sys.exit("Error: " + message + " See log for more detail.")
         else:
-            logging.info(f'Path "export_file_directory" ("{config["export_file_directory"]}") already exists.')
+            logging.info(
+                f'Path "export_file_directory" ("{config["export_file_directory"]}") already exists.'
+            )
 
     media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
     media_list_response = issue_request(config, "GET", media_list_url)
 
     if media_list_response.status_code != 200:
-        logging.error(f"Media list request failed for node {node_id}: {media_list_response.status_code}")
+        logging.error(
+            f"Media list request failed for node {node_id}: {media_list_response.status_code}"
+        )
         return False
 
     try:
@@ -10246,8 +10252,11 @@ def download_file_from_drupal(config, node_id):
     for media in media_list:
         for file_field_name in file_fields:
             if file_field_name in media:
-                if (len(media[file_field_name]) > 0 and
-                    media["field_media_use"][0]["target_id"] == config["export_file_media_use_term_id"]):
+                if (
+                    len(media[file_field_name]) > 0
+                    and media["field_media_use"][0]["target_id"]
+                    == config["export_file_media_use_term_id"]
+                ):
 
                     file_url = media[file_field_name][0]["url"]
 
@@ -10258,7 +10267,7 @@ def download_file_from_drupal(config, node_id):
                                 file_url,
                                 allow_redirects=True,
                                 verify=config["secure_ssl_only"],
-                                timeout=10
+                                timeout=10,
                             )
                             if head_response.status_code != 200:
                                 logging.error(
@@ -10267,7 +10276,9 @@ def download_file_from_drupal(config, node_id):
                                 )
                                 return False
                         except Exception as e:
-                            logging.error(f"HEAD request failed for {file_url}: {str(e)}")
+                            logging.error(
+                                f"HEAD request failed for {file_url}: {str(e)}"
+                            )
                             return False
 
                         logging.info(f"URL validated for node {node_id}: {file_url}")
@@ -10280,21 +10291,32 @@ def download_file_from_drupal(config, node_id):
                             config["export_file_directory"], url_filename
                         )
                         if os.path.exists(downloaded_file_path):
-                            downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+                            downloaded_file_path = get_deduped_file_path(
+                                downloaded_file_path
+                            )
 
                         try:
                             with open(downloaded_file_path, "wb+") as f:
                                 file_download_response = requests.get(
                                     file_url,
                                     allow_redirects=True,
-                                    verify=config["secure_ssl_only"]
+                                    verify=config["secure_ssl_only"],
                                 )
                                 if file_download_response.status_code == 200:
                                     f.write(file_download_response.content)
-                                    filename_for_logging = os.path.basename(downloaded_file_path)
-                                    logging.info(f'File "{filename_for_logging}" downloaded for node {node_id}.')
-                                    return downloaded_file_path if os.path.isabs(config["export_file_directory"]) \
+                                    filename_for_logging = os.path.basename(
+                                        downloaded_file_path
+                                    )
+                                    logging.info(
+                                        f'File "{filename_for_logging}" downloaded for node {node_id}.'
+                                    )
+                                    return (
+                                        downloaded_file_path
+                                        if os.path.isabs(
+                                            config["export_file_directory"]
+                                        )
                                         else filename_for_logging
+                                    )
                                 else:
                                     logging.error(
                                         f"File download failed for node {node_id}: {file_url} "
@@ -10302,11 +10324,15 @@ def download_file_from_drupal(config, node_id):
                                     )
                                     return False
                         except Exception as e:
-                            logging.error(f"File download failed for node {node_id}: {str(e)}")
+                            logging.error(
+                                f"File download failed for node {node_id}: {str(e)}"
+                            )
                             return False
 
     logging.warning(f"No valid media found for node {node_id}")
     return False
+
+
 def get_file_hash_from_drupal(config, file_uuid, algorithm):
     """Query the Integration module's hash controller at '/islandora_workbench_integration/file_hash'
     to get the hash of the file identified by file_uuid.

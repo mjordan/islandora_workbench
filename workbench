@@ -2691,6 +2691,7 @@ def export_csv():
     else:
         print("CSV export saved at " + csv_file_path + ".")
 
+
 def get_data_from_view():
     """Retrieve data from a Drupal View via its REST export display."""
     message = f'"Get data from View" task started using config file {args.config}.'
@@ -2698,14 +2699,18 @@ def get_data_from_view():
     logging.info(message)
 
     # Prepare view parameters
-    view_parameters = "&".join(config["view_parameters"]) if "view_parameters" in config else ""
+    view_parameters = (
+        "&".join(config["view_parameters"]) if "view_parameters" in config else ""
+    )
     view_base_url = f"{config['host']}/{config['view_path'].lstrip('/')}"
     initial_view_url = f"{view_base_url}?page=0&{view_parameters}"
 
     # Verify view accessibility
     view_path_status_code = ping_view_endpoint(config, initial_view_url)
     if view_path_status_code != 200:
-        message = f"Cannot access View at {initial_view_url} (HTTP {view_path_status_code})."
+        message = (
+            f"Cannot access View at {initial_view_url} (HTTP {view_path_status_code})."
+        )
         logging.error(message)
         sys.exit("Error: " + message + " See log for more information.")
 
@@ -2716,7 +2721,7 @@ def get_data_from_view():
         config_base_name = os.path.basename(args.config).split(".")[0]
         csv_file_path = os.path.join(
             config["input_dir"],
-            f"{config_base_name}_view_export_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
+            f"{config_base_name}_view_export_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.csv",
         )
 
     # Remove existing CSV file if present
@@ -2729,12 +2734,16 @@ def get_data_from_view():
 
     # Add user-specified or all field_* columns
     if len(config.get("export_csv_field_list", [])) > 0:
-        field_names += [f for f in config["export_csv_field_list"] if f not in field_names]
+        field_names += [
+            f for f in config["export_csv_field_list"] if f not in field_names
+        ]
     else:
         field_names += [f for f in field_definitions.keys() if f.startswith("field_")]
 
     # Add 'file' column if needed
-    if config.get("export_file_url_instead_of_download", False) or config.get("export_file_directory"):
+    if config.get("export_file_url_instead_of_download", False) or config.get(
+        "export_file_directory"
+    ):
         if "file" not in field_names:
             field_names.append("file")
 
@@ -2748,7 +2757,9 @@ def get_data_from_view():
 
     # Prepare CSV writer
     with open(csv_file_path, "a+", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=deduped_field_names, lineterminator="\n")
+        writer = csv.DictWriter(
+            csv_file, fieldnames=deduped_field_names, lineterminator="\n"
+        )
         writer.writeheader()
 
         seen_nids = set()
@@ -2760,7 +2771,9 @@ def get_data_from_view():
             response = issue_request(config, "GET", current_view_url)
 
             if response.status_code != 200:
-                logging.error(f"Skipping page {page} due to HTTP {response.status_code}")
+                logging.error(
+                    f"Skipping page {page} due to HTTP {response.status_code}"
+                )
                 page += 1
                 continue
 
@@ -2778,7 +2791,9 @@ def get_data_from_view():
                 try:
                     nid = node["nid"][0]["value"]
                 except (KeyError, IndexError):
-                    logging.warning(f"Skipping node with missing/invalid NID on page {page}")
+                    logging.warning(
+                        f"Skipping node with missing/invalid NID on page {page}"
+                    )
                     continue
 
                 if nid in seen_nids:
@@ -2792,8 +2807,10 @@ def get_data_from_view():
                     node_type = "unknown"
 
                 if node_type != config["content_type"]:
-                    msg = (f"Skipping node {nid} - type '{node_type}' "
-                           f"doesn't match configured '{config['content_type']}'")
+                    msg = (
+                        f"Skipping node {nid} - type '{node_type}' "
+                        f"doesn't match configured '{config['content_type']}'"
+                    )
                     print(f"Warning: {msg}")
                     logging.warning(msg)
                     continue
@@ -2801,11 +2818,13 @@ def get_data_from_view():
                 # Initialize CSV row
                 row = {
                     "node_id": nid,
-                    "title": node.get("title", [{}])[0].get("value", "No title")
+                    "title": node.get("title", [{}])[0].get("value", "No title"),
                 }
 
                 # Handle file URL/path if configured
-                if config.get("export_file_url_instead_of_download", False) or config.get("export_file_directory"):
+                if config.get(
+                    "export_file_url_instead_of_download", False
+                ) or config.get("export_file_directory"):
                     file_result = download_file_from_drupal(config, nid)
                     row["file"] = file_result if file_result else ""
 
@@ -2814,13 +2833,12 @@ def get_data_from_view():
                     if field_name.startswith("field_") and field_name in node:
                         try:
                             row[field_name] = serialize_field_json(
-                                config,
-                                field_definitions,
-                                field_name,
-                                node[field_name]
+                                config, field_definitions, field_name, node[field_name]
                             )
                         except Exception as e:
-                            logging.error(f"Error serializing {field_name} for node {nid}: {str(e)}")
+                            logging.error(
+                                f"Error serializing {field_name} for node {nid}: {str(e)}"
+                            )
                             row[field_name] = "SERIALIZATION_ERROR"
 
                 # Write completed row
@@ -2830,21 +2848,33 @@ def get_data_from_view():
                 if config.get("node_post_export"):
                     for command in config["node_post_export"]:
                         try:
-                            post_task_output, post_task_return_code = execute_entity_post_task_script(
-                                command,
-                                args.config,
-                                response.status_code,
-                                json.dumps(node)
+                            post_task_output, post_task_return_code = (
+                                execute_entity_post_task_script(
+                                    command,
+                                    args.config,
+                                    response.status_code,
+                                    json.dumps(node),
+                                )
                             )
                             if post_task_return_code == 0:
-                                logging.info(f"Post-export script '{command}' executed successfully for node {nid}")
+                                logging.info(
+                                    f"Post-export script '{command}' executed successfully for node {nid}"
+                                )
                             else:
-                                logging.error(f"Post-export script '{command}' failed for node {nid}")
+                                logging.error(
+                                    f"Post-export script '{command}' failed for node {nid}"
+                                )
                         except Exception as e:
-                            logging.error(f"Error executing post-export script '{command}' for node {nid}: {str(e)}")
+                            logging.error(
+                                f"Error executing post-export script '{command}' for node {nid}: {str(e)}"
+                            )
 
                 # Print progress message
-                file_status = "with file URL " if config.get("export_file_url_instead_of_download", False) else ""
+                file_status = (
+                    "with file URL "
+                    if config.get("export_file_url_instead_of_download", False)
+                    else ""
+                )
                 print(f"Exported node {nid}: {row['title']} {file_status}".strip())
 
             # Pagination control
