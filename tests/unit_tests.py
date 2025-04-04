@@ -1525,11 +1525,11 @@ class TestMimeTypeFunctions(unittest.TestCase):
         config = dict({"input_dir": "."})
         fixtures = [
             {
-                "file_path": "tests/assets/mime_type_test/test.tXt",
+                "file_path": "tests/assets/mime_type_test/test2.tXt",
                 "mime_type": "text/plain",
             },
             {
-                "file_path": "tests/assets/mime_type_test/test.hocR",
+                "file_path": "tests/assets/mime_type_test/test2.hocR",
                 "mime_type": "text/vnd.hocr+html",
             },
             {
