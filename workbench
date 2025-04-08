@@ -2747,6 +2747,12 @@ def get_data_from_view():
         if "file" not in field_names:
             field_names.append("file")
 
+    # Add columns from additional_files
+    if 'additional_files' in config:
+        for column in config['additional_files'].keys():
+            if column not in field_names:
+                field_names.append(column)
+
     # Deduplicate while preserving order
     seen_fields = set()
     deduped_field_names = []
@@ -2815,6 +2821,21 @@ def get_data_from_view():
                     logging.warning(msg)
                     continue
 
+                # Fetch media list once per node
+                media_list_url = f"{config['host']}/node/{nid}/media?_format=json"
+                media_list_response = issue_request(config, "GET", media_list_url)
+                if media_list_response.status_code != 200:
+                    logging.error(
+                        f"Media list request failed for node {nid}: {media_list_response.status_code}"
+                    )
+                    media_list = []
+                else:
+                    try:
+                        media_list = json.loads(media_list_response.text)
+                    except json.decoder.JSONDecodeError as e:
+                        logging.error(f"Media query for node {nid} failed: {e}")
+                        media_list = []
+
                 # Initialize CSV row
                 row = {
                     "node_id": nid,
@@ -2825,8 +2846,19 @@ def get_data_from_view():
                 if config.get(
                     "export_file_url_instead_of_download", False
                 ) or config.get("export_file_directory"):
-                    file_result = download_file_from_drupal(config, nid)
+                    file_result = download_file_from_drupal(config, nid, media_list=media_list)
                     row["file"] = file_result if file_result else ""
+
+                # Handle additional_files
+                if 'additional_files' in config:
+                    for column_name, media_use_uri in config['additional_files'].items():
+                        file_result = download_file_from_drupal(
+                            config,
+                            nid,
+                            media_use_term_id=media_use_uri,
+                            media_list=media_list
+                        )
+                        row[column_name] = file_result if file_result else ""
 
                 # Process other fields
                 for field_name in deduped_field_names:
@@ -2885,7 +2917,6 @@ def get_data_from_view():
     completion_message = f"CSV export completed: {csv_file_path}"
     logging.info(completion_message)
     print(f"\n{completion_message}")
-
 
 def get_media_report_from_view():
     """Generates a report of what media  are present based on a list of nodes in a View.
