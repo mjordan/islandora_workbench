@@ -2748,8 +2748,8 @@ def get_data_from_view():
             field_names.append("file")
 
     # Add columns from additional_files
-    if 'additional_files' in config:
-        for column in config['additional_files'].keys():
+    if "additional_files" in config:
+        for column in config["additional_files"].keys():
             if column not in field_names:
                 field_names.append(column)
 
@@ -2846,17 +2846,21 @@ def get_data_from_view():
                 if config.get(
                     "export_file_url_instead_of_download", False
                 ) or config.get("export_file_directory"):
-                    file_result = download_file_from_drupal(config, nid, media_list=media_list)
+                    file_result = download_file_from_drupal(
+                        config, nid, media_list=media_list
+                    )
                     row["file"] = file_result if file_result else ""
 
                 # Handle additional_files
-                if 'additional_files' in config:
-                    for column_name, media_use_uri in config['additional_files'].items():
+                if "additional_files" in config:
+                    for column_name, media_use_uri in config[
+                        "additional_files"
+                    ].items():
                         file_result = download_file_from_drupal(
                             config,
                             nid,
                             media_use_term_id=media_use_uri,
-                            media_list=media_list
+                            media_list=media_list,
                         )
                         row[column_name] = file_result if file_result else ""
 
@@ -2917,6 +2921,7 @@ def get_data_from_view():
     completion_message = f"CSV export completed: {csv_file_path}"
     logging.info(completion_message)
     print(f"\n{completion_message}")
+
 
 def get_media_report_from_view():
     """Generates a report of what media  are present based on a list of nodes in a View.

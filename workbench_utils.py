@@ -10250,14 +10250,18 @@ def download_file_from_drupal(config, node_id, media_use_term_id=None, media_lis
         media_use_term_id = config.get("export_file_media_use_term_id")
 
     if media_use_term_id is None:
-        logging.error(f"No media use term ID provided or configured for node {node_id}.")
+        logging.error(
+            f"No media use term ID provided or configured for node {node_id}."
+        )
         return False
 
     # Convert URI to term ID if necessary
     if str(media_use_term_id).startswith("http"):
         media_use_term_id = get_term_id_from_uri(config, media_use_term_id)
         if media_use_term_id is None:
-            logging.error(f"Failed to convert URI {media_use_term_id} to term ID for node {node_id}.")
+            logging.error(
+                f"Failed to convert URI {media_use_term_id} to term ID for node {node_id}."
+            )
             return False
 
     # Process each media to find the matching use term
@@ -10291,10 +10295,14 @@ def download_file_from_drupal(config, node_id, media_use_term_id=None, media_lis
                                     )
                                     return False
                             except Exception as e:
-                                logging.error(f"HEAD request failed for {file_url}: {str(e)}")
+                                logging.error(
+                                    f"HEAD request failed for {file_url}: {str(e)}"
+                                )
                                 return False
 
-                            logging.info(f"URL validated for node {node_id}: {file_url}")
+                            logging.info(
+                                f"URL validated for node {node_id}: {file_url}"
+                            )
                             return file_url
 
                         # File download mode
@@ -10304,7 +10312,9 @@ def download_file_from_drupal(config, node_id, media_use_term_id=None, media_lis
                                 config["export_file_directory"], url_filename
                             )
                             if os.path.exists(downloaded_file_path):
-                                downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+                                downloaded_file_path = get_deduped_file_path(
+                                    downloaded_file_path
+                                )
 
                             try:
                                 with open(downloaded_file_path, "wb+") as f:
@@ -10315,13 +10325,17 @@ def download_file_from_drupal(config, node_id, media_use_term_id=None, media_lis
                                     )
                                     if file_download_response.status_code == 200:
                                         f.write(file_download_response.content)
-                                        filename_for_logging = os.path.basename(downloaded_file_path)
+                                        filename_for_logging = os.path.basename(
+                                            downloaded_file_path
+                                        )
                                         logging.info(
                                             f'File "{filename_for_logging}" downloaded for node {node_id}.'
                                         )
                                         return (
                                             downloaded_file_path
-                                            if os.path.isabs(config["export_file_directory"])
+                                            if os.path.isabs(
+                                                config["export_file_directory"]
+                                            )
                                             else filename_for_logging
                                         )
                                     else:
@@ -10331,11 +10345,16 @@ def download_file_from_drupal(config, node_id, media_use_term_id=None, media_lis
                                         )
                                         return False
                             except Exception as e:
-                                logging.error(f"File download failed for node {node_id}: {str(e)}")
+                                logging.error(
+                                    f"File download failed for node {node_id}: {str(e)}"
+                                )
                                 return False
 
-    logging.warning(f"No valid media found for node {node_id} with use term {media_use_term_id}")
+    logging.warning(
+        f"No valid media found for node {node_id} with use term {media_use_term_id}"
+    )
     return False
+
 
 def get_file_hash_from_drupal(config, file_uuid, algorithm):
     """Query the Integration module's hash controller at '/islandora_workbench_integration/file_hash'
