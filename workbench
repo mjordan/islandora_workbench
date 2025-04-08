@@ -2693,234 +2693,25 @@ def export_csv():
 
 
 def get_data_from_view():
-    """Retrieve data from a Drupal View via its REST export display."""
-    message = f'"Get data from View" task started using config file {args.config}.'
-    print(message)
-    logging.info(message)
+    """Main controller function for exporting View data to CSV."""
+    import workbench_export
 
-    # Prepare view parameters
-    view_parameters = (
-        "&".join(config["view_parameters"]) if "view_parameters" in config else ""
+    workbench_export.print_and_log(
+        f'"Get data from View" task started using config file {args.config}.'
     )
-    view_base_url = f"{config['host']}/{config['view_path'].lstrip('/')}"
-    initial_view_url = f"{view_base_url}?page=0&{view_parameters}"
 
-    # Verify view accessibility
-    view_path_status_code = ping_view_endpoint(config, initial_view_url)
-    if view_path_status_code != 200:
-        message = (
-            f"Cannot access View at {initial_view_url} (HTTP {view_path_status_code})."
-        )
-        logging.error(message)
-        sys.exit("Error: " + message + " See log for more information.")
+    view_config = workbench_export.initialize_view_config(config)
+    workbench_export.verify_view_accessibility(config, view_config)
+    csv_file_path = workbench_export.setup_csv_output_path(config, args)
+    deduped_field_names = workbench_export.prepare_csv_headers(config)
 
-    # Set up CSV file path
-    if config["export_csv_file_path"] is not None:
-        csv_file_path = config["export_csv_file_path"]
-    else:
-        config_base_name = os.path.basename(args.config).split(".")[0]
-        csv_file_path = os.path.join(
-            config["input_dir"],
-            f"{config_base_name}_view_export_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.csv",
-        )
-
-    # Remove existing CSV file if present
-    if os.path.exists(csv_file_path):
-        os.remove(csv_file_path)
-
-    # Get field definitions and prepare column headers
-    field_definitions = get_field_definitions(config, "node")
-    field_names = ["node_id", "title"]  # Mandatory first columns
-
-    # Add user-specified or all field_* columns
-    if len(config.get("export_csv_field_list", [])) > 0:
-        field_names += [
-            f for f in config["export_csv_field_list"] if f not in field_names
-        ]
-    else:
-        field_names += [f for f in field_definitions.keys() if f.startswith("field_")]
-
-    # Add 'file' column if needed
-    if config.get("export_file_url_instead_of_download", False) or config.get(
-        "export_file_directory"
-    ):
-        if "file" not in field_names:
-            field_names.append("file")
-
-    # Add columns from additional_files
-    if "additional_files" in config:
-        for column in config["additional_files"].keys():
-            if column not in field_names:
-                field_names.append(column)
-
-    # Deduplicate while preserving order
-    seen_fields = set()
-    deduped_field_names = []
-    for field in field_names:
-        if field not in seen_fields:
-            deduped_field_names.append(field)
-            seen_fields.add(field)
-
-    # Prepare CSV writer
     with open(csv_file_path, "a+", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(
-            csv_file, fieldnames=deduped_field_names, lineterminator="\n"
+        writer = workbench_export.initialize_csv_writer(csv_file, deduped_field_names)
+        workbench_export.process_view_pages(
+            config, view_config, writer, deduped_field_names
         )
-        writer.writeheader()
 
-        seen_nids = set()
-        page = 0
-        has_more_results = True
-
-        while has_more_results:
-            current_view_url = f"{view_base_url}?page={page}&{view_parameters}"
-            response = issue_request(config, "GET", current_view_url)
-
-            if response.status_code != 200:
-                logging.error(
-                    f"Skipping page {page} due to HTTP {response.status_code}"
-                )
-                page += 1
-                continue
-
-            try:
-                nodes = json.loads(response.text)
-            except json.decoder.JSONDecodeError as e:
-                logging.error(f"Failed to decode JSON from page {page}: {str(e)}")
-                nodes = []
-
-            for node in nodes:
-                # Clean up HTTP cache if enabled
-                if config.get("enable_http_cache", False):
-                    requests_cache.delete(expired=True)
-
-                try:
-                    nid = node["nid"][0]["value"]
-                except (KeyError, IndexError):
-                    logging.warning(
-                        f"Skipping node with missing/invalid NID on page {page}"
-                    )
-                    continue
-
-                if nid in seen_nids:
-                    continue
-                seen_nids.add(nid)
-
-                # Verify content type match
-                try:
-                    node_type = node["type"][0]["target_id"]
-                except (KeyError, IndexError):
-                    node_type = "unknown"
-
-                if node_type != config["content_type"]:
-                    msg = (
-                        f"Skipping node {nid} - type '{node_type}' "
-                        f"doesn't match configured '{config['content_type']}'"
-                    )
-                    print(f"Warning: {msg}")
-                    logging.warning(msg)
-                    continue
-
-                # Fetch media list once per node
-                media_list_url = f"{config['host']}/node/{nid}/media?_format=json"
-                media_list_response = issue_request(config, "GET", media_list_url)
-                if media_list_response.status_code != 200:
-                    logging.error(
-                        f"Media list request failed for node {nid}: {media_list_response.status_code}"
-                    )
-                    media_list = []
-                else:
-                    try:
-                        media_list = json.loads(media_list_response.text)
-                    except json.decoder.JSONDecodeError as e:
-                        logging.error(f"Media query for node {nid} failed: {e}")
-                        media_list = []
-
-                # Initialize CSV row
-                row = {
-                    "node_id": nid,
-                    "title": node.get("title", [{}])[0].get("value", "No title"),
-                }
-
-                # Handle file URL/path if configured
-                if config.get(
-                    "export_file_url_instead_of_download", False
-                ) or config.get("export_file_directory"):
-                    file_result = download_file_from_drupal(
-                        config, nid, media_list=media_list
-                    )
-                    row["file"] = file_result if file_result else ""
-
-                # Handle additional_files
-                if "additional_files" in config:
-                    for column_name, media_use_uri in config[
-                        "additional_files"
-                    ].items():
-                        file_result = download_file_from_drupal(
-                            config,
-                            nid,
-                            media_use_term_id=media_use_uri,
-                            media_list=media_list,
-                        )
-                        row[column_name] = file_result if file_result else ""
-
-                # Process other fields
-                for field_name in deduped_field_names:
-                    if field_name.startswith("field_") and field_name in node:
-                        try:
-                            row[field_name] = serialize_field_json(
-                                config, field_definitions, field_name, node[field_name]
-                            )
-                        except Exception as e:
-                            logging.error(
-                                f"Error serializing {field_name} for node {nid}: {str(e)}"
-                            )
-                            row[field_name] = "SERIALIZATION_ERROR"
-
-                # Write completed row
-                writer.writerow(row)
-
-                # Execute post-export scripts if configured
-                if config.get("node_post_export"):
-                    for command in config["node_post_export"]:
-                        try:
-                            post_task_output, post_task_return_code = (
-                                execute_entity_post_task_script(
-                                    command,
-                                    args.config,
-                                    response.status_code,
-                                    json.dumps(node),
-                                )
-                            )
-                            if post_task_return_code == 0:
-                                logging.info(
-                                    f"Post-export script '{command}' executed successfully for node {nid}"
-                                )
-                            else:
-                                logging.error(
-                                    f"Post-export script '{command}' failed for node {nid}"
-                                )
-                        except Exception as e:
-                            logging.error(
-                                f"Error executing post-export script '{command}' for node {nid}: {str(e)}"
-                            )
-
-                # Print progress message
-                file_status = (
-                    "with file URL "
-                    if config.get("export_file_url_instead_of_download", False)
-                    else ""
-                )
-                print(f"Exported node {nid}: {row['title']} {file_status}".strip())
-
-            # Pagination control
-            has_more_results = len(nodes) > 0
-            page += 1
-
-    # Final status message
-    completion_message = f"CSV export completed: {csv_file_path}"
-    logging.info(completion_message)
-    print(f"\n{completion_message}")
+    workbench_export.print_and_log(f"\nCSV export completed: {csv_file_path}")
 
 
 def get_media_report_from_view():
