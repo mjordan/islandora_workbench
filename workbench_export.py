@@ -57,9 +57,6 @@ def setup_csv_output_path(config, args):
     return csv_path
 
 
-# ... [All other helper functions from previous answer] ...
-
-
 def print_export_progress(config, nid, title):
     file_status = (
         "with file URL " if config.get("export_file_url_instead_of_download") else ""
@@ -180,7 +177,6 @@ def process_single_node(config, node, nid, writer, field_names, field_definition
     process_node_fields(config, row, node, field_names, field_definitions)
 
     writer.writerow(row)
-    #    execute_post_export_scripts(config, nid, node)
     print_export_progress(config, nid, row["title"])
 
 
