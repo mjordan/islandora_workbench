@@ -81,9 +81,8 @@ def prepare_csv_headers(config):
 
     # Additional files columns
     if "additional_files" in config:
-        fields += [
-            col for col in config["additional_files"].keys() if col not in fields
-        ]
+
+        fields += get_additional_files_config(config)
 
     return deduplicate_list(fields)
 
@@ -230,7 +229,7 @@ def add_file_data(config, row, nid, media_list):
 def add_additional_files(config, row, nid, media_list):
     """Process additional files from configuration."""
     if "additional_files" in config:
-        for col_name, media_use_uri in config["additional_files"].items():
+        for col_name, media_use_uri in get_additional_files_config(config).items():
             file_result = download_file_from_drupal(
                 config, nid, media_use_term_id=media_use_uri, media_list=media_list
             )
