@@ -2696,7 +2696,7 @@ def get_data_from_view():
     """Main controller function for exporting View data to CSV."""
     import workbench_export
 
-    workbench_export.print_and_log(
+    logging.info(
         f'"Get data from View" task started using config file {args.config}.'
     )
 
@@ -2711,7 +2711,7 @@ def get_data_from_view():
             config, view_config, writer, deduped_field_names
         )
 
-    workbench_export.print_and_log(f"\nCSV export completed: {csv_file_path}")
+    logging.info(f"\nCSV export completed: {csv_file_path}")
 
 
 def get_media_report_from_view():

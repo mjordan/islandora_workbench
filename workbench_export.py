@@ -7,14 +7,9 @@ import requests_cache
 from workbench_utils import *
 
 
-def print_and_log(message, level="info"):
-    print(message)
-    getattr(logging, level)(message)
-
-
 def initialize_csv_writer(csv_file, field_names):
     """Set up CSV writer with headers."""
-    import csv  # Ensure csv module is imported
+    import csv
 
     writer = csv.DictWriter(csv_file, fieldnames=field_names, lineterminator="\n")
     writer.writeheader()
@@ -35,10 +30,9 @@ def initialize_view_config(config):
 def verify_view_accessibility(config, view_config):
     status_code = ping_view_endpoint(config, view_config["initial_url"])
     if status_code != 200:
-        message = (
-            f"Cannot access View at {view_config['initial_url']} (HTTP {status_code})."
-        )
-        print_and_log(message, "error")
+        message = f"Cannot access View at {view_config['initial_url']} (HTTP {status_code})."
+        print(message)
+        logging.error(message)
         sys.exit("Error: " + message + " See log for more information.")
 
 
@@ -61,27 +55,25 @@ def print_export_progress(config, nid, title):
     file_status = (
         "with file URL " if config.get("export_file_url_instead_of_download") else ""
     )
-    print(f"Exported node {nid}: {title} {file_status}".strip())
+    message = f"Exported node {nid}: {title} {file_status}".strip()
+    print(message)
+    logging.info(message)
 
 
 def prepare_csv_headers(config):
     """Generate deduplicated list of CSV column headers."""
     field_definitions = get_field_definitions(config, "node")
-    fields = ["node_id", "title"]  # Core columns
+    fields = ["node_id", "title"]
 
-    # Add configured fields
     if config.get("export_csv_field_list"):
         fields += [f for f in config["export_csv_field_list"] if f not in fields]
     else:
         fields += [f for f in field_definitions.keys() if f.startswith("field_")]
 
-    # File handling columns
     if needs_file_column(config):
         fields.append("file")
 
-    # Additional files columns
     if "additional_files" in config:
-
         fields += get_additional_files_config(config)
 
     return deduplicate_list(fields)
@@ -100,15 +92,15 @@ def process_view_pages(config, view_config, writer, field_names):
         response = issue_request(config, "GET", current_url)
 
         if response.status_code != 200:
-            print_and_log(
-                f"Skipping page {page} due to HTTP {response.status_code}", "warning"
-            )
+            message = f"Skipping page {page} due to HTTP {response.status_code}"
+            print(message)
+            logging.warning(message)
             page += 1
             continue
 
         nodes = parse_json_response(response)
         if not nodes:
-            break  # No more results
+            break
 
         process_nodes_batch(
             config, nodes, writer, seen_nids, field_names, field_definitions
@@ -134,7 +126,9 @@ def parse_json_response(response):
     try:
         return json.loads(response.text)
     except json.decoder.JSONDecodeError as e:
-        print_and_log(f"Failed to decode JSON: {str(e)}", "error")
+        message = f"Failed to decode JSON: {str(e)}"
+        print(message)
+        logging.error(message)
         return []
 
 
@@ -159,7 +153,9 @@ def extract_node_id(node):
     try:
         return node["nid"][0]["value"]
     except (KeyError, IndexError):
-        print_and_log("Skipping node with missing/invalid NID", "warning")
+        message = "Skipping node with missing/invalid NID"
+        print(message)
+        logging.warning(message)
         return None
 
 
@@ -187,8 +183,9 @@ def validate_content_type(config, node, nid):
         node_type = "unknown"
 
     if node_type != config["content_type"]:
-        msg = f"Skipping node {nid} - type '{node_type}' doesn't match '{config['content_type']}'"
-        print_and_log(msg, "warning")
+        message = f"Skipping node {nid} - type '{node_type}' doesn't match '{config['content_type']}'"
+        print(message)
+        logging.warning(message)
         return False
     return True
 
@@ -199,15 +196,17 @@ def fetch_media_list(config, nid):
     response = issue_request(config, "GET", media_url)
 
     if response.status_code != 200:
-        print_and_log(
-            f"Media request failed for node {nid} ({response.status_code})", "error"
-        )
+        message = f"Media request failed for node {nid} ({response.status_code})"
+        print(message)
+        logging.error(message)
         return []
 
     try:
         return json.loads(response.text)
     except json.decoder.JSONDecodeError as e:
-        print_and_log(f"Media parse failed for node {nid}: {e}", "error")
+        message = f"Media parse failed for node {nid}: {e}"
+        print(message)
+        logging.error(message)
         return []
 
 
@@ -245,8 +244,7 @@ def process_node_fields(config, row, node, field_names, field_definitions):
                     config, field_definitions, field, node[field]
                 )
             except Exception as e:
-                print_and_log(
-                    f"Error serializing {field} for node {row['node_id']}: {str(e)}",
-                    "error",
-                )
+                message = f"Error serializing {field} for node {row['node_id']}: {str(e)}"
+                print(message)
+                logging.error(message)
                 row[field] = "SERIALIZATION_ERROR"
