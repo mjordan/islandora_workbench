@@ -30,7 +30,9 @@ def initialize_view_config(config):
 def verify_view_accessibility(config, view_config):
     status_code = ping_view_endpoint(config, view_config["initial_url"])
     if status_code != 200:
-        message = f"Cannot access View at {view_config['initial_url']} (HTTP {status_code})."
+        message = (
+            f"Cannot access View at {view_config['initial_url']} (HTTP {status_code})."
+        )
         print(message)
         logging.error(message)
         sys.exit("Error: " + message + " See log for more information.")
@@ -244,7 +246,9 @@ def process_node_fields(config, row, node, field_names, field_definitions):
                     config, field_definitions, field, node[field]
                 )
             except Exception as e:
-                message = f"Error serializing {field} for node {row['node_id']}: {str(e)}"
+                message = (
+                    f"Error serializing {field} for node {row['node_id']}: {str(e)}"
+                )
                 print(message)
                 logging.error(message)
                 row[field] = "SERIALIZATION_ERROR"

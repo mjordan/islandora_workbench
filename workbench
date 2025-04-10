@@ -2696,9 +2696,7 @@ def get_data_from_view():
     """Main controller function for exporting View data to CSV."""
     import workbench_export
 
-    logging.info(
-        f'"Get data from View" task started using config file {args.config}.'
-    )
+    logging.info(f'"Get data from View" task started using config file {args.config}.')
 
     view_config = workbench_export.initialize_view_config(config)
     workbench_export.verify_view_accessibility(config, view_config)
