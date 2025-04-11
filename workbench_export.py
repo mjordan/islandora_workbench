@@ -166,7 +166,7 @@ def process_single_node(config, node, nid, writer, field_names, field_definition
     if not validate_content_type(config, node, nid):
         return
 
-    media_list = fetch_media_list(config, nid)
+    media_list = get_media_list(config, nid)
     row = build_base_row(node, nid)
 
     add_file_data(config, row, nid, media_list)
@@ -192,26 +192,6 @@ def validate_content_type(config, node, nid):
     return True
 
 
-def fetch_media_list(config, nid):
-    """Retrieve media associated with a node."""
-    media_url = f"{config['host']}/node/{nid}/media?_format=json"
-    response = issue_request(config, "GET", media_url)
-
-    if response.status_code != 200:
-        message = f"Media request failed for node {nid} ({response.status_code})"
-        print(message)
-        logging.error(message)
-        return []
-
-    try:
-        return json.loads(response.text)
-    except json.decoder.JSONDecodeError as e:
-        message = f"Media parse failed for node {nid}: {e}"
-        print(message)
-        logging.error(message)
-        return []
-
-
 def build_base_row(node, nid):
     """Create initial CSV row structure."""
     return {
@@ -223,7 +203,10 @@ def build_base_row(node, nid):
 def add_file_data(config, row, nid, media_list):
     """Add main file data to row if configured."""
     if needs_file_column(config):
-        file_result = download_file_from_drupal(config, nid, media_list=media_list)
+        if config.get("export_file_url_instead_of_download", False):
+            file_result = get_media_file_url(config, nid, media_list=media_list)
+        else:
+            file_result = download_file_from_drupal(config, nid, media_list=media_list)
         row["file"] = file_result if file_result else ""
 
 
@@ -231,9 +214,14 @@ def add_additional_files(config, row, nid, media_list):
     """Process additional files from configuration."""
     if "additional_files" in config:
         for col_name, media_use_uri in get_additional_files_config(config).items():
-            file_result = download_file_from_drupal(
-                config, nid, media_use_term_id=media_use_uri, media_list=media_list
-            )
+            if config.get("export_file_url_instead_of_download", False):
+                file_result = get_media_file_url(
+                    config, nid, media_use_term_id=media_use_uri, media_list=media_list
+                )
+            else:
+                file_result = download_file_from_drupal(
+                    config, nid, media_use_term_id=media_use_uri, media_list=media_list
+                )
             row[col_name] = file_result if file_result else ""
 
 
