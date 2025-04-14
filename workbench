@@ -2552,9 +2552,9 @@ def export_csv():
 
     # Handle 'file' column based on export_file_directory or export_file_url_instead_of_download
     if (
-        (config.get("export_file_directory") is not None or config.get("export_file_url_instead_of_download"))
-        and "file" not in deduped_field_names
-    ):
+        config.get("export_file_directory") is not None
+        or config.get("export_file_url_instead_of_download")
+    ) and "file" not in deduped_field_names:
         deduped_field_names.append("file")
 
     # Add additional_files columns using get_additional_files_config
@@ -2623,13 +2623,17 @@ def export_csv():
         if not ping_node(config, row["node_id"]):
             if not config["progress_bar"]:
                 print(f"Node {row['node_id']} not found/accessible, skipping export.")
-            logging.warning(f"Node {row['node_id']} not found/accessible, skipping export.")
+            logging.warning(
+                f"Node {row['node_id']} not found/accessible, skipping export."
+            )
             continue
 
         url = f"{config['host']}/node/{row['node_id']}?_format=json"
         response = issue_request(config, "GET", url)
         if response.status_code != 200:
-            print(f"Error retrieving node {row['node_id']}: HTTP {response.status_code}")
+            print(
+                f"Error retrieving node {row['node_id']}: HTTP {response.status_code}"
+            )
             logging.warning(f"Node {row['node_id']} HTTP {response.status_code}")
             continue
 
@@ -2643,31 +2647,45 @@ def export_csv():
         # Serialize fields
         for field in deduped_field_names:
             if field in body and field in field_definitions:
-                output_row[field] = serialize_field_json(config, field_definitions, field, body[field])
+                output_row[field] = serialize_field_json(
+                    config, field_definitions, field, body[field]
+                )
 
         # Process media files
         media_list = get_media_list(config, row["node_id"])
         additional_files_entries = get_additional_files_config(config)
 
         # Main file
-        if config.get("export_file_directory") or config.get("export_file_url_instead_of_download"):
+        if config.get("export_file_directory") or config.get(
+            "export_file_url_instead_of_download"
+        ):
             if config["export_file_url_instead_of_download"]:
-                file_val = get_media_file_url(config, row["node_id"], media_list=media_list)
+                file_val = get_media_file_url(
+                    config, row["node_id"], media_list=media_list
+                )
             else:
-                file_val = download_file_from_drupal(config, row["node_id"], media_list=media_list)
+                file_val = download_file_from_drupal(
+                    config, row["node_id"], media_list=media_list
+                )
             output_row["file"] = file_val if file_val else ""
 
         # Additional files
         if additional_files_entries:
             for col_name, media_use_uri in additional_files_entries.items():
                 if config["export_file_url_instead_of_download"]:
-                    file_val = get_media_file_url(config, row["node_id"],
-                                                media_use_term_id=media_use_uri,
-                                                media_list=media_list)
+                    file_val = get_media_file_url(
+                        config,
+                        row["node_id"],
+                        media_use_term_id=media_use_uri,
+                        media_list=media_list,
+                    )
                 else:
-                    file_val = download_file_from_drupal(config, row["node_id"],
-                                                       media_use_term_id=media_use_uri,
-                                                       media_list=media_list)
+                    file_val = download_file_from_drupal(
+                        config,
+                        row["node_id"],
+                        media_use_term_id=media_use_uri,
+                        media_list=media_list,
+                    )
                 output_row[col_name] = file_val if file_val else ""
 
         output_row["node_id"] = row["node_id"]
@@ -2683,8 +2701,11 @@ def export_csv():
         logging.info(msg)
 
     csv_file.close()
-    print(f"\nCSV export saved at {csv_file_path}") if not config["progress_bar"] else None
-
+    (
+        print(f"\nCSV export saved at {csv_file_path}")
+        if not config["progress_bar"]
+        else None
+    )
 
 
 def get_data_from_view():
