@@ -2543,12 +2543,26 @@ def export_csv():
     if len(config["export_csv_field_list"]) > 0:
         field_names = config["export_csv_field_list"]
 
-    deduped_field_names = list("")
+    deduped_field_names = []
     [deduped_field_names.append(x) for x in field_names if x not in deduped_field_names]
     # We always include 'node_id and 'REMOVE THIS COLUMN (KEEP THIS ROW)'.
     if "node_id" not in deduped_field_names:
         deduped_field_names.insert(0, "node_id")
         deduped_field_names.insert(0, "REMOVE THIS COLUMN (KEEP THIS ROW)")
+
+    # Handle 'file' column based on export_file_directory or export_file_url_instead_of_download
+    if (
+        (config.get("export_file_directory") is not None or config.get("export_file_url_instead_of_download"))
+        and "file" not in deduped_field_names
+    ):
+        deduped_field_names.append("file")
+
+    # Add additional_files columns using get_additional_files_config
+    additional_files_entries = get_additional_files_config(config)
+    if additional_files_entries:
+        for column in additional_files_entries.keys():
+            if column not in deduped_field_names:
+                deduped_field_names.append(column)
 
     for field_name in field_definitions:
         if field_name in deduped_field_names:
@@ -2566,12 +2580,6 @@ def export_csv():
         )
     if os.path.exists(csv_file_path):
         os.remove(csv_file_path)
-
-    if (
-        config["export_file_directory"] is not None
-        and "file" not in deduped_field_names
-    ):
-        deduped_field_names.append("file")
 
     csv_file = open(csv_file_path, "a+", encoding="utf-8")
     writer = csv.DictWriter(
@@ -2606,90 +2614,77 @@ def export_csv():
 
     row_count = 0
     for row in csv_data:
-        # Delete expired items from request_cache before processing a row.
-        if config["enable_http_cache"] is True:
+        if config["enable_http_cache"]:
             requests_cache.delete(expired=True)
 
         output_row = collections.OrderedDict()
         if not value_is_numeric(row["node_id"]):
             row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
         if not ping_node(config, row["node_id"]):
-            if config["progress_bar"] is False:
-                print(
-                    "Node "
-                    + row["node_id"]
-                    + " not found or not "
-                    + "accessible, skipping export."
-                )
-            logging.warning(
-                "Node "
-                + row["node_id"]
-                + " not found or not "
-                + "accessible, skipping export."
-            )
+            if not config["progress_bar"]:
+                print(f"Node {row['node_id']} not found/accessible, skipping export.")
+            logging.warning(f"Node {row['node_id']} not found/accessible, skipping export.")
             continue
 
-        # Get node.
         url = f"{config['host']}/node/{row['node_id']}?_format=json"
         response = issue_request(config, "GET", url)
-        if response.status_code == 200:
-            body = json.loads(response.text)
-            if body["type"][0]["target_id"] != config["content_type"]:
-                message = (
-                    f"Node {row['node_id']} not written to output CSV because its content type {body['type'][0]['target_id']}"
-                    + f' does not match the "content_type" configuration setting.'
-                )
-                if config["progress_bar"] is False:
-                    print("Error: " + message)
-                logging.error(message)
-                continue
+        if response.status_code != 200:
+            print(f"Error retrieving node {row['node_id']}: HTTP {response.status_code}")
+            logging.warning(f"Node {row['node_id']} HTTP {response.status_code}")
+            continue
 
-            for fieldname_to_serialize in deduped_field_names:
-                if (
-                    fieldname_to_serialize in body
-                    and fieldname_to_serialize in field_definitions
-                ):
-                    csv_data = serialize_field_json(
-                        config,
-                        field_definitions,
-                        fieldname_to_serialize,
-                        body[fieldname_to_serialize],
-                    )
-                    output_row[fieldname_to_serialize] = csv_data
+        body = json.loads(response.text)
+        if body["type"][0]["target_id"] != config["content_type"]:
+            msg = f"Node {row['node_id']} has type {body['type'][0]['target_id']} (expected {config['content_type']})"
+            print(f"Error: {msg}") if not config["progress_bar"] else None
+            logging.error(msg)
+            continue
 
-            if config["export_file_directory"] is not None:
-                downloaded_file_name = download_file_from_drupal(config, row["node_id"])
-                output_row["file"] = downloaded_file_name
-        else:
-            message = f"Attempt to get node {row['node_id']} returned a {response.status_code} status code."
-            print("  Error: " + message)
-            logging.warning(message)
-            return False
+        # Serialize fields
+        for field in deduped_field_names:
+            if field in body and field in field_definitions:
+                output_row[field] = serialize_field_json(config, field_definitions, field, body[field])
+
+        # Process media files
+        media_list = get_media_list(config, row["node_id"])
+        additional_files_entries = get_additional_files_config(config)
+
+        # Main file
+        if config.get("export_file_directory") or config.get("export_file_url_instead_of_download"):
+            if config["export_file_url_instead_of_download"]:
+                file_val = get_media_file_url(config, row["node_id"], media_list=media_list)
+            else:
+                file_val = download_file_from_drupal(config, row["node_id"], media_list=media_list)
+            output_row["file"] = file_val if file_val else ""
+
+        # Additional files
+        if additional_files_entries:
+            for col_name, media_use_uri in additional_files_entries.items():
+                if config["export_file_url_instead_of_download"]:
+                    file_val = get_media_file_url(config, row["node_id"],
+                                                media_use_term_id=media_use_uri,
+                                                media_list=media_list)
+                else:
+                    file_val = download_file_from_drupal(config, row["node_id"],
+                                                       media_use_term_id=media_use_uri,
+                                                       media_list=media_list)
+                output_row[col_name] = file_val if file_val else ""
 
         output_row["node_id"] = row["node_id"]
         writer.writerow(output_row)
 
-        if config["export_file_directory"] is not None:
-            and_files = f"and file "
-        else:
-            and_files = ""
-        message = f"Exporting data {and_files}for node {row['node_id']} \"{body['title'][0]['value']}\"."
-
-        if config["progress_bar"] is True:
+        # Progress reporting
+        msg = f"Exported node {row['node_id']} \"{body['title'][0]['value']}\""
+        if config["progress_bar"]:
             row_count += 1
-            row_position = get_percentage(row_count, num_csv_records)
-            pbar(row_position)
+            pbar(get_percentage(row_count, len(csv_data)))
         else:
-            print(message)
-
-        logging.info(message)
+            print(msg)
+        logging.info(msg)
 
     csv_file.close()
+    print(f"\nCSV export saved at {csv_file_path}") if not config["progress_bar"] else None
 
-    if config["progress_bar"] is True:
-        pbar(100)
-    else:
-        print("CSV export saved at " + csv_file_path + ".")
 
 
 def get_data_from_view():
