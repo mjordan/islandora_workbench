@@ -15,7 +15,9 @@ def deduplicate_list(input_list):
     return [x for x in input_list if not (x in seen or seen.add(x))]
 
 
-def initialize_csv_writer(csv_file, field_names, field_definitions=None, export_mode=False):
+def initialize_csv_writer(
+    csv_file, field_names, field_definitions=None, export_mode=False
+):
     """Initialize CSV writer with optional metadata rows for export mode."""
     writer = csv.DictWriter(csv_file, fieldnames=field_names, lineterminator="\n")
     writer.writeheader()
@@ -24,7 +26,10 @@ def initialize_csv_writer(csv_file, field_names, field_definitions=None, export_
         # Write field labels row
         field_labels = collections.OrderedDict()
         for field_name in field_names:
-            if field_name in field_definitions and field_definitions[field_name]["label"] != "":
+            if (
+                field_name in field_definitions
+                and field_definitions[field_name]["label"] != ""
+            ):
                 field_labels[field_name] = field_definitions[field_name]["label"]
             elif field_name == "REMOVE THIS COLUMN (KEEP THIS ROW)":
                 field_labels[field_name] = "LABEL (REMOVE THIS ROW)"
@@ -34,7 +39,9 @@ def initialize_csv_writer(csv_file, field_names, field_definitions=None, export_
 
         # Write cardinality row
         cardinality = collections.OrderedDict()
-        cardinality["REMOVE THIS COLUMN (KEEP THIS ROW)"] = "NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)"
+        cardinality["REMOVE THIS COLUMN (KEEP THIS ROW)"] = (
+            "NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)"
+        )
         cardinality["node_id"] = "1"
         cardinality["uid"] = "1"
         cardinality["langcode"] = "1"
@@ -79,20 +86,15 @@ def setup_csv_output_path(config, args=None):
 def process_file_data(config, node_id, media_use_term_id=None, media_list=None):
     """Handle file processing (download or URL) based on config."""
     if config.get("export_file_url_instead_of_download", False):
-        result =  get_media_file_url(
-            config,
-            node_id,
-            media_use_term_id=media_use_term_id,
-            media_list=media_list
+        result = get_media_file_url(
+            config, node_id, media_use_term_id=media_use_term_id, media_list=media_list
         )
     else:
         result = download_file_from_drupal(
-            config,
-            node_id,
-            media_use_term_id=media_use_term_id,
-            media_list=media_list
+            config, node_id, media_use_term_id=media_use_term_id, media_list=media_list
         )
-    return result if result else ''
+    return result if result else ""
+
 
 def process_node_fields_to_row(config, node_json, field_names, field_definitions):
     """Process node fields into a dictionary for CSV output."""
@@ -123,7 +125,12 @@ def process_node_fields_to_row(config, node_json, field_names, field_definitions
 
 def log_progress(config, message, row_count=None, total_rows=None, pbar=None):
     """Standardized progress logging with optional progress bar."""
-    if config.get("progress_bar") and pbar and row_count is not None and total_rows is not None:
+    if (
+        config.get("progress_bar")
+        and pbar
+        and row_count is not None
+        and total_rows is not None
+    ):
         pbar(get_percentage(row_count, total_rows))
     else:
         print(message)
@@ -146,7 +153,9 @@ def verify_view_accessibility(config, view_config):
     """Verify that the View endpoint is accessible."""
     status_code = ping_view_endpoint(config, view_config["initial_url"])
     if status_code != 200:
-        message = f"Cannot access View at {view_config['initial_url']} (HTTP {status_code})."
+        message = (
+            f"Cannot access View at {view_config['initial_url']} (HTTP {status_code})."
+        )
         log_progress(config, message)
         sys.exit("Error: " + message + " See log for more information.")
 
@@ -218,11 +227,15 @@ def process_view_pages(config, view_config, writer, field_names):
     field_definitions = get_field_definitions(config, "node")
 
     while True:
-        current_url = f"{view_config['base_url']}?page={page}&{view_config['parameters']}"
+        current_url = (
+            f"{view_config['base_url']}?page={page}&{view_config['parameters']}"
+        )
         response = issue_request(config, "GET", current_url)
 
         if response.status_code != 200:
-            log_progress(config, f"Skipping page {page} due to HTTP {response.status_code}")
+            log_progress(
+                config, f"Skipping page {page} due to HTTP {response.status_code}"
+            )
             page += 1
             continue
 
@@ -243,17 +256,22 @@ def process_view_pages(config, view_config, writer, field_names):
                 continue
 
             media_list = get_media_list(config, nid)
-            row = process_node_fields_to_row(config, node, field_names, field_definitions)
+            row = process_node_fields_to_row(
+                config, node, field_names, field_definitions
+            )
 
             if needs_file_column(config):
                 row["file"] = process_file_data(config, nid, media_list=media_list)
 
             if "additional_files" in config:
-                for col_name, media_use_uri in get_additional_files_config(config).items():
+                for col_name, media_use_uri in get_additional_files_config(
+                    config
+                ).items():
                     row[col_name] = process_file_data(
-                        config, nid,
+                        config,
+                        nid,
                         media_use_term_id=media_use_uri,
-                        media_list=media_list
+                        media_list=media_list,
                     )
 
             writer.writerow(row)
@@ -321,7 +339,9 @@ def fetch_node_json(config, node_id):
     response = issue_request(config, "GET", url)
 
     if response.status_code != 200:
-        log_progress(config, f"Error retrieving node {node_id}: HTTP {response.status_code}")
+        log_progress(
+            config, f"Error retrieving node {node_id}: HTTP {response.status_code}"
+        )
         logging.warning(f"Node {node_id} HTTP {response.status_code}")
         return None
 
@@ -346,7 +366,9 @@ def process_export_csv_nodes(config, csv_data, writer, field_names, field_defini
         if not node_json or not validate_content_type(config, node_json, node_id):
             continue
 
-        output_row = process_node_fields_to_row(config, node_json, field_names, field_definitions)
+        output_row = process_node_fields_to_row(
+            config, node_json, field_names, field_definitions
+        )
         if not output_row:
             continue
 
@@ -354,7 +376,9 @@ def process_export_csv_nodes(config, csv_data, writer, field_names, field_defini
         additional_files_entries = get_additional_files_config(config)
 
         if needs_file_column(config):
-            output_row["file"] = process_file_data(config, node_id, media_list=media_list)
+            output_row["file"] = process_file_data(
+                config, node_id, media_list=media_list
+            )
 
         if additional_files_entries:
             for col_name, media_use_uri in additional_files_entries.items():
@@ -362,7 +386,7 @@ def process_export_csv_nodes(config, csv_data, writer, field_names, field_defini
                     config,
                     node_id,
                     media_use_term_id=media_use_uri,
-                    media_list=media_list
+                    media_list=media_list,
                 )
 
         writer.writerow(output_row)
@@ -371,6 +395,6 @@ def process_export_csv_nodes(config, csv_data, writer, field_names, field_defini
             f'Exported node {node_id} "{output_row["title"]}"',
             row_count,
             len(csv_data_list),
-            pbar
+            pbar,
         )
         row_count += 1
