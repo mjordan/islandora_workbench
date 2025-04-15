@@ -99,7 +99,7 @@ def process_file_data(config, node_id, media_use_term_id=None, media_list=None):
 def process_node_fields_to_row(config, node_json, field_names, field_definitions):
     """Process node fields into a dictionary for CSV output."""
     row = collections.OrderedDict()
-    nid = extract_node_id(node_json)
+    nid = extract_node_id(config, node_json)
 
     if not nid:
         return None
@@ -192,11 +192,12 @@ def parse_json_response(response):
         return json.loads(response.text)
     except json.decoder.JSONDecodeError as e:
         message = f"Failed to decode JSON: {str(e)}"
-        log_progress(config, message)
+        logging.warn(message)
+        print(message)
         return []
 
 
-def extract_node_id(node):
+def extract_node_id(config, node):
     """Extract and validate node ID."""
     try:
         return node["nid"][0]["value"]
@@ -247,7 +248,7 @@ def process_view_pages(config, view_config, writer, field_names):
             if config.get("enable_http_cache", False):
                 requests_cache.delete(expired=True)
 
-            nid = extract_node_id(node)
+            nid = extract_node_id(config, node)
             if not nid or nid in seen_nids:
                 continue
 

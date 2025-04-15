@@ -2541,14 +2541,18 @@ def export_csv():
             config, csv_data, writer, deduped_field_names, field_definitions
         )
 
-    print(f"\nCSV export saved at {csv_file_path}")
+    print(f"CSV export saved at {csv_file_path}")
+    if config["progress_bar"] is True:
+        pbar(100)
 
 
 def get_data_from_view():
-    """Export View data to CSV."""
+    """Retrieve data from a Drupal View via its REST export display."""
     import workbench_export
 
-    logging.info(f'"Get data from View" task started using config file {args.config}.')
+    message = f'"Get data from View" task started using config file {args.config}.'
+    logging.info(message)
+    print(message)
 
     view_config = workbench_export.initialize_view_config(config)
     workbench_export.verify_view_accessibility(config, view_config)
@@ -2561,7 +2565,9 @@ def get_data_from_view():
             config, view_config, writer, deduped_field_names
         )
 
-    logging.info(f"\nCSV export completed: {csv_file_path}")
+        message = f"CSV export completed: {csv_file_path}"
+    logging.info(message)
+    print(message)
 
 
 def get_media_report_from_view():
