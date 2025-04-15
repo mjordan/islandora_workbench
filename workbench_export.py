@@ -5,6 +5,7 @@ import logging
 import datetime
 import requests_cache
 from workbench_utils import *
+from progress_bar import InitBar
 
 
 def initialize_csv_writer(csv_file, field_names):
@@ -14,6 +15,9 @@ def initialize_csv_writer(csv_file, field_names):
     writer = csv.DictWriter(csv_file, fieldnames=field_names, lineterminator="\n")
     writer.writeheader()
     return writer
+
+
+# Functions related to get_data_from_view.
 
 
 def initialize_view_config(config):
@@ -240,3 +244,220 @@ def process_node_fields(config, row, node, field_names, field_definitions):
                 print(message)
                 logging.error(message)
                 row[field] = "SERIALIZATION_ERROR"
+
+
+# Functions related to csv_export task.
+
+
+def prepare_export_csv_headers(config, field_definitions):
+    """Generate deduplicated list of CSV column headers for export_csv."""
+    field_names = list(field_definitions.keys())
+
+    # Add required fields at beginning
+    for field_name in [
+        "created",
+        "uid",
+        "langcode",
+        "title",
+        "node_id",
+        "REMOVE THIS COLUMN (KEEP THIS ROW)",
+    ]:
+        field_names.insert(0, field_name)
+
+    if len(config["export_csv_field_list"]) > 0:
+        field_names = config["export_csv_field_list"]
+
+    deduped_field_names = deduplicate_list(field_names)
+
+    # Ensure required fields are present
+    if "node_id" not in deduped_field_names:
+        deduped_field_names.insert(0, "node_id")
+        deduped_field_names.insert(0, "REMOVE THIS COLUMN (KEEP THIS ROW)")
+
+    # Handle file columns
+    if needs_file_column(config) and "file" not in deduped_field_names:
+        deduped_field_names.append("file")
+
+    # Add additional files columns
+    additional_files_entries = get_additional_files_config(config)
+    if additional_files_entries:
+        for column in additional_files_entries.keys():
+            if column not in deduped_field_names:
+                deduped_field_names.append(column)
+
+    return deduped_field_names
+
+
+def setup_export_csv_output_path(config):
+    """Set up the output path for the export CSV file."""
+    if config["export_csv_file_path"] is not None:
+        csv_file_path = config["export_csv_file_path"]
+    else:
+        csv_file_path = os.path.join(
+            config["input_dir"], config["input_csv"] + ".csv_file_with_field_values"
+        )
+    if os.path.exists(csv_file_path):
+        os.remove(csv_file_path)
+    return csv_file_path
+
+
+def initialize_export_csv_writer(csv_file, field_names, field_definitions):
+    """Initialize CSV writer with headers and metadata rows."""
+    writer = csv.DictWriter(csv_file, fieldnames=field_names, lineterminator="\n")
+    writer.writeheader()
+
+    # Write field labels row
+    field_labels = collections.OrderedDict()
+    for field_name in field_names:
+        if (
+            field_name in field_definitions
+            and field_definitions[field_name]["label"] != ""
+        ):
+            field_labels[field_name] = field_definitions[field_name]["label"]
+        elif field_name == "REMOVE THIS COLUMN (KEEP THIS ROW)":
+            field_labels[field_name] = "LABEL (REMOVE THIS ROW)"
+        else:
+            field_labels[field_name] = ""
+    writer.writerow(field_labels)
+
+    # Write cardinality row
+    cardinality = collections.OrderedDict()
+    cardinality["REMOVE THIS COLUMN (KEEP THIS ROW)"] = (
+        "NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)"
+    )
+    cardinality["node_id"] = "1"
+    cardinality["uid"] = "1"
+    cardinality["langcode"] = "1"
+    cardinality["created"] = "1"
+    cardinality["title"] = "1"
+
+    for field_name in field_definitions:
+        if field_name in field_names:
+            cardinality[field_name] = (
+                "unlimited"
+                if field_definitions[field_name]["cardinality"] == -1
+                else str(field_definitions[field_name]["cardinality"])
+            )
+
+    writer.writerow(cardinality)
+
+    return writer
+
+
+def process_export_csv_nodes(config, csv_data, writer, field_names, field_definitions):
+    """Process all nodes for CSV export."""
+    # Convert csv_data (DictReader) to a list so we can get its length
+    csv_data_list = list(csv_data)
+    row_count = 0
+    pbar = InitBar()
+
+    for row in csv_data_list:
+        if config["enable_http_cache"]:
+            requests_cache.delete(expired=True)
+
+        node_id = validate_and_get_node_id(config, row)
+        if not node_id:
+            continue
+
+        node_json = fetch_node_json(config, node_id)
+        if not node_json or not validate_content_type(config, node_json, node_id):
+            continue
+
+        output_row = build_export_csv_row(
+            config, node_id, node_json, field_names, field_definitions
+        )
+        if output_row:
+            writer.writerow(output_row)
+            log_export_progress(
+                config,
+                row_count,
+                len(csv_data_list),
+                node_id,
+                node_json["title"][0]["value"],
+                pbar,
+            )
+            row_count += 1
+
+
+def validate_and_get_node_id(config, csv_row):
+    """Validate and get node ID from CSV row."""
+    node_id = csv_row["node_id"]
+    if not value_is_numeric(node_id):
+        node_id = get_nid_from_url_alias(config, node_id)
+
+    if not ping_node(config, node_id):
+        if not config["progress_bar"]:
+            print(f"Node {node_id} not found/accessible, skipping export.")
+        logging.warning(f"Node {node_id} not found/accessible, skipping export.")
+        return None
+
+    return node_id
+
+
+def fetch_node_json(config, node_id):
+    """Fetch node JSON from Drupal."""
+    url = f"{config['host']}/node/{node_id}?_format=json"
+    response = issue_request(config, "GET", url)
+
+    if response.status_code != 200:
+        print(f"Error retrieving node {node_id}: HTTP {response.status_code}")
+        logging.warning(f"Node {node_id} HTTP {response.status_code}")
+        return None
+
+    return json.loads(response.text)
+
+
+def build_export_csv_row(config, node_id, node_json, field_names, field_definitions):
+    """Build a CSV row for the exported node."""
+    output_row = collections.OrderedDict()
+
+    # Serialize fields
+    for field in field_names:
+        if field in node_json and field in field_definitions:
+            output_row[field] = serialize_field_json(
+                config, field_definitions, field, node_json[field]
+            )
+
+    # Process media files
+    media_list = get_media_list(config, node_id)
+    additional_files_entries = get_additional_files_config(config)
+
+    # Main file
+    if needs_file_column(config):
+        if config["export_file_url_instead_of_download"]:
+            file_val = get_media_file_url(config, node_id, media_list=media_list)
+        else:
+            file_val = download_file_from_drupal(config, node_id, media_list=media_list)
+        output_row["file"] = file_val if file_val else ""
+
+    # Additional files
+    if additional_files_entries:
+        for col_name, media_use_uri in additional_files_entries.items():
+            if config["export_file_url_instead_of_download"]:
+                file_val = get_media_file_url(
+                    config,
+                    node_id,
+                    media_use_term_id=media_use_uri,
+                    media_list=media_list,
+                )
+            else:
+                file_val = download_file_from_drupal(
+                    config,
+                    node_id,
+                    media_use_term_id=media_use_uri,
+                    media_list=media_list,
+                )
+            output_row[col_name] = file_val if file_val else ""
+
+    output_row["node_id"] = node_id
+    return output_row
+
+
+def log_export_progress(config, row_count, total_rows, node_id, title, pbar):
+    """Log export progress for a node."""
+    msg = f'Exported node {node_id} "{title}"'
+    if config["progress_bar"]:
+        pbar(get_percentage(row_count, total_rows))
+    else:
+        print(msg)
+    logging.info(msg)
