@@ -2530,26 +2530,22 @@ def export_csv():
     deduped_field_names = workbench_export.prepare_export_csv_headers(
         config, field_definitions
     )
-    csv_file_path = workbench_export.setup_export_csv_output_path(config)
+    csv_file_path = workbench_export.setup_csv_output_path(config)
     csv_data = get_csv_data(config)
 
     with open(csv_file_path, "a+", encoding="utf-8") as csv_file:
-        writer = workbench_export.initialize_export_csv_writer(
-            csv_file, deduped_field_names, field_definitions
+        writer = workbench_export.initialize_csv_writer(
+            csv_file, deduped_field_names, field_definitions, True
         )
         workbench_export.process_export_csv_nodes(
             config, csv_data, writer, deduped_field_names, field_definitions
         )
 
-    (
-        print(f"\nCSV export saved at {csv_file_path}")
-        if not config["progress_bar"]
-        else None
-    )
+    print(f"\nCSV export saved at {csv_file_path}")
 
 
 def get_data_from_view():
-    """Main controller function for exporting View data to CSV."""
+    """Export View data to CSV."""
     import workbench_export
 
     logging.info(f'"Get data from View" task started using config file {args.config}.')
