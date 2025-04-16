@@ -2515,7 +2515,7 @@ def export_csv():
     """Export a CSV file with values, in Islandora Workbench format,
     for each node in the input CSV.
     """
-    from workbench_export import WorkbenchExporter
+    from workbench_export import CSVExporter
 
     message = '"Export CSV" task started using config file ' + args.config + "."
     if config["export_csv_term_mode"] == "name":
@@ -2526,37 +2526,24 @@ def export_csv():
     print(message)
     logging.info(message)
 
-    exporter = WorkbenchExporter(config)
-    deduped_field_names = exporter.prepare_export_csv_headers()
-    csv_file_path = exporter.setup_csv_output_path()
-    csv_data = get_csv_data(config)
+    exporter = CSVExporter(config)
+    csv_file_path = exporter.export()
 
-    with open(csv_file_path, "a+", encoding="utf-8") as csv_file:
-        writer = exporter.initialize_csv_writer(csv_file, deduped_field_names, True)
-        exporter.process_export_csv_nodes(csv_data, writer, deduped_field_names)
-
-    print(f"CSV export saved at {csv_file_path}")
     if config["progress_bar"] is True:
         exporter.pbar(100)
+    print(f"\nCSV export saved at {csv_file_path}")
 
 
 def get_data_from_view():
     """Retrieve data from a Drupal View via its REST export display."""
-    from workbench_export import WorkbenchExporter
+    from workbench_export import ViewExporter
 
     message = f'"Get data from View" task started using config file {args.config}.'
     logging.info(message)
     print(message)
 
-    exporter = WorkbenchExporter(config, args)
-    view_config = exporter.initialize_view_config()
-    exporter.verify_view_accessibility(view_config)
-    csv_file_path = exporter.setup_csv_output_path()
-    deduped_field_names = exporter.prepare_csv_headers()
-
-    with open(csv_file_path, "a+", encoding="utf-8") as csv_file:
-        writer = exporter.initialize_csv_writer(csv_file, deduped_field_names)
-        exporter.process_view_pages(view_config, writer, deduped_field_names)
+    exporter = ViewExporter(config, args)
+    csv_file_path = exporter.export()
 
     message = f"CSV export completed: {csv_file_path}"
     logging.info(message)

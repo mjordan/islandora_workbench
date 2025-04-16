@@ -10252,7 +10252,7 @@ def find_file_url_in_media(config, media_list, media_use_term_id, node_id):
                         file_url = file_info[0].get("url")
                         if file_url:
                             return file_url
-    logging.warning(
+    logging.debug(
         f"No valid media found for node {node_id} with use term {media_use_term_id}"
     )
     return None
