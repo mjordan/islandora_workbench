@@ -71,11 +71,17 @@ class WorkbenchExportBase:
         """Handle file processing (download or URL) based on config."""
         if self.config.get("export_file_url_instead_of_download", False):
             result = get_media_file_url(
-                self.config, node_id, media_use_term_id=media_use_term_id, media_list=media_list
+                self.config,
+                node_id,
+                media_use_term_id=media_use_term_id,
+                media_list=media_list,
             )
         else:
             result = download_file_from_drupal(
-                self.config, node_id, media_use_term_id=media_use_term_id, media_list=media_list
+                self.config,
+                node_id,
+                media_use_term_id=media_use_term_id,
+                media_list=media_list,
             )
         return result if result else ""
 
@@ -126,9 +132,9 @@ class WorkbenchExportBase:
 
     def needs_file_column(self):
         """Check if we need file column in CSV."""
-        return self.config.get("export_file_url_instead_of_download", False) or self.config.get(
-            "export_file_directory"
-        )
+        return self.config.get(
+            "export_file_url_instead_of_download", False
+        ) or self.config.get("export_file_directory")
 
     def get_additional_files_config(self):
         """Get additional files configuration as OrderedDict."""
@@ -153,7 +159,8 @@ class CSVExporter(WorkbenchExportBase):
             return self.config["export_csv_file_path"]
 
         csv_path = os.path.join(
-            self.config["input_dir"], self.config["input_csv"] + ".csv_file_with_field_values"
+            self.config["input_dir"],
+            self.config["input_csv"] + ".csv_file_with_field_values",
         )
 
         if os.path.exists(csv_path):
@@ -334,7 +341,9 @@ class ViewExporter(WorkbenchExportBase):
     def initialize_view_config(self):
         """Initialize configuration for View export."""
         view_parameters = (
-            "&".join(self.config["view_parameters"]) if "view_parameters" in self.config else ""
+            "&".join(self.config["view_parameters"])
+            if "view_parameters" in self.config
+            else ""
         )
         return {
             "base_url": f"{self.config['host']}/{self.config['view_path'].lstrip('/')}",
@@ -355,9 +364,13 @@ class ViewExporter(WorkbenchExportBase):
         fields = ["node_id", "title"]
 
         if self.config.get("export_csv_field_list"):
-            fields += [f for f in self.config["export_csv_field_list"] if f not in fields]
+            fields += [
+                f for f in self.config["export_csv_field_list"] if f not in fields
+            ]
         else:
-            fields += [f for f in self.field_definitions.keys() if f.startswith("field_")]
+            fields += [
+                f for f in self.field_definitions.keys() if f.startswith("field_")
+            ]
 
         if self.needs_file_column():
             fields.append("file")
@@ -432,9 +445,7 @@ class ViewExporter(WorkbenchExportBase):
         page = 0
 
         while True:
-            current_url = (
-                f"{self.view_config['base_url']}?page={page}&{self.view_config['parameters']}"
-            )
+            current_url = f"{self.view_config['base_url']}?page={page}&{self.view_config['parameters']}"
             response = issue_request(self.config, "GET", current_url)
 
             if response.status_code != 200:
