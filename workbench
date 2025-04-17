@@ -2545,7 +2545,7 @@ def get_data_from_view():
     exporter = ViewExporter(config, args)
     csv_file_path = exporter.export()
 
-    message = f"CSV export completed: {csv_file_path}"
+    message = "CSV file is available at " + csv_file_path + "."
     logging.info(message)
     print(message)
 

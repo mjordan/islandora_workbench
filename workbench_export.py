@@ -83,7 +83,7 @@ class WorkbenchExportBase:
                 media_use_term_id=media_use_term_id,
                 media_list=media_list,
             )
-        return result if result else ""
+        return result if result else "" # Avoid 'False' values in file columns.
 
     def log_progress(self, message, row_count=None, total_rows=None):
         """Standardized progress logging with optional progress bar."""
@@ -97,6 +97,19 @@ class WorkbenchExportBase:
         else:
             print(message)
         logging.info(message)
+
+
+    def row_log_suffix(self, node, nid, row):
+        and_files = ''
+        if self.needs_file_column:
+            if self.config.get(
+                "export_file_url_instead_of_download", False
+            ):
+                and_files = " and file URL(s)"
+            else:
+                and_files = " and file(s)"
+
+        return and_files
 
     def extract_node_id(self, node):
         """Extract and validate node ID."""
@@ -115,8 +128,15 @@ class WorkbenchExportBase:
             node_type = "unknown"
 
         if node_type != self.config["content_type"]:
-            message = f"Skipping node {nid} - type '{node_type}' doesn't match '{self.config['content_type']}'"
-            self.log_progress(message)
+            #message = f"Skipping node {nid} - type '{node_type}' does not match '{self.config['content_type']}'"
+            message = (
+                    f"Node {nid} not written to output CSV because its content type {node_type}"
+                    + f' does not match the "content_type" configuration setting.'
+                )
+            if self.config.get("progress_bar") is False:
+                print("Error: " + message)
+            logging.error(message)
+
             return False
         return True
 
@@ -146,6 +166,30 @@ class WorkbenchExportBase:
             for col_name, media_use_uri in entry.items():
                 additional_files[col_name] = media_use_uri
         return additional_files
+
+    def execute_post_export_script(self, response, node_json):
+        """ Execute node-specific post-export scripts, if any are configured."""
+        if len(self.config.get("node_post_export", [])) > 0:
+            for command in self.config.get("node_post_export", []):
+                (
+                    post_task_output,
+                    post_task_return_code,
+                ) = execute_entity_post_task_script(
+                    command,
+                    self.args.config,
+                    response.status_code,
+                    node_json,
+                )
+                if post_task_return_code == 0:
+                    logging.info(
+                        "Post node export script "
+                        + command
+                        + " executed successfully."
+                    )
+                else:
+                    logging.error(
+                        "Post node export script " + command + " failed."
+                    )
 
 
 class CSVExporter(WorkbenchExportBase):
@@ -187,7 +231,7 @@ class CSVExporter(WorkbenchExportBase):
 
         deduped_field_names = self.deduplicate_list(field_names)
 
-        # Ensure required fields are present
+        # We always include 'node_id and 'REMOVE THIS COLUMN (KEEP THIS ROW)'.
         if "node_id" not in deduped_field_names:
             deduped_field_names.insert(0, "node_id")
             deduped_field_names.insert(0, "REMOVE THIS COLUMN (KEEP THIS ROW)")
@@ -297,6 +341,7 @@ class CSVExporter(WorkbenchExportBase):
         row_count = 0
 
         for row in csv_data_list:
+            # Delete expired items from request_cache before processing a row.
             if self.config["enable_http_cache"]:
                 requests_cache.delete(expired=True)
 
@@ -313,8 +358,18 @@ class CSVExporter(WorkbenchExportBase):
                 continue
 
             writer.writerow(output_row)
+            and_files = ''
+            if self.needs_file_column:
+                if self.config.get(
+                    "export_file_url_instead_of_download", False
+                ):
+                    and_files = " and file URL(s)"
+                else:
+                    and_files = " and file(s)"
+
+
             self.log_progress(
-                f'Exported node {node_id} "{output_row["title"]}"',
+                f'Exporting data{and_files} for node {node_id} "{output_row["title"]}."',
                 row_count,
                 len(csv_data_list),
             )
@@ -328,6 +383,9 @@ class ViewExporter(WorkbenchExportBase):
 
     def setup_csv_output_path(self):
         """Set up CSV output path with timestamp for view exports."""
+        if self.config["export_csv_file_path"]:
+            return self.config["export_csv_file_path"]
+
         config_base = os.path.basename(self.args.config).split(".")[0]
         csv_path = os.path.join(
             self.config["input_dir"],
@@ -474,6 +532,9 @@ class ViewExporter(WorkbenchExportBase):
                 row = self.process_node_row(node, field_names)
                 if row:
                     writer.writerow(row)
-                    self.log_progress(f"Exported node {nid}: {row['title']}")
+
+                    suffix = self.row_log_suffix(node, nid, row)
+                    self.log_progress(f"Exported node{suffix} {nid}: {row['title']}")
+                    self.execute_post_export_script(response, json.dumps(node))
 
             page += 1
