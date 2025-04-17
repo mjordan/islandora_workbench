@@ -85,8 +85,15 @@ class WorkbenchExportBase:
             )
         return result if result else ""  # Avoid 'False' values in file columns.
 
-    def log_progress(self, message, row_count=None, total_rows=None):
-        """Standardized progress logging with optional progress bar."""
+    def log_progress(self, message, row_count=None, total_rows=None, level=logging.INFO):
+        """Standardized progress logging with optional progress bar and log levels.
+
+        Args:
+            message: The message to log
+            row_count: Current row count (for progress bar)
+            total_rows: Total rows (for progress bar)
+            level: Logging level (e.g., logging.INFO, logging.WARNING, logging.ERROR)
+        """
         if (
             self.config.get("progress_bar")
             and self.pbar
@@ -95,8 +102,20 @@ class WorkbenchExportBase:
         ):
             self.pbar(get_percentage(row_count, total_rows))
         else:
-            print(message)
-        logging.info(message)
+            #if level >= logging.WARNING:  # Only print warnings and errors to console
+            print(f"{logging.getLevelName(level)}: {message}")
+
+        # Log to file with appropriate level
+        if level == logging.INFO:
+            logging.info(message)
+        elif level == logging.WARNING:
+            logging.warning(message)
+        elif level == logging.ERROR:
+            logging.error(message)
+        elif level == logging.DEBUG:
+            logging.debug(message)
+        else:
+            logging.info(message)  # default to info if unknown level
 
     def row_log_suffix(self, node, nid, row):
         and_files = ""
@@ -114,7 +133,7 @@ class WorkbenchExportBase:
             return node["nid"][0]["value"]
         except (KeyError, IndexError):
             message = "Skipping node with missing/invalid NID"
-            self.log_progress(message)
+            self.log_progress(message, level=logging.WARNING)
             return None
 
     def validate_content_type(self, node, nid):
@@ -125,15 +144,11 @@ class WorkbenchExportBase:
             node_type = "unknown"
 
         if node_type != self.config["content_type"]:
-            # message = f"Skipping node {nid} - type '{node_type}' does not match '{self.config['content_type']}'"
             message = (
                 f"Node {nid} not written to output CSV because its content type {node_type}"
                 + f' does not match the "content_type" configuration setting.'
             )
-            if self.config.get("progress_bar") is False:
-                print("Error: " + message)
-            logging.error(message)
-
+            self.log_progress(message, level=logging.ERROR)
             return False
         return True
 
@@ -143,8 +158,7 @@ class WorkbenchExportBase:
             return json.loads(response.text)
         except json.decoder.JSONDecodeError as e:
             message = f"Failed to decode JSON: {str(e)}"
-            logging.warn(message)
-            print(message)
+            self.log_progress(message, level=logging.WARNING)
             return []
 
     def needs_file_column(self):
@@ -249,8 +263,10 @@ class CSVExporter(WorkbenchExportBase):
             node_id = get_nid_from_url_alias(self.config, node_id)
 
         if not ping_node(self.config, node_id):
-            self.log_progress(f"Node {node_id} not found/accessible, skipping export.")
-            logging.warning(f"Node {node_id} not found/accessible, skipping export.")
+            self.log_progress(
+                f"Node {node_id} not found/accessible, skipping export.",
+                level=logging.WARNING
+            )
             return None
 
         return node_id
@@ -262,9 +278,9 @@ class CSVExporter(WorkbenchExportBase):
 
         if response.status_code != 200:
             self.log_progress(
-                f"Error retrieving node {node_id}: HTTP {response.status_code}"
+                f"Error retrieving node {node_id}: HTTP {response.status_code}",
+                level=logging.WARNING
             )
-            logging.warning(f"Node {node_id} HTTP {response.status_code}")
             return None
 
         return json.loads(response.text)
@@ -288,9 +304,10 @@ class CSVExporter(WorkbenchExportBase):
                         self.config, self.field_definitions, field, node_json[field]
                     )
                 except Exception as e:
-                    message = f"Error serializing {field} for node {nid}: {str(e)}"
-                    print(message)
-                    logging.error(message)
+                    self.log_progress(
+                        f"Error serializing {field} for node {nid}: {str(e)}",
+                        level=logging.ERROR
+                    )
                     row[field] = "SERIALIZATION_ERROR"
 
         return row
@@ -404,7 +421,7 @@ class ViewExporter(WorkbenchExportBase):
         status_code = ping_view_endpoint(self.config, self.view_config["initial_url"])
         if status_code != 200:
             message = f"Cannot access View at {self.view_config['initial_url']} (HTTP {status_code})."
-            self.log_progress(message)
+            self.log_progress(message, level=logging.ERROR)
             sys.exit("Error: " + message + " See log for more information.")
 
     def prepare_headers(self):
@@ -447,9 +464,10 @@ class ViewExporter(WorkbenchExportBase):
                         self.config, self.field_definitions, field, node_json[field]
                     )
                 except Exception as e:
-                    message = f"Error serializing {field} for node {nid}: {str(e)}"
-                    print(message)
-                    logging.error(message)
+                    self.log_progress(
+                        f"Error serializing {field} for node {nid}: {str(e)}",
+                        level=logging.ERROR
+                    )
                     row[field] = "SERIALIZATION_ERROR"
 
         return row
@@ -498,7 +516,8 @@ class ViewExporter(WorkbenchExportBase):
 
             if response.status_code != 200:
                 self.log_progress(
-                    f"Skipping page {page} due to HTTP {response.status_code}"
+                    f"Skipping page {page} due to HTTP {response.status_code}",
+                    level=logging.WARNING
                 )
                 page += 1
                 continue
