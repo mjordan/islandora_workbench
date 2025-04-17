@@ -83,7 +83,7 @@ class WorkbenchExportBase:
                 media_use_term_id=media_use_term_id,
                 media_list=media_list,
             )
-        return result if result else "" # Avoid 'False' values in file columns.
+        return result if result else ""  # Avoid 'False' values in file columns.
 
     def log_progress(self, message, row_count=None, total_rows=None):
         """Standardized progress logging with optional progress bar."""
@@ -98,13 +98,10 @@ class WorkbenchExportBase:
             print(message)
         logging.info(message)
 
-
     def row_log_suffix(self, node, nid, row):
-        and_files = ''
+        and_files = ""
         if self.needs_file_column:
-            if self.config.get(
-                "export_file_url_instead_of_download", False
-            ):
+            if self.config.get("export_file_url_instead_of_download", False):
                 and_files = " and file URL(s)"
             else:
                 and_files = " and file(s)"
@@ -128,11 +125,11 @@ class WorkbenchExportBase:
             node_type = "unknown"
 
         if node_type != self.config["content_type"]:
-            #message = f"Skipping node {nid} - type '{node_type}' does not match '{self.config['content_type']}'"
+            # message = f"Skipping node {nid} - type '{node_type}' does not match '{self.config['content_type']}'"
             message = (
-                    f"Node {nid} not written to output CSV because its content type {node_type}"
-                    + f' does not match the "content_type" configuration setting.'
-                )
+                f"Node {nid} not written to output CSV because its content type {node_type}"
+                + f' does not match the "content_type" configuration setting.'
+            )
             if self.config.get("progress_bar") is False:
                 print("Error: " + message)
             logging.error(message)
@@ -168,7 +165,7 @@ class WorkbenchExportBase:
         return additional_files
 
     def execute_post_export_script(self, response, node_json):
-        """ Execute node-specific post-export scripts, if any are configured."""
+        """Execute node-specific post-export scripts, if any are configured."""
         if len(self.config.get("node_post_export", [])) > 0:
             for command in self.config.get("node_post_export", []):
                 (
@@ -182,14 +179,10 @@ class WorkbenchExportBase:
                 )
                 if post_task_return_code == 0:
                     logging.info(
-                        "Post node export script "
-                        + command
-                        + " executed successfully."
+                        "Post node export script " + command + " executed successfully."
                     )
                 else:
-                    logging.error(
-                        "Post node export script " + command + " failed."
-                    )
+                    logging.error("Post node export script " + command + " failed.")
 
 
 class CSVExporter(WorkbenchExportBase):
@@ -358,15 +351,12 @@ class CSVExporter(WorkbenchExportBase):
                 continue
 
             writer.writerow(output_row)
-            and_files = ''
+            and_files = ""
             if self.needs_file_column:
-                if self.config.get(
-                    "export_file_url_instead_of_download", False
-                ):
+                if self.config.get("export_file_url_instead_of_download", False):
                     and_files = " and file URL(s)"
                 else:
                     and_files = " and file(s)"
-
 
             self.log_progress(
                 f'Exporting data{and_files} for node {node_id} "{output_row["title"]}."',
