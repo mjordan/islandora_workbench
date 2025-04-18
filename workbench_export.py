@@ -102,7 +102,6 @@ class WorkbenchExportBase:
         ):
             self.pbar(get_percentage(row_count, total_rows))
         else:
-            #if level >= logging.WARNING:  # Only print warnings and errors to console
             print(f"{logging.getLevelName(level)}: {message}")
 
         # Log to file with appropriate level
