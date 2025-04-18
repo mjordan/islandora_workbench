@@ -254,6 +254,7 @@ class WorkbenchConfig:
             "fixity_algorithm": None,
             "validate_fixity_during_check": False,
             "output_csv_include_input_csv": False,
+            "export_file_url_instead_of_download": False,
             "timestamp_rollback": False,
             "rollback_dir": None,
             "rollback_file_include_node_info": False,
