@@ -1552,10 +1552,16 @@ class TestExportCSVWithAdditionalFiles(unittest.TestCase):
         with open(exported_csv, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Verify main file and additional files columns
+                # Verify main fields, file and additional files columns\
+                self.assertIn("node_id", row)
+                self.assertIn("title", row)
+                self.assertIn("field_model", row)
                 self.assertIn("file", row)
                 self.assertIn("preservation", row)
                 self.assertIn("transcript", row)
+
+                # Verify that columns not in the field list are not included.
+                self.assertNotIn("field_abstract", row)
 
                 # Check URLs are valid and accessible
                 for url_field in ["file", "preservation", "transcript"]:

@@ -14,6 +14,7 @@ class WorkbenchExportBase:
         self.config = config
         self.args = args
         self.field_definitions = get_field_definitions(config, "node")
+        self.required_fields = ["created", "uid", "langcode", "title", "node_id"]
         self.seen_nids = set()
         self.pbar = InitBar() if config.get("progress_bar") else None
 
@@ -118,7 +119,7 @@ class WorkbenchExportBase:
         else:
             logging.info(message)  # default to info if unknown level
 
-    def row_log_suffix(self, node, nid, row):
+    def row_log_suffix(self, row):
         and_files = ""
         if self.needs_file_column:
             if self.config.get("export_file_url_instead_of_download", False):
@@ -204,16 +205,24 @@ class CSVExporter(WorkbenchExportBase):
     def __init__(self, config, args=None):
         super().__init__(config, args)
         self.csv_data = get_csv_data(config)
+        self.required_fields = [
+            "created",
+            "uid",
+            "langcode",
+            "title",
+            "node_id",
+            "REMOVE THIS COLUMN (KEEP THIS ROW)",
+        ]
 
     def setup_csv_output_path(self):
         """Set up CSV output path for CSV export."""
         if self.config["export_csv_file_path"]:
-            return self.config["export_csv_file_path"]
-
-        csv_path = os.path.join(
-            self.config["input_dir"],
-            self.config["input_csv"] + ".csv_file_with_field_values",
-        )
+            csv_path = self.config["export_csv_file_path"]
+        else:
+            csv_path = os.path.join(
+                self.config["input_dir"],
+                self.config["input_csv"] + ".csv_file_with_field_values",
+            )
 
         if os.path.exists(csv_path):
             os.remove(csv_path)
@@ -223,19 +232,12 @@ class CSVExporter(WorkbenchExportBase):
         """Generate deduplicated list of CSV column headers for export_csv."""
         field_names = list(self.field_definitions.keys())
 
-        # Add required fields at beginning
-        for field_name in [
-            "created",
-            "uid",
-            "langcode",
-            "title",
-            "node_id",
-            "REMOVE THIS COLUMN (KEEP THIS ROW)",
-        ]:
-            field_names.insert(0, field_name)
-
         if len(self.config["export_csv_field_list"]) > 0:
             field_names = self.config["export_csv_field_list"]
+
+        # Add required fields at beginning
+        for field_name in self.required_fields:
+            field_names.insert(0, field_name)
 
         deduped_field_names = self.deduplicate_list(field_names)
 
@@ -369,15 +371,10 @@ class CSVExporter(WorkbenchExportBase):
                 continue
 
             writer.writerow(output_row)
-            and_files = ""
-            if self.needs_file_column:
-                if self.config.get("export_file_url_instead_of_download", False):
-                    and_files = " and file URL(s)"
-                else:
-                    and_files = " and file(s)"
+            suffix = self.row_log_suffix(row)
 
             self.log_progress(
-                f'Exporting data{and_files} for node {node_id} "{output_row["title"]}."',
+                f'Exporting data{suffix} for node {node_id} "{output_row["title"]}."',
                 row_count,
                 len(csv_data_list),
             )
@@ -543,7 +540,7 @@ class ViewExporter(WorkbenchExportBase):
                 if row:
                     writer.writerow(row)
 
-                    suffix = self.row_log_suffix(node, nid, row)
+                    suffix = self.row_log_suffix(row)
                     self.log_progress(f"Exported node{suffix} {nid}: {row['title']}")
                     self.execute_post_export_script(response, json.dumps(node))
 

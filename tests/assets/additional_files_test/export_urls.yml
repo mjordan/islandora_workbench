@@ -4,6 +4,7 @@ username: admin
 password: password
 input_csv: rollback.csv
 input_dir: "tests/assets/additional_files_test"
+export_csv_field_list: ['field_model']
 export_csv_file_path: tests/assets/additional_files_test/exported_files/export_urls.csv
 export_file_url_instead_of_download: true
 additional_files:
