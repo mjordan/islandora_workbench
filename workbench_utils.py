@@ -10201,123 +10201,157 @@ def get_remote_file_extension(config, file_url):
     return extension_with_dot
 
 
-def download_file_from_drupal(config, node_id):
+def get_media_list(config, node_id, media_list=None):
+    """Retrieve media list for a node if not provided."""
+    if media_list is not None:
+        return media_list
+    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
+    response = issue_request(config, "GET", media_list_url)
+    if response.status_code != 200:
+        logging.error(
+            f"Media list request failed for node {node_id}: {response.status_code}"
+        )
+        return None
+    try:
+        return json.loads(response.text)
+    except json.decoder.JSONDecodeError as e:
+        logging.error(f"Media query for node {node_id} failed: {e}")
+        return None
+
+
+def resolve_media_use_term_id(config, media_use_term_id, node_id):
+    """Resolve media use term ID from URI or configuration."""
+    if media_use_term_id is None:
+        media_use_term_id = config.get("export_file_media_use_term_id")
+        if media_use_term_id is None:
+            logging.error(
+                f"No media use term ID provided or configured for node {node_id}."
+            )
+            return None
+    if isinstance(media_use_term_id, str) and media_use_term_id.startswith("http"):
+        term_id = get_term_id_from_uri(config, media_use_term_id)
+        if term_id is None:
+            logging.error(
+                f"Failed to convert URI {media_use_term_id} to term ID for node {node_id}."
+            )
+            return None
+        return term_id
+    return media_use_term_id
+
+
+def find_file_url_in_media(config, media_list, media_use_term_id, node_id):
+    """Find the file URL in media entries matching the use term."""
+    for media in media_list:
+        for file_field in file_fields:
+            if file_field in media:
+                media_use_terms = media.get("field_media_use", [])
+                media_use_ids = [term.get("target_id") for term in media_use_terms]
+                if media_use_term_id in media_use_ids:
+                    file_info = media[file_field]
+                    if len(file_info) > 0:
+                        file_url = file_info[0].get("url")
+                        if file_url:
+                            return file_url
+    logging.debug(
+        f"No valid media found for node {node_id} with use term {media_use_term_id}"
+    )
+    return None
+
+
+def get_media_file_url(config, node_id, media_use_term_id=None, media_list=None):
+    """Retrieve and validate the URL of a media file from Drupal."""
+    media_list = get_media_list(config, node_id, media_list)
+    if media_list is None:
+        return False
+
+    resolved_term_id = resolve_media_use_term_id(config, media_use_term_id, node_id)
+    if resolved_term_id is None:
+        return False
+
+    file_url = find_file_url_in_media(config, media_list, resolved_term_id, node_id)
+    if not file_url:
+        return False
+
+    try:
+        head_response = requests.head(
+            file_url,
+            allow_redirects=True,
+            verify=config["secure_ssl_only"],
+            timeout=10,
+        )
+        if head_response.status_code != 200:
+            logging.error(
+                f"URL validation failed for node {node_id}: {file_url} (HTTP {head_response.status_code})"
+            )
+            return False
+    except Exception as e:
+        logging.error(f"HEAD request failed for {file_url}: {str(e)}")
+        return False
+
+    logging.info(f"URL validated for node {node_id}: {file_url}")
+    return file_url
+
+
+def download_file_from_drupal(config, node_id, media_use_term_id=None, media_list=None):
     """Download a media file from Drupal."""
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        node_id : string
-            The ID of the node to delete media from.
-        Returns
-        -------
-        file_name
-            The downloaded file's name, or False if unable to download the file.
-    """
-    if config["export_file_directory"] is None:
+    if config.get("export_file_directory") is None:
+        logging.error("export_file_directory is not configured")
         return False
 
     if not os.path.exists(config["export_file_directory"]):
         try:
             os.mkdir(config["export_file_directory"])
         except Exception as e:
-            message = (
-                'Path in configuration option "export_file_directory" ("'
-                + config["export_file_directory"]
-                + '") is not writable.'
-            )
-            logging.error(message + " " + str(e))
+            message = f'Path "export_file_directory" ("{config["export_file_directory"]}") is not writable: {str(e)}'
+            logging.error(message)
             sys.exit("Error: " + message + " See log for more detail.")
     else:
-        message = (
-            'Path in configuration option "export_file_directory" ("'
-            + config["export_file_directory"]
-            + '") already exists.'
+        logging.info(
+            f'Path "export_file_directory" ("{config["export_file_directory"]}") already exists.'
         )
-        logging.info(message)
 
-    media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
-    media_list_response = issue_request(config, "GET", media_list_url)
-    if media_list_response.status_code == 200:
-        try:
-            media_list = json.loads(media_list_response.text)
-        except json.decoder.JSONDecodeError as e:
-            logging.error(
-                f"Media query for node {node_id} produced the following error: {e}"
+    media_list = get_media_list(config, node_id, media_list)
+    if media_list is None:
+        return False
+
+    resolved_term_id = resolve_media_use_term_id(config, media_use_term_id, node_id)
+    if resolved_term_id is None:
+        return False
+
+    file_url = find_file_url_in_media(config, media_list, resolved_term_id, node_id)
+    if not file_url:
+        return False
+
+    url_filename = os.path.basename(file_url)
+    downloaded_file_path = os.path.join(config["export_file_directory"], url_filename)
+    if os.path.exists(downloaded_file_path):
+        downloaded_file_path = get_deduped_file_path(downloaded_file_path)
+
+    try:
+        with open(downloaded_file_path, "wb+") as f:
+            file_download_response = requests.get(
+                file_url,
+                allow_redirects=True,
+                verify=config["secure_ssl_only"],
             )
-            return False
-        if len(media_list) == 0:
-            logging.warning(f"Node {node_id} has no media.")
-            return False
-
-        if str(config["export_file_media_use_term_id"]).startswith("http"):
-            config["export_file_media_use_term_id"] = get_term_id_from_uri(
-                config, config["export_file_media_use_term_id"]
-            )
-
-        if config["export_file_media_use_term_id"] is False:
-            logging.error(
-                f'Unknown value for configuration setting "export_file_media_use_term_id": {config["export_file_media_use_term_id"]}.'
-            )
-            return False
-
-        for media in media_list:
-            for file_field_name in file_fields:
-                if file_field_name in media:
-                    if (
-                        len(media[file_field_name])
-                        and media["field_media_use"][0]["target_id"]
-                        == config["export_file_media_use_term_id"]
-                    ):
-                        url_filename = os.path.basename(
-                            media[file_field_name][0]["url"]
-                        )
-                        downloaded_file_path = os.path.join(
-                            config["export_file_directory"], url_filename
-                        )
-                        if os.path.exists(downloaded_file_path):
-                            downloaded_file_path = get_deduped_file_path(
-                                downloaded_file_path
-                            )
-                        f = open(downloaded_file_path, "wb+")
-                        # User needs to be anonymous since authenticated users are getting 403 responses. Probably something in
-                        # Drupal's FileAccessControlHandler code is doing this.
-                        file_download_response = requests.get(
-                            media[file_field_name][0]["url"],
-                            allow_redirects=True,
-                            verify=config["secure_ssl_only"],
-                        )
-                        if file_download_response.status_code == 200:
-                            f.write(file_download_response.content)
-                            f.close()
-                            filename_for_logging = os.path.basename(
-                                downloaded_file_path
-                            )
-                            logging.info(
-                                f'File "{filename_for_logging}" downloaded for node {node_id}.'
-                            )
-                            if os.path.isabs(config["export_file_directory"]):
-                                return downloaded_file_path
-                            else:
-                                return filename_for_logging
-                        else:
-                            message = (
-                                f"File at {media[file_field_name][0]['url']} (part of media for node {node_id}) could "
-                                + f"not be downloaded (HTTP response code {file_download_response.status_code})."
-                            )
-                            logging.error(message)
-                            return False
-                    else:
-                        logging.warning(
-                            f'Node {node_id} has no files in "{file_field_name}".'
-                        )
-                        return False
-                else:
-                    continue
-    else:
-        logging.error(
-            f"Attempt to fetch media list {media_list_url} returned an {media_list_response.status_code} HTTP response."
-        )
+            if file_download_response.status_code == 200:
+                f.write(file_download_response.content)
+                filename_for_logging = os.path.basename(downloaded_file_path)
+                logging.info(
+                    f'File "{filename_for_logging}" downloaded for node {node_id}.'
+                )
+                return (
+                    downloaded_file_path
+                    if os.path.isabs(config["export_file_directory"])
+                    else filename_for_logging
+                )
+            else:
+                logging.error(
+                    f"File download failed for node {node_id}: {file_url} (HTTP {file_download_response.status_code})"
+                )
+                return False
+    except Exception as e:
+        logging.error(f"File download failed for node {node_id}: {str(e)}")
         return False
 
 

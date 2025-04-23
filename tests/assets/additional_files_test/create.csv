@@ -1,2 +1,2 @@
-file,id,title,field_model,preservation,transcript
-metropolis_maria_robot.png,001,Maria,http://purl.org/coar/resource_type/c_c513,metropolis_maria_robot_preservation.png,transcript.txt
+file,id,title,field_model,field_abstract,preservation,transcript
+metropolis_maria_robot.png,1,Maria,http://purl.org/coar/resource_type/c_c513,Test to exclude fields from export.,metropolis_maria_robot_preservation.png,transcript.txt

@@ -1,0 +1,12 @@
+task: export_csv
+host: https://islandora.dev
+username: admin
+password: password
+input_csv: rollback.csv
+input_dir: "tests/assets/additional_files_test"
+export_csv_file_path: tests/assets/additional_files_test/exported_files/export_files.csv
+export_file_directory: tests/assets/additional_files_test/exported_files/
+additional_files:
+  - preservation: "http://pcdm.org/use#PreservationMasterFile"
+  - transcript: "http://pcdm.org/use#Transcript"
+secure_ssl_only: false
