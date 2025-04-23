@@ -3519,15 +3519,14 @@ def update_filenames():
         if "filename" in csv_column_headers:
             if len(row["filename"].strip()) != 0:
                 file["new_filename"] = row["filename"]
-        print(file)
+
         file_endpoint = (
-            config["host"] + "/admin/content/files/rename/" + row["file_id"] + "?_format=json"
+            config["host"] + "/islandora_workbench_integration/rename/" + row["file_id"] + "?_format=json"
         )
         file_headers = {"Content-Type": "application/json"}
         file_response = issue_request(
             config, method.upper(), file_endpoint, file_headers, file
         )
-        print(file_response)
         
 
         if file_response.status_code == 200:
@@ -3535,26 +3534,26 @@ def update_filenames():
                 print(
                     "File "
                     + config["host"]
-                    + "/admin/content/files/rename/"
+                    + "/islandora_workbench_integration/rename/"
                     + row["file_id"]
                     + " updated."
                 )
             logging.info(
                 "File %s updated.",
-                config["host"] + "/admin/content/files/rename/" + row["file_id"],
+                config["host"] + "/islandora_workbench_integration/rename/" + row["file_id"],
             )
         else:
             if config["progress_bar"] is False:
                 print(
                     "File "
                     + config["host"]
-                    + "/admin/content/files/rename/"
+                    + "/islandora_workbench_integration/rename/"
                     + row["file_id"]
                     + " could not be updated."
                 )
             logging.info(
                 "File %s could not be updated.",
-                config["host"] + "/admin/content/files/rename/" + row["file_id"],
+                config["host"] + "/islandora_workbench_integration/rename/" + row["file_id"],
             )
 
         if config["progress_bar"] is True:
@@ -4036,6 +4035,8 @@ try:
         create()
     if config["task"] == "update":
         update()
+    if config["task"] == "update_filenames":
+        update_filenames()
     if config["task"] == "delete":
         delete()
     if config["task"] == "add_media":

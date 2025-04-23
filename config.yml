@@ -1,0 +1,19 @@
+task: update_filenames
+host: "https://islandora.traefik.me/"
+username: admin
+password: shubham
+input_csv: 'https://docs.google.com/spreadsheets/d/1X3qay2HxevjmPV6wL2ZIxJO6Pt-7-lkOW-9JMpgqW4U/edit?usp=sharing'
+google_sheets_gid: 0
+content_type: islandora_object
+subdelimiter: "|"
+allow_adding_terms: true
+ignore_csv_columns: [field_physical_description_note, field_transcription, field_digital_origin, field_copyright_statement, ignore, field_view_mode]
+media_types:
+ - file: ['zip', 'tar']
+ - document: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'vtt', 'csv']
+ - image: ['png', 'gif', 'jpg', 'jpeg', 'tif', 'tiff', 'jp2']
+ - audio: ['mp3', 'wav', 'aac', 'm4a']
+ - video: ['mp4']
+ - extracted_text: ['txt']
+ - web_archive: ['wacz']
+standalone_media_url: true
