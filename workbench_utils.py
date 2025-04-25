@@ -1905,7 +1905,7 @@ def check_input(config, args):
     joiner = ", "
     if config["task"] not in tasks:
         message = (
-            '"task" in your configuration file must be one of "create", "update", "delete", '
+            '"task" in your configuration file must be one of "create", "update", "delete", "add_alt_text", "update_alt_text", '
             + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", or "create_redirects".'
         )
         logging.error(message)
@@ -5693,23 +5693,38 @@ def clean_image_alt_text(input_string):
     return cleaned_string
 
 
-def patch_image_alt_text(config, media_id, node_csv_row):
+def patch_image_alt_text(config, media_id, csv_row):
     """Patch the alt text value for an image media. Use the parent node's title
     unless the CSV record contains an image_alt_text field with something in it.
     """
     if config["standalone_media_url"] is True:
-        get_endpoint = config["host"] + "/media/" + str(media_id) + "?_format=json"
+        get_media_endpoint = (
+            config["host"] + "/media/" + str(media_id) + "?_format=json"
+        )
     else:
-        get_endpoint = config["host"] + "/media/" + str(media_id) + "/edit?_format=json"
-    get_headers = {"Content-Type": "application/json"}
-    get_response = issue_request(config, "GET", get_endpoint, get_headers)
-    get_response_body = json.loads(get_response.text)
-    field_media_image_target_id = get_response_body["field_media_image"][0]["target_id"]
+        get_media_endpoint = (
+            config["host"] + "/media/" + str(media_id) + "/edit?_format=json"
+        )
+    get_media_headers = {"Content-Type": "application/json"}
+    get_media_response = issue_request(
+        config, "GET", get_media_endpoint, get_media_headers
+    )
+    if get_media_response.status_code == 200:
+        get_media_response_body = json.loads(get_media_response.text)
+        field_media_image_target_id = get_media_response_body["field_media_image"][0][
+            "target_id"
+        ]
+    else:
+        logging.error(
+            f"Media {get_media_endpoint} returned an HTTP status code of {get_media_response.status_code}."
+        )
+        return False
 
-    for field_name, field_value in node_csv_row.items():
+    for field_name, field_value in csv_row.items():
         if field_name == "title":
             alt_text = clean_image_alt_text(field_value)
-        if field_name == "image_alt_text" and len(field_value) > 0:
+        # "image_alt_text" can be in "create", "add_alt_text", or "update_alt_text" input CSV.
+        if field_name == "image_alt_text":
             alt_text = clean_image_alt_text(field_value)
 
     media_json = {
@@ -5720,18 +5735,22 @@ def patch_image_alt_text(config, media_id, node_csv_row):
     }
 
     if config["standalone_media_url"] is True:
-        patch_endpoint = config["host"] + "/media/" + str(media_id) + "?_format=json"
+        patch_media_endpoint = (
+            config["host"] + "/media/" + str(media_id) + "?_format=json"
+        )
     else:
-        patch_endpoint = (
+        patch_media_endpoint = (
             config["host"] + "/media/" + str(media_id) + "/edit?_format=json"
         )
-    patch_headers = {"Content-Type": "application/json"}
-    patch_response = issue_request(
-        config, "PATCH", patch_endpoint, patch_headers, media_json
+    patch_media_headers = {"Content-Type": "application/json"}
+    patch_media_response = issue_request(
+        config, "PATCH", patch_media_endpoint, patch_media_headers, media_json
     )
 
-    if patch_response.status_code != 200:
-        logging.warning("Alt text for image media %s not updated.", patch_endpoint)
+    if patch_media_response.status_code != 200:
+        logging.error("Alt text for image media %s not updated.", patch_media_endpoint)
+
+    return patch_media_response.status_code
 
 
 def remove_media_and_file(config, media_id):

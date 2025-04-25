@@ -2688,6 +2688,115 @@ def get_media_report_from_view():
     print(message)
 
 
+def add_alt_text():
+    """Add or update alt text to all image-type media for a node. This function is used in
+    both "add_alt_text" and "update_alt_text" tasks."""
+    if config["task"] == "add_alt_text":
+        task_name = "Add alt text"
+    if config["task"] == "update_alt_text":
+        task_name = "Update alt text"
+    message = f'"{task_name}" task started using config file ' + args.config + "."
+    print(message)
+    logging.info(message)
+
+    csv_data_as_list = list(get_csv_data(config))
+    num_csv_records = len(csv_data_as_list)
+
+    csv_data = get_csv_data(config)
+
+    row_count = 0
+    for row in csv_data:
+        row_count += 1
+
+        if not value_is_numeric(row["node_id"]):
+            row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+
+        node_id = row["node_id"]
+
+        if row["image_alt_text"].strip() == "":
+            logging.warning(
+                f"'image_alt_text' value for row with node ID {node_id} is empty, skipping."
+            )
+            continue
+
+        node_ping_result = ping_node(config, node_id, "GET", True)
+        if node_ping_result is False:
+            if config["progress_bar"] is False:
+                message = f"Node {node_id} not found or not accessible, skipping adding alt text to image media."
+                print("Warning: " + message)
+            logging.warning(message)
+            continue
+
+        # Delete expired items from request_cache before processing a row.
+        if config["enable_http_cache"] is True:
+            requests_cache.delete(expired=True)
+
+        media_list = get_media_list(config, row["node_id"])
+
+        # Apply the alt text value to all "image" media for this node.
+        successful_additions = list()
+        failed_additions = list()
+        num_image_media = 0
+        for media in media_list:
+            if media["bundle"][0]["target_id"] == "image":
+                if config["task"] == "add_alt_text":
+                    task_verb = "added"
+                if config["task"] == "update_alt_text":
+                    task_verb = "updated"
+                    if "field_media_image" in media:
+                        existing_alt_text = media["field_media_image"][0]["alt"]
+                        if config["update_mode"] == "delete":
+                            row["image_alt_text"] = ""
+                        if config["update_mode"] == "append":
+                            row["image_alt_text"] = (
+                                row["image_alt_text"] + " " + existing_alt_text
+                            )
+                        # if config["update_mode"] == "replace":
+                        # We do nothing since the value of row["image_alt_text"] will be applied.
+                num_image_media += 1
+                media_id = media["mid"][0]["value"]
+                result = patch_image_alt_text(config, media_id, row)
+
+                alt_text = row["image_alt_text"]
+
+                if result == 200:
+                    successful_additions.append(str(media_id))
+                else:
+                    failed_additions.append(str(media_id))
+                    logging.error(
+                        f'Alt text "{alt_text}" for media ID {media_id} (node ID {node_id}) not added; HTTP PATCH request returned status code {result} or could not access the media.'
+                    )
+
+        if config["show_percentage_of_csv_input_processed"] is True:
+            row_position = get_percentage(row_count, num_csv_records)
+            row_position_message = f" ({int(row_position)}%)"
+        else:
+            row_position_message = ""
+
+        if num_image_media == len(successful_additions):
+            success_list_string = ", ".join(successful_additions)
+            logging.info(
+                f'Alt text "{alt_text}" for node ID {node_id} (image media IDs {success_list_string}) {task_verb}.'
+            )
+            if config["progress_bar"] is False:
+                print(
+                    f'OK, alt text "{alt_text}" for node ID {node_id} image media {task_verb}{row_position_message}.'
+                )
+        else:
+            failed_list_string = ", ".join(failed_additions)
+            logging.error(
+                f'Alt text "{alt_text}" for node ID {node_id} (image media IDs {failed_list_string}) not {task_verb}.'
+            )
+            if config["progress_bar"] is False:
+                print(
+                    f'Error: Alt text "{alt_text}" for node ID {node_id} not {task_verb}. See the log for more info{row_position_message}.'
+                )
+
+        if config["progress_bar"] is True:
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
+
+
 def create_terms():
     """Create new terms via POST."""
     message = '"Create terms" task started using config file ' + args.config + "."
@@ -2819,11 +2928,10 @@ def create_terms():
 
 
 def update_terms():
-    """Placeholder function. See https://github.com/mjordan/islandora_workbench/issues/469 for more info."""
     """Update terms via PATCH. Note that PATCHing replaces the target field,
-       so if we are adding an additional value to a multivalued field, we need
-       to include the existing value(s) in our PATCH. The field classes take
-       care of preserving existing values in 'append' updates.
+    so if we are adding an additional value to a multivalued field, we need
+    to include the existing value(s) in our PATCH. The field classes take
+    care of preserving existing values in 'append' updates.
     """
     message = (
         '"Update Terms" ('
@@ -3584,6 +3692,10 @@ try:
         delete_media()
     if config["task"] == "delete_media_by_node":
         delete_media_by_node()
+    if config["task"] == "add_alt_text":
+        add_alt_text()
+    if config["task"] == "update_alt_text":
+        add_alt_text()
     if config["task"] == "create_from_files":
         create_from_files()
     if config["task"] == "export_csv":
