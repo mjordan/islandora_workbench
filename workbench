@@ -1136,6 +1136,9 @@ def add_media():
     print(message)
     logging.info(message)
 
+    csv_data_as_list = list(get_csv_data(config))
+    num_csv_records = len(csv_data_as_list)
+
     csv_data = get_csv_data(config)
 
     row_count = 0
@@ -1143,6 +1146,8 @@ def add_media():
         # Delete expired items from request_cache before processing a row.
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)
+
+        row_count += 1
 
         if not value_is_numeric(row["node_id"]):
             row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
@@ -1199,16 +1204,21 @@ def add_media():
                         media_use_tid_value,
                     )
                     if media_response_status_code in allowed_media_response_codes:
+                        filename_to_add = row["file"]
                         if config["progress_bar"] is False:
+                            if config["show_percentage_of_csv_input_processed"] is True:
+                                row_position = get_percentage(
+                                    row_count, num_csv_records
+                                )
+                                row_position_message = f" ({int(row_position)}%)"
+                            else:
+                                row_position_message = ""
                             print(
-                                'Media for "'
-                                + row["file"]
-                                + '" created and added to '
-                                + node_uri
+                                f'Media for "{filename_to_add}" created and added to {node_uri}{row_position_message}'
                             )
                         logging.info(
                             'Media for "%s" created and added to %s.',
-                            row["file"],
+                            filename_to_add,
                             node_uri,
                         )
                     else:
@@ -1317,7 +1327,6 @@ def add_media():
             )
 
         if config["progress_bar"] is True:
-            row_count += 1
             row_position = get_percentage(row_count, num_csv_records)
             pbar(row_position)
 
