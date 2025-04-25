@@ -1901,12 +1901,13 @@ def check_input(config, args):
         "get_media_report_from_view",
         "update_terms",
         "create_redirects",
+        "update_filenames",
     ]
     joiner = ", "
     if config["task"] not in tasks:
         message = (
             '"task" in your configuration file must be one of "create", "update", "delete", '
-            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", or "create_redirects".'
+            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", "update_filenames or "create_redirects".'
         )
         logging.error(message)
         sys.exit("Error: " + message)
