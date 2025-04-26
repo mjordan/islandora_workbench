@@ -211,6 +211,7 @@ class WorkbenchConfig:
             "perform_soft_checks": False,
             "update_mode": "replace",
             "max_node_title_length": 255,
+            "max_image_alt_text_length": 255,
             "paged_content_from_directories": False,
             "delete_media_with_nodes": True,
             "allow_adding_terms": False,

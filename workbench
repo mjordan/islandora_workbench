@@ -2688,7 +2688,7 @@ def get_media_report_from_view():
     print(message)
 
 
-def add_alt_text():
+def add_update_alt_text():
     """Add or update alt text to all image-type media for a node. This function is used in
     both "add_alt_text" and "update_alt_text" tasks."""
     if config["task"] == "add_alt_text":
@@ -2749,7 +2749,7 @@ def add_alt_text():
                             row["image_alt_text"] = ""
                         if config["update_mode"] == "append":
                             row["image_alt_text"] = (
-                                row["image_alt_text"] + " " + existing_alt_text
+                                existing_alt_text + " " + row["image_alt_text"]
                             )
                         # if config["update_mode"] == "replace":
                         # We do nothing since the value of row["image_alt_text"] will be applied.
@@ -2761,6 +2761,11 @@ def add_alt_text():
 
                 if result == 200:
                     successful_additions.append(str(media_id))
+                elif result is False:
+                    failed_additions.append(str(media_id))
+                    logging.error(
+                        f'Alt text "{alt_text}" for media ID {media_id} (node ID {node_id}) not added.'
+                    )
                 else:
                     failed_additions.append(str(media_id))
                     logging.error(
@@ -3692,10 +3697,6 @@ try:
         delete_media()
     if config["task"] == "delete_media_by_node":
         delete_media_by_node()
-    if config["task"] == "add_alt_text":
-        add_alt_text()
-    if config["task"] == "update_alt_text":
-        add_alt_text()
     if config["task"] == "create_from_files":
         create_from_files()
     if config["task"] == "export_csv":
@@ -3712,6 +3713,10 @@ try:
         update_terms()
     if config["task"] == "create_redirects":
         create_redirects()
+    if config["task"] == "add_alt_text":
+        add_update_alt_text()
+    if config["task"] == "update_alt_text":
+        add_update_alt_text()
 
     if config["secondary_tasks"] is not None and len(config["secondary_tasks"]) > 0:
         for secondary_config_file in config["secondary_tasks"]:

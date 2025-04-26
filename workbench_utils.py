@@ -1901,6 +1901,8 @@ def check_input(config, args):
         "get_media_report_from_view",
         "update_terms",
         "create_redirects",
+        "add_alt_text",
+        "update_alt_text",
     ]
     joiner = ", "
     if config["task"] not in tasks:
@@ -2892,6 +2894,58 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit("Error: " + message)
 
+    if config["task"] in ["add_alt_text", "update_alt_text"]:
+        _alt_text_required_options = ["task", "host", "username", "password"]
+        for _alt_text_required_options in _alt_text_required_options:
+            if _alt_text_required_options not in config_keys:
+                message = (
+                    "Please check your config file for required values: "
+                    + joiner.join(delete_media_required_options)
+                    + "."
+                )
+                logging.error(message)
+                sys.exit("Error: " + message)
+        update_mode_options = ["replace", "append", "delete"]
+        if config["update_mode"] not in update_mode_options:
+            message = (
+                'Your "update_mode" config option must be one of the following: '
+                + joiner.join(update_mode_options)
+                + "."
+            )
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+        validate_alt_text_csv_data = get_csv_data(config)
+        row_counter = 0
+        for count, row in enumerate(validate_alt_text_csv_data, start=1):
+            row_counter += 1
+            if len(row["node_id"]) > 0:
+                node_id = row["node_id"]
+                parent_node_exists = ping_node(config, row["node_id"], warn=False)
+                if parent_node_exists is False:
+                    message = f'Node identified in "node_id" ({node_id}) in row "{row_counter}" of your input CSV cannot be found or accessed.'
+                    logging.error(message)
+                    sys.exit(
+                        "Error: " + message + " See Workbench log for more information."
+                    )
+            else:
+                message = f"Row {row_counter} in your input CSV file is empty."
+                logging.error(message)
+                sys.exit(
+                    "Error: " + message + " See Workbench log for more information."
+                )
+
+            if len(row["image_alt_text"]) > config["max_image_alt_text_length"]:
+                image_alt_text = row["image_alt_text"]
+                max_alt_text_length = config["max_image_alt_text_length"]
+                node_id = row["node_id"]
+                message = f"Alt text in input CSV row with node ID {node_id} is longer than the maximum configured alt text length ({max_alt_text_length})"
+                logging.warning(
+                    message
+                    + f" (length is {len(image_alt_text)} characters). This row will be skipped."
+                )
+                print("Warning: " + message + ". See log for more information.")
+
     if config["task"] == "create_terms" or config["task"] == "update_terms":
         # Check that all required fields are present in the CSV.
         field_definitions = get_field_definitions(
@@ -3027,7 +3081,9 @@ def check_input(config, args):
                     parent_nids = row["field_member_of"].split(config["subdelimiter"])
                     for parent_nid in parent_nids:
                         if len(parent_nid) > 0:
-                            parent_node_exists = ping_node(config, parent_nid)
+                            parent_node_exists = ping_node(
+                                config, parent_nid, warn=False
+                            )
                             if parent_node_exists is False:
                                 message = (
                                     "The 'field_member_of' field in row with ID '"
@@ -3141,6 +3197,16 @@ def check_input(config, args):
             sys.exit("Error: " + message)
         if "redirect_target" not in csv_column_headers:
             message = 'For "create_redirects" tasks, your CSV file must contain a "redirect_target" column.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+    if config["task"] in ["add_alt_text", "update_alt_text"]:
+        if "node_id" not in csv_column_headers:
+            t = config["task"]
+            message = f'For "{t}" tasks, your CSV file must contain a "node_id" column.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if "image_alt_text" not in csv_column_headers:
+            message = f'For "{t}" tasks, your CSV file must contain a "image_alt_text" column.'
             logging.error(message)
             sys.exit("Error: " + message)
 
@@ -5726,6 +5792,13 @@ def patch_image_alt_text(config, media_id, csv_row):
         # "image_alt_text" can be in "create", "add_alt_text", or "update_alt_text" input CSV.
         if field_name == "image_alt_text":
             alt_text = clean_image_alt_text(field_value)
+
+    max_image_alt_text_length = config["max_image_alt_text_length"]
+    if len(alt_text) > max_image_alt_text_length:
+        logging.warning(
+            f'Alt text "{alt_text}" is longer than the configured maximum length ({max_image_alt_text_length}), skipping adding it to image.'
+        )
+        return False
 
     media_json = {
         "bundle": [{"target_id": "image"}],
