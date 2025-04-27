@@ -552,13 +552,13 @@ class TestImageAltText(unittest.TestCase):
                     nid = nid.strip(".")
                     if workbench_utils.value_is_numeric(nid):
                         TestImageAltText.nids.append(nid)
-                        fh.write(nid + ",A medieval cat\n")
+                        fh.write(nid + ",A medieval cat")
 
     def test_update_alt_text(self):
         requests.packages.urllib3.disable_warnings()
         create_output = subprocess.check_output(self.update_cmd)
 
-        time.sleep(5)
+        time.sleep(10)
 
         media_list_url = (
             f"{self.islandora_host}/node/{TestImageAltText.nids[0]}/media?_format=json"
