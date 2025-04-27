@@ -572,7 +572,7 @@ class TestImageAltText(unittest.TestCase):
             if media["bundle"][0]["target_id"] == "image":
                 if "field_media_image" in media:
                     alt_text = media["field_media_image"][0]["alt"]
-                    self.assertAlmostEqual(alt_text, "A medieval cat")
+                    self.assertEqual(alt_text, "A medieval cat")
 
     @classmethod
     def tearDownClass(cls):
