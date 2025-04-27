@@ -1,0 +1,8 @@
+task: create
+host: https://islandora.dev
+username: admin
+password: password
+input_dir: "tests/assets/alt_text_test"
+input_csv: alt_text_test_create.csv
+secure_ssl_only: false
+standalone_media_url: true

@@ -489,6 +489,113 @@ class TestUpdate(unittest.TestCase):
             os.remove(create_csv_preprocessed_file)
 
 
+class TestImageAltText(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.nids = list()
+        cls.islandora_host = ""
+        cls.islandora_username = ""
+        cls.islandora_password = ""
+        cls.create_config_file_path = ""
+        cls.current_dir = ""
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(
+            self.current_dir, "assets", "alt_text_test", "create.yml"
+        )
+
+        self.update_config_file_path = os.path.join(
+            self.current_dir, "assets", "alt_text_test", "update_alt_text.yml"
+        )
+
+        yaml = YAML()
+        with open(self.create_config_file_path, "r") as f:
+            config_file_contents = f.read()
+        config_data = yaml.load(config_file_contents)
+        config = {}
+        for k, v in config_data.items():
+            config[k] = v
+        self.islandora_host = config["host"]
+        self.islandora_username = config["username"]
+        self.islandora_password = config["password"]
+
+        TestImageAltText.islandora_host = config["host"]
+        TestImageAltText.islandora_username = config["username"]
+        TestImageAltText.islandora_password = config["password"]
+
+        TestImageAltText.current_dir = self.current_dir
+        TestImageAltText.create_config_file_path = self.create_config_file_path
+
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.update_cmd = ["./workbench", "--config", self.update_config_file_path]
+        self.temp_dir = "/tmp"
+
+        self.update_csv_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "alt_text_test",
+            "alt_text_test_update_replace.csv",
+        )
+
+    def test_create_with_alt_text(self):
+        requests.packages.urllib3.disable_warnings()
+        create_output = subprocess.check_output(self.create_cmd)
+        create_output = create_output.decode().strip()
+        create_lines = create_output.splitlines()
+        with open(self.update_csv_path, "w") as fh:
+            fh.write("node_id,image_alt_text\n")
+            for line in create_lines:
+                if "created at" in line:
+                    nid = line.rsplit("/", 1)[-1]
+                    nid = nid.strip(".")
+                    if workbench_utils.value_is_numeric(nid):
+                        TestImageAltText.nids.append(nid)
+                        fh.write(nid + ",A medieval cat\n")
+
+    def test_update_alt_text(self):
+        requests.packages.urllib3.disable_warnings()
+        create_output = subprocess.check_output(self.update_cmd)
+
+        media_list_url = (
+            f"{self.islandora_host}/node/{TestImageAltText.nids[0]}/media?_format=json"
+        )
+        media_list_response = requests.get(
+            media_list_url,
+            auth=(self.islandora_username, self.islandora_password),
+            verify=False,
+        )
+        media_list = json.loads(media_list_response.text)
+
+        for media in media_list:
+            if media["bundle"][0]["target_id"] == "image":
+                if "field_media_image" in media:
+                    alt_text = media["field_media_image"][0]["alt"]
+                    self.assertAlmostEqual(alt_text, "A medieval cat")
+
+    @classmethod
+    def tearDownClass(cls):
+        for nid in TestImageAltText.nids:
+            quick_delete_cmd = [
+                "./workbench",
+                "--config",
+                TestImageAltText.create_config_file_path,
+                "--quick_delete_node",
+                TestImageAltText.islandora_host + "/node/" + nid,
+            ]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        rollback_file_path = os.path.join(
+            TestImageAltText.current_dir,
+            "assets",
+            "alt_text_test",
+            "rollback.csv",
+        )
+        if os.path.exists(rollback_file_path):
+            os.remove(rollback_file_path)
+
+
 class TestCreateWithNonLatinText(unittest.TestCase):
 
     def setUp(self):
