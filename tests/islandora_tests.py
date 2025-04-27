@@ -558,6 +558,8 @@ class TestImageAltText(unittest.TestCase):
         requests.packages.urllib3.disable_warnings()
         create_output = subprocess.check_output(self.update_cmd)
 
+        time.sleep(5)
+
         media_list_url = (
             f"{self.islandora_host}/node/{TestImageAltText.nids[0]}/media?_format=json"
         )
