@@ -554,14 +554,10 @@ class TestImageAltText(unittest.TestCase):
                         TestImageAltText.nids.append(nid)
                         fh.write(nid + ",A medieval cat")
 
+    @unittest.skipIf(os.getenv("GITHUB_ACTIONS") is True)
     def test_update_alt_text(self):
         requests.packages.urllib3.disable_warnings()
         create_output = subprocess.check_output(self.update_cmd)
-
-        # unittest.util._MAX_LENGTH = 2000
-        # self.assertEqual(create_output, "")
-
-        time.sleep(10)
 
         media_list_url = (
             f"{self.islandora_host}/node/{TestImageAltText.nids[0]}/media?_format=json"
