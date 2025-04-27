@@ -555,7 +555,7 @@ class TestImageAltText(unittest.TestCase):
                         fh.write(nid + ",A medieval cat")
 
     @unittest.skipIf(
-        os.getenv("GITHUB_ACTIONS") is True,
+        "GITHUB_ACTIONS" in os.environ,
         "Passes when tests locally run but not in Github workflows.",
     )
     def test_update_alt_text(self):
