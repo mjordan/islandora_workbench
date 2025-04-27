@@ -17,7 +17,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Allows creation of new taxonomy terms from CSV field data, including complex and hierarchical terms
 * Allows the assignment of URL aliases
 * Allows creation of URL redirects
-* Allows adding alt text to images
+* Allows adding alt text to images (and updating exisiting alt text)
 * Supports transmission fixity auditing for media files
 * Cross platform (written in Python, tested on Linux, Mac, and Windows)
 * Well tested
