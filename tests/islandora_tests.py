@@ -558,6 +558,9 @@ class TestImageAltText(unittest.TestCase):
         requests.packages.urllib3.disable_warnings()
         create_output = subprocess.check_output(self.update_cmd)
 
+        unittest.util._MAX_LENGTH=2000
+        self.assertEqual(create_output, '')
+
         time.sleep(10)
 
         media_list_url = (
