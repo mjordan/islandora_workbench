@@ -2946,6 +2946,23 @@ def check_input(config, args):
                 )
                 print("Warning: " + message + ". See log for more information.")
 
+    if config["task"] == "create":
+        validate_alt_text_csv_data = get_csv_data(config)
+        row_counter = 0
+        for count, row in enumerate(validate_alt_text_csv_data, start=1):
+            row_counter += 1
+            if "image_alt_text" in row:
+                if len(row["image_alt_text"]) > config["max_image_alt_text_length"]:
+                    image_alt_text = row["image_alt_text"]
+                    max_alt_text_length = config["max_image_alt_text_length"]
+                    node_id = row[config["id_field"]]
+                    message = f"Alt text in input CSV row with node ID {node_id} is longer than the maximum configured alt text length ({max_alt_text_length})"
+                    logging.warning(
+                        message
+                        + f" (length is {len(image_alt_text)} characters). Adding the alt text in this row will be skipped."
+                    )
+                    print("Warning: " + message + ". See log for more information.")
+
     if config["task"] == "create_terms" or config["task"] == "update_terms":
         # Check that all required fields are present in the CSV.
         field_definitions = get_field_definitions(
