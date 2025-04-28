@@ -9592,6 +9592,7 @@ def write_rollback_config(config, path_to_rollback_csv_file):
             "password": password,
             "input_dir": config["input_dir"],
             "standalone_media_url": config["standalone_media_url"],
+            "secure_ssl_only": config["secure_ssl_only"],
             "input_csv": path_to_rollback_csv_file,
         },
         rollback_config_file,
