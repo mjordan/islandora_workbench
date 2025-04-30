@@ -1,0 +1,4 @@
+field_viewer_override_extensions:
+ - http://mozilla.github.io/pdf.js: ["pdf"]
+ - http://openseadragon.github.io: ["tiff", "tif"]
+ - made_up_term_name: ["foo", "bar"]

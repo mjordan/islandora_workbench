@@ -1,0 +1,4 @@
+field_viewer_override_models:
+ - http://mozilla.github.io/pdf.js: ["Digital document"]
+ - http://openseadragon.github.io: ["Image"]
+ - MyCustomDisplayTermName: ["MyModel term name", "My other custom model term name"]

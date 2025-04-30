@@ -656,6 +656,109 @@ class TestSetMediaType(unittest.TestCase):
         self.assertEqual(res, "barmediatype")
 
 
+class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
+
+    def setUp(self):
+        yaml = YAML()
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+
+        # Overrides by extension.
+        extensions_config_file_path = os.path.join(
+            dir_path,
+            "assets",
+            "get_field_viewer_override_from_condition_test",
+            "field_viewer_override_extensions.yml",
+        )
+        with open(extensions_config_file_path, "r") as f:
+            extensions_config_file_contents = f.read()
+        self.extensions_config_yaml = yaml.load(extensions_config_file_contents)
+
+        # Overrides by model.
+        models_config_file_path = os.path.join(
+            dir_path,
+            "assets",
+            "get_field_viewer_override_from_condition_test",
+            "field_viewer_override_models.yml",
+        )
+        with open(models_config_file_path, "r") as f:
+            models_config_file_contents = f.read()
+        self.models_config_yaml = yaml.load(models_config_file_contents)
+
+        # Overrides when both are present in config.
+        both_config_file_path = os.path.join(
+            dir_path,
+            "assets",
+            "get_field_viewer_override_from_condition_test",
+            "field_viewer_override_both.yml",
+        )
+        with open(both_config_file_path, "r") as f:
+            both_config_file_contents = f.read()
+        self.both_config_yaml = yaml.load(both_config_file_contents)
+
+    def test_overrides_by_extension(self):
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["file"] = "/tmp/foo.tif"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.extensions_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "http://openseadragon.github.io")
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["file"] = "/tmp/foo.bar"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.extensions_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "made_up_term_name")
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["field_viewer_override"] = "teststring"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.extensions_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "teststring")
+
+    def test_overrides_by_model(self):
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["field_model"] = "Digital document"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.models_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "http://mozilla.github.io/pdf.js")
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["field_model"] = "My other custom model term name"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.models_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "MyCustomDisplayTermName")
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["field_viewer_override"] = "MyCustomDisplayTermName"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.extensions_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "MyCustomDisplayTermName")
+
+    def test_overrides_both_present(self):
+        # If both configurations for overrides are present, the one for overriding by extension pertains.
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["field_model"] = "Digital document"
+        fake_csv_record["file"] = "/tmp/foo.tiff"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.both_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "http://openseadragon.github.io")
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["field_model"] = "Digital document"
+        fake_csv_record["file"] = "/tmp/foo.tiff"
+        fake_csv_record["field_viewer_override"] = "MyModel term name"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.both_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "MyModel term name")
+
+
 class TestGetCsvFromExcel(unittest.TestCase):
     """Note: this tests the extraction of CSV data from Excel only,
     not using an Excel file as an input CSV file. That is tested
