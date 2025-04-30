@@ -2603,6 +2603,18 @@ def check_input(config, args):
         print(message)
         logging.info(message)
 
+        if (
+            "field_viewer_override_extensions" in config
+            or "field_viewer_override_models" in config
+        ):
+            preprocessed_input_csv_file_path = (
+                os.path.join(config["temp_dir"], os.path.basename(config["input_csv"]))
+                + ".preprocessed"
+            )
+            message = f'You should review "{preprocessed_input_csv_file_path}" to ensure that values in the "field_viewer_override" column have been correctly assigned based on your configuration settings.'
+            print("Warning: " + message)
+            logging.warning(message)
+
     # Check that Drupal fields that are required are in the 'create' task CSV file.
     if config["task"] == "create":
         required_drupal_fields_node = get_required_bundle_fields(
