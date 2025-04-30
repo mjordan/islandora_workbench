@@ -6243,22 +6243,14 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         if field_name not in csv_reader_fieldnames_orig:
                             row[field_name] = field_value
 
-
-
-
             #  If configured to do so, populate field_viewer_override column.
             if config["task"] == "create" and (
                 "field_viewer_override_extensions" in config
                 or "field_viewer_override_models" in config
             ):
-                row["field_viewer_override"] = get_field_viewer_override_from_condition(config, row)
-                # if row["field_viewer_override"].strip() == "" or row["field_viewer_override"] is None:
-                    # row["field_viewer_override"] = (
-                        # get_field_viewer_override_from_condition(config, row)
-                    # )
-
-
-
+                row["field_viewer_override"] = get_field_viewer_override_from_condition(
+                    config, row
+                )
 
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith("#"):
@@ -10337,7 +10329,7 @@ def get_remote_file_extension(config, file_url):
 
 
 def get_field_viewer_override_from_condition(config, row):
-    """Derive value for the field_viewer_override CSV column."""
+    """Derive value for the field_viewer_override CSV column based on conditions defined in configuration."""
     """Parameters
         ----------
         config : dict
@@ -10347,32 +10339,39 @@ def get_field_viewer_override_from_condition(config, row):
             is a version of the parent's row so we can get $csv_value values for non-required fields.
         Returns
         -------
-        The URI for the term from the Islandora Display vocabulary.
+        The term ID, term name, or ther URI for the term from the Islandora Display vocabulary (whatever was
+        used in the configuration setting).
     """
-    print("DEBUG row", row)
-    return_value = None
+    # If the field_viewer_override column is populated, don't change it.
+    if "field_viewer_override" in row and len(row["field_viewer_override"].strip()) > 0:
+        return row["field_viewer_override"]
+
+    return_value = ""
     # Get the field_viewer_override value from the row's field_model value first.
-    # print("DEBUG", config["field_viewer_override_models"])
-    if "field_viewer_override_models" in config:
+    if (
+        "field_viewer_override_models" in config
+        and config["field_viewer_override_models"] is not None
+        and len(config["field_viewer_override_models"]) > 0
+    ):
         for override in config["field_viewer_override_models"]:
-            for display_uri, conditions in override.items():
-                # print("DEBUG", f"{display_uri} / {conditions}")
+            for islandora_display_term_id, conditions in override.items():
                 if row["field_model"] in conditions:
-                    return_value = display_uri
+                    return_value = islandora_display_term_id
 
-    """
-    field_viewer_override_models
-     - http://mozilla.github.io/pdf.js: ["Digital document"]
-     - http://openseadragon.github.io: ["Newspaper issue"]
-    """
-
-
-    # Then get field_viewer_override value from the row's field_model value, replacing the earlier display URI if necessary.
-    """
-    field_viewer_override_extensions
-    - http://mozilla.github.io/pdf.js: ["pdf"]
-    - http://openseadragon.github.io: ["tiff", "tif"]
-    """
+    # Then get field_viewer_override value from the extension in the row's "file" field, replacing the earlier assigned term ID/name/URI if necessary.
+    if (
+        "field_viewer_override_extensions" in config
+        and config["field_viewer_override_extensions"] is not None
+        and len(config["field_viewer_override_extensions"]) > 0
+    ):
+        if len(row["file"].strip()) == 0:
+            return row["field_viewer_override"]
+        _filename, extension = os.path.splitext(row["file"])
+        extension = extension.lstrip(".")
+        for override in config["field_viewer_override_extensions"]:
+            for islandora_display_term_id, conditions in override.items():
+                if extension in conditions:
+                    return_value = islandora_display_term_id
 
     return return_value
 
