@@ -6087,6 +6087,14 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         x for x in csv_reader_fieldnames if x not in config["ignore_csv_columns"]
     ]
 
+    #  If configured to do so, add "field_viewer_override" to output CSV so we can autopopulate the field_viewer_override column.
+    if config["task"] == "create" and (
+        "field_viewer_override_extensions" in config
+        or "field_viewer_override_models" in config
+    ):
+        if "field_viewer_override" not in csv_reader_fieldnames:
+            csv_reader_fieldnames.append("field_viewer_override")
+
     # CSV field templates and CSV value templates currently apply only to node CSV files, not vocabulary CSV files.
     tasks = ["create", "update"]
     if config["task"] in tasks and csv_file_target == "node_fields":
@@ -6234,6 +6242,23 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     for field_name, field_value in template.items():
                         if field_name not in csv_reader_fieldnames_orig:
                             row[field_name] = field_value
+
+
+
+
+            #  If configured to do so, populate field_viewer_override column.
+            if config["task"] == "create" and (
+                "field_viewer_override_extensions" in config
+                or "field_viewer_override_models" in config
+            ):
+                row["field_viewer_override"] = get_field_viewer_override_from_condition(config, row)
+                # if row["field_viewer_override"].strip() == "" or row["field_viewer_override"] is None:
+                    # row["field_viewer_override"] = (
+                        # get_field_viewer_override_from_condition(config, row)
+                    # )
+
+
+
 
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith("#"):
@@ -10309,6 +10334,47 @@ def get_remote_file_extension(config, file_url):
         sys.exit("Error: " + message)
 
     return extension_with_dot
+
+
+def get_field_viewer_override_from_condition(config, row):
+    """Derive value for the field_viewer_override CSV column."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        row: OrderedDict
+            A CSV row. For pages/children created from subdirectories, this
+            is a version of the parent's row so we can get $csv_value values for non-required fields.
+        Returns
+        -------
+        The URI for the term from the Islandora Display vocabulary.
+    """
+    print("DEBUG row", row)
+    return_value = None
+    # Get the field_viewer_override value from the row's field_model value first.
+    # print("DEBUG", config["field_viewer_override_models"])
+    if "field_viewer_override_models" in config:
+        for override in config["field_viewer_override_models"]:
+            for display_uri, conditions in override.items():
+                # print("DEBUG", f"{display_uri} / {conditions}")
+                if row["field_model"] in conditions:
+                    return_value = display_uri
+
+    """
+    field_viewer_override_models
+     - http://mozilla.github.io/pdf.js: ["Digital document"]
+     - http://openseadragon.github.io: ["Newspaper issue"]
+    """
+
+
+    # Then get field_viewer_override value from the row's field_model value, replacing the earlier display URI if necessary.
+    """
+    field_viewer_override_extensions
+    - http://mozilla.github.io/pdf.js: ["pdf"]
+    - http://openseadragon.github.io: ["tiff", "tif"]
+    """
+
+    return return_value
 
 
 def get_media_list(config, node_id, media_list=None):
