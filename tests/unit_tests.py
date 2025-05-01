@@ -697,14 +697,14 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
 
     def test_overrides_by_extension(self):
         fake_csv_record = collections.OrderedDict()
-        fake_csv_record["file"] = "/tmp/foo.tif"
+        fake_csv_record["file"] = "/tmp/foo.Tif"
         res = workbench_utils.get_field_viewer_override_from_condition(
             self.extensions_config_yaml, fake_csv_record
         )
         self.assertEqual(res, "http://openseadragon.github.io")
 
         fake_csv_record = collections.OrderedDict()
-        fake_csv_record["file"] = "/tmp/foo.bar"
+        fake_csv_record["file"] = "/tmp/foo.BAR"
         res = workbench_utils.get_field_viewer_override_from_condition(
             self.extensions_config_yaml, fake_csv_record
         )
@@ -726,6 +726,13 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
         self.assertEqual(res, "http://mozilla.github.io/pdf.js")
 
         fake_csv_record = collections.OrderedDict()
+        fake_csv_record["field_model"] = "DIGITAL DOCUMENT"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.models_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "http://mozilla.github.io/pdf.js")
+
+        fake_csv_record = collections.OrderedDict()
         fake_csv_record["field_model"] = "My other custom model term name"
         res = workbench_utils.get_field_viewer_override_from_condition(
             self.models_config_yaml, fake_csv_record
@@ -738,6 +745,13 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
             self.extensions_config_yaml, fake_csv_record
         )
         self.assertEqual(res, "MyCustomDisplayTermName")
+
+        fake_csv_record = collections.OrderedDict()
+        fake_csv_record["field_viewer_override"] = "MyCUSTOMDisplayTermName"
+        res = workbench_utils.get_field_viewer_override_from_condition(
+            self.extensions_config_yaml, fake_csv_record
+        )
+        self.assertEqual(res, "MyCUSTOMDisplayTermName")
 
     def test_overrides_both_present(self):
         # If both configurations for overrides are present, the one for overriding by extension pertains.

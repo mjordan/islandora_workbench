@@ -6258,15 +6258,6 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         if field_name not in csv_reader_fieldnames_orig:
                             row[field_name] = field_value
 
-            #  If configured to do so, populate field_viewer_override column.
-            if config["task"] == "create" and (
-                "field_viewer_override_extensions" in config
-                or "field_viewer_override_models" in config
-            ):
-                row["field_viewer_override"] = get_field_viewer_override_from_condition(
-                    config, row
-                )
-
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith("#"):
                 try:
@@ -6278,6 +6269,15 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     ):
                         row = apply_csv_value_templates(
                             config, "csv_value_templates", row
+                        )
+
+                    #  If configured to do so, populate field_viewer_override column.
+                    if config["task"] == "create" and (
+                        "field_viewer_override_extensions" in config
+                        or "field_viewer_override_models" in config
+                    ):
+                        row["field_viewer_override"] = (
+                            get_field_viewer_override_from_condition(config, row)
                         )
 
                     # Convert node URLs into node IDs.
@@ -10370,7 +10370,8 @@ def get_field_viewer_override_from_condition(config, row):
     ):
         for override in config["field_viewer_override_models"]:
             for islandora_display_term_id, conditions in override.items():
-                if row["field_model"] in conditions:
+                conditions = [x.lower() for x in conditions]
+                if row["field_model"].lower() in conditions:
                     # If multiple matches, last match pertains.
                     return_value = islandora_display_term_id
 
@@ -10385,13 +10386,15 @@ def get_field_viewer_override_from_condition(config, row):
 
         if row["file"].strip().startswith("http"):
             extension = get_remote_file_extension(config, row["file"])
-            extension = extension.lstrip(".")
+            extension = extension.lstrip(".").lower()
         else:
             _filename, extension = os.path.splitext(row["file"])
-            extension = extension.lstrip(".")
+            extension = extension.lstrip(".").lower()
 
         for override in config["field_viewer_override_extensions"]:
             for islandora_display_term_id, conditions in override.items():
+                conditions = [x.lower() for x in conditions]
+                conditions = [x.lstrip(".") for x in conditions]
                 if extension in conditions:
                     # If multiple matches, last match pertains.
                     return_value = islandora_display_term_id
