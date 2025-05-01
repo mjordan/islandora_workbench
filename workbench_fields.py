@@ -1018,10 +1018,17 @@ class EntityReferenceField:
                 term_name = get_term_name(config, subvalue["target_id"])
                 if vocab_id is not False and term_name is not False:
                     subvalues.append(vocab_id + ":" + term_name)
-            else:
+            elif subvalue["target_type"] == "taxonomy_term":
                 # Output term IDs.
                 if ping_term(config, subvalue["target_id"]) is True:
                     subvalues.append(str(subvalue["target_id"]))
+            elif subvalue["target_type"] == "node":
+                # Output node IDs.
+                if ping_node(config, subvalue["target_id"]) is True:
+                    subvalues.append(str(subvalue["target_id"]))
+            else:
+                # Fallback for any other entity type.
+                subvalues.append(str(subvalue["target_id"]))
 
         if len(subvalues) > 1:
             return config["subdelimiter"].join(subvalues)
