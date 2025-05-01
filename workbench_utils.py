@@ -10371,6 +10371,7 @@ def get_field_viewer_override_from_condition(config, row):
         for override in config["field_viewer_override_models"]:
             for islandora_display_term_id, conditions in override.items():
                 if row["field_model"] in conditions:
+                    # If multiple matches, last match pertains.
                     return_value = islandora_display_term_id
 
     # Then get field_viewer_override value from the extension in the row's "file" field, replacing the earlier assigned term ID/name/URI if necessary.
@@ -10381,11 +10382,18 @@ def get_field_viewer_override_from_condition(config, row):
     ):
         if len(row["file"].strip()) == 0:
             return row["field_viewer_override"]
-        _filename, extension = os.path.splitext(row["file"])
-        extension = extension.lstrip(".")
+
+        if row["file"].strip().startswith("http"):
+            extension = get_remote_file_extension(config, row["file"])
+            extension = extension.lstrip(".")
+        else:
+            _filename, extension = os.path.splitext(row["file"])
+            extension = extension.lstrip(".")
+
         for override in config["field_viewer_override_extensions"]:
             for islandora_display_term_id, conditions in override.items():
                 if extension in conditions:
+                    # If multiple matches, last match pertains.
                     return_value = islandora_display_term_id
 
     return return_value
