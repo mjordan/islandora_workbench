@@ -384,6 +384,18 @@ def create():
                     config, field_definitions, node, row, custom_field
                 )
 
+            # Typed relation with display name fields.
+            elif (
+                field_definitions[custom_field]["field_type"]
+                == "typed_relation_display_name"
+            ):
+                typed_relation_display_name_field = (
+                    workbench_fields.TypedRelationDisplayNameField()
+                )
+                node = typed_relation_display_name_field.create(
+                    config, field_definitions, node, row, custom_field
+                )
+
             # Geolocation fields.
             elif field_definitions[custom_field]["field_type"] == "geolocation":
                 geolocation_field = workbench_fields.GeolocationField()
@@ -871,6 +883,23 @@ def update():
             elif field_definitions[custom_field]["field_type"] == "typed_relation":
                 typed_relation_field = workbench_fields.TypedRelationField()
                 node = typed_relation_field.update(
+                    config,
+                    field_definitions,
+                    node,
+                    row,
+                    custom_field,
+                    node_field_values[custom_field],
+                )
+
+            # Typed relation display name fields (currently, only taxonomy term).
+            elif (
+                field_definitions[custom_field]["field_type"]
+                == "typed_relation_display_name"
+            ):
+                typed_relation_display_name_field = (
+                    workbench_fields.TypedRelationDisplayNameField()
+                )
+                node = typed_relation_display_name_field.update(
                     config,
                     field_definitions,
                     node,
@@ -2083,6 +2112,23 @@ def update_media() -> None:
                         media_field_values[custom_field],
                     )
 
+                # Typed relation display name fields (currently, only taxonomy term).
+                elif (
+                    field_definitions[custom_field]["field_type"]
+                    == "typed_relation_display_name"
+                ):
+                    typed_relation_display_name_field = (
+                        workbench_fields.TypedRelationDisplayNameField()
+                    )
+                    patch_request_json = typed_relation_display_name_field.update(
+                        config,
+                        field_definitions,
+                        patch_request_json,
+                        row,
+                        custom_field,
+                        media_field_values[custom_field],
+                    )
+
                 # Geolocation fields.
                 elif field_definitions[custom_field]["field_type"] == "geolocation":
                     geolocation_field = workbench_fields.GeolocationField()
@@ -3118,6 +3164,23 @@ def update_terms():
             elif field_definitions[custom_field]["field_type"] == "typed_relation":
                 typed_relation_field = workbench_fields.TypedRelationField()
                 term = typed_relation_field.update(
+                    config,
+                    field_definitions,
+                    term,
+                    row,
+                    custom_field,
+                    term_field_values[custom_field],
+                )
+
+            # Typed relation display name fields (currently, only taxonomy term).
+            elif (
+                field_definitions[custom_field]["field_type"]
+                == "typed_relation_display_name"
+            ):
+                typed_relation_display_name_field = (
+                    workbench_fields.TypedRelationDisplaynameField()
+                )
+                term = typed_relation_display_name_field.update(
                     config,
                     field_definitions,
                     term,
