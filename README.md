@@ -9,6 +9,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Allows creation of Islandora nodes and media, updating of nodes, and deletion of nodes and media from CSV files
 * Allows creation of paged/compound content
 * Can run from anywhere - it communicates with Drupal via HTTP interfaces
+* Can be built as a Docker container, and run from within that container
 * Provides robust data validation functionality
 * Supports a variety of Drupal entity field types (text, integer, term reference, typed relation, geolocation)
 * Can provide a CSV file template based on Drupal content type
