@@ -1054,6 +1054,7 @@ def ping_remote_file(config, url):
     headers = {"User-Agent": config["user_agent"]}
 
     sections = urllib.parse.urlparse(url)
+    headers = {"user-agent": config["user_agent"]}
     try:
         response = requests.head(
             url, allow_redirects=True, verify=config["secure_ssl_only"], headers=headers
@@ -10020,6 +10021,7 @@ def check_file_exists(config, filename):
     """
     # It's a remote file.
     if filename.startswith("http"):
+        headers = {"user-agent": config["user_agent"]}
         try:
             headers = {"User-Agent": config["user_agent"]}
 
@@ -11054,6 +11056,12 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     # Authority Link fields.
     elif field_definitions[field_name]["field_type"] == "authority_link":
         serialized_field = workbench_fields.AuthorityLinkField()
+        csv_field_data = serialized_field.serialize(
+            config, field_definitions, field_name, field_data
+        )
+    # Name fields.
+    elif field_definitions[field_name]["field_type"] == "name":
+        serialized_field = workbench_fields.NameField()
         csv_field_data = serialized_field.serialize(
             config, field_definitions, field_name, field_data
         )

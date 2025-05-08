@@ -405,6 +405,13 @@ def create():
                     config, field_definitions, node, row, custom_field
                 )
 
+            # Name fields.
+            elif field_definitions[custom_field]["field_type"] == "name":
+                name_field = workbench_fields.NameField()
+                node = name_field.create(
+                    config, field_definitions, node, row, custom_field
+                )
+
             # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
             else:
                 simple_field = workbench_fields.SimpleField()
@@ -907,6 +914,18 @@ def update():
             elif field_definitions[custom_field]["field_type"] == "authority_link":
                 link_field = workbench_fields.AuthorityLinkField()
                 node = link_field.update(
+                    config,
+                    field_definitions,
+                    node,
+                    row,
+                    custom_field,
+                    node_field_values[custom_field],
+                )
+
+            # Name fields.
+            elif field_definitions[custom_field]["field_type"] == "name":
+                name_field = workbench_fields.NameField()
+                node = name_field.update(
                     config,
                     field_definitions,
                     node,
@@ -2119,6 +2138,18 @@ def update_media() -> None:
                         media_field_values[custom_field],
                     )
 
+                # Name fields.
+                elif field_definitions[custom_field]["field_type"] == "name":
+                    link_field = workbench_fields.NameField()
+                    patch_request_json = link_field.update(
+                        config,
+                        field_definitions,
+                        patch_request_json,
+                        row,
+                        custom_field,
+                        media_field_values[custom_field],
+                    )
+
                 # For non-entity reference and non-typed relation fields (text, etc.).
                 else:
                     simple_field = workbench_fields.SimpleField()
@@ -3153,6 +3184,18 @@ def update_terms():
             # Authority Link fields.
             elif field_definitions[custom_field]["field_type"] == "authority_link":
                 link_field = workbench_fields.AuthorityLinkField()
+                term = link_field.update(
+                    config,
+                    field_definitions,
+                    term,
+                    row,
+                    custom_field,
+                    term_field_values[custom_field],
+                )
+
+            # Name fields.
+            elif field_definitions[custom_field]["field_type"] == "name":
+                link_field = workbench_fields.NameField()
                 term = link_field.update(
                     config,
                     field_definitions,
