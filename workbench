@@ -3608,7 +3608,7 @@ logging.info(message)
 
 check_drupal_core_version(config)
 
-if config["task"] in ["create", "update"]:
+if config["task"] in ["create", "update", "add_media"]:
     csv_subset_warning(config)
 
 if config["task"] in ["create", "create_from_files"]:

@@ -2607,9 +2607,8 @@ def check_input(config, args):
             "field_viewer_override_extensions" in config
             or "field_viewer_override_models" in config
         ):
-            preprocessed_input_csv_file_path = (
-                os.path.join(config["temp_dir"], os.path.basename(config["input_csv"]))
-                + ".preprocessed"
+            preprocessed_input_csv_file_path = get_preprocessed_input_csv_file_path(
+                config
             )
             message = f'You should review "{preprocessed_input_csv_file_path}" to ensure that values in the "field_viewer_override" column have been correctly assigned based on your configuration settings.'
             print("Warning: " + message)
@@ -5971,8 +5970,15 @@ def remove_media_and_file(config, media_id):
     return False
 
 
+def get_preprocessed_input_csv_file_path(config):
+    return (
+        os.path.join(config["temp_dir"], os.path.basename(config["input_csv"]))
+        + ".preprocessed"
+    )
+
+
 def get_csv_data(config, csv_file_target="node_fields", file_path=None):
-    """Read the input CSV data and prepare it for use in create, update, etc. tasks.
+    """Read the input CSV data and prepare it for use in all tasks that use an input CSV file.
 
     This function reads the source CSV file (or the CSV dump from Google Sheets or Excel),
     applies some prepocessing to each CSV record (specifically, it adds any CSV field
@@ -6031,10 +6037,8 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         logging.error(message)
         sys.exit(message)
 
-    preprocessed_csv_path = (
-        os.path.join(config["temp_dir"], os.path.basename(input_csv_path))
-        + ".preprocessed"
-    )
+    preprocessed_csv_path = get_preprocessed_input_csv_file_path(config)
+
     csv_writer_file_handle = open(
         preprocessed_csv_path, "w+", newline="", encoding="utf-8"
     )
@@ -6111,7 +6115,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             csv_reader_fieldnames.append("field_viewer_override")
 
     # CSV field templates and CSV value templates currently apply only to node CSV files, not vocabulary CSV files.
-    tasks = ["create", "update"]
+    tasks = ["create", "update", "add_media"]
     if config["task"] in tasks and csv_file_target == "node_fields":
         # If the config file contains CSV field templates, append them to the CSV data.
         # Make a copy of the column headers so we can skip adding templates to the new CSV
@@ -6177,8 +6181,8 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
 
-            csv_rows_to_process_allowed_tasks = ["create", "update"]
-            # Skip rows specified not in config['csv_rows_to_process'] if its value is a path to a file.
+            csv_rows_to_process_allowed_tasks = ["create", "update", "add_media"]
+            # If the value in config['csv_rows_to_process'] is a path to a file, skip rows not identified in the file.
             if (
                 "csv_rows_to_process" in config
                 and config["task"] in csv_rows_to_process_allowed_tasks
@@ -6197,21 +6201,23 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                 if row[config["id_field"]] not in ids_to_process:
                     continue
 
-            # Skip rows specified not in config['csv_rows_to_process'] if its value is a list.
+            # If the value of in config['csv_rows_to_process'] is a list, skip the rows not in the list.
             if (
                 "csv_rows_to_process" in config
                 and config["task"] in csv_rows_to_process_allowed_tasks
                 and len(config["csv_rows_to_process"]) > 0
                 and isinstance(config["csv_rows_to_process"], list)
             ):
+                config["csv_rows_to_process"] = [
+                    str(x) for x in config["csv_rows_to_process"]
+                ]
                 if row[config["id_field"]] not in config["csv_rows_to_process"]:
                     continue
 
-            # Apply the "is" and "isnot" csv_row_filters defined defined above.
-            # If the field/value combo is in the 'isnot' list, skip this row.
+            # Apply the "is" and "isnot" csv_row_filters defined defined above. If the field/value
+            # combo is in the 'isnot' list, skip this row.
             filter_out_this_csv_row = False
             if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
-                # filter_out_this_csv_row = False
                 if len(row_filters_isnot) > 0:
                     for filter_field, filter_values in row_filters_isnot.items():
                         if len(filter_values) > 0 and filter_field in row:
@@ -6230,7 +6236,6 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
 
                 # If the field/value combo is not in the 'is' list, skip this row.
                 if len(row_filters_is) > 0:
-                    # filter_out_this_csv_row = False
                     for filter_field, filter_values in row_filters_is.items():
                         if len(filter_values) > 0 and filter_field in row:
                             # Split out multiple field values to test each one.
@@ -11063,14 +11068,50 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
 
 
 def csv_subset_warning(config):
-    """Create a message indicating that the csv_start_row and csv_stop_row config
-    options are present and that a subset of the input CSV will be used.
-    """
-    csv_data = list(get_csv_data(config))
-    start_row_id = csv_data[0][config["id_field"]]
-    stop_row_id = csv_data[-1][config["id_field"]]
+    """Create a message indicating that a subset of the input CSV data will be used,
+    specific to the current configuration settings."""
+
+    preprocessed_input_csv_file_path = get_preprocessed_input_csv_file_path(config)
+    review_message = f'You should review "{preprocessed_input_csv_file_path}" to ensure the correct rows will be processed.'
+
+    if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
+        message = f'Using a subset of input CSV defined in your "csv_row_filters" setting. {review_message}'
+        logging.info(message)
+        return
+
+    if "csv_rows_to_process" in config:
+        if len(config["csv_rows_to_process"]) > 0 and isinstance(
+            config["csv_rows_to_process"], str
+        ):
+            path_to_ids_file = os.path.abspath(config["csv_rows_to_process"])
+            if os.path.exists(path_to_ids_file):
+                with open(path_to_ids_file) as fh:
+                    ids_to_process = fh.read().splitlines()
+                    ids_to_process = [x for x in ids_to_process if x]
+                message = (
+                    f'Using a subset of input CSV rows listed in "{path_to_ids_file}".'
+                )
+                print(message)
+                logging.info(message)
+                return
+            else:
+                message = f'File identified in the "csv_rows_to_process" config setting ({path_to_ids_file}) cannot be found.'
+                logging.error(message)
+                sys.exit("Error: " + message)
+
+        if len(config["csv_rows_to_process"]) > 0 and isinstance(
+            config["csv_rows_to_process"], list
+        ):
+            message = f'Using a subset of input CSV defined in your "csv_rows_to_process" setting. {review_message}'
+            print(message)
+            logging.info(message)
+            return
 
     if config["csv_start_row"] != 0 or config["csv_stop_row"] is not None:
+        csv_data = list(get_csv_data(config))
+        start_row_id = csv_data[0][config["id_field"]]
+        stop_row_id = csv_data[-1][config["id_field"]]
+
         message = f"Using a subset of the input CSV (will start at row {config['csv_start_row']} / row ID \"{start_row_id}\", stop at row {config['csv_stop_row']} / row ID \"{stop_row_id}\")."
         if config["csv_start_row"] != 0 and config["csv_stop_row"] is None:
             message = f"Using a subset of the input CSV (will start at row {config['csv_start_row']} / row ID {start_row_id})."
@@ -11078,6 +11119,7 @@ def csv_subset_warning(config):
             message = f"Using a subset of the input CSV (will stop at row {config['csv_stop_row']} / row ID {stop_row_id})."
         print(message)
         logging.info(message)
+        return
 
 
 def get_entity_reference_view_endpoints(config):
