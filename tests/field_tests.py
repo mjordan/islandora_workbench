@@ -5423,6 +5423,12 @@ class TestWorkbenchFieldFactory(unittest.TestCase):
             workbench_fields.WorkbenchFieldFactory.get_field_handler("media_track"),
             workbench_fields.MediaTrackField,
         )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler(
+                "linked_data_field"
+            ),
+            workbench_fields.LinkedDataField,
+        )
 
     def test_generate_default_field(self):
         self.assertIsInstance(
@@ -5437,6 +5443,782 @@ class TestWorkbenchFieldFactory(unittest.TestCase):
             workbench_fields.WorkbenchFieldFactory.get_field_handler("anything"),
             workbench_fields.SimpleField,
         )
+
+
+class TestLinkedDataField(unittest.TestCase):
+    """Linked Data Field is very similar to a Link field except it has a different JSON serialization"""
+
+    def setUp(self):
+        self.maxDiff = None
+        self.config = {"task": "create", "subdelimiter": "|", "id_field": "id"}
+
+    def test_create_with_link_field(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+        }
+
+        # Create a node with a link field of cardinality 1, no subdelimiters.
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 1,
+            }
+        }
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["id"] = "link_001"
+        csv_record["field_foo"] = "http://www.foo.com%%Foo's website"
+        node = field.create(
+            self.config, self.field_definitions, existing_node, csv_record, "field_foo"
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [{"url": "http://www.foo.com", "value": "Foo's website"}],
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a link field of cardinality 1, with subdelimiters.
+        with self.assertLogs() as message:
+            field = workbench_fields.LinkedDataField()
+            csv_record = collections.OrderedDict()
+            csv_record["id"] = "link_002"
+            csv_record["field_foo"] = (
+                "http://bar.com%%Bar website|http://biz.com%%Biz website"
+            )
+            node = field.create(
+                self.config,
+                self.field_definitions,
+                existing_node,
+                csv_record,
+                "field_foo",
+            )
+            expected_node = {
+                "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+                "title": [{"value": "Test node"}],
+                "status": [{"value": 1}],
+                "field_foo": [{"url": "http://bar.com", "value": "Bar website"}],
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(
+                str(message.output),
+                r"for record link_002 would exceed maximum number of allowed values \(1\)",
+            )
+
+        # Create a node with a link field of cardinality unlimited, no subdelimiters.
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": -1,
+            }
+        }
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["id"] = "link_003"
+        csv_record["field_foo"] = "http://geo003.net%%Geo 3 Blog"
+        node = field.create(
+            self.config, self.field_definitions, existing_node, csv_record, "field_foo"
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [{"url": "http://geo003.net", "value": "Geo 3 Blog"}],
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a link field of cardinality unlimited, with subdelimiters.
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": -1,
+            }
+        }
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["id"] = "link_004"
+        csv_record["field_foo"] = (
+            "http://link4-1.net%%Link 004-1 website|http://link4-1.net%%Link 004-1 website|http://link4-2.net%%Link 004-2 website"
+        )
+        node = field.create(
+            self.config, self.field_definitions, existing_node, csv_record, "field_foo"
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://link4-1.net", "value": "Link 004-1 website"},
+                {"url": "http://link4-2.net", "value": "Link 004-2 website"},
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a link field of cardinality limited, no subdelimiters.
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 2,
+            }
+        }
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["id"] = "link_005"
+        csv_record["field_foo"] = "http://link5.net%%Link 005 website"
+        node = field.create(
+            self.config, self.field_definitions, existing_node, csv_record, "field_foo"
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [{"url": "http://link5.net", "value": "Link 005 website"}],
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Create a node with a link field of cardinality limited, with subdelimiters.
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 2,
+            }
+        }
+
+        with self.assertLogs() as message:
+            field = workbench_fields.LinkedDataField()
+            csv_record = collections.OrderedDict()
+            csv_record["id"] = "link_006"
+            csv_record["field_foo"] = (
+                "http://link6-1.net%%Link 006-1 website|http://link6-2.net%%Link 006-2 website|http://link6-3.net%%Link 006-3 website"
+            )
+            node = field.create(
+                self.config,
+                self.field_definitions,
+                existing_node,
+                csv_record,
+                "field_foo",
+            )
+            expected_node = {
+                "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+                "title": [{"value": "Test node"}],
+                "status": [{"value": 1}],
+                "field_foo": [
+                    {"url": "http://link6-1.net", "value": "Link 006-1 website"},
+                    {"url": "http://link6-2.net", "value": "Link 006-2 website"},
+                ],
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(
+                str(message.output),
+                r"for record link_006 would exceed maximum number of allowed values \(2\)",
+            )
+
+    def test_link_field_update_replace_cardinality_1_no_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": {
+                "url": "http://update1original.net",
+                "value": "Update 1 original's website",
+            },
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 1,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "replace"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 100
+        csv_record["field_foo"] = (
+            "http://update1replacement.net%%Update 1 replacement's website"
+        )
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            [existing_node["field_foo"]],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {
+                    "url": "http://update1replacement.net",
+                    "value": "Update 1 replacement's website",
+                }
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_replace_cardinality_1_with_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": {
+                "url": "http://update2original.net",
+                "value": "Update 2 original's website",
+            },
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 1,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "replace"
+
+        with self.assertLogs() as message:
+            field = workbench_fields.LinkedDataField()
+            csv_record = collections.OrderedDict()
+            csv_record["node_id"] = 101
+            csv_record["field_foo"] = (
+                "http://update2replacement.net%%Update 2 replacement's website|http://update2-1replacement.net%%Update 2-1 replacement's website"
+            )
+            node = field.update(
+                self.config,
+                self.field_definitions,
+                existing_node,
+                csv_record,
+                "field_foo",
+                [existing_node["field_foo"]],
+            )
+            expected_node = {
+                "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+                "title": [{"value": "Test node"}],
+                "status": [{"value": 1}],
+                "field_foo": [
+                    {
+                        "url": "http://update2replacement.net",
+                        "value": "Update 2 replacement's website",
+                    }
+                ],
+            }
+            self.assertDictEqual(node, expected_node)
+            self.assertRegex(
+                str(message.output),
+                r"for record 101 would exceed maximum number of allowed values \(1\)",
+            )
+
+    def test_link_field_update_replace_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": {
+                "url": "http://updatenode102original.net",
+                "value": "Update node 102 original's website",
+            },
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": -1,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "replace"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 102
+        csv_record["field_foo"] = (
+            "http://updatenode102replace.net%%Update to node 102 replacement's website"
+        )
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            [existing_node["field_foo"]],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {
+                    "url": "http://updatenode102replace.net",
+                    "value": "Update to node 102 replacement's website",
+                }
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_replace_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": {
+                "url": "http://updatenode103original.net",
+                "value": "Update node 103 original's website",
+            },
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": -1,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "replace"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 103
+        csv_record["field_foo"] = (
+            "http://updatenode103replace1.net%%103 replacement 1|http://updatenode103replacement2.net%%103 replacement 2|http://updatenode103replacement2.net%%103 replacement 2"
+        )
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            [existing_node["field_foo"]],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {
+                    "url": "http://updatenode103replace1.net",
+                    "value": "103 replacement 1",
+                },
+                {
+                    "url": "http://updatenode103replacement2.net",
+                    "value": "103 replacement 2",
+                },
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_append_cardinality_unlimited_no_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [{"url": "http://node104o.net", "value": "Node 104 o"}],
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": -1,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "append"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 104
+        csv_record["field_foo"] = "http://node104a.net%%Node 104 a"
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            existing_node["field_foo"],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://node104o.net", "value": "Node 104 o"},
+                {"url": "http://node104a.net", "value": "Node 104 a"},
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_append_cardinality_unlimited_with_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://node105original.net", "value": "Node 105 original"}
+            ],
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": -1,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "append"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 105
+        csv_record["field_foo"] = (
+            "http://node105-1.net%%Node 105-1|http://node105-2.net%%Node 105-2|http://node105-2.net%%Node 105-2"
+        )
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            existing_node["field_foo"],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://node105original.net", "value": "Node 105 original"},
+                {"url": "http://node105-1.net", "value": "Node 105-1"},
+                {"url": "http://node105-2.net", "value": "Node 105-2"},
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_replace_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://106o-1.net", "value": "Node 106 1 original"},
+                {"url": "http://106o-2.net", "value": "Node 106 2 original"},
+            ],
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 2,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "replace"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 106
+        csv_record["field_foo"] = "http://node06r.net%%Node 106 replacement"
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            existing_node["field_foo"],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://node06r.net", "value": "Node 106 replacement"}
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_append_cardinality_limited_no_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://107o-1.net", "value": "Node 107 1 original"},
+                {"url": "http://107o-2.net", "value": "Node 107 2 original"},
+            ],
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 2,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "append"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 107
+        csv_record["field_foo"] = "http://node07a.net%%Node 107 appended"
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            existing_node["field_foo"],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://107o-1.net", "value": "Node 107 1 original"},
+                {"url": "http://107o-2.net", "value": "Node 107 2 original"},
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_append_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://108o-1.net", "value": "Node 108 1 original"},
+                {"url": "http://108o-2.net", "value": "Node 108 2 original"},
+            ],
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 2,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "append"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 108
+        csv_record["field_foo"] = (
+            "http://08a-1.net%%Node 108 1 appended|http://108a-2.net%%Node 108 2 appended|http://108a-2.net%%Node 108 2 appended"
+        )
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            existing_node["field_foo"],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://108o-1.net", "value": "Node 108 1 original"},
+                {"url": "http://108o-2.net", "value": "Node 108 2 original"},
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Violate cardinality.
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 3,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "append"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 109
+        csv_record["field_foo"] = (
+            "http://09a-1.net%%Node 109 1 appended|http://109a-2.net%%Node 109 2 appended"
+        )
+        node_field_values = [
+            {"url": "http://109o-1.net", "value": "Node 109 1 original"},
+            {"url": "http://109o-2.net", "value": "Node 109 2 original"},
+        ]
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            node_field_values,
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://109o-1.net", "value": "Node 109 1 original"},
+                {"url": "http://109o-2.net", "value": "Node 109 2 original"},
+                {"url": "http://09a-1.net", "value": "Node 109 1 appended"},
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_replace_cardinality_limited_with_subdelims(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://110o-1.net", "value": "Node 110 1 original"},
+                {"url": "http://110o-2.net", "value": "Node 110 2 original"},
+            ],
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 2,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "replace"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 110
+        csv_record["field_foo"] = (
+            "http://110r-1.net%%Node 110 1 replaced|http://110r-2.net%%Node 110 2 replaced|http://110r-2.net%%Node 110 2 replaced"
+        )
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            existing_node["field_foo"],
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://110r-1.net", "value": "Node 110 1 replaced"},
+                {"url": "http://110r-2.net", "value": "Node 110 2 replaced"},
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+        # Violate cardinality.
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 3,
+            }
+        }
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 111
+        csv_record["field_foo"] = (
+            "http://111r-1.net%%Node 111 1 replaced|http://111r-2.net%%Node 111 2 replaced|http://111r-2.net%%Node 111 2 replaced"
+        )
+        node_field_values = [
+            {"url": "http://111o-1.net", "value": "Node 111 1 original"},
+            {"url": "http://111o-2.net", "value": "Node 111 2 original"},
+        ]
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            node_field_values,
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://111r-1.net", "value": "Node 111 1 replaced"},
+                {"url": "http://111r-2.net", "value": "Node 111 2 replaced"},
+            ],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_update_delete_all(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [
+                {"url": "http://110o-1.net", "value": "Node 110 1 original"},
+                {"url": "http://110o-2.net", "value": "Node 110 2 original"},
+            ],
+        }
+
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 3,
+            }
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "delete"
+
+        field = workbench_fields.LinkedDataField()
+        csv_record = collections.OrderedDict()
+        csv_record["node_id"] = 112
+        csv_record["field_foo"] = (
+            "http://112r-1.net%%Node 112 1 replaced|http://112r-2.net%%Node 112 2 replaced"
+        )
+        node_field_values = [
+            {"url": "http://112o-1.net", "value": "Node 112 1 original"},
+            {"url": "http://112o-2.net", "value": "Node 112 2 original"},
+        ]
+        node = field.update(
+            self.config,
+            self.field_definitions,
+            existing_node,
+            csv_record,
+            "field_foo",
+            node_field_values,
+        )
+        expected_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+            "field_foo": [],
+        }
+        self.assertDictEqual(node, expected_node)
+
+    def test_link_field_dudupe_values(self):
+        # Split values from CSV.
+        input_1 = [
+            "http://example.net%%Example",
+            "http://foo.net%%Foo",
+            "http://example.net%%Example",
+            "http://example.net%%Example",
+        ]
+        field = workbench_fields.LinkedDataField()
+        output = field.dedupe_values(input_1)
+        expected = ["http://example.net%%Example", "http://foo.net%%Foo"]
+        self.assertEqual(output, expected)
+
+        # Dictionaries.
+        input_2 = [
+            {"url": "http://example.net", "value": "Example"},
+            {"url": "http://foo.net", "value": "Foo"},
+            {"url": "http://example.net", "value": "Example"},
+        ]
+        output = field.dedupe_values(input_2)
+        expected = [
+            {"url": "http://example.net", "value": "Example"},
+            {"url": "http://foo.net", "value": "Foo"},
+        ]
+        self.assertEqual(output, expected)
 
 
 if __name__ == "__main__":
