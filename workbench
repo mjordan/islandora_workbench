@@ -358,59 +358,10 @@ def create():
             # Assemble Drupal field structures from CSV data. If new field types are added to
             # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
-            # Entity reference fields (taxonomy_term and node).
-            if field_definitions[custom_field]["field_type"] == "entity_reference":
-                entity_reference_field = workbench_fields.EntityReferenceField()
-                node = entity_reference_field.create(
-                    config, field_definitions, node, row, custom_field
-                )
-
-            # Entity reference revision fields (paragraphs).
-            elif (
+            field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
                 field_definitions[custom_field]["field_type"]
-                == "entity_reference_revisions"
-            ):
-                entity_reference_revisions_field = (
-                    workbench_fields.EntityReferenceRevisionsField()
-                )
-                node = entity_reference_revisions_field.create(
-                    config, field_definitions, node, row, custom_field
-                )
-
-            # Typed relation fields.
-            elif field_definitions[custom_field]["field_type"] == "typed_relation":
-                typed_relation_field = workbench_fields.TypedRelationField()
-                node = typed_relation_field.create(
-                    config, field_definitions, node, row, custom_field
-                )
-
-            # Geolocation fields.
-            elif field_definitions[custom_field]["field_type"] == "geolocation":
-                geolocation_field = workbench_fields.GeolocationField()
-                node = geolocation_field.create(
-                    config, field_definitions, node, row, custom_field
-                )
-
-            # Link fields.
-            elif field_definitions[custom_field]["field_type"] == "link":
-                link_field = workbench_fields.LinkField()
-                node = link_field.create(
-                    config, field_definitions, node, row, custom_field
-                )
-
-            # Authority Link fields.
-            elif field_definitions[custom_field]["field_type"] == "authority_link":
-                link_field = workbench_fields.AuthorityLinkField()
-                node = link_field.create(
-                    config, field_definitions, node, row, custom_field
-                )
-
-            # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
-            else:
-                simple_field = workbench_fields.SimpleField()
-                node = simple_field.create(
-                    config, field_definitions, node, row, custom_field
-                )
+            )
+            node = field.create(config, field_definitions, node, row, custom_field)
 
             # If the user has configured Workbench to not query the CSV ID to node ID map,
             # use the in-session node_ids list to track and assign parent node IDs.
@@ -838,94 +789,17 @@ def update():
             # Assemble Drupal field structures from CSV data. If new field types are added to
             # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
-            # Entity reference fields (taxonomy term and node).
-            if field_definitions[custom_field]["field_type"] == "entity_reference":
-                entity_reference_field = workbench_fields.EntityReferenceField()
-                node = entity_reference_field.update(
-                    config,
-                    field_definitions,
-                    node,
-                    row,
-                    custom_field,
-                    node_field_values[custom_field],
-                )
-
-            # Entity reference revisions fields (paragraphs).
-            elif (
+            field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
                 field_definitions[custom_field]["field_type"]
-                == "entity_reference_revisions"
-            ):
-                entity_reference_revisions_field = (
-                    workbench_fields.EntityReferenceRevisionsField()
-                )
-                node = entity_reference_revisions_field.update(
-                    config,
-                    field_definitions,
-                    node,
-                    row,
-                    custom_field,
-                    node_field_values[custom_field],
-                )
-
-            # Typed relation fields (currently, only taxonomy term).
-            elif field_definitions[custom_field]["field_type"] == "typed_relation":
-                typed_relation_field = workbench_fields.TypedRelationField()
-                node = typed_relation_field.update(
-                    config,
-                    field_definitions,
-                    node,
-                    row,
-                    custom_field,
-                    node_field_values[custom_field],
-                )
-
-            # Geolocation fields.
-            elif field_definitions[custom_field]["field_type"] == "geolocation":
-                geolocation_field = workbench_fields.GeolocationField()
-                node = geolocation_field.update(
-                    config,
-                    field_definitions,
-                    node,
-                    row,
-                    custom_field,
-                    node_field_values[custom_field],
-                )
-
-            # Link fields.
-            elif field_definitions[custom_field]["field_type"] == "link":
-                link_field = workbench_fields.LinkField()
-                node = link_field.update(
-                    config,
-                    field_definitions,
-                    node,
-                    row,
-                    custom_field,
-                    node_field_values[custom_field],
-                )
-
-            # Authority Link fields.
-            elif field_definitions[custom_field]["field_type"] == "authority_link":
-                link_field = workbench_fields.AuthorityLinkField()
-                node = link_field.update(
-                    config,
-                    field_definitions,
-                    node,
-                    row,
-                    custom_field,
-                    node_field_values[custom_field],
-                )
-
-            # For non-entity reference and non-typed relation fields (text, etc.).
-            else:
-                simple_field = workbench_fields.SimpleField()
-                node = simple_field.update(
-                    config,
-                    field_definitions,
-                    node,
-                    row,
-                    custom_field,
-                    node_field_values[custom_field],
-                )
+            )
+            node = field.update(
+                config,
+                field_definitions,
+                node,
+                row,
+                custom_field,
+                node_field_values[custom_field],
+            )
 
         if node_has_all_fields is True:
             if value_is_numeric(row["node_id"]) is False:
@@ -2042,94 +1916,17 @@ def update_media() -> None:
                 # Assemble Drupal field structures from CSV data. If new field types are added to
                 # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
-                # Entity reference fields (taxonomy term and node).
-                if field_definitions[custom_field]["field_type"] == "entity_reference":
-                    entity_reference_field = workbench_fields.EntityReferenceField()
-                    patch_request_json = entity_reference_field.update(
-                        config,
-                        field_definitions,
-                        patch_request_json,
-                        row,
-                        custom_field,
-                        media_field_values[custom_field],
-                    )
-
-                # Entity reference revisions fields (paragraphs).
-                elif (
+                field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
                     field_definitions[custom_field]["field_type"]
-                    == "entity_reference_revisions"
-                ):
-                    entity_reference_revisions_field = (
-                        workbench_fields.EntityReferenceRevisionsField()
-                    )
-                    patch_request_json = entity_reference_revisions_field.update(
-                        config,
-                        field_definitions,
-                        patch_request_json,
-                        row,
-                        custom_field,
-                        media_field_values[custom_field],
-                    )
-
-                # Typed relation fields (currently, only taxonomy term).
-                elif field_definitions[custom_field]["field_type"] == "typed_relation":
-                    typed_relation_field = workbench_fields.TypedRelationField()
-                    patch_request_json = typed_relation_field.update(
-                        config,
-                        field_definitions,
-                        patch_request_json,
-                        row,
-                        custom_field,
-                        media_field_values[custom_field],
-                    )
-
-                # Geolocation fields.
-                elif field_definitions[custom_field]["field_type"] == "geolocation":
-                    geolocation_field = workbench_fields.GeolocationField()
-                    patch_request_json = geolocation_field.update(
-                        config,
-                        field_definitions,
-                        patch_request_json,
-                        row,
-                        custom_field,
-                        media_field_values[custom_field],
-                    )
-
-                # Link fields.
-                elif field_definitions[custom_field]["field_type"] == "link":
-                    link_field = workbench_fields.LinkField()
-                    patch_request_json = link_field.update(
-                        config,
-                        field_definitions,
-                        patch_request_json,
-                        row,
-                        custom_field,
-                        media_field_values[custom_field],
-                    )
-
-                # Authority Link fields.
-                elif field_definitions[custom_field]["field_type"] == "authority_link":
-                    link_field = workbench_fields.AuthorityLinkField()
-                    patch_request_json = link_field.update(
-                        config,
-                        field_definitions,
-                        patch_request_json,
-                        row,
-                        custom_field,
-                        media_field_values[custom_field],
-                    )
-
-                # For non-entity reference and non-typed relation fields (text, etc.).
-                else:
-                    simple_field = workbench_fields.SimpleField()
-                    patch_request_json = simple_field.update(
-                        config,
-                        field_definitions,
-                        patch_request_json,
-                        row,
-                        custom_field,
-                        media_field_values[custom_field],
-                    )
+                )
+                patch_request_json = field.update(
+                    config,
+                    field_definitions,
+                    patch_request_json,
+                    row,
+                    custom_field,
+                    media_field_values[custom_field],
+                )
 
         # Before the patch requests, we delete the existing media/track files if the user wants to replace them.
         # Delete the old media file.
@@ -3085,94 +2882,17 @@ def update_terms():
             # Assemble Drupal field structures from CSV data. If new field types are added to
             # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
-            # Entity reference fields (taxonomy term and node).
-            if field_definitions[custom_field]["field_type"] == "entity_reference":
-                entity_reference_field = workbench_fields.EntityReferenceField()
-                term = entity_reference_field.update(
-                    config,
-                    field_definitions,
-                    term,
-                    row,
-                    custom_field,
-                    term_field_values[custom_field],
-                )
-
-            # Entity reference revision fields (paragraphs).
-            elif (
+            field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
                 field_definitions[custom_field]["field_type"]
-                == "entity_reference_revisions"
-            ):
-                entity_reference_revisions_field = (
-                    workbench_fields.EntityReferenceRevisionsField()
-                )
-                term = entity_reference_revisions_field.update(
-                    config,
-                    field_definitions,
-                    term,
-                    row,
-                    custom_field,
-                    term_field_values[custom_field],
-                )
-
-            # Typed relation fields (currently, only taxonomy term).
-            elif field_definitions[custom_field]["field_type"] == "typed_relation":
-                typed_relation_field = workbench_fields.TypedRelationField()
-                term = typed_relation_field.update(
-                    config,
-                    field_definitions,
-                    term,
-                    row,
-                    custom_field,
-                    term_field_values[custom_field],
-                )
-
-            # Geolocation fields.
-            elif field_definitions[custom_field]["field_type"] == "geolocation":
-                geolocation_field = workbench_fields.GeolocationField()
-                term = geolocation_field.update(
-                    config,
-                    field_definitions,
-                    term,
-                    row,
-                    custom_field,
-                    term_field_values[custom_field],
-                )
-
-            # Link fields.
-            elif field_definitions[custom_field]["field_type"] == "link":
-                link_field = workbench_fields.LinkField()
-                term = link_field.update(
-                    config,
-                    field_definitions,
-                    term,
-                    row,
-                    custom_field,
-                    term_field_values[custom_field],
-                )
-
-            # Authority Link fields.
-            elif field_definitions[custom_field]["field_type"] == "authority_link":
-                link_field = workbench_fields.AuthorityLinkField()
-                term = link_field.update(
-                    config,
-                    field_definitions,
-                    term,
-                    row,
-                    custom_field,
-                    term_field_values[custom_field],
-                )
-
-            # For non-entity reference and non-typed relation fields (text, etc.).
-            else:
-                simple_field = workbench_fields.SimpleField()
-                term = simple_field.update(
-                    config,
-                    field_definitions,
-                    term,
-                    row,
-                    custom_field,
-                    term_field_values[custom_field],
-                )
+            )
+            term = field.update(
+                config,
+                field_definitions,
+                term,
+                row,
+                custom_field,
+                term_field_values[custom_field],
+            )
 
         if term_has_all_fields is True:
             term_endpoint = (

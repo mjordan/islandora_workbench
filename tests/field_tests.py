@@ -5263,5 +5263,181 @@ class TestTypedRelationField(unittest.TestCase):
         self.assertEqual(output, expected)
 
 
+class TestWorkbenchFields(unittest.TestCase):
+    """"""
+
+    def setUp(self):
+        self.config = {
+            "task": "create",
+            "subdelimiter": "|",
+            "id_field": "id",
+            "columns_with_term_names": [],
+        }
+
+    def test_create(self):
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Test node"}],
+            "status": [{"value": 1}],
+        }
+
+        # Create a node with a simple field of cardinality 1, no subdelimiters.
+        self.field_definitions = {
+            "field_foo": {
+                "cardinality": 1,
+                "formatted_text": False,
+                "field_type": "text",
+            }
+        }
+
+        field = workbench_fields.WorkbenchField()
+        csv_record = collections.OrderedDict()
+        csv_record["id"] = "simple_001"
+        csv_record["field_foo"] = "Field foo value"
+        with self.assertRaises(Exception):
+            field.create(
+                self.config,
+                self.field_definitions,
+                existing_node,
+                csv_record,
+                "field_foo",
+            )
+
+    def test_update(self):
+        # Update the node title, first with an 'update_mode' of replace.
+        existing_node = {
+            "type": [{"target_id": "islandora_object", "target_type": "node_type"}],
+            "title": [{"value": "Old title - replace."}],
+            "status": [{"value": 1}],
+        }
+
+        self.field_definitions = {
+            "title": {"cardinality": 1, "formatted_text": False, "field_type": "text"}
+        }
+
+        self.config["task"] = "update"
+        self.config["update_mode"] = "replace"
+
+        field = workbench_fields.WorkbenchField()
+        csv_record = collections.OrderedDict()
+        csv_record["title"] = "New title - replace."
+        csv_record["node_id"] = 1
+        with self.assertRaises(Exception):
+            field.update(
+                self.config,
+                self.field_definitions,
+                existing_node,
+                csv_record,
+                "title",
+                existing_node["title"],
+            )
+
+    def test_dudupe_values(self):
+        # First, split values from CSV.
+        input = [
+            "first value",
+            "first value",
+            "second value",
+            "second value",
+            "third value",
+        ]
+        field = workbench_fields.WorkbenchField()
+        output = field.dedupe_values(input)
+        self.assertEqual(output, ["first value", "second value", "third value"])
+
+        # Then fully formed dictionaries.
+        input = [
+            {"value": "First string"},
+            {"value": "Second string"},
+            {"value": "First string"},
+            {"value": "Second string"},
+            {"value": "Third string"},
+        ]
+        field = workbench_fields.SimpleField()
+        output = field.dedupe_values(input)
+        self.assertEqual(
+            output,
+            [
+                {"value": "First string"},
+                {"value": "Second string"},
+                {"value": "Third string"},
+            ],
+        )
+
+    def test_remove_invalid_values(self):
+
+        field = workbench_fields.WorkbenchField()
+
+        with self.assertRaises(Exception):
+            field.remove_invalid_values(
+                self.config,
+                self.field_definitions,
+                "field_foo",
+                ["Value1", "Value2", "Value3", "Value1"],
+            )
+
+    def test_serialize(self):
+
+        field = workbench_fields.WorkbenchField()
+
+        with self.assertRaises(Exception):
+            field.serialize(
+                self.config,
+                self.field_definitions,
+                "field_foo",
+                '{ "value": "Field foo value" }',
+            )
+
+
+class TestWorkbenchFieldFactory(unittest.TestCase):
+    def test_generate_expected_fields(self):
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("link"),
+            workbench_fields.LinkField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("typed_relation"),
+            workbench_fields.TypedRelationField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler(
+                "entity_reference"
+            ),
+            workbench_fields.EntityReferenceField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler(
+                "entity_reference_revisions"
+            ),
+            workbench_fields.EntityReferenceRevisionsField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("geolocation"),
+            workbench_fields.GeolocationField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("authority_link"),
+            workbench_fields.AuthorityLinkField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("media_track"),
+            workbench_fields.MediaTrackField,
+        )
+
+    def test_generate_default_field(self):
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("default"),
+            workbench_fields.SimpleField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler(""),
+            workbench_fields.SimpleField,
+        )
+        self.assertIsInstance(
+            workbench_fields.WorkbenchFieldFactory.get_field_handler("anything"),
+            workbench_fields.SimpleField,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

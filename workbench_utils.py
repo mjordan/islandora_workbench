@@ -6970,87 +6970,16 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
             # Assemble Drupal field structures from CSV data. If new field types are added to
             # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
-            # Entity reference fields (taxonomy_term and node)
-            if vocab_field_definitions[field_name]["field_type"] == "entity_reference":
-                entity_reference_field = workbench_fields.EntityReferenceField()
-                term_field_data = entity_reference_field.create(
-                    config,
-                    vocab_field_definitions,
-                    term_field_data,
-                    term_csv_row,
-                    field_name,
-                )
-
-            # Entity reference revision fields (paragraphs).
-            elif (
+            field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
                 vocab_field_definitions[field_name]["field_type"]
-                == "entity_reference_revisions"
-            ):
-                entity_reference_revisions_field = (
-                    workbench_fields.EntityReferenceRevisionsField()
-                )
-                term_field_data = entity_reference_revisions_field.create(
-                    config,
-                    vocab_field_definitions,
-                    term_field_data,
-                    term_csv_row,
-                    field_name,
-                )
-
-            # Typed relation fields.
-            elif vocab_field_definitions[field_name]["field_type"] == "typed_relation":
-                typed_relation_field = workbench_fields.TypedRelationField()
-                term_field_data = typed_relation_field.create(
-                    config,
-                    vocab_field_definitions,
-                    term_field_data,
-                    term_csv_row,
-                    field_name,
-                )
-
-            # Geolocation fields.
-            elif vocab_field_definitions[field_name]["field_type"] == "geolocation":
-                geolocation_field = workbench_fields.GeolocationField()
-                term_field_data = geolocation_field.create(
-                    config,
-                    vocab_field_definitions,
-                    term_field_data,
-                    term_csv_row,
-                    field_name,
-                )
-
-            # Link fields.
-            elif vocab_field_definitions[field_name]["field_type"] == "link":
-                link_field = workbench_fields.LinkField()
-                term_field_data = link_field.create(
-                    config,
-                    vocab_field_definitions,
-                    term_field_data,
-                    term_csv_row,
-                    field_name,
-                )
-
-            # Authority Link fields.
-            elif vocab_field_definitions[field_name]["field_type"] == "authority_link":
-                authority_link_field = workbench_fields.AuthorityLinkField()
-                term_field_data = authority_link_field.create(
-                    config,
-                    vocab_field_definitions,
-                    term_field_data,
-                    term_csv_row,
-                    field_name,
-                )
-
-            # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
-            else:
-                simple_field = workbench_fields.SimpleField()
-                term_field_data = simple_field.create(
-                    config,
-                    vocab_field_definitions,
-                    term_field_data,
-                    term_csv_row,
-                    field_name,
-                )
+            )
+            term_field_data = field.create(
+                config,
+                vocab_field_definitions,
+                term_field_data,
+                term_csv_row,
+                field_name,
+            )
 
         return term_field_data
 
@@ -9193,78 +9122,16 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 # Assemble Drupal field structures from CSV data. If new field types are added to
                 # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
-                # Entity reference fields (taxonomy_term and node).
-                if (
+                field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
                     field_definitions[inherited_field]["field_type"]
-                    == "entity_reference"
-                ):
-                    entity_reference_field = workbench_fields.EntityReferenceField()
-                    node_json = entity_reference_field.create(
-                        config,
-                        field_definitions,
-                        node_json,
-                        csv_row_to_apply_to_paged_children,
-                        inherited_field,
-                    )
-
-                # Typed relation fields.
-                elif (
-                    field_definitions[inherited_field]["field_type"] == "typed_relation"
-                ):
-                    typed_relation_field = workbench_fields.TypedRelationField()
-                    node_json = typed_relation_field.create(
-                        config,
-                        field_definitions,
-                        node_json,
-                        csv_row_to_apply_to_paged_children,
-                        inherited_field,
-                    )
-
-                # Geolocation fields.
-                elif field_definitions[inherited_field]["field_type"] == "geolocation":
-                    geolocation_field = workbench_fields.GeolocationField()
-                    node_json = geolocation_field.create(
-                        config,
-                        field_definitions,
-                        node_json,
-                        csv_row_to_apply_to_paged_children,
-                        inherited_field,
-                    )
-
-                # Link fields.
-                elif field_definitions[inherited_field]["field_type"] == "link":
-                    link_field = workbench_fields.LinkField()
-                    node_json = link_field.create(
-                        config,
-                        field_definitions,
-                        node_json,
-                        csv_row_to_apply_to_paged_children,
-                        inherited_field,
-                    )
-
-                # Authority Link fields.
-                elif (
-                    field_definitions[inherited_field]["field_type"] == "authority_link"
-                ):
-                    link_field = workbench_fields.AuthorityLinkField()
-                    node_json = link_field.create(
-                        config,
-                        field_definitions,
-                        node_json,
-                        csv_row_to_apply_to_paged_children,
-                        inherited_field,
-                    )
-
-                # For non-entity reference and non-typed relation fields (text, integer, boolean etc.).
-                else:
-                    simple_field = workbench_fields.SimpleField()
-                    node_json = simple_field.create(
-                        config,
-                        field_definitions,
-                        node_json,
-                        csv_row_to_apply_to_paged_children,
-                        inherited_field,
-                    )
+                )
+                node_json = field.create(
+                    config,
+                    field_definitions,
+                    node_json,
+                    csv_row_to_apply_to_paged_children,
+                    inherited_field,
+                )
 
         node_headers = {"Content-Type": "application/json"}
         node_endpoint = "/node?_format=json"
@@ -11021,48 +10888,12 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     # Assemble CSV output Drupal field data. If new field types are added to
     # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
-    # Entity reference fields (taxonomy term and node).
-    if field_definitions[field_name]["field_type"] == "entity_reference":
-        serialized_field = workbench_fields.EntityReferenceField()
-        csv_field_data = serialized_field.serialize(
-            config, field_definitions, field_name, field_data
-        )
-    # Entity reference revision fields (mostly paragraphs).
-    elif field_definitions[field_name]["field_type"] == "entity_reference_revisions":
-        serialized_field = workbench_fields.EntityReferenceRevisionsField()
-        csv_field_data = serialized_field.serialize(
-            config, field_definitions, field_name, field_data
-        )
-    # Typed relation fields (currently, only taxonomy term)
-    elif field_definitions[field_name]["field_type"] == "typed_relation":
-        serialized_field = workbench_fields.TypedRelationField()
-        csv_field_data = serialized_field.serialize(
-            config, field_definitions, field_name, field_data
-        )
-    # Geolocation fields.
-    elif field_definitions[field_name]["field_type"] == "geolocation":
-        serialized_field = workbench_fields.GeolocationField()
-        csv_field_data = serialized_field.serialize(
-            config, field_definitions, field_name, field_data
-        )
-    # Link fields.
-    elif field_definitions[field_name]["field_type"] == "link":
-        serialized_field = workbench_fields.LinkField()
-        csv_field_data = serialized_field.serialize(
-            config, field_definitions, field_name, field_data
-        )
-    # Authority Link fields.
-    elif field_definitions[field_name]["field_type"] == "authority_link":
-        serialized_field = workbench_fields.AuthorityLinkField()
-        csv_field_data = serialized_field.serialize(
-            config, field_definitions, field_name, field_data
-        )
-    # Simple fields.
-    else:
-        serialized_field = workbench_fields.SimpleField()
-        csv_field_data = serialized_field.serialize(
-            config, field_definitions, field_name, field_data
-        )
+    serialized_field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
+        field_definitions[field_name]["field_type"]
+    )
+    csv_field_data = serialized_field.serialize(
+        config, field_definitions, field_name, field_data
+    )
 
     return csv_field_data
 
