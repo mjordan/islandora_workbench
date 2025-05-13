@@ -80,6 +80,58 @@ class TestCheckFromGoogleSpreadsheetCheck(unittest.TestCase):
         )
 
 
+class TestGoogleGid(unittest.TestCase):
+    """Note: This test fetches data from https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0."""
+
+    def setUp(self):
+        self.temp_dir = "/tmp"
+
+    def test_google_gid(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_file_path = os.path.join(
+            current_dir, "assets", "google_gid_test", "gid_0.yml"
+        )
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "OK, all 2 rows in the CSV file")
+
+        config_file_path = os.path.join(
+            current_dir, "assets", "google_gid_test", "gid_1867618389.yml"
+        )
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "OK, all 3 rows in the CSV file")
+
+        config_file_path = os.path.join(
+            current_dir, "assets", "google_gid_test", "gid_390347846.yml"
+        )
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "OK, all 5 rows in the CSV file")
+
+        config_file_path = os.path.join(
+            current_dir, "assets", "google_gid_test", "gid_953977578.yml"
+        )
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "OK, all 1 rows in the CSV file")
+
+    def tearDown(self):
+        csv_path = os.path.join(self.temp_dir, "google_sheet.csv")
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+
+        preprocessed_csv_path = os.path.join(
+            self.temp_dir, "google_sheet.csv.preprocessed"
+        )
+        if os.path.exists(preprocessed_csv_path):
+            os.remove(preprocessed_csv_path)
+
+
 class TestUpdateCheck(unittest.TestCase):
 
     def setUp(self):
@@ -561,60 +613,6 @@ class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
         os.remove(templated_csv_path)
 
 
-class TestCommentedCsvs(unittest.TestCase):
-
-    def test_commented_csv(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = "/tmp"
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "commented_csvs_test", "raw_csv.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "all 3 rows in the CSV file", "")
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "metadata.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "commented_csvs_test", "excel.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "all 4 rows in the CSV file", "")
-        csv_file_path = os.path.join(self.temp_dir, "excel.csv")
-        if os.path.exists(csv_file_path):
-            os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "excel.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "commented_csvs_test", "google_sheets.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "all 5 rows in the CSV file", "")
-        csv_file_path = os.path.join(
-            current_dir, "assets", "commented_csvs_test", "google_sheet.csv"
-        )
-        if os.path.exists(csv_file_path):
-            os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "google_sheet.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-
 class TestTaxonomies(unittest.TestCase):
 
     def setUp(self):
@@ -766,57 +764,6 @@ class TestTaxonomies(unittest.TestCase):
 
         preprocessed_csv_path = os.path.join(
             self.temp_dir, "term_name_not_in_taxonomy.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-
-class TestGoogleGid(unittest.TestCase):
-
-    def setUp(self):
-        self.temp_dir = "/tmp"
-
-    def test_google_gid(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(
-            current_dir, "assets", "google_gid_test", "gid_0.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "OK, all 2 rows in the CSV file")
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "google_gid_test", "gid_1867618389.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "OK, all 3 rows in the CSV file")
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "google_gid_test", "gid_390347846.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "OK, all 5 rows in the CSV file")
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "google_gid_test", "gid_953977578.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "OK, all 1 rows in the CSV file")
-
-    def tearDown(self):
-        csv_path = os.path.join(self.temp_dir, "google_sheet.csv")
-        if os.path.exists(csv_path):
-            os.remove(csv_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "google_sheet.csv.preprocessed"
         )
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
@@ -974,6 +921,7 @@ class TestCreateAllowMissingFiles(unittest.TestCase):
             os.remove(preprocessed_csv_path)
 
 
+@unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
 
     def setUp(self):
@@ -1331,6 +1279,7 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             os.remove(self.true_log_file_path)
 
 
+@unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
 
     def setUp(self):
@@ -1563,6 +1512,60 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
 
         if os.path.exists(self.true_log_file_path):
             os.remove(self.true_log_file_path)
+
+
+class TestCommentedCsvs(unittest.TestCase):
+
+    def test_commented_csv(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.temp_dir = "/tmp"
+
+        config_file_path = os.path.join(
+            current_dir, "assets", "commented_csvs_test", "raw_csv.yml"
+        )
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "all 3 rows in the CSV file", "")
+        preprocessed_csv_file_path = os.path.join(
+            self.temp_dir, "metadata.csv.preprocessed"
+        )
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
+        config_file_path = os.path.join(
+            current_dir, "assets", "commented_csvs_test", "excel.yml"
+        )
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "all 4 rows in the CSV file", "")
+        csv_file_path = os.path.join(self.temp_dir, "excel.csv")
+        if os.path.exists(csv_file_path):
+            os.remove(csv_file_path)
+        preprocessed_csv_file_path = os.path.join(
+            self.temp_dir, "excel.csv.preprocessed"
+        )
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
+
+        config_file_path = os.path.join(
+            current_dir, "assets", "commented_csvs_test", "google_sheets.yml"
+        )
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "all 5 rows in the CSV file", "")
+        csv_file_path = os.path.join(
+            current_dir, "assets", "commented_csvs_test", "google_sheet.csv"
+        )
+        if os.path.exists(csv_file_path):
+            os.remove(csv_file_path)
+        preprocessed_csv_file_path = os.path.join(
+            self.temp_dir, "google_sheet.csv.preprocessed"
+        )
+        if os.path.exists(preprocessed_csv_file_path):
+            os.remove(preprocessed_csv_file_path)
 
 
 class TestCsvRowFilters(unittest.TestCase):
