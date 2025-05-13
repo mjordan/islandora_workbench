@@ -70,7 +70,7 @@ class i7ImportUtilities:
     """i7ImportUtilities is a class that provides utility functions for importing metadata from Islandora 7."""
 
     logger = None
-    config = None
+    _config = None
     config_location = None
 
     def __init__(self, config_location):
@@ -79,7 +79,7 @@ class i7ImportUtilities:
         config_location: str: The path to the configuration file.
         """
         self.config_location = config_location
-        self.config = self.get_config()
+        self._config = self._get_config()
         self.validate()
 
     default_config = {
@@ -119,7 +119,12 @@ class i7ImportUtilities:
         "paginate": False,
     }
 
-    def get_config(self):
+    @property
+    def config(self):
+        """Return the configuration dictionary."""
+        return self._config
+
+    def _get_config(self):
         config = self.default_config
         with open(self.config_location, "r") as stream:
             try:
