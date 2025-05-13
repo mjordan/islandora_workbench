@@ -38,20 +38,20 @@ def cleanup_row(row_to_clean: dict) -> dict:
     return row_to_clean
 
 
-def get_rows(query_url) -> Generator[dict, None, None]:
+def get_rows(query_url) -> list:
     """Get rows from Solr.
     Parameters:
     query_url: str: The Solr query URL.
     -------
     Returns:
-    Generator[dict, None, None]: A generator that yields rows from Solr as dictionaries.
+    list: A list of rows from Solr as dictionaries.
     """
     try:
         resp = requests.get(url=query_url, allow_redirects=True)
         if not resp.ok:
             print(f"Error: {resp.status_code}")
             sys.exit()
-        yield resp.json()["response"]["docs"]
+        return resp.json()["response"]["docs"]
     except requests.exceptions.RequestException as e:
         utils.get_logger().error(f"Solr Query failed. {e}")
         raise SystemExit(e)
@@ -127,7 +127,9 @@ if __name__ == "__main__":
     # Configuration variables. #
     ############################
 
-    parser = argparse.ArgumentParser(description="Generate CSV from Islandora Legacy (7) resources.")
+    parser = argparse.ArgumentParser(
+        description="Generate CSV from Islandora Legacy (7) resources."
+    )
     parser.add_argument("--config", required=True, help="Configuration file to use.")
     parser.add_argument(
         "--metadata_solr_request",
