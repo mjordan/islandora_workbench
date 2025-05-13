@@ -44,6 +44,7 @@ jobs:
         run: |  
           python -m pip install --upgrade pip  
           python setup.py install
+          pip install certifi
 
           # disable media standalone URL
           docker exec isle-site-template-drupal-dev-1 drush config:set media.settings standalone_url FALSE -y
@@ -54,7 +55,7 @@ jobs:
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
           # Required to access Google Sheets.
-          NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
+          # NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
           
       - name: Run islandora_tests_paged_content  
         run: python tests/islandora_tests_paged_content.py
