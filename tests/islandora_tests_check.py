@@ -1521,6 +1521,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
         if os.path.exists(self.true_log_file_path):
             os.remove(self.true_log_file_path)
 
+
 @unittest.skipIf(
     "GITHUB_ACTIONS" in os.environ,
     "Passes when tests locally run but not in Github workflows.",
