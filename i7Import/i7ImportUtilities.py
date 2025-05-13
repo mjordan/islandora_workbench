@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from ruamel.yaml import YAML
 import mimetypes
 import requests
@@ -12,6 +14,13 @@ from rich.table import Table
 
 
 def _params_to_querystring(params: dict) -> str:
+    """Convert a dictionary of parameters to a query string.
+    Parameters:
+    params: dict: The parameters to convert.
+    -------
+    Returns:
+    str: The query string.
+    """
     querystring = ""
     for key, value in params.items():
         if len(querystring) > 0:
@@ -24,7 +33,15 @@ def _params_to_querystring(params: dict) -> str:
     return querystring
 
 
+@lru_cache(maxsize=100)
 def get_extension_from_mimetype(mimetype):
+    """Get the file extension from a MIME type.
+    Parameters:
+    mimetype: str: The MIME type to convert.
+    -------
+    Returns:
+    str: The file extension for the MIME type.
+    """
     # mimetypes.add_type() is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg')
     # Maybe related to https://bugs.python.org/issue4963? In the meantime, provide our own
     # MIMETYPE to extension mapping for common types, then let mimetypes guess at others.
@@ -35,17 +52,32 @@ def get_extension_from_mimetype(mimetype):
         return mimetypes.guess_extension(mimetype)
 
 
+@lru_cache(maxsize=10)
 def get_metadata_solr_request(location):
+    """Open the metadata solr request file and return the contents.
+    Parameters:
+    location: str: The path to the metadata solr request file.
+    -------
+    Returns:
+    str: The contents of the metadata solr request file.
+    """
     with open(location, "r") as file:
         solr_metadata_request = file.read()
     return solr_metadata_request
 
 
 class i7ImportUtilities:
+    """i7ImportUtilities is a class that provides utility functions for importing metadata from Islandora 7."""
 
     logger = None
+    config = None
+    config_location = None
 
     def __init__(self, config_location):
+        """Initialize the i7ImportUtilities class.
+        Parameters:
+        config_location: str: The path to the configuration file.
+        """
         self.config_location = config_location
         self.config = self.get_config()
         self.validate()
@@ -93,7 +125,7 @@ class i7ImportUtilities:
             try:
                 loaded = YAML(typ="safe").load(stream)
             except OSError:
-                print("Failed")
+                print("Failed to load configuration file")
         for key, value in loaded.items():
             config[key] = value
         if "get_file_url" in loaded.keys() and "fetch_files" not in loaded.keys():
@@ -148,6 +180,7 @@ class i7ImportUtilities:
             else:
                 message = f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}"
                 self.get_logger().error(message)
+            return None
 
         except requests.exceptions.RequestException as e:
             self.get_logger().error(e)
@@ -170,6 +203,7 @@ class i7ImportUtilities:
             self.get_logger().error(e)
             raise SystemExit(e)
 
+    @lru_cache
     def get_solr_field_list(self):
         # This query gets all fields in the index. Does not need to be user-configurable.
         field_list = self._get_all_solr_fields()
@@ -246,7 +280,11 @@ class i7ImportUtilities:
             obj_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/{datastream}/download"
             self.get_logger().debug(f"Attempting to download {obj_url}")
             if self.config["get_file_url"]:
-                obj_download_response = requests.head(url=obj_url, allow_redirects=True)
+                obj_download_response = requests.head(
+                    verify=self.config["secure_ssl_only"],
+                    url=obj_url,
+                    allow_redirects=True,
+                )
             else:
                 obj_download_response = requests.get(
                     verify=self.config["secure_ssl_only"],
@@ -267,11 +305,14 @@ class i7ImportUtilities:
                     open(obj_file_path, "wb+").write(obj_download_response.content)
                     return obj_basename
 
-                if self.config["get_file_url"] and obj_extension:
+                elif self.config["get_file_url"] and obj_extension:
                     return obj_url
-                if obj_download_response.status_code == 404:
-                    self.get_logger().warning(f"{obj_url} not found.")
-                    return None
+            elif obj_download_response.status_code == 404:
+                self.get_logger().warning(f"{obj_url} not found.")
+            else:
+                message = f"Bad response from server for item {pid} : {obj_download_response.status_code}"
+                self.get_logger().error(message)
+            return None
 
         except requests.exceptions.RequestException as e:
             self.get_logger().error(e)
