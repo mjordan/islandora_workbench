@@ -929,7 +929,6 @@ class TestCreateAllowMissingFiles(unittest.TestCase):
             os.remove(preprocessed_csv_path)
 
 
-@unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
 
     def setUp(self):
@@ -974,7 +973,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
             log_data_false = log_file_false.read()
             self.assertRegex(
                 log_data_false,
-                'CVS row with ID 003 contains an empty value in its "tn" column',
+                'CSV row with ID 003 contains an empty value in its "tn" column',
             )
             self.assertRegex(
                 log_data_false,
@@ -1287,7 +1286,7 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             os.remove(self.true_log_file_path)
 
 
-@unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
+# @unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
 
     def setUp(self):
