@@ -2252,9 +2252,10 @@ def check_input(config, args):
                 and csv_column_header != "file"
                 and csv_column_header != "node_id"
                 and csv_column_header not in base_media_fields
+                and csv_column_header not in get_additional_files_config(config).keys()
             ):
                 logging.error(
-                    "CSV column header %s does not match any Drupal field names in the %s media type",
+                    'CSV column header "%s" does not match any Drupal field names in the "%s" media type',
                     csv_column_header,
                     config["media_type"],
                 )

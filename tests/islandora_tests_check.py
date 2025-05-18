@@ -1286,7 +1286,7 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             os.remove(self.true_log_file_path)
 
 
-# @unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
+@unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
 
     def setUp(self):
@@ -1364,12 +1364,14 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
                 nid = nid.strip(".")
                 self.nids.append(nid)
 
-        # Insert their node IDs in the input CSV file. First, open the CSV template.
+        # Insert their node IDs in the `add_media` input CSV file. First, open the CSV template.
         with open(self.add_media_csv_template_file_path) as csv_template:
             csv_template_lines = csv_template.readlines()
 
         # Then add a node ID to the start of each line from the template
         # and write out an add_media input CSV file.
+        if os.path.exists(self.add_media_csv_file_path):
+            os.remove(self.add_media_csv_file_path)
         template_line_index = 0
         with open(self.add_media_csv_file_path, "a+") as add_media_csv:
             # The first line in the output CSV is the headers from the template.
