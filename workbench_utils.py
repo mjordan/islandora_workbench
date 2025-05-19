@@ -3791,6 +3791,7 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit("Error: " + message)
 
+        paged_content_sequence_indicator_warnings = False
         paged_content_from_directories_csv_data = get_csv_data(config)
         for count, file_check_row in enumerate(
             paged_content_from_directories_csv_data, start=1
@@ -3831,8 +3832,17 @@ def check_input(config, args):
                             + config["paged_content_sequence_separator"]
                             + ")."
                         )
-                        logging.error(message)
-                        sys.exit("Error: " + message)
+                        logging.warning(message)
+                        paged_content_sequence_indicator_warnings = True
+
+                page_sequence_indicator = get_sequence_indicator_from_filename(
+                    config, page_file_name
+                )
+                if validate_weight_value(page_sequence_indicator) is False:
+                    logging.warning(
+                        f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
+                    )
+                    paged_content_sequence_indicator_warnings = True
 
             # Check additional page media files (e.g. OCR andhOCR files) for utf8 encoding.
             additional_page_media_no_utf8_warnings = list()
@@ -3885,6 +3895,10 @@ def check_input(config, args):
                                                 )
 
         print("OK, page directories are all present.")
+        if paged_content_sequence_indicator_warnings is True:
+            print(
+                "Warning: Check your Workbench log for entries about sequence indicator/field_weight values for page/child files."
+            )
         if len(additional_page_media_no_utf8_warnings) > 0:
             print(
                 "Warning: Check your Workbench log for entries about UTF-8 encoding of additional page/child files."
@@ -7903,6 +7917,14 @@ def validate_node_created_date_string(created_date_string):
         return False
 
 
+def validate_weight_value(weight_value):
+    weight = weight_value.lstrip("0")
+    if re.match(r"^\d+$", weight) and int(weight) > 0:
+        return True
+    else:
+        return False
+
+
 def validate_edtf_fields(config, field_definitions, csv_data):
     """Validate values in fields that are of type 'edtf'."""
     edtf_fields_present = False
@@ -8905,6 +8927,27 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     csvfile.close()
 
 
+def get_sequence_indicator_from_filename(config, file_name):
+    """Extracts the last segment of a page filename like some-ID-003.jpg."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        file_name : str
+            The filename to extract the sequence indicator from.
+        Returns
+        -------
+        str
+    """
+    filename_without_extension = os.path.splitext(file_name)[0]
+    filename_segments = filename_without_extension.split(
+        config["paged_content_sequence_separator"]
+    )
+    weight = filename_segments[-1]
+    weight = weight.lstrip("0")
+    return str(weight)
+
+
 def create_children_from_directory(config, parent_csv_record, parent_node_id):
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     prepare_csv_id_to_node_id_map(config)
@@ -8958,12 +9001,8 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 logging.info(message)
                 continue
 
+        weight = get_sequence_indicator_from_filename(config, page_file_name)
         filename_without_extension = os.path.splitext(page_file_name)[0]
-        filename_segments = filename_without_extension.split(
-            config["paged_content_sequence_separator"]
-        )
-        weight = filename_segments[-1]
-        weight = weight.lstrip("0")
 
         # This "identifier" is the CSV ID, not a Drupal field. It may be overwritten
         # by a CSV value template below.
@@ -8977,6 +9016,11 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
         csv_row_to_apply_to_paged_children = copy.deepcopy(parent_csv_record)
         csv_row_to_apply_to_paged_children["file"] = page_file_name
+        if validate_weight_value(weight) is False:
+            logging.warning(
+                f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
+            )
+            weight = ""
         csv_row_to_apply_to_paged_children["field_weight"] = weight
 
         # Add any fields to the page's row that are defined in config["csv_value_templates_for_paged_content"].
@@ -11439,12 +11483,9 @@ def generate_contact_sheet_from_csv(config):
                 # Page files need to be sorted by weight in the contact sheet.
                 page_file_weights_map = {}
                 for page_file_name in page_files:
-                    filename_without_extension = os.path.splitext(page_file_name)[0]
-                    filename_segments = filename_without_extension.split(
-                        config["paged_content_sequence_separator"]
+                    weight = get_sequence_indicator_from_filename(
+                        config, page_file_name
                     )
-                    weight = filename_segments[-1]
-                    weight = weight.lstrip("0")
                     # Cast weight as int so we can sort it easily.
                     page_file_weights_map[int(weight)] = page_file_name
                     page_title = row["title"] + ", page " + weight

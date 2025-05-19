@@ -1086,6 +1086,28 @@ class TestCleanCsvValues(unittest.TestCase):
         self.assertEqual(clean_csv_record, csv_record)
 
 
+class TestValidateWeightValue(unittest.TestCase):
+
+    def test_validate_weight_values(self):
+        res = workbench_utils.validate_weight_value("002")
+        self.assertTrue(res)
+
+        res = workbench_utils.validate_weight_value("100")
+        self.assertTrue(res)
+
+        res = workbench_utils.validate_media_track_value("004a")
+        self.assertFalse(res)
+
+        res = workbench_utils.validate_media_track_value("-500")
+        self.assertFalse(res)
+
+        res = workbench_utils.validate_media_track_value("_200")
+        self.assertFalse(res)
+
+        res = workbench_utils.validate_media_track_value("page1")
+        self.assertFalse(res)
+
+
 class TestGetPageTitleFromTemplate(unittest.TestCase):
     def test_get_page_title_from_template(self):
         fixtures = [
