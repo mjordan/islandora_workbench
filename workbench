@@ -2960,13 +2960,15 @@ def create_redirects():
 
         if len(row["redirect_source"].strip()) == 0:
             message = f"Redirect source value in input CSV row {redirect_row_count} is empty. Skipping."
-            print("Warning: " + message)
+            if config["progress_bar"] is False:
+                print("Warning: " + message)
             logging.warning(message)
             continue
 
         if len(row["redirect_target"].strip()) == 0:
             message = f"Redirect target value in input CSV row {redirect_row_count} is empty. Skipping."
-            print("Warning: " + message)
+            if config["progress_bar"] is False:
+                print("Warning: " + message)
             logging.warning(message)
             continue
 
@@ -2976,7 +2978,8 @@ def create_redirects():
                 + row["redirect_source"]
                 + '".'
             )
-            print("Warning: " + message)
+            if config["progress_bar"] is False:
+                print("Warning: " + message)
             logging.warning(message)
             continue
 
@@ -3004,7 +3007,8 @@ def create_redirects():
                 + str(is_redirect_response.status_code)
                 + "), skipping."
             )
-            print("Warning: " + message)
+            if config["progress_bar"] is False:
+                print("Warning: " + message)
             logging.warning(message)
             continue
 
@@ -3028,7 +3032,8 @@ def create_redirects():
                 + row["redirect_target"].strip()
                 + '" created.'
             )
-            print(message)
+            if config["progress_bar"] is False:
+                print(message)
             logging.info(message)
         else:
             message = (
@@ -3038,15 +3043,13 @@ def create_redirects():
                 + row["redirect_target"].strip()
                 + '" not created.'
             )
-            print("Error: " + message + " See log for more info.")
+            if config["progress_bar"] is False:
+                print("Error: " + message + " See log for more info.")
             logging.error(message + " HTTP status code: " + str(response.status_code))
 
         if config["progress_bar"] is True:
             redirect_row_position = get_percentage(redirect_row_count, num_csv_records)
             pbar(redirect_row_position)
-
-    if config["progress_bar"] is True:
-        pbar(100)
 
 
 # Main program logic.
