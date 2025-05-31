@@ -887,7 +887,7 @@ class TestSqliteManager(unittest.TestCase):
 
     def test_add_column(self):
         # Add a new column.
-        res = workbench_utils.sqlite_manager(
+        alter_res = workbench_utils.sqlite_manager(
             self.config,
             operation="alter_table",
             db_file_path=self.db_file_path,
@@ -896,14 +896,14 @@ class TestSqliteManager(unittest.TestCase):
         )
 
         # Then confirm the new "foo" column is in the table.
-        res = workbench_utils.sqlite_manager(
+        select_res = workbench_utils.sqlite_manager(
             self.config,
             operation="select",
             db_file_path=self.db_file_path,
-            query="select * FROM pragma_table_info(?)",
+            query="select * from pragma_table_info(?)",
             values=("names",),
         )
-        self.assertEqual(res[2][1], "foo")
+        self.assertEqual(select_res[2][1], "foo")
 
     def tearDown(self):
         os.remove(self.db_file_path)
