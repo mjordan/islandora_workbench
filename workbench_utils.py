@@ -11667,17 +11667,18 @@ def sqlite_manager(
         config: dict
             The configuration settings defined by workbench_config.get_config().
         operation: string
-            One of 'create_database', 'remove_database', 'create_table, 'insert', 'select', 'update', 'delete'.
-            'create_table, 'insert', 'select', 'update', and 'delete' operations need to be passed a
+            One of 'create_database', 'remove_database', 'create_table, 'alter_table', 'insert', 'select', 'update', 'delete'.
+            'create_table, 'alter_table', 'insert', 'select', 'update', and 'delete' operations need to be passed a full
             query to execute.
         table_name: string
             The name of the table to create. Used only in 'create_table' queries.
         query: string
             The parameterized query, expressed as a tuple, e.g., "SELECT foo from bar where foo = ?".
-            'create_table, 'insert', 'select', 'update', and 'delete' operations need to be passed a
-            query to execute.
+            'insert', 'select', 'update', 'delete', and 'alter_table' operations need to be passed a query to execute.
+            Note: "alter table" queries cannot use parameter placeholders for table or column names; they need to be
+            hard-coded in queries, e.g., "alter table 'names' add column 'foo' integer".
         values: tuple
-            The positional values to interpolate into the query, e.g., "('baz')".
+            The positional values to interpolate into the query, e.g., "('baz',)" or "('baz', 'bar')".
         db_file_path: string
             The relative or absolute path to the database file. If the path is relative, the file
             is written to that path relative to the system's temporary directory.
@@ -11732,20 +11733,34 @@ def sqlite_manager(
                     f'SQLite database "{db_path}" already contains a table named "{table_name}".'
                 )
             return False
+    elif operation == "alter_table":
+        # Note: "alter table" queries cannot use parameter placeholders for table or column names; they need to be
+        # hard-coded in queries, e.g., "alter table 'names' add column 'foo' integer".
+        try:
+            con = sqlite3.connect(db_path)
+            cur = con.cursor()
+            res = cur.execute(query, values)
+            con.commit()
+            con.close()
+            return res
+        except sqlite3.OperationalError as e:
+            message = f"Error executing SQLite alter table query against database at {db_path}: {e}"
+            logging.error(message)
+            sys.exit(message)
     elif operation == "select":
         try:
             con = sqlite3.connect(db_path)
             con.row_factory = sqlite3.Row
+            # Uncomment for debugging.
             # con.set_trace_callback(print)
             cur = con.cursor()
             res = cur.execute(query, values).fetchall()
             con.close()
             return res
         except sqlite3.OperationalError as e:
-            logging.error(
-                f"Error executing SQLite query against database at {db_path}: {e}"
-            )
-            sys.exit(f"Error executing SQLite query against database at {db_path}: {e}")
+            message = f"Error executing SQLite select query against database at {db_path}: {e}"
+            logging.error(message)
+            sys.exit(message)
     else:
         # 'insert', 'update', 'delete' queries.
         try:
@@ -11757,10 +11772,9 @@ def sqlite_manager(
             con.close()
             return res
         except sqlite3.OperationalError as e:
-            logging.error(
-                f"Error executing SQLite query against database at {db_path}: {e}"
-            )
-            sys.exit(f"Error executing SQLite query against database at {db_path}: {e}")
+            message = f"Error executing SQLite {operation} query against database at {db_path}: {e}"
+            logging.error(message)
+            sys.exit(message)
 
 
 def prepare_csv_id_to_node_id_map(config):
