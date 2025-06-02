@@ -8127,16 +8127,32 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     ):
         id_field = config["id_field"]
         parents_from_id_map = []
+
+        if config["csv_id_to_node_id_map_enforce_host"] is True:
+            csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
+            sql_values = config["host"], row[id_field]
+        else:
+            csv_id_to_node_id_map_enforce_host_sql = ""
+            sql_values = row[id_field]
+
         for row in csv_data:
             if config["ignore_duplicate_parent_ids"] is True:
-                query = "select * from csv_id_to_node_id_map where parent_csv_id = ? order by timestamp desc limit 1"
+                query = (
+                    "select * from csv_id_to_node_id_map where "
+                    + csv_id_to_node_id_map_enforce_host_sql
+                    + " parent_csv_id = ? order by timestamp desc limit 1"
+                )
             else:
-                query = "select * from csv_id_to_node_id_map where parent_csv_id = ?"
+                query = (
+                    "select * from csv_id_to_node_id_map where "
+                    + csv_id_to_node_id_map_enforce_host_sql
+                    + "parent_csv_id = ?"
+                )
             parent_in_id_map_result = sqlite_manager(
                 config,
                 operation="select",
                 query=query,
-                values=(row[id_field],),
+                values=values,
                 db_file_path=config["csv_id_to_node_id_map_path"],
             )
             for parent_in_id_map_row in parent_in_id_map_result:
@@ -11784,7 +11800,7 @@ def prepare_csv_id_to_node_id_map(config):
 
     create_table_sql = (
         "CREATE TABLE csv_id_to_node_id_map (timestamp TIMESTAMP DEFAULT (datetime('now','localtime')) NOT NULL, "
-        + " config_file TEXT, parent_csv_id TEXT, parent_node_id, csv_id TEXT, node_id TEXT)"
+        + " config_file TEXT, parent_csv_id TEXT, parent_node_id TEXT, csv_id TEXT, node_id TEXT, host TEXT)"
     )
 
     sqlite_manager(
@@ -11795,6 +11811,26 @@ def prepare_csv_id_to_node_id_map(config):
         db_file_path=config["csv_id_to_node_id_map_path"],
     )
 
+    # Check to see if the last column in the csv_id_to_node_id_map table is "host"
+    # and if not, add that column.
+    check_for_host_column_result = sqlite_manager(
+        config,
+        operation="select",
+        db_file_path=config["csv_id_to_node_id_map_path"],
+        query="select * from pragma_table_info(?)",
+        values=("csv_id_to_node_id_map",),
+    )
+    if check_for_host_column_result[-1][1] != "host":
+        sqlite_manager(
+            config,
+            operation="alter_table",
+            db_file_path=config["csv_id_to_node_id_map_path"],
+            query="alter table csv_id_to_node_id_map add column host TEXT",
+        )
+        logging.info(
+            f'Added column "host" to the CSV ID to node ID map at {config["csv_id_to_node_id_map_path"]}.'
+        )
+
 
 def populate_csv_id_to_node_id_map(
     config, parent_csv_row_id, parent_node_id, csv_row_id, node_id
@@ -11802,7 +11838,8 @@ def populate_csv_id_to_node_id_map(
     """Inserts a row into the SQLite database used to map CSV row IDs to newly create node IDs."""
     if config["csv_id_to_node_id_map_path"] is False:
         return None
-    sql_query = "INSERT INTO csv_id_to_node_id_map (config_file, parent_csv_id, parent_node_id, csv_id, node_id) VALUES (?, ?, ?, ?, ?)"
+
+    sql_query = "INSERT INTO csv_id_to_node_id_map (config_file, parent_csv_id, parent_node_id, csv_id, node_id, host) VALUES (?, ?, ?, ?, ?, ?)"
     sqlite_manager(
         config,
         operation="insert",
@@ -11813,6 +11850,7 @@ def populate_csv_id_to_node_id_map(
             str(parent_node_id),
             str(csv_row_id),
             str(node_id),
+            config["host"],
         ),
         db_file_path=config["csv_id_to_node_id_map_path"],
     )
@@ -11849,12 +11887,25 @@ def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None
 
     # If database exists, query it. Ordering desc by timestamp will get us the latest row if more
     # than one row meets the other criteria. "+ 0" casts the node_id column value as an integer.
-    if parent_csv_id is None:
-        query = "select node_id from csv_id_to_node_id_map where csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
-        values = (csv_id, int(config["recovery_mode_starting_from_node_id"]))
+    if config["csv_id_to_node_id_map_enforce_host"] is True:
+        csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
     else:
-        query = "select node_id from csv_id_to_node_id_map where parent_csv_id = ? and csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
-        values = (
+        csv_id_to_node_id_map_enforce_host_sql = ""
+
+    if parent_csv_id is None:
+        query = (
+            "select node_id from csv_id_to_node_id_map where "
+            + csv_id_to_node_id_map_enforce_host_sql
+            + " csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
+        )
+        sql_values = csv_id, int(config["recovery_mode_starting_from_node_id"])
+    else:
+        query = (
+            "select node_id from csv_id_to_node_id_map where "
+            + csv_id_to_node_id_map_enforce_host_sql
+            + " parent_csv_id = ? and csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
+        )
+        sql_values = (
             parent_csv_id,
             csv_id,
             int(config["recovery_mode_starting_from_node_id"]),
@@ -11863,7 +11914,7 @@ def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None
         config,
         operation="select",
         query=query,
-        values=values,
+        values=sql_values,
         db_file_path=config["csv_id_to_node_id_map_path"],
     )
     if len(csv_id_map_result) > 0:

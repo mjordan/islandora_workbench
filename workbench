@@ -134,15 +134,29 @@ def create():
 
             # If we have gotten this far, the current row has not been created in Drupal.
             if "parent_id" in csv_column_headers and len(row["parent_id"]) > 0:
-                parent_node_id_query = "select node_id from csv_id_to_node_id_map where csv_id = ? and node_id >= ? order by timestamp desc limit 1"
+                if config["csv_id_to_node_id_map_enforce_host"] is True:
+                    csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
+                    sql_values = (
+                        config["host"],
+                        row["parent_id"],
+                        config["recovery_mode_starting_from_node_id"],
+                    )
+                else:
+                    csv_id_to_node_id_map_enforce_host_sql = ""
+                    sql_values = (
+                        row["parent_id"],
+                        config["recovery_mode_starting_from_node_id"],
+                    )
+                parent_node_id_query = (
+                    "select node_id from csv_id_to_node_id_map where "
+                    + csv_id_to_node_id_map_enforce_host_sql
+                    + " csv_id = ? and node_id >= ? order by timestamp desc limit 1"
+                )
                 parent_in_id_map_result = sqlite_manager(
                     config,
                     operation="select",
                     query=parent_node_id_query,
-                    values=(
-                        row["parent_id"],
-                        config["recovery_mode_starting_from_node_id"],
-                    ),
+                    values=sql_values,
                     db_file_path=config["csv_id_to_node_id_map_path"],
                 )
                 if len(parent_in_id_map_result) > 0:
@@ -270,20 +284,38 @@ def create():
             and "parent_id" in row
             and row["parent_id"] is not None
         ):
+            if config["csv_id_to_node_id_map_enforce_host"] is True:
+                csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
+                sql_values = (
+                    config["host"],
+                    row["parent_id"],
+                )
+            else:
+                csv_id_to_node_id_map_enforce_host_sql = ""
+                sql_values = (row["parent_id"],)
+
             parent_node_ids_from_id_map = []
             current_parent_node_id = ""
             if config["ignore_duplicate_parent_ids"] is True:
-                query = "select node_id from csv_id_to_node_id_map where csv_id = ? order by timestamp desc limit 1"
+                query = (
+                    "select node_id from csv_id_to_node_id_map where "
+                    + csv_id_to_node_id_map_enforce_host_sql
+                    + " csv_id = ? order by timestamp desc limit 1"
+                )
             else:
-                query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
+                query = (
+                    "select node_id from csv_id_to_node_id_map where "
+                    + csv_id_to_node_id_map_enforce_host_sql
+                    + " csv_id = ?"
+                )
             parent_in_id_map_result = sqlite_manager(
                 config,
                 operation="select",
                 query=query,
-                values=(row["parent_id"],),
+                values=tuple(sql_values),
                 db_file_path=config["csv_id_to_node_id_map_path"],
             )
-            parents_from_id_map = []
+            # parents_from_id_map = []
             for parent_in_id_map_row in parent_in_id_map_result:
                 parent_node_exists = ping_node(
                     config, parent_in_id_map_row["node_id"], warn=False
@@ -3335,6 +3367,13 @@ if config["task"] in ["create", "update", "add_media"]:
     csv_subset_warning(config)
 
 if config["task"] in ["create", "create_from_files"]:
+    if config["csv_id_to_node_id_map_enforce_host"] is True:
+        csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
+        sql_values = config["host"], config["config_file"]
+    else:
+        csv_id_to_node_id_map_enforce_host_sql = ""
+        sql_values = config["config_file"]
+
     logging.info(
         f'Using the CSV ID to node ID map at "{config["csv_id_to_node_id_map_path"]}".'
     )
@@ -3342,13 +3381,16 @@ if config["task"] in ["create", "create_from_files"]:
         config["recovery_mode_starting_from_node_id"] is not False
         and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
-        query = "select * from csv_id_to_node_id_map where config_file = ?"
-        values = (config["config_file"],)
+        query = (
+            "select * from csv_id_to_node_id_map where "
+            + csv_id_to_node_id_map_enforce_host_sql
+            + " config_file = ?"
+        )
         csv_id_map_result = sqlite_manager(
             config,
             operation="select",
             query=query,
-            values=values,
+            values=sql_values,
             db_file_path=config["csv_id_to_node_id_map_path"],
         )
         if len(csv_id_map_result) > 0:
