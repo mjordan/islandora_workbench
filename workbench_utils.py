@@ -8830,7 +8830,10 @@ def validate_taxonomy_reference_value(
 
 
 def write_to_output_csv(config, id, node_json, input_csv_row=None):
-    """Appends a row to the CSV file located at config['output_csv']."""
+    """Appends a row to the CSV file located at config['output_csv'].
+    If config['output_csv_include_input_csv'] is true, includes values
+    from the input CSV.
+    """
     """Parameters
         ----------
         config : dict
@@ -8856,20 +8859,26 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
 
     node_dict = json.loads(node_json)
     node_field_names = list(node_dict.keys())
+    node_field_names.insert(0, "langcode")
+    node_field_names.insert(0, "promote")
+    node_field_names.insert(0, "published")
+    node_field_names.insert(0, "content_type")
     node_field_names.insert(0, "node_id")
+    # "id_field" needs to be the first column header for the check below.
     node_field_names.insert(0, config["id_field"])
-    # Don't include these Drupal fields in our output.
+    # Don't include these fields from each node Drupal fields in our output
+    # (but we add back in type/"content_type", status/"published", and langcode below).
     fields_to_remove = [
         "nid",
         "vid",
+        "type",
+        "status",
+        "langcode",
         "created",
         "changed",
-        "langcode",
         "default_langcode",
         "uid",
-        "promote",
         "sticky",
-        "type",
         "revision_timestamp",
         "revision_translation_affected",
         "revision_uid",
@@ -8881,7 +8890,18 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
         if field_to_remove in node_field_names:
             node_field_names.remove(field_to_remove)
 
-    reserved_fields = ["file", "parent_id", "url_alias", "image_alt_text", "checksum"]
+    # Don't include these input CSV fields in our output, except for "published", "promote",
+    # and "langcode", which we populate separately below from node data.
+    reserved_fields = [
+        "file",
+        "parent_id",
+        "url_alias",
+        "image_alt_text",
+        "checksum",
+        "published",
+        "promote",
+        "langcode",
+    ]
     additional_files_columns = list(get_additional_files_config(config).keys())
     if len(additional_files_columns) > 0:
         reserved_fields = reserved_fields + additional_files_columns
@@ -8908,20 +8928,29 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     row["node_id"] = node_dict["nid"][0]["value"]
     row["uuid"] = node_dict["uuid"][0]["value"]
     row["title"] = node_dict["title"][0]["value"]
-    row["status"] = node_dict["status"][0]["value"]
+    if node_dict["status"][0]["value"] is True:
+        row["published"] = "1"
+    else:
+        row["published"] = "0"
+    if node_dict["promote"][0]["value"] is True:
+        row["promote"] = "1"
+    else:
+        row["promote"] = "0"
+    row["content_type"] = node_dict["type"][0]["target_id"]
+    row["langcode"] = node_dict["langcode"][0]["value"]
+
     if input_csv_row is not None and config["output_csv_include_input_csv"] is True:
         field_definitions = get_field_definitions(config, "node")
-
         for reserved_field in reserved_fields:
             if reserved_field in input_csv_row:
                 del input_csv_row[reserved_field]
-
         # Then append the input row to the new node data.
         for field_name in node_dict:
             if field_name.startswith("field_"):
                 row[field_name] = serialize_field_json(
                     config, field_definitions, field_name, node_dict[field_name]
                 )
+
         row.update(input_csv_row)
     writer.writerow(row)
     csvfile.close()
