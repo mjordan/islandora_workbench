@@ -3372,7 +3372,7 @@ if config["task"] in ["create", "create_from_files"]:
         sql_values = config["host"], config["config_file"]
     else:
         csv_id_to_node_id_map_enforce_host_sql = ""
-        sql_values = config["config_file"]
+        sql_values = (config["config_file"],)
 
     logging.info(
         f'Using the CSV ID to node ID map at "{config["csv_id_to_node_id_map_path"]}".'
@@ -3396,11 +3396,21 @@ if config["task"] in ["create", "create_from_files"]:
         if len(csv_id_map_result) > 0:
             last_csv_id = str(csv_id_map_result[-1][4])
             last_node_id = str(csv_id_map_result[-1][5])
-            print(last_csv_id, "/", last_node_id)
-            in_map_message = (
-                f'Nodes for {len(csv_id_map_result)} rows in the input CSV "{config["input_csv"]}" have already been created '
-                + f'(last entry in the CSV ID to node ID map is for CSV row "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
-            )
+            if config["task"] == "create":
+                in_map_message = (
+                    f'Nodes for {len(csv_id_map_result)} rows in the input CSV "{config["input_csv"]}" have already been created '
+                    + f'(last entry in the CSV ID to node ID map is for CSV row "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
+                )
+                if config["paged_content_from_directories"] is True:
+                    in_map_message = (
+                        f'Nodes for {len(csv_id_map_result)} rows (including child pages) in the input CSV "{config["input_csv"]}" have already been created '
+                        + f'(last entry in the CSV ID to node ID map is for CSV row "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
+                    )
+            if config["task"] == "create_from_files":
+                in_map_message = (
+                    f'Nodes for {len(csv_id_map_result)} files in the input directory "{config["input_dir"]}" have already been created '
+                    + f'(last entry in the CSV ID to node ID map is for file "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
+                )
         else:
             in_map_message = f'Cannot find any entries in the CSV ID to node ID map created using the configuration file "{config["config_file"]}".'
 

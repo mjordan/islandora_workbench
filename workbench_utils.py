@@ -2402,7 +2402,7 @@ def check_input(config, args):
                     config, validate_parent_ids_in_csv_id_to_node_id_map_csv_data
                 )
             else:
-                message = "Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
+                message = f"Only node IDs for parents created during this session will be used (not using the CSV ID to node ID map)."
                 print(message)
                 logging.warning(message)
 
@@ -8107,8 +8107,20 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     """Query the CSV ID to node ID map to check for non-unique parent IDs.
     If they exist, report out but do not exit.
     """
+    if (
+        config["csv_id_to_node_id_map_enforce_host"] is True
+        and config["query_csv_id_to_node_id_map_for_parents"] is True
+    ):
+        csv_id_to_node_id_map_enforce_host_message = (
+            f'Limiting lookups to those with the hostname "' + config["host"] + '".'
+        )
+    else:
+        csv_id_to_node_id_map_enforce_host_message = (
+            f'Not limiting lookups to those with the hostname "' + config["host"] + '".'
+        )
+
     if config["query_csv_id_to_node_id_map_for_parents"] is True:
-        message = "Validating parent IDs in the CSV ID to node ID map, please wait."
+        message = f"Validating parent IDs in the CSV ID to node ID map, please wait. {csv_id_to_node_id_map_enforce_host_message}"
         print(message)
     else:
         return
@@ -8128,14 +8140,14 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
         id_field = config["id_field"]
         parents_from_id_map = []
 
-        if config["csv_id_to_node_id_map_enforce_host"] is True:
-            csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
-            sql_values = config["host"], row[id_field]
-        else:
-            csv_id_to_node_id_map_enforce_host_sql = ""
-            sql_values = row[id_field]
-
         for row in csv_data:
+            if config["csv_id_to_node_id_map_enforce_host"] is True:
+                csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
+                sql_values = config["host"], row[id_field]
+            else:
+                csv_id_to_node_id_map_enforce_host_sql = ""
+                sql_values = row[id_field]
+
             if config["ignore_duplicate_parent_ids"] is True:
                 query = (
                     "select * from csv_id_to_node_id_map where "
@@ -8152,7 +8164,7 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
                 config,
                 operation="select",
                 query=query,
-                values=values,
+                values=sql_values,
                 db_file_path=config["csv_id_to_node_id_map_path"],
             )
             for parent_in_id_map_row in parent_in_id_map_result:
@@ -11898,18 +11910,33 @@ def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None
             + csv_id_to_node_id_map_enforce_host_sql
             + " csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
         )
-        sql_values = csv_id, int(config["recovery_mode_starting_from_node_id"])
+        if config["csv_id_to_node_id_map_enforce_host"] is True:
+            sql_values = (
+                config["host"],
+                csv_id,
+                int(config["recovery_mode_starting_from_node_id"]),
+            )
+        else:
+            sql_values = csv_id, int(config["recovery_mode_starting_from_node_id"])
     else:
         query = (
             "select node_id from csv_id_to_node_id_map where "
             + csv_id_to_node_id_map_enforce_host_sql
             + " parent_csv_id = ? and csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
         )
-        sql_values = (
-            parent_csv_id,
-            csv_id,
-            int(config["recovery_mode_starting_from_node_id"]),
-        )
+        if config["csv_id_to_node_id_map_enforce_host"] is True:
+            sql_values = (
+                config["host"],
+                parent_csv_id,
+                csv_id,
+                int(config["recovery_mode_starting_from_node_id"]),
+            )
+        else:
+            sql_values = (
+                parent_csv_id,
+                csv_id,
+                int(config["recovery_mode_starting_from_node_id"]),
+            )
     csv_id_map_result = sqlite_manager(
         config,
         operation="select",
