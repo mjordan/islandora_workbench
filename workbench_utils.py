@@ -1929,6 +1929,73 @@ def check_input(config, args):
             print(message)
             logging.info(message)
 
+        # Check to see if there are any "host" column values in the CSV ID to node ID map that
+        # aren't empty or the current config["host"] value.
+        check_for_parent_csv_data = get_csv_data(config)
+        check_for_parent_csv_headers = check_for_parent_csv_data.fieldnames
+
+        # This is the set of conditions where the map is queried to get parent node IDs. AFAIK it's
+        # complete but if others come up, they should be added here.
+        if (
+            config["csv_id_to_node_id_map_enforce_host"] is True
+            or (os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None)
+            or (
+                "parent_id" in check_for_parent_csv_headers
+                and config["query_csv_id_to_node_id_map_for_parents"] is True
+            )
+            or (
+                config["recovery_mode_starting_from_node_id"] is not False
+                and value_is_numeric(config["recovery_mode_starting_from_node_id"])
+                is True
+            )
+        ):
+
+            csv_to_node_id_map_path = config["csv_id_to_node_id_map_path"]
+            current_host = config["host"]
+
+            check_for_host_column_result = sqlite_manager(
+                config,
+                operation="select",
+                db_file_path=csv_to_node_id_map_path,
+                query="select * from pragma_table_info(?)",
+                values=("csv_id_to_node_id_map",),
+            )
+            if check_for_host_column_result[-1][1] == "host":
+                num_unique_hosts_result = sqlite_manager(
+                    config,
+                    operation="select",
+                    db_file_path=csv_to_node_id_map_path,
+                    query="select distinct host from csv_id_to_node_id_map",
+                )
+
+                unique_host_values = list()
+                for unique_host in num_unique_hosts_result:
+                    if unique_host[0] is None:
+                        unique_host_values.append("empty")
+                    else:
+                        unique_host_values.append(unique_host[0])
+
+                unique_host_values.remove("empty")
+                unique_host_values.remove(current_host)
+                list_of_hosts = ", ".join(unique_host_values).strip()
+                if len(unique_host_values) > 0:
+                    multiple_hosts_in_map_log_message = (
+                        'There are values for the "host" column in the CSV ID to node ID map '
+                        + f'at "{csv_to_node_id_map_path}" other than "" (empty) and your currently configured host ("{current_host}"). '
+                        + f"Those extra hosts are {list_of_hosts}. Please see https://mjordan.github.io/islandora_workbench_docs/csv_id_to_node_id_map/"
+                        + " for advice on what to do."
+                    )
+                    logging.warning(multiple_hosts_in_map_log_message)
+                    multiple_hosts_in_map_console_message = (
+                        'There are values for the "host" column in the CSV ID to node ID map '
+                        + f'at "{csv_to_node_id_map_path}". Please see your workbench log for more information.'
+                    )
+                    print("Warning: " + multiple_hosts_in_map_console_message)
+                else:
+                    logging.info(
+                        'No additional values in the CSV ID to node ID map\'s "host" column.'
+                    )
+
     # Check for presence of required config keys, which varies by task.
     if config["task"] == "create":
         if config["nodes_only"] is True:
@@ -11810,11 +11877,11 @@ def prepare_csv_id_to_node_id_map(config):
     if config["csv_id_to_node_id_map_path"] is False:
         return None
 
+    # sqlite_manager only creates a table if it doesn't exist.
     create_table_sql = (
         "CREATE TABLE csv_id_to_node_id_map (timestamp TIMESTAMP DEFAULT (datetime('now','localtime')) NOT NULL, "
         + " config_file TEXT, parent_csv_id TEXT, parent_node_id TEXT, csv_id TEXT, node_id TEXT, host TEXT)"
     )
-
     sqlite_manager(
         config,
         operation="create_table",
