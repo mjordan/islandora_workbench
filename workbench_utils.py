@@ -1933,7 +1933,6 @@ def check_input(config, args):
         # aren't empty or the current config["host"] value.
         check_for_parent_csv_data = get_csv_data(config)
         check_for_parent_csv_headers = check_for_parent_csv_data.fieldnames
-
         # This is the set of conditions where the map is queried to get parent node IDs. AFAIK it's
         # complete but if others come up, they should be added here.
         if (
@@ -1949,7 +1948,6 @@ def check_input(config, args):
                 is True
             )
         ):
-
             csv_to_node_id_map_path = config["csv_id_to_node_id_map_path"]
             current_host = config["host"]
 
@@ -1993,7 +1991,7 @@ def check_input(config, args):
                     print("Warning: " + multiple_hosts_in_map_console_message)
                 else:
                     logging.info(
-                        'No additional values in the CSV ID to node ID map\'s "host" column.'
+                        'No unexpected values in the CSV ID to node ID map\'s "host" column.'
                     )
 
     # Check for presence of required config keys, which varies by task.
