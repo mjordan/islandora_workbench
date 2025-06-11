@@ -1793,5 +1793,55 @@ class TestFileIsUtf8(unittest.TestCase):
                     self.assertEqual(is_utf8, False)
 
 
+class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
+    def test_empty_csv_id_to_node_id_map_allowed_hosts(self):
+        self.config = {
+            "csv_id_to_node_id_map_allowed_hosts": [],
+        }
+        sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
+            self.config
+        )
+        self.assertEqual(sql_snippet, "")
+
+    def test_default_csv_id_to_node_id_map_allowed_hosts(self):
+        # We're using localhost here as an example default; the actual default value
+        # of csv_id_to_node_id_map_allowed_hosts is an empty host value ("") and the
+        # value of the current "host" config setting.
+        self.config = {
+            "csv_id_to_node_id_map_allowed_hosts": ["", "https://localhost"],
+        }
+        sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
+            self.config
+        )
+        self.assertEqual(
+            sql_snippet, ' host is null or  host in ("https://localhost") and '
+        )
+
+    def test_multiple_hosts_csv_id_to_node_id_map_allowed_hosts(self):
+        self.config = {
+            "csv_id_to_node_id_map_allowed_hosts": [
+                "",
+                "https://localhost",
+                "https://localhost-test",
+            ],
+        }
+        sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
+            self.config
+        )
+        self.assertEqual(
+            sql_snippet,
+            ' host is null or  host in ("https://localhost","https://localhost-test") and ',
+        )
+
+    def test_no_empty_csv_id_to_node_id_map_allowed_hosts(self):
+        self.config = {
+            "csv_id_to_node_id_map_allowed_hosts": ["https://localhost"],
+        }
+        sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
+            self.config
+        )
+        self.assertEqual(sql_snippet, '  host in ("https://localhost") and ')
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -134,15 +134,23 @@ def create():
 
             # If we have gotten this far, the current row has not been created in Drupal.
             if "parent_id" in csv_column_headers and len(row["parent_id"]) > 0:
-                parent_node_id_query = "select node_id from csv_id_to_node_id_map where csv_id = ? and node_id >= ? order by timestamp desc limit 1"
+                csv_id_to_node_id_map_allowed_hosts_sql = (
+                    get_csv_id_to_node_id_map_allowed_hosts_sql(config)
+                )
+                sql_values = (
+                    row["parent_id"],
+                    config["recovery_mode_starting_from_node_id"],
+                )
+                parent_node_id_query = (
+                    "select node_id from csv_id_to_node_id_map where "
+                    + csv_id_to_node_id_map_allowed_hosts_sql
+                    + " csv_id = ? and node_id >= ? order by timestamp desc limit 1"
+                )
                 parent_in_id_map_result = sqlite_manager(
                     config,
                     operation="select",
                     query=parent_node_id_query,
-                    values=(
-                        row["parent_id"],
-                        config["recovery_mode_starting_from_node_id"],
-                    ),
+                    values=sql_values,
                     db_file_path=config["csv_id_to_node_id_map_path"],
                 )
                 if len(parent_in_id_map_result) > 0:
@@ -270,20 +278,30 @@ def create():
             and "parent_id" in row
             and row["parent_id"] is not None
         ):
+            csv_id_to_node_id_map_allowed_hosts_sql = (
+                get_csv_id_to_node_id_map_allowed_hosts_sql(config)
+            )
+
             parent_node_ids_from_id_map = []
             current_parent_node_id = ""
             if config["ignore_duplicate_parent_ids"] is True:
-                query = "select node_id from csv_id_to_node_id_map where csv_id = ? order by timestamp desc limit 1"
+                query = (
+                    "select node_id from csv_id_to_node_id_map where "
+                    + csv_id_to_node_id_map_allowed_hosts_sql
+                    + f' csv_id = "{row["parent_id"]}" order by timestamp desc limit 1'
+                )
             else:
-                query = "select node_id from csv_id_to_node_id_map where csv_id = ?"
+                query = (
+                    "select node_id from csv_id_to_node_id_map where"
+                    + csv_id_to_node_id_map_allowed_hosts_sql
+                    + " csv_id = ?"
+                )
             parent_in_id_map_result = sqlite_manager(
                 config,
                 operation="select",
                 query=query,
-                values=(row["parent_id"],),
                 db_file_path=config["csv_id_to_node_id_map_path"],
             )
-            parents_from_id_map = []
             for parent_in_id_map_row in parent_in_id_map_result:
                 parent_node_exists = ping_node(
                     config, parent_in_id_map_row["node_id"], warn=False
@@ -3342,23 +3360,40 @@ if config["task"] in ["create", "create_from_files"]:
         config["recovery_mode_starting_from_node_id"] is not False
         and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
-        query = "select * from csv_id_to_node_id_map where config_file = ?"
-        values = (config["config_file"],)
+        csv_id_to_node_id_map_allowed_hosts_sql = (
+            get_csv_id_to_node_id_map_allowed_hosts_sql(config)
+        )
+
+        query = (
+            "select * from csv_id_to_node_id_map where "
+            + csv_id_to_node_id_map_allowed_hosts_sql
+            + " config_file = ?"
+        )
         csv_id_map_result = sqlite_manager(
             config,
             operation="select",
             query=query,
-            values=values,
+            values=(config["config_file"],),
             db_file_path=config["csv_id_to_node_id_map_path"],
         )
         if len(csv_id_map_result) > 0:
             last_csv_id = str(csv_id_map_result[-1][4])
             last_node_id = str(csv_id_map_result[-1][5])
-            print(last_csv_id, "/", last_node_id)
-            in_map_message = (
-                f'Nodes for {len(csv_id_map_result)} rows in the input CSV "{config["input_csv"]}" have already been created '
-                + f'(last entry in the CSV ID to node ID map is for CSV row "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
-            )
+            if config["task"] == "create":
+                in_map_message = (
+                    f'Nodes for {len(csv_id_map_result)} rows in the input CSV "{config["input_csv"]}" have already been created '
+                    + f'(last entry in the CSV ID to node ID map is for CSV row "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
+                )
+                if config["paged_content_from_directories"] is True:
+                    in_map_message = (
+                        f'Nodes for {len(csv_id_map_result)} rows (including child pages) in the input CSV "{config["input_csv"]}" have already been created '
+                        + f'(last entry in the CSV ID to node ID map is for CSV row "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
+                    )
+            if config["task"] == "create_from_files":
+                in_map_message = (
+                    f'Nodes for {len(csv_id_map_result)} files in the input directory "{config["input_dir"]}" have already been created '
+                    + f'(last entry in the CSV ID to node ID map is for file "{last_csv_id}" at {config["host"]}/node/{last_node_id}).'
+                )
         else:
             in_map_message = f'Cannot find any entries in the CSV ID to node ID map created using the configuration file "{config["config_file"]}".'
 

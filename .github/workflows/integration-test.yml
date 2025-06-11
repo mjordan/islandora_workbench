@@ -66,3 +66,6 @@ jobs:
         run: python tests/islandora_tests_recovery_mode.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem        
+
+      - name: Run csv_id_to_node_id_map_tests  
+        run: python tests/csv_id_to_node_id_map_tests.py
