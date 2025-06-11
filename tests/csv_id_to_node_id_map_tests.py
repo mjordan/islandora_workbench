@@ -80,7 +80,7 @@ class TestSelectQueriesWithHostFilters(unittest.TestCase):
         )
         self.assertEqual(len(result), 49)
 
-    def test_no_host(self):
+    def test_default_host(self):
         config = {
             "csv_id_to_node_id_map_allowed_hosts": ["", "https://foo.info"],
         }
