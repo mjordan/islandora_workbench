@@ -1973,8 +1973,10 @@ def check_input(config, args):
                     else:
                         unique_host_values.append(unique_host[0])
 
-                unique_host_values.remove("")
-                unique_host_values.remove(current_host)
+                if "" in unique_host_values:
+                    unique_host_values.remove("")
+                if current_host in unique_host_values:
+                    unique_host_values.remove(current_host)
                 list_of_hosts = ", ".join(unique_host_values).strip()
                 if len(unique_host_values) > 0:
                     multiple_hosts_in_map_log_message = (
