@@ -3194,6 +3194,8 @@ if args.recovery_mode_starting_from_node_id is not None:
         args.recovery_mode_starting_from_node_id
     )
 
+if args.check is True:
+    check_for_workbench_updates(config)
 
 if args.print_config is True:
     print("\nCurrent Islandora Workbench configuration, including defaults")
