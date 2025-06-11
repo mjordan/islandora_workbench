@@ -1968,7 +1968,7 @@ def check_input(config, args):
 
                 unique_host_values = list()
                 for unique_host in num_unique_hosts_result:
-                    if unique_host[0] is None:
+                    if unique_host[0] is None or unique_host[0] == "":
                         unique_host_values.append("empty")
                     else:
                         unique_host_values.append(unique_host[0])
