@@ -258,7 +258,6 @@ class WorkbenchConfig:
             "sqlite_db_filename": "workbench_temp_data.db",
             "csv_id_to_node_id_map_dir": tempfile.gettempdir(),
             "csv_id_to_node_id_map_filename": "csv_id_to_node_id_map.db",
-            "csv_id_to_node_id_map_enforce_host": False,
             "fixity_algorithm": None,
             "validate_fixity_during_check": False,
             "output_csv_include_input_csv": False,
