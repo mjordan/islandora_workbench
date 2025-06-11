@@ -1936,7 +1936,7 @@ def check_input(config, args):
         # This is the set of conditions where the map is queried to get parent node IDs. AFAIK it's
         # complete but if others come up, they should be added here.
         if (
-            config["csv_id_to_node_id_map_enforce_host"] is True
+            len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0
             or (os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None)
             or (
                 "parent_id" in check_for_parent_csv_headers
@@ -1986,7 +1986,7 @@ def check_input(config, args):
                     logging.warning(multiple_hosts_in_map_log_message)
                     multiple_hosts_in_map_console_message = (
                         'There are values for the "host" column in the CSV ID to node ID map '
-                        + f'at "{csv_to_node_id_map_path}". Please see your workbench log for more information.'
+                        + f'at "{csv_to_node_id_map_path}" other than your current "host" configuration setting. Please see your workbench log for more information.'
                     )
                     print("Warning: " + multiple_hosts_in_map_console_message)
                 else:
@@ -8173,19 +8173,19 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     If they exist, report out but do not exit.
     """
     if (
-        config["csv_id_to_node_id_map_enforce_host"] is True
+        len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0
         and config["query_csv_id_to_node_id_map_for_parents"] is True
     ):
-        csv_id_to_node_id_map_enforce_host_message = (
+        csv_id_to_node_id_map_allowed_hosts_message = (
             f'Limiting lookups to those with the hostname "' + config["host"] + '".'
         )
     else:
-        csv_id_to_node_id_map_enforce_host_message = (
+        csv_id_to_node_id_map_allowed_hosts_message = (
             f'Not limiting lookups to those with the hostname "' + config["host"] + '".'
         )
 
     if config["query_csv_id_to_node_id_map_for_parents"] is True:
-        message = f"Validating parent IDs in the CSV ID to node ID map, please wait. {csv_id_to_node_id_map_enforce_host_message}"
+        message = f"Validating parent IDs in the CSV ID to node ID map, please wait. {csv_id_to_node_id_map_allowed_hosts_message}"
         print(message)
     else:
         return
@@ -8204,40 +8204,41 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
     ):
         id_field = config["id_field"]
         parents_from_id_map = []
+        parents_from_id_map_warnings = []
 
         for row in csv_data:
-            if config["csv_id_to_node_id_map_enforce_host"] is True:
-                csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
-                sql_values = config["host"], row[id_field]
-            else:
-                csv_id_to_node_id_map_enforce_host_sql = ""
-                sql_values = row[id_field]
+            csv_id_to_node_id_map_allowed_hosts_sql = (
+                get_csv_id_to_node_id_map_allowed_hosts_sql(config)
+            )
 
             if config["ignore_duplicate_parent_ids"] is True:
                 query = (
-                    "select * from csv_id_to_node_id_map where "
-                    + csv_id_to_node_id_map_enforce_host_sql
-                    + " parent_csv_id = ? order by timestamp desc limit 1"
+                    "select node_id from csv_id_to_node_id_map where "
+                    + csv_id_to_node_id_map_allowed_hosts_sql
+                    + f' csv_id = "{row["parent_id"]}" order by timestamp desc limit 1'
                 )
             else:
                 query = (
-                    "select * from csv_id_to_node_id_map where "
-                    + csv_id_to_node_id_map_enforce_host_sql
-                    + "parent_csv_id = ?"
+                    "select node_id from csv_id_to_node_id_map where"
+                    + csv_id_to_node_id_map_allowed_hosts_sql
+                    + " csv_id = ?"
                 )
             parent_in_id_map_result = sqlite_manager(
                 config,
                 operation="select",
                 query=query,
-                values=sql_values,
                 db_file_path=config["csv_id_to_node_id_map_path"],
             )
+
             for parent_in_id_map_row in parent_in_id_map_result:
                 parents_from_id_map.append(parent_in_id_map_row["node_id"].strip())
+            parents_from_id_map = list(dict.fromkeys(parents_from_id_map))
             if len(parents_from_id_map) > 1:
-                message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
-                logging.warning(message)
-                print("Warning: " + message)
+                parents_from_id_map_message = f'Query of ID map for parent ID "{row["parent_id"]}" returned multiple node IDs: ({", ".join(parents_from_id_map)}).'
+                parents_from_id_map_warnings.append(parents_from_id_map_message)
+        if len(parents_from_id_map_warnings) > 1:
+            logging.warning(parents_from_id_map_warnings[-1])
+            print("Warning: " + parents_from_id_map_warnings[-1])
 
 
 def validate_taxonomy_field_values(config, field_definitions, csv_data):
@@ -10353,6 +10354,39 @@ def get_remote_file_extension(config, file_url):
     return extension_with_dot
 
 
+def get_csv_id_to_node_id_map_allowed_hosts_sql(config):
+    """Derive a query snippet for SQL SELECT queries from values in the "csv_id_to_node_id_map_allowed_hosts" config
+    setting. This snippet is inserted into queries against the CSV ID to node ID map to limit results to rows that
+    have the one of the hosts named in "csv_id_to_node_id_map_allowed_hosts" in their "host" column. This snippet is
+    intended to be located in the middle of the query, specifically, it ends in "and".
+    """
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        Returns
+        -------
+        The SQL query string, e.g. " host is null or host in ("https://localhost","https://localhost.dev") and "
+        Note that this is a literal string, and does not contain any parameterized SQL query placeholders.
+        If "csv_id_to_node_id_map_allowed_hosts" is an empty list, this snippet is empty, which in effect
+        does not limit the SQL query against the CSV ID to node ID map to specific "host" field values.
+    """
+    allowed_hosts = copy.copy(config["csv_id_to_node_id_map_allowed_hosts"])
+    if len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0:
+        # "" represents an empty host value.
+        if "" in config["csv_id_to_node_id_map_allowed_hosts"]:
+            allowed_hosts.remove("")
+            empty_host_query_string = "host is null or "
+        else:
+            empty_host_query_string = ""
+        hosts_in_parameter = ",".join(f'"{h}"' for h in allowed_hosts)
+        sql_snippet = f" {empty_host_query_string} host in ({hosts_in_parameter}) and "
+    else:
+        sql_snippet = ""
+
+    return sql_snippet
+
+
 def get_field_viewer_override_from_condition(config, row):
     """Derive value for the field_viewer_override CSV column based on conditions defined in configuration."""
     """Parameters
@@ -11964,20 +11998,19 @@ def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None
 
     # If database exists, query it. Ordering desc by timestamp will get us the latest row if more
     # than one row meets the other criteria. "+ 0" casts the node_id column value as an integer.
-    if config["csv_id_to_node_id_map_enforce_host"] is True:
-        csv_id_to_node_id_map_enforce_host_sql = " host = ? and "
-    else:
-        csv_id_to_node_id_map_enforce_host_sql = ""
+
+    csv_id_to_node_id_map_allowed_hosts_sql = (
+        get_csv_id_to_node_id_map_allowed_hosts_sql(config)
+    )
 
     if parent_csv_id is None:
         query = (
             "select node_id from csv_id_to_node_id_map where "
-            + csv_id_to_node_id_map_enforce_host_sql
+            + csv_id_to_node_id_map_allowed_hosts_sql
             + " csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
         )
-        if config["csv_id_to_node_id_map_enforce_host"] is True:
+        if len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0:
             sql_values = (
-                config["host"],
                 csv_id,
                 int(config["recovery_mode_starting_from_node_id"]),
             )
@@ -11986,12 +12019,11 @@ def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None
     else:
         query = (
             "select node_id from csv_id_to_node_id_map where "
-            + csv_id_to_node_id_map_enforce_host_sql
+            + csv_id_to_node_id_map_allowed_hosts_sql
             + " parent_csv_id = ? and csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
         )
-        if config["csv_id_to_node_id_map_enforce_host"] is True:
+        if len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0:
             sql_values = (
-                config["host"],
                 parent_csv_id,
                 csv_id,
                 int(config["recovery_mode_starting_from_node_id"]),

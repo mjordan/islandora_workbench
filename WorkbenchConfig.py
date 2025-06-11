@@ -72,6 +72,12 @@ class WorkbenchConfig:
                     config["preprocessors"][key] = value
 
         config["host"] = config["host"].rstrip("/")
+        if "csv_id_to_node_id_map_allowed_hosts" in user_mods:
+            config["csv_id_to_node_id_map_allowed_hosts"] = user_mods[
+                "csv_id_to_node_id_map_allowed_hosts"
+            ]
+        else:
+            config["csv_id_to_node_id_map_allowed_hosts"] = ["", config["host"]]
         config["current_config_file_path"] = os.path.abspath(self.args.config)
         config["field_text_format_ids"] = self.get_field_level_text_output_formats()
 
