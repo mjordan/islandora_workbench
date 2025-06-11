@@ -1969,11 +1969,11 @@ def check_input(config, args):
                 unique_host_values = list()
                 for unique_host in num_unique_hosts_result:
                     if unique_host[0] is None or unique_host[0] == "":
-                        unique_host_values.append("empty")
+                        unique_host_values.append("")
                     else:
                         unique_host_values.append(unique_host[0])
 
-                unique_host_values.remove("empty")
+                unique_host_values.remove("")
                 unique_host_values.remove(current_host)
                 list_of_hosts = ", ".join(unique_host_values).strip()
                 if len(unique_host_values) > 0:
