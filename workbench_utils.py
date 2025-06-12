@@ -10404,6 +10404,11 @@ def get_csv_id_to_node_id_map_allowed_hosts_sql(config):
     """
     allowed_hosts = copy.copy(config["csv_id_to_node_id_map_allowed_hosts"])
     if len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0:
+        # Since the user needs to add the current host to this list, we need to make sure it doesn't
+        # contain any trailing / or path information. Assums the protocol (e.g. https) is the same.
+        for i in range(len(allowed_hosts)):
+            if allowed_hosts[i].startswith(config["host"]):
+                allowed_hosts[i] = config["host"]
         # "" represents an empty host value.
         if "" in config["csv_id_to_node_id_map_allowed_hosts"]:
             allowed_hosts.remove("")
