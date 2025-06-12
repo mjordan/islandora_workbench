@@ -5188,6 +5188,24 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
             )
             return False
         file_path = filename
+    elif filename.startswith(config["file_systems"]):
+        details = issue_request(
+            config,
+            "POST",
+            "/api/server-file",
+            {"Content-Type": "application/json"},
+            {"path": filename, "retval": "fid"},
+        )
+        if details.ok:
+            data = details.json()
+            return int(data["fid"])
+
+        else:
+            logging.error(
+                f"File creation for row {node_csv_row[config['id_field']]} returned code:{details.status_code} with message{details.text}"
+            )
+            return False
+
     else:
         if check_file_exists(config, filename) is False:
             logging.error(
@@ -5557,6 +5575,38 @@ def create_media(
         if media_type == "extracted_text":
             if check_file_exists(config, filename):
                 media_json["field_edited_text"] = list()
+                if filename.startswith(config["file_systems"]):
+                    details = issue_request(
+                        config,
+                        "POST",
+                        "/api/server-file",
+                        {"Content-Type": "application/json"},
+                        {"path": filename, "retval": "contents"},
+                    )
+                    if details.ok:
+                        data = details.json()
+                        media_json["field_edited_text"].append(data["contents"])
+                    else:
+                        logging.error(
+                            f"Could not extract text from {filename}.  Process returned code:{details.status_code} with message{details.text}"
+                        )
+
+                elif os.path.isabs(filename) is False:
+                    filename = os.path.join(config["input_dir"], filename)
+                    try:
+                        extracted_text_file = open(filename, "r", -1, "utf-8-sig")
+                        media_json["field_edited_text"].append(
+                            {"value": extracted_text_file.read()}
+                        )
+                    except Exception as e:
+                        logging.error(
+                            f'Extracted text file "{filename}" caused a problem that prevented it from being ingested ({e}).'
+                        )
+            else:
+                logging.error("Extracted text file %s not found.", filename)
+            if check_file_exists(config, filename):
+                media_json["field_edited_text"] = list()
+
                 if os.path.isabs(filename) is False:
                     filename = os.path.join(config["input_dir"], filename)
                 try:
@@ -10055,6 +10105,10 @@ def check_file_exists(config, filename):
         boolean
             True if the file exists, false if not.
     """
+    # If file is supposed to already on the server we'll be notified later if it is missing.
+    if filename.startswith(config["file_systems"]):
+        return True
+
     # It's a remote file.
     if filename.startswith("http"):
         try:
