@@ -5188,21 +5188,22 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
             )
             return False
         file_path = filename
-    elif filename.startswith(config['file_systems']):
+    elif filename.startswith(config["file_systems"]):
         details = issue_request(
             config,
-            'POST',
-            '/api/server-file',
+            "POST",
+            "/api/server-file",
             {"Content-Type": "application/json"},
-            {'path': filename, 'retval': 'fid'}
+            {"path": filename, "retval": "fid"},
         )
         if details.ok:
             data = details.json()
-            return int(data['fid'])
+            return int(data["fid"])
 
         else:
             logging.error(
-                f"File creation for row {node_csv_row[config['id_field']]} returned code:{details.status_code} with message{details.text}")
+                f"File creation for row {node_csv_row[config['id_field']]} returned code:{details.status_code} with message{details.text}"
+            )
             return False
 
     else:
@@ -5574,20 +5575,21 @@ def create_media(
         if media_type == "extracted_text":
             if check_file_exists(config, filename):
                 media_json["field_edited_text"] = list()
-                if filename.startswith(config['file_systems']):
+                if filename.startswith(config["file_systems"]):
                     details = issue_request(
                         config,
-                        'POST',
-                        '/api/server-file',
+                        "POST",
+                        "/api/server-file",
                         {"Content-Type": "application/json"},
-                        {'path': filename, 'retval': 'contents'}
+                        {"path": filename, "retval": "contents"},
                     )
                     if details.ok:
                         data = details.json()
-                        media_json["field_edited_text"].append(data['contents'])
+                        media_json["field_edited_text"].append(data["contents"])
                     else:
                         logging.error(
-                            f"Could not extract text from {filename}.  Process returned code:{details.status_code} with message{details.text}")
+                            f"Could not extract text from {filename}.  Process returned code:{details.status_code} with message{details.text}"
+                        )
 
                 elif os.path.isabs(filename) is False:
                     filename = os.path.join(config["input_dir"], filename)
@@ -10104,7 +10106,7 @@ def check_file_exists(config, filename):
             True if the file exists, false if not.
     """
     # If file is supposed to already on the server we'll be notified later if it is missing.
-    if (filename.startswith(config['file_systems'])):
+    if filename.startswith(config["file_systems"]):
         return True
 
     # It's a remote file.

@@ -327,7 +327,7 @@ class WorkbenchConfig:
             "recovery_mode_starting_from_node_id": False,
             "viewer_override_fieldname": "field_viewer_override",
             "check_for_workbench_updates": False,
-            "file_systems": ('public', 'private'),
+            "file_systems": ("public", "private"),
         }
 
     # Tests validity and existence of configuration file path.
