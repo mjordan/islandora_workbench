@@ -326,7 +326,7 @@ class WorkbenchConfig:
             "remove_password_from_config_file": False,
             "recovery_mode_starting_from_node_id": False,
             "viewer_override_fieldname": "field_viewer_override",
-            "check_for_workbench_updates": False,
+            "check_for_workbench_updates": True,
         }
 
     # Tests validity and existence of configuration file path.
