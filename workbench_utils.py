@@ -5573,53 +5573,41 @@ def create_media(
         # extracted_text media must have their field_edited_text field populated for full text indexing.
         # Text must be encoded as utf-8.
         if media_type == "extracted_text":
-            if check_file_exists(config, filename):
-                media_json["field_edited_text"] = list()
-                if filename.startswith(config["file_systems"]):
-                    details = issue_request(
+            if not check_file_exists(config, filename):
+                logging.error("Extracted text file %s not found.", filename)
+            else:
+                media_json["field_edited_text"] = []
+
+                # Use server-side path if configured as such
+                if filename.startswith(config['file_systems']):
+                    response = issue_request(
                         config,
-                        "POST",
-                        "/api/server-file",
+                        'POST',
+                        '/api/server-file',
                         {"Content-Type": "application/json"},
-                        {"path": filename, "retval": "contents"},
+                        {'path': filename, 'retval': 'contents'}
                     )
-                    if details.ok:
-                        data = details.json()
-                        media_json["field_edited_text"].append(data["contents"])
+                    if response.ok:
+                        data = response.json()
+                        media_json["field_edited_text"].append(data['contents'])
                     else:
                         logging.error(
-                            f"Could not extract text from {filename}.  Process returned code:{details.status_code} with message{details.text}"
+                            f"Could not extract text from {filename}. Process returned code: {response.status_code} with message {response.text}"
                         )
+                else:
+                    # Ensure absolute path
+                    if not os.path.isabs(filename):
+                        filename = os.path.join(config["input_dir"], filename)
 
-                elif os.path.isabs(filename) is False:
-                    filename = os.path.join(config["input_dir"], filename)
                     try:
-                        extracted_text_file = open(filename, "r", -1, "utf-8-sig")
-                        media_json["field_edited_text"].append(
-                            {"value": extracted_text_file.read()}
-                        )
+                        with open(filename, "r", encoding="utf-8-sig") as extracted_text_file:
+                            media_json["field_edited_text"].append(
+                                {"value": extracted_text_file.read()}
+                            )
                     except Exception as e:
                         logging.error(
                             f'Extracted text file "{filename}" caused a problem that prevented it from being ingested ({e}).'
                         )
-            else:
-                logging.error("Extracted text file %s not found.", filename)
-            if check_file_exists(config, filename):
-                media_json["field_edited_text"] = list()
-
-                if os.path.isabs(filename) is False:
-                    filename = os.path.join(config["input_dir"], filename)
-                try:
-                    extracted_text_file = open(filename, "r", -1, "utf-8-sig")
-                    media_json["field_edited_text"].append(
-                        {"value": extracted_text_file.read()}
-                    )
-                except Exception as e:
-                    logging.error(
-                        f'Extracted text file "{filename}" caused a problem that prevented it from being ingested ({e}).'
-                    )
-            else:
-                logging.error("Extracted text file %s not found.", filename)
 
         # WIP on #572: if this is an `add_media` task, add fields in CSV to media_json, being careful to
         # not stomp on existing fields. Block below is copied from create() and needs to be modified to
