@@ -12263,6 +12263,8 @@ def prompt_user(config):
 
 
 def check_for_workbench_updates(config):
+    if "check_for_workbench_updates" not in config:
+        return
     if config["check_for_workbench_updates"] is False:
         return
 
