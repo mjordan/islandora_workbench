@@ -10112,7 +10112,8 @@ def check_file_exists(config, filename):
             {"Content-Type": "application/json"},
             {"path": filename, "retval": "checkfile"},
         )
-        return response.ok
+        content = response.content.decode('utf-8').strip().lower()
+        return content == 'true'
 
     # Check remote (HTTP/S) files
     if filename.startswith("http"):
