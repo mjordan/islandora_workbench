@@ -5579,17 +5579,17 @@ def create_media(
                 media_json["field_edited_text"] = []
 
                 # Use server-side path if configured as such
-                if filename.startswith(config['file_systems']):
+                if filename.startswith(config["file_systems"]):
                     response = issue_request(
                         config,
-                        'POST',
-                        '/api/server-file',
+                        "POST",
+                        "/api/server-file",
                         {"Content-Type": "application/json"},
-                        {'path': filename, 'retval': 'contents'}
+                        {"path": filename, "retval": "contents"},
                     )
                     if response.ok:
                         data = response.json()
-                        media_json["field_edited_text"].append(data['contents'])
+                        media_json["field_edited_text"].append(data["contents"])
                     else:
                         logging.error(
                             f"Could not extract text from {filename}. Process returned code: {response.status_code} with message {response.text}"
@@ -5600,7 +5600,9 @@ def create_media(
                         filename = os.path.join(config["input_dir"], filename)
 
                     try:
-                        with open(filename, "r", encoding="utf-8-sig") as extracted_text_file:
+                        with open(
+                            filename, "r", encoding="utf-8-sig"
+                        ) as extracted_text_file:
                             media_json["field_edited_text"].append(
                                 {"value": extracted_text_file.read()}
                             )
@@ -10076,77 +10078,68 @@ def get_deduped_file_path(path):
     return incremented_path
 
 
+import os
+import logging
+import requests
+
+
 def check_file_exists(config, filename):
-    """Cconfirms file exists and is a file (not a directory).
-    For remote/downloaded files, checks for a 200 response from a HEAD request.
+    """
+    Confirms whether a file exists and is a file (not a directory).
 
-    Does not check whether filename value is blank.
+    For remote files (URLs), performs a HEAD request and checks for a 200 response.
+    For server-side files, uses an API endpoint to check existence.
+    For local files, checks the filesystem directly.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration settings from workbench_config.get_config().
+    filename : str
+        The file path or URL.
+
+    Returns
+    -------
+    bool
+        True if the file exists, False otherwise.
     """
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        filename: string
-            The filename or path.
-        Returns
-        -------
-        boolean
-            True if the file exists, false if not.
-    """
-    # If file is supposed to already on the server we'll be notified later if it is missing.
+    # Check server-managed files
     if filename.startswith(config["file_systems"]):
-        return True
+        response = issue_request(
+            config,
+            "POST",
+            "/api/server-file",
+            {"Content-Type": "application/json"},
+            {"path": filename, "retval": "checkfile"},
+        )
+        return response.ok
 
-    # It's a remote file.
+    # Check remote (HTTP/S) files
     if filename.startswith("http"):
         try:
             headers = {"User-Agent": config["user_agent"]}
-
-            head_response = requests.head(
+            response = requests.head(
                 filename,
                 allow_redirects=True,
                 verify=config["secure_ssl_only"],
                 headers=headers,
             )
-            if head_response.status_code == 200:
-                return True
-            else:
-                return False
-        except requests.exceptions.Timeout as err_timeout:
-            message = (
-                "Workbench timed out trying to reach "
-                + filename
-                + ". Details in next log entry."
-            )
-            logging.error(message)
-            logging.error(err_timeout)
-            return False
-        except requests.exceptions.ConnectionError as error_connection:
-            message = (
-                "Workbench cannot connect to "
-                + filename
-                + ". Details in next log entry."
-            )
-            logging.error(message)
-            logging.error(error_connection)
-            return False
-    # It's a local file.
-    else:
-        if os.path.isabs(filename):
-            file_path = filename
-        else:
-            file_path = os.path.join(config["input_dir"], filename)
+            return response.status_code == 200
+        except requests.exceptions.Timeout as e:
+            logging.error(f"Timeout reaching {filename}. Details below:")
+            logging.error(e)
+        except requests.exceptions.ConnectionError as e:
+            logging.error(f"Connection error reaching {filename}. Details below:")
+            logging.error(e)
+        return False
 
-        if os.path.isfile(file_path):
-            return True
-        else:
-            return False
-
-    # Fall back to False if existence of file can't be determined.
-    logging.warning(
-        f'Cannot determine if file "{filename}" exists, assuming it does not.'
+    # Check local files
+    file_path = (
+        filename
+        if os.path.isabs(filename)
+        else os.path.join(config["input_dir"], filename)
     )
-    return False
+    return os.path.isfile(file_path)
 
 
 def get_preprocessed_file_path(
