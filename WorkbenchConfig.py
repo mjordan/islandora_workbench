@@ -118,6 +118,11 @@ class WorkbenchConfig:
                 print(
                     f"There appears to be a YAML syntax error in your configuration file, {self.args.config}. Remove the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ or your YAML validator of choice."
                 )
+                # No using logging.error() here because this method will run inside
+                # WorkbenchConfig.__init__() before the logger is configured
+                yaml_error = f"\nException type: {type(exc).__name__}\n{exc}"
+                print(yaml_error)
+
                 sys.exit()
 
         # 'media_file_fields' has been replaced with 'media_fields' and 'media_type_file_fields'.
