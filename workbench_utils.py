@@ -12268,6 +12268,8 @@ def prompt_user(config):
 
 
 def check_for_workbench_updates(config):
+    # Pending merging of PR 966
+    return
     if config["check_for_workbench_updates"] is False:
         return
 
