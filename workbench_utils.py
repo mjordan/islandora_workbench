@@ -3446,89 +3446,79 @@ def check_input(config, args):
                     logging.warning(message)
 
                 # Check for files that cannot be found.
-                if (
-                    not file_check_row["file"].startswith("http")
-                    and len(file_check_row["file"].strip()) > 0
-                ):
-                    if os.path.isabs(file_check_row["file"]):
-                        file_path = file_check_row["file"]
+            if (
+                config["task"] in ("create", "add_media", "update_media")
+                and "file" in csv_column_headers
+                and not config["nodes_only"]
+                and not config["paged_content_from_directories"]
+            ):
+                # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
+                if config["task"] == "add_media":
+                    config["id_field"] = "node_id"
+                elif config["task"] == "update_media":
+                    config["id_field"] = "media_id"
+
+                file_check_csv_data = get_csv_data(config)
+
+                for count, row in enumerate(file_check_csv_data, start=1):
+                    file_path = row["file"].strip()
+                    row["file"] = file_path
+                    row_id = row[config["id_field"]]
+
+                    if not file_path:
+                        logging.warning(
+                            f'CSV row with ID {row_id} contains an empty "file" value.'
+                        )
+                        continue
+
+                    file_exists = False
+                    # Local file check (absolute or relative)
+                    if not file_path.startswith(("http",) + config["file_systems"]):
+                        full_path = (
+                            file_path
+                            if os.path.isabs(file_path)
+                            else os.path.join(config["input_dir"], file_path)
+                        )
+                        file_exists = os.path.exists(full_path) and os.path.isfile(
+                            full_path
+                        )
+
+                    # Drupal file system check
+                    elif file_path.startswith(config["file_systems"]):
+                        full_path = file_path  # for consistent error messages
+                        file_exists = check_file_exists(config, file_path)
+
+                    # Remote file check
                     else:
-                        file_path = os.path.join(
-                            config["input_dir"], file_check_row["file"]
-                        )
-                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                        message = (
-                            'File "'
-                            + file_path
-                            + '" identified in CSV "file" column for row with ID "'
-                            + file_check_row[config["id_field"]]
-                            + '" not found.'
-                        )
-                        if config["allow_missing_files"] is False:
-                            logging.error(message)
-                            if config["perform_soft_checks"] is False:
-                                sys.exit("Error: " + message)
-                            else:
-                                if (
-                                    file_check_row[config["id_field"]]
-                                    not in rows_with_missing_files
-                                    and len(file_check_row["file"].strip()) > 0
-                                ):
-                                    rows_with_missing_files.append(
-                                        file_check_row[config["id_field"]]
-                                    )
-                        else:
-                            logging.error(message)
-                            if (
-                                file_check_row[config["id_field"]]
-                                not in rows_with_missing_files
-                                and len(file_check_row["file"].strip()) > 0
-                            ):
-                                rows_with_missing_files.append(
-                                    file_check_row[config["id_field"]]
-                                )
-                # Remote files.
-                else:
-                    if len(file_check_row["file"].strip()) > 0:
-                        http_response_code = ping_remote_file(
-                            config, file_check_row["file"]
-                        )
+                        http_response_code = ping_remote_file(config, file_path)
                         if (
                             http_response_code != 200
-                            or ping_remote_file(config, file_check_row["file"]) is False
+                            and http_response_code is not False
                         ):
                             message = (
-                                'Remote file "'
-                                + file_check_row["file"]
-                                + '" identified in CSV "file" column for row with ID "'
-                                + file_check_row[config["id_field"]]
-                                + '" not found or not accessible (HTTP response code '
-                                + str(http_response_code)
-                                + ")."
+                                f'Remote file "{file_path}" identified in CSV "file" column for row with ID "{row_id}" '
+                                f"not found or not accessible (HTTP response code {http_response_code})."
                             )
-                            if config["allow_missing_files"] is False:
-                                logging.error(message)
-                                if config["perform_soft_checks"] is False:
-                                    sys.exit("Error: " + message)
-                                else:
-                                    if (
-                                        file_check_row[config["id_field"]]
-                                        not in rows_with_missing_files
-                                        and len(file_check_row["file"].strip()) > 0
-                                    ):
-                                        rows_with_missing_files.append(
-                                            file_check_row[config["id_field"]]
-                                        )
-                            else:
-                                logging.error(message)
-                                if (
-                                    file_check_row[config["id_field"]]
-                                    not in rows_with_missing_files
-                                    and len(file_check_row["file"].strip()) > 0
-                                ):
-                                    rows_with_missing_files.append(
-                                        file_check_row[config["id_field"]]
-                                    )
+                            logging.error(message)
+                            if (
+                                not config["allow_missing_files"]
+                                and not config["perform_soft_checks"]
+                            ):
+                                sys.exit("Error: " + message)
+                            if row_id not in rows_with_missing_files:
+                                rows_with_missing_files.append(row_id)
+                        continue
+
+                    if not file_exists:
+                        message = f'File "{full_path}" identified in CSV "file" column for row with ID "{row_id}" not found.'
+                        logging.error(message)
+                        if (
+                            not config["allow_missing_files"]
+                            and not config["perform_soft_checks"]
+                        ):
+                            sys.exit("Error: " + message)
+                        if row_id not in rows_with_missing_files:
+                            rows_with_missing_files.append(row_id)
 
             # @todo for issue 268: All accumulator variables like 'rows_with_missing_files' should be checked at end of
             # check_input() (to work with perform_soft_checks: True) in addition to at place of check (to work wit perform_soft_checks: False).
