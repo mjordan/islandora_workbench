@@ -12273,14 +12273,12 @@ def prompt_user(config):
 
 
 def check_for_workbench_updates(config):
-    # Pending merging of PR 966
-    return
     if config["check_for_workbench_updates"] is False:
         return
 
     # Get current local branch name.
     try:
-        git_branch_cmd = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+        git_branch_cmd = ["git", "branch", "--show-current"]
         current_branch_name = subprocess.check_output(git_branch_cmd)
         current_branch_name = current_branch_name.decode().strip()
         if current_branch_name != "main":
