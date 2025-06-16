@@ -11466,8 +11466,8 @@ def create_contact_sheet_thumbnail(config, source_filename):
 
     # todo: get these from config['media_types']
     pdf_extensions = [".pdf"]
-    video_extensions = [".mp4"]
-    audio_extensions = [".mp3"]
+    video_extensions = [".mp4", ".mov", ".avi"]
+    audio_extensions = [".mp3", ".wav", ".aac"]
     image_extensions = [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".jp2"]
 
     source_file_name, source_file_extension = os.path.splitext(source_filename)
