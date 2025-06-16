@@ -12231,6 +12231,7 @@ def download_remote_archive_file(config, remote_archive_url):
 def unzip_archive(config, archive_file_path):
     if archive_file_path is False:
         return None
+
     if os.path.exists(archive_file_path):
         if zipfile.is_zipfile(archive_file_path) is True:
             with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
@@ -12239,14 +12240,18 @@ def unzip_archive(config, archive_file_path):
                 print("OK, " + message)
                 logging.info(message)
 
-            if config["delete_zip_archive_after_extraction"] is True:
-                try:
-                    os.remove(archive_file_path)
-                    logging.info(f'Zip archive "{archive_file_path}" deleted."')
-                except Exception as e:
-                    logging.error(
-                        f'Could not remove input archive file "{archive_file_path}": {e}.'
-                    )
+            if (
+                archive_file_path.lower().startswith("http")
+                and config["delete_zip_archive_after_extraction"] is True
+            ):
+                if config["check"] is False:
+                    try:
+                        os.remove(archive_file_path)
+                        logging.info(f'Zip archive "{archive_file_path}" deleted."')
+                    except Exception as e:
+                        logging.error(
+                            f'Could not remove input archive file "{archive_file_path}": {e}.'
+                        )
         else:
             message = f'"{archive_file_path}" does not appear to be a valid Zip file.'
             logging.error(message)
