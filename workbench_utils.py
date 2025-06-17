@@ -12354,3 +12354,10 @@ def check_for_workbench_updates(config):
             logging.info(message)
     else:
         message = 'Looks like your copy of Workbench is at least 30 commits behind the "main" branch in Github. Your copy appears to have been last updated {latest_local_commit_date}.'
+
+
+def is_running_in_docker():
+    """Assumes Dockerfile sets an environment variable ENV ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER to True.
+    If that environment variable is not present, return False.
+    """
+    return os.getenv("ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER", False)
