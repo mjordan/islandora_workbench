@@ -149,6 +149,10 @@ class TestSelectQueriesWithHostFilters(unittest.TestCase):
         )
         self.assertEqual(len(result), 13)
 
+    def tearDown(self):
+        if os.path.exists(self.asset_db_path):
+            os.remove(self.asset_db_path)
+
 
 if __name__ == "__main__":
     unittest.main()
