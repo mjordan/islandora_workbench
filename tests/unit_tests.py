@@ -1797,6 +1797,7 @@ class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
     def test_empty_csv_id_to_node_id_map_allowed_hosts(self):
         self.config = {
             "csv_id_to_node_id_map_allowed_hosts": [],
+            "host": "https://localhost",
         }
         sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
             self.config
@@ -1809,6 +1810,7 @@ class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
         # value of the current "host" config setting.
         self.config = {
             "csv_id_to_node_id_map_allowed_hosts": ["", "https://localhost"],
+            "host": "https://localhost",
         }
         sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
             self.config
@@ -1824,6 +1826,7 @@ class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
                 "https://localhost",
                 "https://localhost-test",
             ],
+            "host": "https://localhost-test",
         }
         sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
             self.config
@@ -1836,6 +1839,7 @@ class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
     def test_no_empty_csv_id_to_node_id_map_allowed_hosts(self):
         self.config = {
             "csv_id_to_node_id_map_allowed_hosts": ["https://localhost"],
+            "host": "https://localhost",
         }
         sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
             self.config
