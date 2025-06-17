@@ -313,7 +313,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    logging.info(json)
+                    log_json(json)
                 response = session.post(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -328,7 +328,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    logging.info(json)
+                    log_json(json)
                 response = session.put(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -343,7 +343,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    logging.info(json)
+                    log_json(json)
                 response = session.patch(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -12270,6 +12270,27 @@ def prompt_user(config):
                 f'Exiting because user responded "{response}" to prompt "{user_prompt}".'
             )
             sys.exit("Exiting at user prompts.")
+
+
+def log_json(source_data):
+    """If config setting log_json is true, logs the JSON used in a HTTP request.
+
+    Params
+    ----------
+        source_data : dict
+            The data to be used in the request body.
+    Return
+    ------
+        None
+    """
+    try:
+        json_to_log = json.dumps(source_data)
+        logging.info(json_to_log)
+    except Exception as e:
+        logging.warning(e)
+        logging.warning(
+            f"Can't convert data to JSON, logging it instead. More info may be available in the previous log message. Data is: {source_data}"
+        )
 
 
 def check_for_workbench_updates(config):
