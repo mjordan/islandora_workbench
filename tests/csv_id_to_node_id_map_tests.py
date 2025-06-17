@@ -83,6 +83,7 @@ class TestSelectQueriesWithHostFilters(unittest.TestCase):
     def test_default_host(self):
         config = {
             "csv_id_to_node_id_map_allowed_hosts": ["", "https://foo.info"],
+            "host": "https://foo.info",
         }
         csv_id_to_node_id_map_allowed_hosts_sql = (
             workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(config)
@@ -105,6 +106,7 @@ class TestSelectQueriesWithHostFilters(unittest.TestCase):
     def test_single_host(self):
         config = {
             "csv_id_to_node_id_map_allowed_hosts": ["https://foo.info"],
+            "host": "https://foo.info",
         }
         csv_id_to_node_id_map_allowed_hosts_sql = (
             workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(config)
@@ -130,6 +132,7 @@ class TestSelectQueriesWithHostFilters(unittest.TestCase):
                 "https://foo.info",
                 "https://secondary.info",
             ],
+            "host": "https://secondary.info",
         }
         csv_id_to_node_id_map_allowed_hosts_sql = (
             workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(config)
@@ -148,10 +151,6 @@ class TestSelectQueriesWithHostFilters(unittest.TestCase):
             db_file_path=self.asset_db_path,
         )
         self.assertEqual(len(result), 13)
-
-    def tearDown(self):
-        if os.path.exists(self.asset_db_path):
-            os.remove(self.asset_db_path)
 
 
 if __name__ == "__main__":
