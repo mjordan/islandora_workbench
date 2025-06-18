@@ -1921,6 +1921,14 @@ def check_input(config, args):
             message = f'You should set your "csv_id_to_node_id_map_dir" config setting to a location other than your system\'s temporary directory.'
             print("Warning: " + message)
             logging.warning(message)
+
+        if is_running_in_docker() is True:
+            docker_message = (
+                "It appears you are running Workbench within a Docker container. Please ensure that your CSV ID to node ID map "
+                + "config setting defines a location accessible outside of the Docker container; otherwise, it might be deleted when you destroy or rebuild your Docker image."
+            )
+            print("Warning: " + docker_message)
+            logging.warning(docker_message)
         if (
             config["recovery_mode_starting_from_node_id"] is not False
             and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
@@ -1951,6 +1959,7 @@ def check_input(config, args):
             csv_to_node_id_map_path = config["csv_id_to_node_id_map_path"]
             current_host = config["host"]
 
+            prepare_csv_id_to_node_id_map(config)
             check_for_host_column_result = sqlite_manager(
                 config,
                 operation="select",
@@ -12375,3 +12384,13 @@ def check_for_workbench_updates(config):
             logging.info(message)
     else:
         message = 'Looks like your copy of Workbench is at least 30 commits behind the "main" branch in Github. Your copy appears to have been last updated {latest_local_commit_date}.'
+
+
+def is_running_in_docker():
+    """Assumes Dockerfile sets an environment variable ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER.
+    If that environment variable is not present, return False.
+    """
+    if "ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER" in os.environ:
+        return True
+    else:
+        return False
