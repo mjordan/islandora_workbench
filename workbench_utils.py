@@ -3924,7 +3924,8 @@ def check_input(config, args):
                 )
                 if validate_weight_value(page_sequence_indicator) is False:
                     if page_file_name.strip().lower() not in [
-                        fn.strip().lower() for fn in config["paged_content_ignore_files"]
+                        fn.strip().lower()
+                        for fn in config["paged_content_ignore_files"]
                     ]:
                         logging.warning(
                             f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
