@@ -3923,10 +3923,13 @@ def check_input(config, args):
                     config, page_file_name
                 )
                 if validate_weight_value(page_sequence_indicator) is False:
-                    logging.warning(
-                        f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
-                    )
-                    paged_content_sequence_indicator_warnings = True
+                    if page_file_name.strip().lower() not in [
+                        fn.strip().lower() for fn in config["paged_content_ignore_files"]
+                    ]:
+                        logging.warning(
+                            f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
+                        )
+                        paged_content_sequence_indicator_warnings = True
 
             # Check additional page media files (e.g. OCR andhOCR files) for utf8 encoding.
             additional_page_media_no_utf8_warnings = list()
@@ -9185,10 +9188,14 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         csv_row_to_apply_to_paged_children = copy.deepcopy(parent_csv_record)
         csv_row_to_apply_to_paged_children["file"] = page_file_name
         if validate_weight_value(weight) is False:
-            logging.warning(
-                f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
-            )
-            weight = ""
+            if page_file_name.strip().lower() not in [
+                fn.strip().lower() for fn in config["paged_content_ignore_files"]
+            ]:
+                logging.warning(
+                    f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
+                )
+                weight = ""
+
         csv_row_to_apply_to_paged_children["field_weight"] = weight
 
         # Add any fields to the page's row that are defined in config["csv_value_templates_for_paged_content"].
