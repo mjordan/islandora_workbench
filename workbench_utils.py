@@ -3906,9 +3906,6 @@ def check_input(config, args):
                     continue
 
                 if paged_content_ignore_file(config, page_file_name) is False:
-                    # if page_file_name.strip().lower() not in [
-                    # fn.strip().lower() for fn in config["paged_content_ignore_files"]
-                    # ]:
                     if config["paged_content_sequence_separator"] not in page_file_name:
                         message = (
                             "Page file "
@@ -3925,10 +3922,6 @@ def check_input(config, args):
                 )
                 if validate_weight_value(page_sequence_indicator) is False:
                     if paged_content_ignore_file(config, page_file_name) is False:
-                        # if page_file_name.strip().lower() not in [
-                        # fn.strip().lower()
-                        # for fn in config["paged_content_ignore_files"]
-                        # ]:
                         logging.warning(
                             f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
                         )
@@ -9154,9 +9147,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
     for page_file_name in page_files:
         if paged_content_ignore_file(config, page_file_name) is True:
-            # if page_file_name.strip().lower() in [
-            # fn.strip().lower() for fn in config["paged_content_ignore_files"]
-            # ]:
             continue
 
         # Only want files, not directories.
@@ -9193,9 +9183,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         csv_row_to_apply_to_paged_children["file"] = page_file_name
         if validate_weight_value(weight) is False:
             if paged_content_ignore_file(config, page_file_name) is False:
-                # if page_file_name.strip().lower() not in [
-                # fn.strip().lower() for fn in config["paged_content_ignore_files"]
-                # ]:
                 logging.warning(
                     f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
                 )
