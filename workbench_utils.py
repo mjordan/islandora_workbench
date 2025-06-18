@@ -1918,8 +1918,8 @@ def check_input(config, args):
 
     if config["task"] in ["create", "create_from_files"]:
         if config["csv_id_to_node_id_map_dir"] == config["temp_dir"]:
-            message = f'You should set your "csv_id_to_node_id_map_dir" config setting to a location other than your system\'s temporary directory.'
-            print("Warning: " + message)
+            message = f'You should set your "csv_id_to_node_id_map_dir" config setting to a location other than your system\'s temporary directory ("{config["temp_dir"]}").'
+            # print("Warning: " + message)
             logging.warning(message)
 
         if is_running_in_docker() is True:
@@ -2272,11 +2272,19 @@ def check_input(config, args):
             os.remove(csv_file_path)
 
         # If nothing has failed by now, exit with a positive, upbeat message.
-        print("Configuration and input data appear to be valid.")
+        if config["perform_soft_checks"] is True:
+            always_review_log_message = ""
+        else:
+            always_review_log_message = (
+                " However, you should review your Workbench log after running --check."
+            )
+        config_and_data_appear_to_be_valid_message = f"Configuration and input data appear to be valid.{always_review_log_message}"
+        print(config_and_data_appear_to_be_valid_message)
         if config["perform_soft_checks"] is True:
             print(
                 'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
             )
+
         logging.info(
             'Configuration checked for "%s" task using config file "%s", no problems found.',
             config["task"],
@@ -4145,7 +4153,20 @@ def check_input(config, args):
             print(message)
 
     # If nothing has failed by now, exit with a positive, upbeat message.
-    print("Configuration and input data appear to be valid.")
+    if config["perform_soft_checks"] is True:
+        always_review_log_message = ""
+    else:
+        always_review_log_message = (
+            " However, you should review your Workbench log after running --check."
+        )
+    config_and_data_appear_to_be_valid_message = (
+        f"Configuration and input data appear to be valid.{always_review_log_message}"
+    )
+    print(config_and_data_appear_to_be_valid_message)
+    if config["perform_soft_checks"] is True:
+        print(
+            'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
+        )
     logging.info(
         'Configuration checked for "%s" task using config file "%s", no problems found.',
         config["task"],
@@ -4350,7 +4371,20 @@ def check_input_for_create_from_files(config, args):
         sys.exit("Error: " + message)
 
     # If nothing has failed by now, exit with a positive message.
-    print("Configuration and input data appear to be valid.")
+    if config["perform_soft_checks"] is True:
+        always_review_log_message = ""
+    else:
+        always_review_log_message = (
+            " However, you should review your Workbench log after running --check."
+        )
+    config_and_data_appear_to_be_valid_message = (
+        f"Configuration and input data appear to be valid.{always_review_log_message}"
+    )
+    print(config_and_data_appear_to_be_valid_message)
+    if config["perform_soft_checks"] is True:
+        print(
+            'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
+        )
     logging.info(
         'Configuration checked for "%s" task using config file %s, no problems found.',
         config["task"],
