@@ -3905,9 +3905,10 @@ def check_input(config, args):
                 if os.path.isdir(os.path.join(dir_path, page_file_name)):
                     continue
 
-                if page_file_name.strip().lower() not in [
-                    fn.strip().lower() for fn in config["paged_content_ignore_files"]
-                ]:
+                if paged_content_ignore_file(config, page_file_name) is False:
+                    # if page_file_name.strip().lower() not in [
+                    # fn.strip().lower() for fn in config["paged_content_ignore_files"]
+                    # ]:
                     if config["paged_content_sequence_separator"] not in page_file_name:
                         message = (
                             "Page file "
@@ -3923,10 +3924,11 @@ def check_input(config, args):
                     config, page_file_name
                 )
                 if validate_weight_value(page_sequence_indicator) is False:
-                    if page_file_name.strip().lower() not in [
-                        fn.strip().lower()
-                        for fn in config["paged_content_ignore_files"]
-                    ]:
+                    if paged_content_ignore_file(config, page_file_name) is False:
+                        # if page_file_name.strip().lower() not in [
+                        # fn.strip().lower()
+                        # for fn in config["paged_content_ignore_files"]
+                        # ]:
                         logging.warning(
                             f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
                         )
@@ -9151,9 +9153,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     required_fields = get_required_bundle_fields(config, "node", config["content_type"])
 
     for page_file_name in page_files:
-        if page_file_name.strip().lower() in [
-            fn.strip().lower() for fn in config["paged_content_ignore_files"]
-        ]:
+        if paged_content_ignore_file(config, page_file_name) is True:
+            # if page_file_name.strip().lower() in [
+            # fn.strip().lower() for fn in config["paged_content_ignore_files"]
+            # ]:
             continue
 
         # Only want files, not directories.
@@ -9189,9 +9192,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         csv_row_to_apply_to_paged_children = copy.deepcopy(parent_csv_record)
         csv_row_to_apply_to_paged_children["file"] = page_file_name
         if validate_weight_value(weight) is False:
-            if page_file_name.strip().lower() not in [
-                fn.strip().lower() for fn in config["paged_content_ignore_files"]
-            ]:
+            if paged_content_ignore_file(config, page_file_name) is False:
+                # if page_file_name.strip().lower() not in [
+                # fn.strip().lower() for fn in config["paged_content_ignore_files"]
+                # ]:
                 logging.warning(
                     f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
                 )
@@ -12426,6 +12430,28 @@ def check_for_workbench_updates(config):
             logging.info(message)
     else:
         message = 'Looks like your copy of Workbench is at least 30 commits behind the "main" branch in Github. Your copy appears to have been last updated {latest_local_commit_date}.'
+
+
+def paged_content_ignore_file(config, filename_to_check):
+    """Checks to see if a given page filename meets one of the conditions here.
+    Params
+    ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        filename_to_check : string
+            The filename to check. Is lower-cased and stripped prior to the check.
+    Return
+    ------
+        bool
+            True if the file is to be ignored, False if the file is to be considered ready to
+            create a node/media from.
+    """
+    if filename_to_check.strip().lower() in [
+        fn.strip().lower() for fn in config["paged_content_ignore_files"]
+    ]:
+        return True
+    else:
+        return False
 
 
 def is_running_in_docker():
