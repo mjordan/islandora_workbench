@@ -7,7 +7,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 ## Features
 
 * Allows creation of Islandora nodes and media, updating of nodes, and deletion of nodes and media from CSV files
-* Allows creation of paged/compound content
+* Allows creation of paged/compound content, both within same session and across sessions
 * Can run from anywhere - it communicates with Drupal via HTTP interfaces
 * Can be built as a Docker container, and run from within that container
 * Provides robust data validation functionality
@@ -24,7 +24,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Well tested
 * Well documented
 * Provides both sensible default configuration values and rich configuration options for power users
-* Run from within a Docker container.
+* Can be run from within a Docker container.
 
 ## Documentation
 
