@@ -3905,7 +3905,7 @@ def check_input(config, args):
                 if os.path.isdir(os.path.join(dir_path, page_file_name)):
                     continue
 
-                if paged_content_ignore_file(config, page_file_name) is False:
+                if paged_content_ignore_file(config, page_file_name) is True:
                     logging.info(
                         f'Ignoring file "{os.path.join(dir_path, page_file_name)}" since it matches an entry in the "paged_content_ignore_files" config setting.'
                     )
