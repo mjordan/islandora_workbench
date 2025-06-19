@@ -3906,6 +3906,12 @@ def check_input(config, args):
                     continue
 
                 if paged_content_ignore_file(config, page_file_name) is False:
+                    logging.info(
+                        f'Ignoring file "{os.path.join(dir_path, page_file_name)}" since it matches an entry in the "paged_content_ignore_files" config setting.'
+                    )
+                    continue
+
+                if paged_content_ignore_file(config, page_file_name) is False:
                     if config["paged_content_sequence_separator"] not in page_file_name:
                         message = (
                             "Page file "
@@ -9147,6 +9153,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
 
     for page_file_name in page_files:
         if paged_content_ignore_file(config, page_file_name) is True:
+            logging.info(
+                f'Ignoring file "{os.path.join(page_dir_path, page_file_name)}" since it matches an entry in the "paged_content_ignore_files" config setting.'
+            )
             continue
 
         # Only want files, not directories.
@@ -12420,7 +12429,8 @@ def check_for_workbench_updates(config):
 
 
 def paged_content_ignore_file(config, filename_to_check):
-    """Checks to see if a given page filename meets one of the conditions here.
+    """Checks to see if a given page filename matches an entry in the
+    paged_content_ignore_files config setting.
     Params
     ----------
         config : dict
@@ -12430,15 +12440,46 @@ def paged_content_ignore_file(config, filename_to_check):
     Return
     ------
         bool
-            True if the file is to be ignored, False if the file is to be considered ready to
-            create a node/media from.
+            True if the file is to be ignored, False if the file is not be ignored.
     """
+    # Normalize the incoming filename and paged_content_ignore_files entries.
+    filename_to_check_normalized = filename_to_check.lower().strip()
+    filters = copy.copy(config["paged_content_ignore_files"])
+    for i in range(len(filters)):
+        filters[i] = filters[i].lower()
+        filters[i] = filters[i].strip()
+
+    # * wildcard is the filename (e.g., ["*.db", "*.xml"]), so we can match on the extension with the wildcard filename.
+    # First, get a list of the *. patterns from configuration.
+    filename_is_wildcard_patterns = [fnp for fnp in filters if fnp.startswith("*.")]
+    # Then see if the filename_to_check ends with any of the extensions in those patterns.
+    extension_matches = any(
+        # Get rid of the leading * but keep the period.
+        filename_to_check_normalized.endswith(filename.lstrip("*"))
+        for filename in filename_is_wildcard_patterns
+    )
+    if extension_matches is True:
+        return True
+
+    # * wildcard is the extension (e.g., ["matchme.*", "imamatch.*"]), so we can match on the filename with the wildcard extension.
+    # First, get a list of the .* patterns from configuration.
+    extension_is_wildcard_patterns = [extp for extp in filters if extp.endswith(".*")]
+    # Then see if the filename_to_check starts with any of the filenames in those patterns.
+    filename_matches = any(
+        # Get rid of the trailing * but keep the period.
+        filename_to_check_normalized.startswith(filename.rstrip("*"))
+        for filename in extension_is_wildcard_patterns
+    )
+    if filename_matches is True:
+        return True
+
+    # Whole filenames with extensions.
     if filename_to_check.strip().lower() in [
         fn.strip().lower() for fn in config["paged_content_ignore_files"]
     ]:
         return True
-    else:
-        return False
+
+    return False
 
 
 def is_running_in_docker():
