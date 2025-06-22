@@ -116,12 +116,21 @@ class WorkbenchConfig:
                 loaded = yaml.load(stream)
             except YAMLError as exc:
                 print(
-                    f"There appears to be a YAML syntax error in your configuration file, {self.args.config}. Remove the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ or your YAML validator of choice."
+                    f"There appears to be a YAML syntax error in your configuration file, {self.args.config}. Remove "
+                    f"the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ "
+                    f"or your YAML validator of choice.\n"
+                    f"(Check 'workbench.log' file for additional error details.)"
                 )
-                # No using logging.error() here because this method will run inside
-                # WorkbenchConfig.__init__() before the logger is configured
-                yaml_error = f"\nException type: {type(exc).__name__}\n{exc}"
-                print(yaml_error)
+                # We are using logging.basicConfig() here to set a temporary logger here because this method will
+                # run inside WorkbenchConfig.__init__() before the WorkbenchConfig class logger is configured.
+                # Also by using the logger we don't have to output the YAML parsing errors to the CLI
+                logging.basicConfig(
+                    filename="workbench.log",
+                    format="%(asctime)s - %(levelname)s - %(message)s",
+                    datefmt="%d-%b-%y %H:%M:%S",
+                )
+                yaml_error = f"\nYAML parsing error in configuration file\nException type: {type(exc).__name__}\n{exc}"
+                logging.error(yaml_error)
 
                 sys.exit()
 
