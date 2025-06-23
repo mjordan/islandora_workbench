@@ -15,6 +15,7 @@ setup(
         "ruamel.yaml.clib<=0.2.12",
         "pyparsing<3.2",
         "progress_bar",
+        "lxml",
         "openpyxl",
         "unidecode",
         "edtf_validate",

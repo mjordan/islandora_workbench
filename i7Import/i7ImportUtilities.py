@@ -5,7 +5,8 @@ import mimetypes
 import requests
 import re
 import logging
-import xml.etree.ElementTree as ET
+from lxml.etree import ElementTree
+from lxml import objectify
 import sys
 import os
 import urllib.parse
@@ -57,7 +58,7 @@ def get_extension_from_mimetype(mimetype):
         return mimetypes.guess_extension(mimetype)
 
 
-@lru_cache(maxsize=10)
+@lru_cache(maxsize=5)
 def get_metadata_solr_request(location):
     """Open the metadata solr request file and return the contents.
     Parameters:
@@ -74,7 +75,7 @@ def get_metadata_solr_request(location):
 class i7ImportUtilities:
     """i7ImportUtilities is a class that provides utility functions for importing metadata from Islandora 7."""
 
-    logger = None
+    _logger = None
     _config = None
     config_location = None
 
@@ -122,6 +123,7 @@ class i7ImportUtilities:
         "pids_to_use": False,
         "pids_to_skip": [],
         "paginate": False,
+        "metadata_fields": {},
     }
 
     @property
@@ -144,59 +146,96 @@ class i7ImportUtilities:
             config["debug"] = True
         return config
 
-    def get_logger(self):
-        if self.logger is None:
+    @property
+    def logger(self):
+        if self._logger is None:
             self._configure_logger()
-        return self.logger
+        return self._logger
 
     def _configure_logger(self):
-        self.logger = logging.getLogger("i7ImportUtilities")
-        self.logger.setLevel(logging.DEBUG if self.config["debug"] else logging.INFO)
+        self._logger = logging.getLogger("i7ImportUtilities")
+        self._logger.setLevel(logging.DEBUG if self.config["debug"] else logging.INFO)
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         formatter.datefmt = "%d-%b-%y %H:%M:%S"
         handler = logging.FileHandler(self.config["log_file_path"], mode="a")
         handler.setLevel(logging.DEBUG if self.config["debug"] else logging.INFO)
         handler.setFormatter(formatter)
-        self.logger.propagate = False
-        self.logger.addHandler(handler)
+        self._logger.propagate = False
+        self._logger.addHandler(handler)
 
-    def parse_rels_ext(self, pid):
-        rels_ext_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/RELS-EXT/download"
-        if self.config["deep_debug"]:
-            print(f"\n{rels_ext_url}")
+    @lru_cache(maxsize=10)
+    def _get_i7_metadata_data(self, metadata_pid: str, ds_id: str) -> ElementTree:
+        """Get the metadata for a given datastream ID as an ElementTree object.
+        Parameters:
+            metadata_pid: str: The PID of the metadata object.
+            ds_id: str: The datastream ID to retrieve.
+        -------
+        Returns:
+            ET: An ElementTree object containing the metadata.
+        """
+        metadata_url = f"{self.config['islandora_base_url']}/islandora/object/{metadata_pid}/datastream/{ds_id}/download"
         try:
-            rels_ext_download_response = requests.get(
+            download_response = requests.get(
                 verify=self.config["secure_ssl_only"],
-                url=rels_ext_url,
+                url=metadata_url,
                 allow_redirects=True,
             )
-            if rels_ext_download_response.ok:
-                rel_ext = {}
-                rels_ext_xml = rels_ext_download_response.content.decode()
+            if download_response.ok:
+                download_xml = download_response.content.decode()
                 if self.config["deep_debug"]:
-                    print(rels_ext_xml)
-                root = ET.fromstring(rels_ext_xml)
-                description = root.find(
-                    ".//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description"
-                )
-                for x in description:
-                    tag = x.tag[x.tag.find("}") + 1 :]
-                    text = x.text
-                    if x.attrib.items():
-                        text = next(iter(x.attrib.items()))[1]
-                        text = text[text.find("/") + 1 :]
-                    rel_ext[tag] = text
-                return rel_ext
-            else:
-                message = f"\nBad response from server for item {pid} : {rels_ext_download_response.status_code}"
-                self.get_logger().error(message)
+                    print(download_xml)
+                root = objectify.fromstring(download_xml)
+                return root
             return None
 
         except requests.exceptions.RequestException as e:
-            self.get_logger().error(e)
+            self.logger.error(e)
             raise SystemExit(e)
 
-    def _get_all_solr_fields(self):
+    def get_metadata_value(self, pid: str, ds_id: str, xpath: str):
+        """Get a specific metadata element from the i7 metadata.
+        Parameters:
+            pid: str: The PID of the metadata object.
+            ds_id: str: The datastream ID to retrieve.
+            xpath: str: The XPath to the specific element to retrieve.
+        -------
+        Returns:
+            str: The text content of the element, or None if not found.
+        """
+        root = self._get_i7_metadata_data(pid, ds_id)
+        if root is not None:
+            element = root.find(xpath)
+            if element is not None:
+                if self.config["deep_debug"]:
+                    self.logger.debug(
+                        f"Found element for PID {pid} with xpath {xpath}: {element.text}"
+                    )
+                return element.text
+            else:
+                self.logger.warning(
+                    f"Element not found for PID {pid} with xpath {xpath}"
+                )
+        return None
+
+    def parse_rels_ext(self, pid):
+        root = self._get_i7_metadata_data(pid, "RELS-EXT")
+        rel_ext = {}
+        if root is not None:
+            description = root.find(
+                ".//{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description"
+            )
+            for x in description:
+                tag = x.tag[x.tag.find("}") + 1 :]
+                text = x.text
+                if x.attrib.items():
+                    text = next(iter(x.attrib.items()))[1]
+                    text = text[text.find("/") + 1 :]
+                rel_ext[tag] = text
+        return rel_ext
+
+    @lru_cache(maxsize=1)
+    def get_solr_field_list(self):
+        # This query gets all fields in the index. Does not need to be user-configurable.
         fields_solr_url = (
             f"{self.config['solr_base_url']}/admin/luke?wt=json&schema=show"
         )
@@ -208,20 +247,20 @@ class i7ImportUtilities:
             )
             raw_data = field_list_response.json()
             raw_field_list = raw_data["fields"]
-            return raw_field_list.keys()
+            field_list = raw_field_list.keys()
         except requests.exceptions.RequestException as e:
-            self.get_logger().error(e)
+            self.logger.error(e)
             raise SystemExit(e)
 
-    @lru_cache
-    def get_solr_field_list(self):
-        # This query gets all fields in the index. Does not need to be user-configurable.
-        field_list = self._get_all_solr_fields()
-
+        # Filter the field list based on if the field matches the field_pattern (if set) and
+        # does not match the field_pattern_do_not_want.
         filtered_field_list = [
             keep
             for keep in field_list
-            if re.search(self.config["field_pattern"], keep)
+            if (
+                self.config["field_pattern"] is None or self.config["field_pattern"] == ""
+                or re.search(self.config["field_pattern"], keep)
+            )
             and not re.search(self.config["field_pattern_do_not_want"], keep)
         ]
 
@@ -271,7 +310,7 @@ class i7ImportUtilities:
 
         # Get the populated CSV from Solr, with the object namespace and field list filters applied.
         querystring = _params_to_querystring(params)
-        self.get_logger().debug(f"Default Solr Querystring: {querystring}")
+        self.logger.debug(f"Default Solr Querystring: {querystring}")
         return f"{self.config['solr_base_url']}/select?" + querystring
 
     # Validates config.
@@ -281,14 +320,14 @@ class i7ImportUtilities:
             message = f"'get_file_url' and 'fetch_files' cannot both be selected."
             error_messages.append(message)
         if error_messages:
-            self.get_logger().error("Error: " + "\n".join(error_messages))
+            self.logger.error("Error: " + "\n".join(error_messages))
             sys.exit("Error: " + "\n".join(error_messages))
 
     # Gets file from i7 installation
     def get_i7_asset(self, pid, datastream):
         try:
             obj_url = f"{self.config['islandora_base_url']}/islandora/object/{pid}/datastream/{datastream}/download"
-            self.get_logger().debug(f"Attempting to download {obj_url}")
+            self.logger.debug(f"Attempting to download {obj_url}")
             if self.config["get_file_url"]:
                 obj_download_response = requests.head(
                     verify=self.config["secure_ssl_only"],
@@ -318,14 +357,14 @@ class i7ImportUtilities:
                 elif self.config["get_file_url"] and obj_extension:
                     return obj_url
             elif obj_download_response.status_code == 404:
-                self.get_logger().warning(f"{obj_url} not found.")
+                self.logger.warning(f"{obj_url} not found.")
             else:
                 message = f"Bad response from server for item {pid} : {obj_download_response.status_code}"
-                self.get_logger().error(message)
+                self.logger.error(message)
             return None
 
         except requests.exceptions.RequestException as e:
-            self.get_logger().error(e)
+            self.logger.error(e)
             return None
 
     # Convenience function for debugging - Prints config to console screen.

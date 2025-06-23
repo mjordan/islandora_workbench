@@ -53,7 +53,7 @@ def get_rows(query_url) -> list:
             sys.exit()
         return resp.json()["response"]["docs"]
     except requests.exceptions.RequestException as e:
-        utils.get_logger().error(f"Solr Query failed. {e}")
+        utils.logger.error(f"Solr Query failed. {e}")
         raise SystemExit(e)
 
 
@@ -75,8 +75,18 @@ def process_row(row: dict, row_id: int, failed_list: list) -> dict:
             row["sequence"] = str(rels_ext["isSequenceNumber"])
     else:
         failed_list.append(row["PID"])
-        utils.get_logger().error(f"{row['PID']} was unsuccessful.")
+        utils.logger.error(f"{row['PID']} was unsuccessful.")
         raise SkipException()
+    for field_name, field_config in config["metadata_fields"].items():
+        # Get custom metadata fields from alternative datastreams.
+        metadata_xpath = field_config["xpath"]
+        metadata_dsid = field_config["dsid"]
+        metadata_value = ""
+        if metadata_xpath and metadata_dsid:
+            metadata_value = utils.get_metadata_value(
+                row["PID"], metadata_dsid, metadata_xpath
+            )
+        row[field_name] = metadata_value
     if config["fetch_files"] or config["get_file_url"]:
         for datastream in config["datastreams"]:
             file = utils.get_i7_asset(row["PID"], datastream)
@@ -154,7 +164,7 @@ if __name__ == "__main__":
     if config["secure_ssl_only"] is False:
         requests.packages.urllib3.disable_warnings()
     pretty_print = metadata_solr_request.replace("&", "\n&")
-    utils.get_logger().debug(f"Solr request: {pretty_print}")
+    utils.logger.debug(f"Solr request: {pretty_print}")
     if config["deep_debug"]:
         utils.print_config()
 
@@ -178,20 +188,20 @@ if __name__ == "__main__":
                 )
             message = f"Illegal request: Server returned status of {metadata_solr_response.status_code} \n{warning}"
             print(message)
-            utils.get_logger().error(message)
+            utils.logger.error(message)
             sys.exit()
 
         response = json.loads(metadata_solr_response.content.decode())
         numFound = response["response"]["numFound"]
     except requests.exceptions.RequestException as e:
-        utils.get_logger().error(f"Solr Query failed. {e}")
+        utils.logger.error(f"Solr Query failed. {e}")
         raise SystemExit(e)
     if numFound == 0:
-        utils.get_logger().info("No items found.")
+        utils.logger.info("No items found.")
         print("No items found. Exiting...")
         sys.exit()
 
-    utils.get_logger().info(f"Found {numFound} items.")
+    utils.logger.info(f"Found {numFound} items.")
 
     headers = utils.get_solr_field_list()
     # We add a 'sequence' column to store the Islandora 7.x property "isSequenceNumberOfxxx"/"isSequenceNumber".
@@ -200,6 +210,13 @@ if __name__ == "__main__":
     headers.append("file")
     if config["id_field"] not in headers:
         headers.insert(0, config["id_field"])
+    # Add metadata fields to the headers
+    for field in config["metadata_fields"]:
+        if field not in headers:
+            headers.append(field)
+        else:
+            utils.logger.error(f"Metadata field: {field} already exists in headers.")
+            raise ValueError(f"Metadata field: {field} already exists in headers.")
 
     # Counter of all rows processed
     row_count = 1
@@ -217,7 +234,7 @@ if __name__ == "__main__":
                 max_row = row_count + utils._get_config()["rows"] - 1
                 if max_row > numFound:
                     max_row = numFound
-                utils.get_logger().info(
+                utils.logger.info(
                     f"Processing rows {row_count} to {max_row} of {numFound}"
                 )
                 row_count = process_block(
