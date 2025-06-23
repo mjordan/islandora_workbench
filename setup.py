@@ -16,6 +16,7 @@ setup(
         "pyparsing<3.2",
         "pytest",
         "progress_bar",
+        "lxml",
         "openpyxl",
         "unidecode",
         "edtf_validate",
