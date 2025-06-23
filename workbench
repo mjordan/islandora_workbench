@@ -806,7 +806,6 @@ def update():
 
             # Assemble Drupal field structures from CSV data. If new field types are added to
             # workbench_fields.py, they need to be registered in the following if/elif/else block.
-
             field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
                 field_definitions[custom_field]["field_type"]
             )
@@ -1224,7 +1223,8 @@ def add_media():
 
 
 def update_media() -> None:
-    """Update media from media IDs (or node ID if the task is "update_media_by_node") in the input CSV."""
+    """Callback for "update_media" and "update_media_from_node" tasks. Update media from media IDs (or node ID
+    if the task is "update_media_by_node") in the input CSV."""
     from typing import Optional
 
     # ========================================================= Helper functions =========================================================
@@ -1910,7 +1910,13 @@ def update_media() -> None:
         for custom_field in custom_fields:
             media_has_all_fields = True
             # If media doesn't have the field, log that fact and skip updating the field.
-            reserved_fields = ["published", "url_alias", "file", "revision_log", "node_id"]
+            reserved_fields = [
+                "published",
+                "url_alias",
+                "file",
+                "revision_log",
+                "node_id",
+            ]
             if (
                 custom_field not in json.loads(ping_media_result)
                 and custom_field not in reserved_fields

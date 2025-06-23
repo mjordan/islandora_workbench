@@ -6231,7 +6231,6 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             logging.error(message)
             sys.exit("Error: " + message)
 
-    # WIP on #956
     if config["task"] == "update_media_by_node":
         csv_reader_fieldnames.append("media_id")
 
@@ -6514,28 +6513,33 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         del row[column_to_ignore]
 
             # Skip CSV records whose first column begin with #.
-            if not list(row.values())[0].startswith("#"):
+            if list(str(row.values()))[0].startswith("#") is False:
                 try:
-                    print("DEBUG node", row["node_id"])
-                    # WIP on #956
+                    # Get the media ID(s) attached to the node at row["node_id"]. If there is only one
+                    # media ID, write it to the .preprocessed CSV file in the "media_id" column.
                     if config["task"] == "update_media_by_node":
                         node_media_ids = get_node_media_ids(
                             config,
                             row["node_id"],
-                            media_use_tids=config["update_media_by_node_media_use_tids"],
+                            media_use_tids=config[
+                                "update_media_by_node_media_use_tids"
+                            ],
                             media_type=config["media_type"],
                         )
                         if len(node_media_ids) == 1:
                             row["media_id"] = node_media_ids[0]
                         elif len(node_media_ids) == 0:
-                            logging.warning(f"No matching media found.")
+                            logging.warning(
+                                f'No matching media on node {row["node_id"]} found.'
+                            )
                             continue
                         else:
-                            logging.warning(f"Multiple matching media found.")
+                            logging.warning(
+                                f'Multiple matching media on node {row["node_id"]} found, with media IDs {", ".join([str(x) for x in node_media_ids]).strip()}. Workbench can only update one media per node at a time.'
+                            )
                             continue
 
                     row = clean_csv_values(config, row)
-                    print("DEBUG about to write row")
                     csv_writer.writerow(row)
                 except ValueError:
                     # Note: this message is also generated in check_input().
@@ -6556,7 +6560,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     logging.error(message)
                     sys.exit("Error: " + message)
 
-            '''
+            """
             # Convert node URLs into node IDs.
             if config["task"] in [
                 "update",
@@ -6567,7 +6571,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             ]:
                 if value_is_numeric(row["node_id"]) is False:
                     row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
-            '''
+            """
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(
@@ -10364,11 +10368,34 @@ def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
     if media_use_tids is None:
         media_use_tids = []
 
-    print(f"DEBUG OK we're inside get_node_media_ids with node ID {node_id}")
+    # Convert entries in media_use_tids from term names or URIs into term IDs.
+    if len(media_use_tids) > 0:
+        for i in range(len(media_use_tids)):
+            if (
+                value_is_numeric(media_use_tids[i]) is False
+                and media_use_tids[i].strip().startswith("http") is True
+            ):
+                media_use_tid_info = get_all_representations_of_term(
+                    config,
+                    vocab_id="islandora_media_use",
+                    uri=media_use_tids[i],
+                )
+                media_use_tids[i] = media_use_tid_info["term_id"]
+            elif (
+                value_is_numeric(media_use_tids[i]) is False
+                and media_use_tids[i].strip().startswith("http") is False
+            ):
+                media_use_tid_info = get_all_representations_of_term(
+                    config,
+                    vocab_id="islandora_media_use",
+                    name=media_use_tids[i],
+                )
+                media_use_tids[i] = media_use_tid_info["term_id"]
+            else:
+                media_use_tids[i] = media_use_tids[i]
 
     media_id_list = list()
     url = f"{config['host']}/node/{node_id}/media?_format=json"
-    print("DEBUG", url)
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
         body = json.loads(response.text)
@@ -10384,7 +10411,7 @@ def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
                         media_id_list.append(media["mid"][0]["value"])
         return media_id_list
     else:
-        message = f"Attempt to get media for node ID {node_id} returned a {response.status_code} status code."
+        message = f"Attempt to get media liost for node ID {url} returned a {response.status_code} status code."
         print("Error: " + message)
         logging.warning(message)
         return False
