@@ -303,7 +303,7 @@ class SimpleField(WorkbenchField):
             entity_id_field = "term_id"
         if config["task"] == "update":
             entity_id_field = "node_id"
-        if config["task"] == "update_media":
+        if config["task"] in ["update_media", "update_media_by_node"]:
             entity_id_field = "media_id"
 
         cardinality = int(field_definitions[field_name].get("cardinality", -1))

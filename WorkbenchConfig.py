@@ -290,6 +290,7 @@ class WorkbenchConfig:
             "media_track_file_fields": self.get_media_track_file_fields(),
             "media_fields": self.get_media_fields(),
             "delete_media_by_node_media_use_tids": [],
+            "update_media_by_node_media_use_tids": [],
             "export_csv_term_mode": "tid",
             "export_csv_file_path": None,
             "export_csv_field_list": [],

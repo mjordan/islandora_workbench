@@ -1224,7 +1224,7 @@ def add_media():
 
 
 def update_media() -> None:
-    """Update media from media IDs in the input CSV."""
+    """Update media from media IDs (or node ID if the task is "update_media_by_node") in the input CSV."""
     from typing import Optional
 
     # ========================================================= Helper functions =========================================================
@@ -1910,7 +1910,7 @@ def update_media() -> None:
         for custom_field in custom_fields:
             media_has_all_fields = True
             # If media doesn't have the field, log that fact and skip updating the field.
-            reserved_fields = ["published", "url_alias", "file", "revision_log"]
+            reserved_fields = ["published", "url_alias", "file", "revision_log", "node_id"]
             if (
                 custom_field not in json.loads(ping_media_result)
                 and custom_field not in reserved_fields
@@ -3467,7 +3467,7 @@ try:
         get_media_report_from_view()
     if config["task"] == "create_terms":
         create_terms()
-    if config["task"] == "update_media":
+    if config["task"] in ["update_media", "update_media_by_node"]:
         update_media()
     if config["task"] == "update_terms":
         update_terms()

@@ -1892,6 +1892,7 @@ def check_input(config, args):
         "delete",
         "add_media",
         "update_media",
+        "update_media_by_node",
         "delete_media",
         "delete_media_by_node",
         "create_from_files",
@@ -1908,7 +1909,7 @@ def check_input(config, args):
     if config["task"] not in tasks:
         message = (
             '"task" in your configuration file must be one of "create", "update", "delete", "add_alt_text", "update_alt_text", '
-            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", or "create_redirects".'
+            + '"add_media", "update_media", "update_media_by_node", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", or "create_redirects".'
         )
         logging.error(message)
         sys.exit("Error: " + message)
@@ -2069,7 +2070,7 @@ def check_input(config, args):
                 )
                 logging.error(message)
                 sys.exit("Error: " + message)
-    if config["task"] == "update_media":
+    if config["task"] in ["update_media", "update_media_by_node"]:
         update_media_required_options = [
             "task",
             "host",
@@ -2296,7 +2297,7 @@ def check_input(config, args):
 
     check_csv_file_exists(config, "node_fields")
 
-    # Check column headers in CSV file. Does not apply to add_media or update_media tasks (handled just below).
+    # Check column headers in CSV file. Does not apply to add_media or update_media/update_media_by_node tasks (handled just below).
     csv_data = get_csv_data(config)
     if config["csv_headers"] == "labels" and config["task"] in [
         "create",
@@ -2322,7 +2323,7 @@ def check_input(config, args):
     else:
         csv_column_headers = csv_data.fieldnames
 
-    if config["task"] in ["add_media", "update_media"]:
+    if config["task"] in ["add_media", "update_media", "update_media_by_node"]:
         field_definitions = get_field_definitions(config, "media", config["media_type"])
         base_media_fields = ["status", "uid", "langcode"]
         drupal_fieldnames = []
@@ -2802,7 +2803,7 @@ def check_input(config, args):
         logging.info(message)
 
     # If the task is update media, check if all media_id values are valid.
-    if config["task"] == "update_media":
+    if config["task"] in ["update_media", "update_media_by_node"]:
         csv_data = get_csv_data(config)
         row_number = 1
         for row in csv_data:
@@ -3288,6 +3289,11 @@ def check_input(config, args):
             message = 'For "update_media" tasks, your CSV file must contain a "media_id" column.'
             logging.error(message)
             sys.exit("Error: " + message)
+    if config["task"] == "update_media_by_node":
+        if "node_id" not in csv_column_headers:
+            message = 'For "update_media_by_node" tasks, your CSV file must contain a "node_id" column.'
+            logging.error(message)
+            sys.exit("Error: " + message)
     if config["task"] == "delete_media":
         if "media_id" not in csv_column_headers:
             message = 'For "delete_media" tasks, your CSV file must contain a "media_id" column.'
@@ -3438,6 +3444,7 @@ def check_input(config, args):
         config["task"] == "create"
         or config["task"] == "add_media"
         or config["task"] == "update_media"
+        or config["task"] == "update_media_by_node"
         and "file" in csv_column_headers
     ):
         if (
@@ -3449,6 +3456,8 @@ def check_input(config, args):
                 config["id_field"] = "node_id"
             if config["task"] == "update_media":
                 config["id_field"] = "media_id"
+            if config["task"] == "update_media_by_node":
+                config["id_field"] = "node_id"
 
             file_check_csv_data = get_csv_data(config)
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
@@ -6198,7 +6207,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
     else:
         csv_reader_fieldnames = csv_reader.fieldnames
 
-    # Even though we check for the columrespective ID column n in the incoming CSV in check_input(),
+    # Even though we check for the task's expected ID column in the incoming CSV in check_input(),
     # we need to check it here as well since check_input() reads the CSV prior to those checks.
     id_columns = {
         "create": config["id_field"],
@@ -6208,6 +6217,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         "delete_media": "media_id",
         "delete_media_by_node": "node_id",
         "update_media": "media_id",
+        "update_media_by_node": "node_id",
         "create_terms": "term_name",
         "update_terms": "term_id",
         "export_csv": "node_id",
@@ -6220,6 +6230,10 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             message = f'"{task}" tasks require a "{id_columns[task]}" CSV column. Please check your input CSV file and try again.'
             logging.error(message)
             sys.exit("Error: " + message)
+
+    # WIP on #956
+    if config["task"] == "update_media_by_node":
+        csv_reader_fieldnames.append("media_id")
 
     confirmed = []
     duplicates = []
@@ -6257,6 +6271,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                 for field_name, field_value in template.items():
                     if field_name not in csv_reader_fieldnames_orig:
                         csv_reader_fieldnames.append(field_name)
+
         csv_writer = csv.DictWriter(
             csv_writer_file_handle,
             fieldnames=csv_reader_fieldnames,
@@ -6310,6 +6325,9 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
 
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
+
+            if "node_id" in row and value_is_numeric(row["node_id"]) is False:
+                row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
 
             csv_rows_to_process_allowed_tasks = ["create", "update", "add_media"]
             # If the value in config['csv_rows_to_process'] is a path to a file, skip rows not identified in the file.
@@ -6421,6 +6439,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         "delete",
                         "add_media",
                         "delete_media_by_node",
+                        "update_media_by_node",
                     ]:
                         incoming_node_id = copy.copy(row["node_id"])
                         if value_is_numeric(row["node_id"]) is False:
@@ -6484,6 +6503,10 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             csv_start_row = config["csv_start_row"]
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
+
+            if "node_id" in row and value_is_numeric(row["node_id"]) is False:
+                row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config["ignore_csv_columns"]) > 0:
                 for column_to_ignore in config["ignore_csv_columns"]:
@@ -6493,7 +6516,26 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             # Skip CSV records whose first column begin with #.
             if not list(row.values())[0].startswith("#"):
                 try:
+                    print("DEBUG node", row["node_id"])
+                    # WIP on #956
+                    if config["task"] == "update_media_by_node":
+                        node_media_ids = get_node_media_ids(
+                            config,
+                            row["node_id"],
+                            media_use_tids=config["update_media_by_node_media_use_tids"],
+                            media_type=config["media_type"],
+                        )
+                        if len(node_media_ids) == 1:
+                            row["media_id"] = node_media_ids[0]
+                        elif len(node_media_ids) == 0:
+                            logging.warning(f"No matching media found.")
+                            continue
+                        else:
+                            logging.warning(f"Multiple matching media found.")
+                            continue
+
                     row = clean_csv_values(config, row)
+                    print("DEBUG about to write row")
                     csv_writer.writerow(row)
                 except ValueError:
                     # Note: this message is also generated in check_input().
@@ -6514,15 +6556,18 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     logging.error(message)
                     sys.exit("Error: " + message)
 
+            '''
             # Convert node URLs into node IDs.
             if config["task"] in [
                 "update",
                 "delete",
                 "add_media",
                 "delete_media_by_node",
+                "update_media_by_node",
             ]:
                 if value_is_numeric(row["node_id"]) is False:
                     row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+            '''
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(
@@ -10200,7 +10245,8 @@ def get_preprocessed_file_path(
                 config["temp_dir"],
                 re.sub("[^A-Za-z0-9]+", "_", str(node_csv_row["node_id"])),
             )
-        elif config["task"] == "update_media":
+        # elif config["task"] == "update_media":
+        elif config["task"] in ["update_media", "update_media_by_node"]:
             subdir = os.path.join(
                 config["temp_dir"],
                 re.sub("[^A-Za-z0-9]+", "_", node_csv_row["media_id"]),
@@ -10296,7 +10342,7 @@ def get_preprocessed_file_path(
         return file_path
 
 
-def get_node_media_ids(config, node_id, media_use_tids=None):
+def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
     """Gets a list of media IDs for a node."""
     """Parameters
         ----------
@@ -10308,6 +10354,8 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
             Term IDs from the Islandora Media Use vocabulary. If present, media
             with one of these tids will be added to the returned list of media IDs.
             If empty, all media will be included in the returned list of media IDs.
+        media_type: string
+            A media type machine name to filter on.
         Returns
         -------
         list
@@ -10316,12 +10364,18 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
     if media_use_tids is None:
         media_use_tids = []
 
+    print(f"DEBUG OK we're inside get_node_media_ids with node ID {node_id}")
+
     media_id_list = list()
     url = f"{config['host']}/node/{node_id}/media?_format=json"
+    print("DEBUG", url)
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
         body = json.loads(response.text)
         for media in body:
+            if media_type is not None:
+                if media_type != media["bundle"][0]["target_id"]:
+                    continue
             if len(media_use_tids) == 0:
                 media_id_list.append(media["mid"][0]["value"])
             else:
