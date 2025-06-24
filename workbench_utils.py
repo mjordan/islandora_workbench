@@ -6203,7 +6203,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
     csv_writer_file_handle = open(
         preprocessed_csv_path, "w+", newline="", encoding="utf-8"
     )
-    # 'restval' is used to populate superfluous fields/labels.
+    # The CSV reader argument 'restval' is used to populate superfluous fields/labels.
     csv_reader = csv.DictReader(
         csv_reader_file_handle,
         delimiter=config["delimiter"],
@@ -6432,8 +6432,12 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         if field_name not in csv_reader_fieldnames_orig:
                             row[field_name] = field_value
 
-            # Skip CSV records whose first column begin with #.
-            if list(str(row.values()))[0].startswith("#") is False:
+            # Skip CSV records whose first column begins with #.
+            if str(list(row.values())[0]).strip().startswith("#") is False:
+
+                if "node_id" in row and value_is_numeric(row["node_id"]) is False:
+                    row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+
                 try:
                     unique_identifiers.append(row[config["id_field"]])
 
@@ -6525,20 +6529,22 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
 
-            if "node_id" in row and value_is_numeric(row["node_id"]) is False:
-                row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
-
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config["ignore_csv_columns"]) > 0:
                 for column_to_ignore in config["ignore_csv_columns"]:
                     if column_to_ignore in row:
                         del row[column_to_ignore]
 
-            # Skip CSV records whose first column begin with #.
-            if list(str(row.values()))[0].startswith("#") is False:
+            # Skip CSV records whose first column begins with #.
+            if str(list(row.values())[0]).strip().startswith("#") is False:
+
+                if "node_id" in row and value_is_numeric(row["node_id"]) is False:
+                    row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+
                 try:
                     # Get the media ID(s) attached to the node at row["node_id"]. If there is only one
-                    # media ID, write it to the .preprocessed CSV file in the "media_id" column.
+                    # media ID, write it to the .preprocessed CSV file in the "media_id" column. If there
+                    # are none, or more than one, log that and move on to next row.
                     if config["task"] == "update_media_by_node":
                         node_media_ids = get_node_media_ids(
                             config,
@@ -10371,8 +10377,8 @@ def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
             A media type machine name to filter on.
         Returns
         -------
-        list
-            List of media IDs.
+        list|bool
+            List of media IDs, or False if there was a problem fetching the list of media.
     """
     if media_use_tids is None:
         media_use_tids = []
@@ -10420,7 +10426,7 @@ def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
                         media_id_list.append(media["mid"][0]["value"])
         return media_id_list
     else:
-        message = f"Attempt to get media liost for node ID {url} returned a {response.status_code} status code."
+        message = f"Attempt to get media list for node ID {node_id} returned a {response.status_code} status code."
         print("Error: " + message)
         logging.warning(message)
         return False
@@ -10674,7 +10680,7 @@ def find_file_url_in_media(config, media_list, media_use_term_id, node_id):
                         file_url = file_info[0].get("url")
                         if file_url:
                             return file_url
-    logging.debug(
+    logging.warning(
         f"No valid media found for node {node_id} with use term {media_use_term_id}"
     )
     return None
