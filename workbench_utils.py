@@ -508,13 +508,16 @@ def check_drupal_core_version(config):
         print(message)
 
 
-def check_integration_module_version(config):
+def check_integration_module_version(config, log_success=True):
     """Verifies if the minimum required version of the workbench integration module is being used.
 
     Parameters
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
+    log_success : bool
+        Whether or not to log that the desired version of the module is installed
+        on the remote Drupal.
     Returns
     -------
     None
@@ -546,13 +549,14 @@ def check_integration_module_version(config):
             logging.error(message)
             sys.exit("Error: " + message)
         else:
-            logging.info(
-                "OK, Islandora Workbench Integration module installed on "
-                + config["host"]
-                + " is at version "
-                + str(version)
-                + "."
-            )
+            if log_success is True:
+                logging.info(
+                    "OK, Islandora Workbench Integration module installed on "
+                    + config["host"]
+                    + " is at version "
+                    + str(version)
+                    + "."
+                )
 
 
 def get_integration_module_version(config):
@@ -1853,7 +1857,7 @@ def check_input(config, args):
             os.remove(config["check_lock_file_path"])
 
     ping_islandora(config, print_message=False)
-    check_integration_module_version(config)
+    check_integration_module_version(config, log_success=False)
 
     rows_with_missing_files = list()
 
@@ -2803,7 +2807,7 @@ def check_input(config, args):
         logging.info(message)
 
     # If the task is update media, check if all media_id values are valid.
-    if config["task"] in ["update_media", "update_media_by_node"]:
+    if config["task"] in ["update_media"]:
         csv_data = get_csv_data(config)
         row_number = 1
         for row in csv_data:
@@ -2817,6 +2821,24 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit(message)
             row_number += 1
+
+    if config["task"] == "update_media_by_node":
+        node_media_ids = get_node_media_ids(
+            config,
+            row["node_id"],
+            media_use_tids=config["update_media_by_node_media_use_tids"],
+            media_type=config["media_type"],
+        )
+        if len(node_media_ids) == 1:
+            logging.info(
+                f'Matching media on node {{row["node_id"]}} (media ID {node_media_ids[0]}) will be updated.'
+            )
+        elif len(node_media_ids) == 0:
+            logging.warning(f'No matching media on node {row["node_id"]} found.')
+        else:
+            logging.warning(
+                f'Multiple matching media on node {row["node_id"]} found, with media IDs {", ".join([str(x) for x in node_media_ids]).strip()}. Workbench can only update one media per node at a time.'
+            )
 
     if (
         config["task"] == "add_media"
@@ -6411,7 +6433,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                             row[field_name] = field_value
 
             # Skip CSV records whose first column begin with #.
-            if not list(row.values())[0].startswith("#"):
+            if list(str(row.values()))[0].startswith("#") is False:
                 try:
                     unique_identifiers.append(row[config["id_field"]])
 
@@ -6559,19 +6581,6 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     )
                     logging.error(message)
                     sys.exit("Error: " + message)
-
-            """
-            # Convert node URLs into node IDs.
-            if config["task"] in [
-                "update",
-                "delete",
-                "add_media",
-                "delete_media_by_node",
-                "update_media_by_node",
-            ]:
-                if value_is_numeric(row["node_id"]) is False:
-                    row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
-            """
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(

@@ -1562,15 +1562,27 @@ def update_media() -> None:
 
     # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
 
-    message = (
-        '"Update media" ('
-        + config["update_mode"]
-        + ") task started using config file "
-        + args.config
-        + "."
-    )
-    print(message)
-    logging.info(message)
+    if config["task"] == "update_media":
+        message = (
+            '"Update media" ('
+            + config["update_mode"]
+            + ") task started using config file "
+            + args.config
+            + "."
+        )
+        print(message)
+        logging.info(message)
+
+    if config["task"] == "update_media_by_node":
+        message = (
+            '"Update media by node" ('
+            + config["update_mode"]
+            + ") task started using config file "
+            + args.config
+            + "."
+        )
+        print(message)
+        logging.info(message)
 
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
