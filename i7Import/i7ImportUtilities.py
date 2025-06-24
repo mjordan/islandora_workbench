@@ -115,6 +115,7 @@ class i7ImportUtilities:
         "deep_debug": False,
         "collection": False,
         "collections": False,
+        "collection_field": "RELS_EXT_isMemberOfCollection_uri_s",
         "content_model": False,
         "solr_filters": False,
         "start": 0,
@@ -258,7 +259,8 @@ class i7ImportUtilities:
             keep
             for keep in field_list
             if (
-                self.config["field_pattern"] is None or self.config["field_pattern"] == ""
+                self.config["field_pattern"] is None
+                or self.config["field_pattern"] == ""
                 or re.search(self.config["field_pattern"], keep)
             )
             and not re.search(self.config["field_pattern_do_not_want"], keep)
@@ -286,21 +288,19 @@ class i7ImportUtilities:
 
         if self.config["collection"]:
             collection = self.config["collection"]
-            params["fq"].append(
-                f'RELS_EXT_isMemberOfCollection_uri_s:"info:fedora/{collection}"'
-            )
+            params["fq"].append(f'{self.config["collection_field"]}:"{collection}"')
         if self.config["content_model"]:
             model = self.config["content_model"]
-            params["fq"].append(f'RELS_EXT_hasModel_uri_s:"info:fedora/{model}"')
+            params["fq"].append(f'RELS_EXT_hasModel_uri_s:"{model}"')
         if self.config["solr_filters"]:
             for key, value in self.config["solr_filters"].items():
                 params["fq"].append(f'{key}:"{value}"')
-        fedora_prefix = 'RELS_EXT_isMemberOfCollection_uri_s:"info\:fedora/'
         if self.config["collections"]:
             collections = self.config["collections"]
-            fedora_collections = []
-            for collection in collections:
-                fedora_collections.append(f'{fedora_prefix}"{collection}"')
+            fedora_collections = [
+                f'{self.config["collection_field"]}:"{collection}"'
+                for collection in collections
+            ]
             fq_string = " or ".join(fedora_collections)
             params["fq"].append(fq_string)
         if self.config["pids_to_use"]:
