@@ -5116,6 +5116,7 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
         [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
     )
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5126,6 +5127,7 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
         [path_to_script, path_to_config_file], stdout=subprocess.PIPE
     )
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5136,6 +5138,7 @@ def execute_shutdown_script(path_to_script, path_to_config_file):
         [path_to_script, path_to_config_file], stdout=subprocess.PIPE
     )
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5149,6 +5152,19 @@ def execute_entity_post_task_script(
         stdout=subprocess.PIPE,
     )
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
+
+    return result, cmd.returncode
+
+
+def execute_script_to_run(path_to_script, path_to_config_file, entity_id):
+    """Executes a entity-level script and returns its output and exit status code."""
+    cmd = subprocess.Popen(
+        [path_to_script, path_to_config_file, str(entity_id)],
+        stdout=subprocess.PIPE,
+    )
+    result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 

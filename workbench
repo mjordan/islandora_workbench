@@ -3070,6 +3070,62 @@ def create_redirects():
             pbar(redirect_row_position)
 
 
+def run_scripts():
+    """Run registered scripts."""
+    message = '"Run scripts" task started using config file ' + args.config + "."
+    print(message)
+    logging.info(message)
+
+    if config["entity_type"] == "node":
+        id_field = "node_id"
+    if config["entity_type"] == "media":
+        id_field = "media_id"
+    if config["entity_type"] == "term":
+        id_field = "term_id"
+
+    if config["progress_bar"] is True:
+        csv_data_to_count = list(get_csv_data(config))
+        num_csv_records = len(csv_data_to_count)
+        pbar = InitBar()
+
+    csv_data = get_csv_data(config)
+
+    row_count = 0
+    for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config["enable_http_cache"] is True:
+            requests_cache.delete(expired=True)
+
+        row_count += 1
+        # Execute node-specific post-create scripts, if any are configured.
+        if "scripts_to_run" in config and len(config["scripts_to_run"]) > 0:
+            for command in config["scripts_to_run"]:
+                (
+                    script_output,
+                    script_return_code,
+                ) = execute_script_to_run(
+                    command,
+                    args.config,
+                    row[id_field],
+                )
+                if script_return_code == 0:
+                    logging.info(
+                        f'Script "{command}" with entity ID "{row[id_field]}" executed successfully: {script_output}'
+                    )
+                else:
+                    logging.error(f'Script "{command}" with entity ID "{row[id_field]}" failed: {script_output}')
+                    continue
+
+        if config["progress_bar"] is True:
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
+        else:
+            print(script_output)
+
+    if config["progress_bar"] is True:
+        pbar(100)
+
+
 # Main program logic.
 
 parser = argparse.ArgumentParser()
@@ -3477,6 +3533,8 @@ try:
         add_update_alt_text()
     if config["task"] == "update_alt_text":
         add_update_alt_text()
+    if config["task"] == "run_scripts":
+        run_scripts()
 
     if config["secondary_tasks"] is not None and len(config["secondary_tasks"]) > 0:
         for secondary_config_file in config["secondary_tasks"]:
