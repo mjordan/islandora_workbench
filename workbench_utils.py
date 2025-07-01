@@ -2844,44 +2844,61 @@ def check_input(config, args):
             config["validate_fixity_during_check"] is True
             and config["fixity_algorithm"] is not None
         ):
-            print("Performing local checksum validation. This might take some time.")
-            if "file" in csv_column_headers and "checksum" in csv_column_headers:
-                # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
-                validate_checksums_csv_data = get_csv_data(config)
-                if config["task"] == "add_media":
-                    row_id = "node_id"
-                else:
-                    row_id = config["id_field"]
-                checksum_validation_all_ok = True
-                for checksum_validation_row_count, checksum_validation_row in enumerate(
-                    validate_checksums_csv_data, start=1
+            field_and_checksum_in_csv = False
+            fixity_message = "Performing local checksum validation."
+            logging.info(fixity_message)
+            print(fixity_message + " This might take some time.")
+            validate_checksums_csv_data = get_csv_data(config)
+            if config["task"] == "add_media":
+                row_id = "node_id"
+            else:
+                row_id = config["id_field"]
+            checksum_validation_all_ok = True
+            for checksum_validation_row_count, checksum_validation_row in enumerate(
+                validate_checksums_csv_data, start=1
+            ):
+                file_name = checksum_validation_row["file"]
+                if (
+                    "file" in checksum_validation_row
+                    and "checksum" in checksum_validation_row
                 ):
-                    file_path = checksum_validation_row["file"]
-                    hash_from_local = get_file_hash_from_local(
-                        config, file_path, config["fixity_algorithm"]
-                    )
-                    if "checksum" in checksum_validation_row:
-                        if (
-                            hash_from_local
-                            == checksum_validation_row["checksum"].strip()
-                        ):
-                            logging.info(
-                                'Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.',
-                                config["fixity_algorithm"],
-                                file_path,
-                                hash_from_local,
-                            )
+                    field_and_checksum_in_csv = True
+                    if (
+                        file_name.lower().startswith("http") is False
+                        and check_file_exists(config, file_name) is True
+                    ):
+                        if os.path.isabs(file_name):
+                            file_path = file_name
                         else:
-                            checksum_validation_all_ok = False
-                            logging.warning(
-                                'Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
-                                config["fixity_algorithm"],
-                                file_path,
-                                checksum_validation_row[row_id],
-                                hash_from_local,
-                                checksum_validation_row["checksum"],
-                            )
+                            file_path = os.path.join(config["input_dir"], file_name)
+                        hash_from_local = get_file_hash_from_local(
+                            config, file_path, config["fixity_algorithm"]
+                        )
+                        if hash_from_local is False:
+                            continue
+                        if "checksum" in checksum_validation_row:
+                            if (
+                                hash_from_local
+                                == checksum_validation_row["checksum"].strip()
+                            ):
+                                logging.info(
+                                    'Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.',
+                                    config["fixity_algorithm"],
+                                    file_path,
+                                    hash_from_local,
+                                )
+                            else:
+                                checksum_validation_all_ok = False
+                                logging.warning(
+                                    'Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
+                                    config["fixity_algorithm"],
+                                    file_path,
+                                    checksum_validation_row[row_id],
+                                    hash_from_local,
+                                    checksum_validation_row["checksum"],
+                                )
 
+            if field_and_checksum_in_csv is True:
                 if checksum_validation_all_ok is True:
                     checksum_validation_message = (
                         "OK, checksum validation during complete. All checks pass."
@@ -2896,6 +2913,10 @@ def check_input(config, args):
                         + checksum_validation_message
                         + " See the log for more detail."
                     )
+            else:
+                checksum_validation_message = 'Could not validate checksums because the input CSV did not contain both "field" and "checksum" columns.'
+                print("Warning: " + checksum_validation_message)
+                logging.warning(checksum_validation_message)
 
     if config["task"] == "create_terms":
         # Check that all required fields are present in the CSV.
@@ -10732,13 +10753,13 @@ def get_file_hash_from_local(config, file_path, algorithm):
         config : dict
             The configuration settings defined by workbench_config.get_config().
         file_path : string
-            The file's path.
+            The file's absolute path.
         algorithm : string
             One of 'md5', 'sha1', or 'sha256'
         Returns
         -------
-        string
-            The requested hash.
+        string|bool
+            The requested hash, False if the file doesn't exist.
     """
     if algorithm == "md5":
         hash_object = hashlib.md5()
@@ -10747,14 +10768,18 @@ def get_file_hash_from_local(config, file_path, algorithm):
     if algorithm == "sha256":
         hash_object = hashlib.sha256()
 
-    with open(file_path, "rb") as file:
-        while True:
-            chunk = file.read(hash_object.block_size)
-            if not chunk:
-                break
-            hash_object.update(chunk)
+    try:
+        with open(file_path, "rb") as file:
+            while True:
+                chunk = file.read(hash_object.block_size)
+                if not chunk:
+                    break
+                hash_object.update(chunk)
 
-    return hash_object.hexdigest()
+        return hash_object.hexdigest()
+    except Exception as e:
+        logging.error(f"Could not get hash for file {file_path}: {e}")
+        return False
 
 
 def create_temp_dir(config):
