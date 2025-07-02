@@ -13,6 +13,7 @@ import datetime
 import argparse
 import collections
 import subprocess
+import concurrent.futures
 import requests_cache
 from progress_bar import InitBar
 from rich.console import Console
@@ -3072,58 +3073,47 @@ def create_redirects():
 
 def run_scripts():
     """Run registered scripts."""
-    message = '"Run scripts" task started using config file ' + args.config + "."
-    print(message)
-    logging.info(message)
+    max_workers = int(config["run_scripts_threads"])
+    message = '"Run scripts" task started using config file ' + args.config
+    print(message + ".")
+    logging.info(f"{message} using {max_workers} thread(s).")
 
-    if config["entity_type"] == "node":
+    if config["run_scripts_entity_type"] == "node":
         id_field = "node_id"
-    if config["entity_type"] == "media":
+    if config["run_scripts_entity_type"] == "media":
         id_field = "media_id"
-    if config["entity_type"] == "term":
+    if config["run_scripts_entity_type"] == "term":
         id_field = "term_id"
-
-    if config["progress_bar"] is True:
-        csv_data_to_count = list(get_csv_data(config))
-        num_csv_records = len(csv_data_to_count)
-        pbar = InitBar()
 
     csv_data = get_csv_data(config)
 
-    row_count = 0
+    entity_ids = []
     for row in csv_data:
-        # Delete expired items from request_cache before processing a row.
-        if config["enable_http_cache"] is True:
-            requests_cache.delete(expired=True)
+        entity_ids.append(row[id_field])
 
-        row_count += 1
-        # Execute node-specific post-create scripts, if any are configured.
-        if "scripts_to_run" in config and len(config["scripts_to_run"]) > 0:
-            for command in config["scripts_to_run"]:
-                (
-                    script_output,
-                    script_return_code,
-                ) = execute_script_to_run(
-                    command,
-                    args.config,
-                    row[id_field],
-                )
-                if script_return_code == 0:
-                    logging.info(
-                        f'Script "{command}" with entity ID "{row[id_field]}" executed successfully: {script_output}'
-                    )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for command in config["run_scripts"]:
+            executor_return = {
+                executor.submit(
+                    execute_script_to_run, command, args.config, entity_id
+                ): entity_id
+                for entity_id in entity_ids
+            }
+            for script_result_from_executor in concurrent.futures.as_completed(
+                executor_return
+            ):
+                script_result = script_result_from_executor.result()
+                if script_result[1] == 0:
+                    print(script_result[0])
+                    if config["run_scripts_log_script_output"] is True:
+                        logging.info(
+                            f'Script "{command}" exectuted with output: {script_result[0]}'
+                        )
                 else:
-                    logging.error(f'Script "{command}" with entity ID "{row[id_field]}" failed: {script_output}')
-                    continue
-
-        if config["progress_bar"] is True:
-            row_position = get_percentage(row_count, num_csv_records)
-            pbar(row_position)
-        else:
-            print(script_output)
-
-    if config["progress_bar"] is True:
-        pbar(100)
+                    message = f'Script "{command}" execution failed with return code {script_result[1]}.'
+                    print(message)
+                    if config["run_scripts_log_script_output"] is True:
+                        logging.error(message)
 
 
 # Main program logic.
