@@ -256,6 +256,8 @@ class WorkbenchConfig:
             "progress_bar": False,
             "show_percentage_of_csv_input_processed": False,
             "prompt_user_before_delete_task": False,
+            "run_scripts_threads": 1,
+            "run_scripts_log_script_output": True,
             "user_agent": "Islandora Workbench",
             "allow_redirects": True,
             "secure_ssl_only": True,

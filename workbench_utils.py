@@ -1903,12 +1903,13 @@ def check_input(config, args):
         "create_redirects",
         "add_alt_text",
         "update_alt_text",
+        "run_scripts",
     ]
     joiner = ", "
     if config["task"] not in tasks:
         message = (
             '"task" in your configuration file must be one of "create", "update", "delete", "add_alt_text", "update_alt_text", '
-            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", or "create_redirects".'
+            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", "create_redirects", or "run_scripts".'
         )
         logging.error(message)
         sys.exit("Error: " + message)
@@ -4178,6 +4179,89 @@ def check_input(config, args):
             logging.info(message)
             print(message)
 
+    # Checks for "run_scripts" task.
+    if config["task"] == "run_scripts":
+        run_scripts_check_csv_data = get_csv_data(config)
+        csv_column_headers = run_scripts_check_csv_data.fieldnames
+        if "run_scripts_entity_type" not in config:
+            message = 'Required "run_scripts_entity_type" setting not in config file.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if config["run_scripts_entity_type"] not in ["node", "media", "term"]:
+            message = 'Required "run_scripts_entity_type" setting must be on of "node", "media" or "term".'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+        if (
+            config["run_scripts_entity_type"] == "node"
+            and "node_id" not in csv_column_headers
+        ):
+            message = 'run_scripts tasks for nodes require a "node_id" column in the intput CSV.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if (
+            config["run_scripts_entity_type"] == "media"
+            and "media_id" not in csv_column_headers
+        ):
+            message = 'run_scripts tasks for media require a "media_id" column in the intput CSV.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if (
+            config["run_scripts_entity_type"] == "term"
+            and "term_id" not in csv_column_headers
+        ):
+            message = 'run_scripts tasks for taxonomy terms a require a "term_id" column in the intput CSV.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+        if "run_scripts" not in config:
+            message = 'Required "run_scripts" setting not in config file.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if "run_scripts" in config and len(config["run_scripts"]) == 0:
+            message = 'Required "run_scripts" setting is in config file but does contain any scripts.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+        for script_to_run in config["run_scripts"]:
+            if not os.path.exists(script_to_run):
+                message = "Script " + script_to_run + " not found."
+                logging.error(message)
+                sys.exit("Error: " + message)
+            if os.access(script_to_run, os.X_OK) is False:
+                message = "Script " + script_to_run + " is not executable."
+                logging.error(message)
+                sys.exit("Error: " + message)
+
+        message = "OK, registered scripts to run found and executable."
+        logging.info(message)
+        print(message)
+
+        # Ping each entity.
+        entities_found = True
+        if config["run_scripts_entity_type"] == "node":
+            for row in run_scripts_check_csv_data:
+                if ping_node(config, row["node_id"], warn=False) is False:
+                    logging.warning(f'Node ID {row["node_id"]} not found.')
+                    entities_found = False
+        if config["run_scripts_entity_type"] == "media":
+            for row in run_scripts_check_csv_data:
+                if ping_media(config, row["media_id"], warn=False) is False:
+                    logging.warning(f'Media ID {row["media_id"]} not found.')
+                    entities_found = False
+        if config["run_scripts_entity_type"] == "term":
+            for row in run_scripts_check_csv_data:
+                if ping_term(config, row["term_id"]) is False:
+                    logging.warning(f'Term ID {row["term_id"]} not found.')
+                    entities_found = False
+
+        if entities_found == True:
+            logging.info("All entities listed in input CSV found.")
+            print("OK, all entities listed in input CSV found.")
+        else:
+            message = "Some entities listed in input CSV not found; please see your Workbench log for more detail."
+            print("Warning: " + message)
+
     # If nothing has failed by now, exit with a positive, upbeat message.
     if config["perform_soft_checks"] is True:
         always_review_log_message = ""
@@ -5116,6 +5200,7 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
         [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
     )
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5126,6 +5211,7 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
         [path_to_script, path_to_config_file], stdout=subprocess.PIPE
     )
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5136,6 +5222,7 @@ def execute_shutdown_script(path_to_script, path_to_config_file):
         [path_to_script, path_to_config_file], stdout=subprocess.PIPE
     )
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5149,6 +5236,19 @@ def execute_entity_post_task_script(
         stdout=subprocess.PIPE,
     )
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
+
+    return result, cmd.returncode
+
+
+def execute_script_to_run(config, path_to_script, path_to_config_file, entity_id):
+    """Executes a entity-level script and returns its output and exit status code."""
+    cmd = subprocess.Popen(
+        [config["path_to_python"], path_to_script, path_to_config_file, str(entity_id)],
+        stdout=subprocess.PIPE,
+    )
+    result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 

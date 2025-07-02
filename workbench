@@ -13,6 +13,7 @@ import datetime
 import argparse
 import collections
 import subprocess
+import concurrent.futures
 import requests_cache
 from progress_bar import InitBar
 from rich.console import Console
@@ -3070,6 +3071,51 @@ def create_redirects():
             pbar(redirect_row_position)
 
 
+def run_scripts():
+    """Run registered scripts."""
+    max_workers = int(config["run_scripts_threads"])
+    message = '"Run scripts" task started using config file ' + args.config
+    print(message + ".")
+    logging.info(f"{message} using {max_workers} thread(s).")
+
+    if config["run_scripts_entity_type"] == "node":
+        id_field = "node_id"
+    if config["run_scripts_entity_type"] == "media":
+        id_field = "media_id"
+    if config["run_scripts_entity_type"] == "term":
+        id_field = "term_id"
+
+    csv_data = get_csv_data(config)
+
+    entity_ids = []
+    for row in csv_data:
+        entity_ids.append(row[id_field])
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for command in config["run_scripts"]:
+            executor_return = {
+                executor.submit(
+                    execute_script_to_run, config, command, args.config, entity_id
+                ): entity_id
+                for entity_id in entity_ids
+            }
+            for script_result_from_executor in concurrent.futures.as_completed(
+                executor_return
+            ):
+                script_result = script_result_from_executor.result()
+                if script_result[1] == 0:
+                    print(script_result[0])
+                    if config["run_scripts_log_script_output"] is True:
+                        logging.info(
+                            f'Script "{command}" exectuted with output: {script_result[0]}'
+                        )
+                else:
+                    message = f'Script "{command}" execution failed with return code {script_result[1]}.'
+                    print(message)
+                    if config["run_scripts_log_script_output"] is True:
+                        logging.error(message)
+
+
 # Main program logic.
 
 parser = argparse.ArgumentParser()
@@ -3477,6 +3523,8 @@ try:
         add_update_alt_text()
     if config["task"] == "update_alt_text":
         add_update_alt_text()
+    if config["task"] == "run_scripts":
+        run_scripts()
 
     if config["secondary_tasks"] is not None and len(config["secondary_tasks"]) > 0:
         for secondary_config_file in config["secondary_tasks"]:
