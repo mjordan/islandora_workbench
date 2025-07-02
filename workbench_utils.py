@@ -5241,10 +5241,10 @@ def execute_entity_post_task_script(
     return result, cmd.returncode
 
 
-def execute_script_to_run(path_to_script, path_to_config_file, entity_id):
+def execute_script_to_run(config, path_to_script, path_to_config_file, entity_id):
     """Executes a entity-level script and returns its output and exit status code."""
     cmd = subprocess.Popen(
-        [path_to_script, path_to_config_file, str(entity_id)],
+        [config["path_to_python"], path_to_script, path_to_config_file, str(entity_id)],
         stdout=subprocess.PIPE,
     )
     result, stderrdata = cmd.communicate()
