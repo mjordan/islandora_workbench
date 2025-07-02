@@ -5244,7 +5244,7 @@ def execute_entity_post_task_script(
 def execute_script_to_run(config, path_to_script, path_to_config_file, entity_id):
     """Executes a entity-level script and returns its output and exit status code."""
     cmd = subprocess.Popen(
-        [sys.executable, path_to_script, path_to_config_file, str(entity_id)],
+        [config["path_to_python"], path_to_script, path_to_config_file, str(entity_id)],
         stdout=subprocess.PIPE,
     )
     result, stderrdata = cmd.communicate()
