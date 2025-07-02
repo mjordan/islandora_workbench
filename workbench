@@ -3095,7 +3095,7 @@ def run_scripts():
         for command in config["run_scripts"]:
             executor_return = {
                 executor.submit(
-                    execute_script_to_run, command, args.config, entity_id
+                    execute_script_to_run, config, command, args.config, entity_id
                 ): entity_id
                 for entity_id in entity_ids
             }
