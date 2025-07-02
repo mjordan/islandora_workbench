@@ -97,6 +97,11 @@ class WorkbenchConfig:
                 config["csv_id_to_node_id_map_filename"],
             )
 
+        if "path_to_python" in user_mods:
+            config["path_to_python"] = user_mods["path_to_python"]
+        else:
+            config["path_to_python"] = sys.executable
+
         if "page_files_source_dir_field" in user_mods:
             config["page_files_source_dir_field"] = user_mods[
                 "page_files_source_dir_field"
@@ -313,7 +318,6 @@ class WorkbenchConfig:
             "require_entity_reference_views": True,
             "csv_start_row": 0,
             "csv_stop_row": None,
-            "path_to_python": "python",
             "path_to_workbench_script": os.path.join(os.getcwd(), "workbench"),
             "oembed_providers": self.get_oembed_media_types(),
             "contact_sheet_output_dir": "contact_sheet_output",
