@@ -5198,9 +5198,15 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
     is passed the field subdelimiter as defined in the config YAML and the field's value, and
     prints a modified vesion of the value (result) back to this function.
     """
-    cmd = subprocess.Popen(
-        [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
-    )
+    if " " in path_to_script:
+        interpeter, script = path_to_script.split(" ")
+        cmd = subprocess.Popen(
+            [interpeter, script, subdelimiter, field_value], stdout=subprocess.PIPE
+        )
+    else:
+        cmd = subprocess.Popen(
+            [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
+        )
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
@@ -5209,9 +5215,15 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
 
 def execute_bootstrap_script(path_to_script, path_to_config_file):
     """Executes a bootstrap script and returns its output and exit status code."""
-    cmd = subprocess.Popen(
-        [path_to_script, path_to_config_file], stdout=subprocess.PIPE
-    )
+    if " " in path_to_script:
+        interpeter, script = path_to_script.split(" ")
+        cmd = subprocess.Popen(
+            [interpeter, script, path_to_config_file], stdout=subprocess.PIPE
+        )
+    else:
+        cmd = subprocess.Popen(
+            [path_to_script, path_to_config_file], stdout=subprocess.PIPE
+        )
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
@@ -5220,9 +5232,16 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
 
 def execute_shutdown_script(path_to_script, path_to_config_file):
     """Executes a shutdown script and returns its output and exit status code."""
-    cmd = subprocess.Popen(
-        [path_to_script, path_to_config_file], stdout=subprocess.PIPE
-    )
+    if " " in path_to_script:
+        interpeter, script = path_to_script.split(" ")
+        cmd = subprocess.Popen(
+            [interpeter, script, path_to_config_file], stdout=subprocess.PIPE
+        )
+
+    else:
+        cmd = subprocess.Popen(
+            [path_to_script, path_to_config_file], stdout=subprocess.PIPE
+        )
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
@@ -5233,17 +5252,31 @@ def execute_entity_post_task_script(
     path_to_script, path_to_config_file, http_response_code, entity_json=""
 ):
     """Executes a entity-level post-task script and returns its output and exit status code."""
-    cmd = subprocess.Popen(
-        [path_to_script, path_to_config_file, str(http_response_code), entity_json],
-        stdout=subprocess.PIPE,
-    )
+    if " " in path_to_script:
+        interpeter, script = path_to_script.split(" ")
+        cmd = subprocess.Popen(
+            [
+                interpeter,
+                script,
+                path_to_config_file,
+                str(http_response_code),
+                entity_json,
+            ],
+            stdout=subprocess.PIPE,
+        )
+    else:
+        cmd = subprocess.Popen(
+            [path_to_script, path_to_config_file, str(http_response_code), entity_json],
+            stdout=subprocess.PIPE,
+        )
+
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
     return result, cmd.returncode
 
 
-def execute_script_to_run(config, path_to_script, path_to_config_file, entity_id):
+def execute_script_to_run(path_to_script, path_to_config_file, entity_id):
     """Executes a entity-level script and returns its output and exit status code."""
     if " " in path_to_script:
         interpeter, script = path_to_script.split(" ")
