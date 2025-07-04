@@ -4225,8 +4225,8 @@ def check_input(config, args):
 
         for script_to_run in config["run_scripts"]:
             if " " in script_to_run:
-                interpeter, script_to_run = script_to_run.split(" ")
-            if not os.path.exists(script_to_run):
+                interpeter, script_to_run = script_to_run.split(" ", 1)
+            if not os.path.exists(script_to_run.strip()):
                 message = "Script " + script_to_run + " not found."
                 logging.error(message)
                 sys.exit("Error: " + message)
@@ -5279,9 +5279,14 @@ def execute_entity_post_task_script(
 def execute_script_to_run(config, path_to_script, entity_id):
     """Executes a entity-level script and returns its output and exit status code."""
     if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
+        interpeter, script = path_to_script.split(" ", 1)
         cmd = subprocess.Popen(
-            [interpeter, script, config["config_file_path"], str(entity_id)],
+            [
+                interpeter.strip(),
+                script.strip(),
+                config["config_file_path"],
+                str(entity_id),
+            ],
             stdout=subprocess.PIPE,
         )
     else:
