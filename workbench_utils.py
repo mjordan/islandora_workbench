@@ -5276,17 +5276,17 @@ def execute_entity_post_task_script(
     return result, cmd.returncode
 
 
-def execute_script_to_run(path_to_script, path_to_config_file, entity_id):
+def execute_script_to_run(config, path_to_script, entity_id):
     """Executes a entity-level script and returns its output and exit status code."""
     if " " in path_to_script:
         interpeter, script = path_to_script.split(" ")
         cmd = subprocess.Popen(
-            [interpeter, script, path_to_config_file, str(entity_id)],
+            [interpeter, script, config["config_file_path"], str(entity_id)],
             stdout=subprocess.PIPE,
         )
     else:
         cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file, str(entity_id)],
+            [path_to_script, config["config_file_path"], str(entity_id)],
             stdout=subprocess.PIPE,
         )
 
