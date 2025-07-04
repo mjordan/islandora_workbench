@@ -97,6 +97,11 @@ class WorkbenchConfig:
                 config["csv_id_to_node_id_map_filename"],
             )
 
+        if "path_to_python" in user_mods:
+            config["path_to_python"] = user_mods["path_to_python"]
+        else:
+            config["path_to_python"] = sys.executable
+
         if "page_files_source_dir_field" in user_mods:
             config["page_files_source_dir_field"] = user_mods[
                 "page_files_source_dir_field"
@@ -116,8 +121,22 @@ class WorkbenchConfig:
                 loaded = yaml.load(stream)
             except YAMLError as exc:
                 print(
-                    f"There appears to be a YAML syntax error in your configuration file, {self.args.config}. Remove the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ or your YAML validator of choice."
+                    f"There appears to be a YAML syntax error in your configuration file, {self.args.config}. Remove "
+                    f"the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ "
+                    f"or your YAML validator of choice.\n"
+                    f"(Check 'workbench.log' file for additional error details.)"
                 )
+                # We are using logging.basicConfig() here to set a temporary logger here because this method will
+                # run inside WorkbenchConfig.__init__() before the WorkbenchConfig class logger is configured.
+                # Also by using the logger we don't have to output the YAML parsing errors to the CLI
+                logging.basicConfig(
+                    filename="workbench.log",
+                    format="%(asctime)s - %(levelname)s - %(message)s",
+                    datefmt="%d-%b-%y %H:%M:%S",
+                )
+                yaml_error = f"\nYAML parsing error in configuration file\nException type: {type(exc).__name__}\n{exc}"
+                logging.error(yaml_error)
+
                 sys.exit()
 
         # 'media_file_fields' has been replaced with 'media_fields' and 'media_type_file_fields'.
@@ -237,6 +256,8 @@ class WorkbenchConfig:
             "progress_bar": False,
             "show_percentage_of_csv_input_processed": False,
             "prompt_user_before_delete_task": False,
+            "run_scripts_threads": 1,
+            "run_scripts_log_script_output": True,
             "user_agent": "Islandora Workbench",
             "allow_redirects": True,
             "secure_ssl_only": True,
@@ -299,7 +320,6 @@ class WorkbenchConfig:
             "require_entity_reference_views": True,
             "csv_start_row": 0,
             "csv_stop_row": None,
-            "path_to_python": "python",
             "path_to_workbench_script": os.path.join(os.getcwd(), "workbench"),
             "oembed_providers": self.get_oembed_media_types(),
             "contact_sheet_output_dir": "contact_sheet_output",
@@ -326,7 +346,7 @@ class WorkbenchConfig:
             "remove_password_from_config_file": False,
             "recovery_mode_starting_from_node_id": False,
             "viewer_override_fieldname": "field_viewer_override",
-            "check_for_workbench_updates": False,
+            "check_for_workbench_updates": True,
             "file_systems": ("public", "private"),
         }
 
