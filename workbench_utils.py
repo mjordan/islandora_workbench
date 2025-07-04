@@ -6390,6 +6390,14 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             logging.error(message)
             sys.exit("Error: " + message)
 
+    if config["task"] == "run_scripts":
+        run_scripts_entity_type = config["run_scripts_entity_type"]
+        id_columns = {"node": "node_id", "media": "media_id", "term": "term_id"}
+        if id_columns[config["run_scripts_entity_type"]] not in csv_reader_fieldnames:
+            message = f'"run_scripts" tasks for "{run_scripts_entity_type}" entities require a "{id_columns[run_scripts_entity_type]}" CSV column. Please check your input CSV file and try again.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
     confirmed = []
     duplicates = []
     for item in csv_reader_fieldnames:
@@ -6415,7 +6423,11 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
 
     # CSV field templates and CSV value templates currently apply only to node CSV files, not vocabulary CSV files.
     tasks = ["create", "update", "add_media"]
-    if config["task"] in tasks and csv_file_target == "node_fields":
+    if (
+        config["task"] in tasks
+        and csv_file_target == "node_fields"
+        or config["task"] == "run_scripts"
+    ):
         # If the config file contains CSV field templates, append them to the CSV data.
         # Make a copy of the column headers so we can skip adding templates to the new CSV
         # if they're present in the source CSV. We don't want fields in the source CSV to be
@@ -6477,10 +6489,23 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         else:
             csv_start_row = config["csv_start_row"]
 
+        if config["task"] == "run_scripts":
+            if config["run_scripts_entity_type"] == "node":
+                config["id_field"] = "node_id"
+            if config["run_scripts_entity_type"] == "media":
+                config["id_field"] = "media_id"
+            if config["run_scripts_entity_type"] == "term":
+                config["id_field"] = "term_id"
+
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
 
-            csv_rows_to_process_allowed_tasks = ["create", "update", "add_media"]
+            csv_rows_to_process_allowed_tasks = [
+                "create",
+                "update",
+                "add_media",
+                "run_scripts",
+            ]
             # If the value in config['csv_rows_to_process'] is a path to a file, skip rows not identified in the file.
             if (
                 "csv_rows_to_process" in config
