@@ -1797,6 +1797,7 @@ class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
     def test_empty_csv_id_to_node_id_map_allowed_hosts(self):
         self.config = {
             "csv_id_to_node_id_map_allowed_hosts": [],
+            "host": "https://localhost",
         }
         sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
             self.config
@@ -1809,6 +1810,7 @@ class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
         # value of the current "host" config setting.
         self.config = {
             "csv_id_to_node_id_map_allowed_hosts": ["", "https://localhost"],
+            "host": "https://localhost",
         }
         sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
             self.config
@@ -1824,6 +1826,7 @@ class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
                 "https://localhost",
                 "https://localhost-test",
             ],
+            "host": "https://localhost-test",
         }
         sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
             self.config
@@ -1836,11 +1839,69 @@ class TestGetCsvIdToNodeIdMapAllowedHostsSql(unittest.TestCase):
     def test_no_empty_csv_id_to_node_id_map_allowed_hosts(self):
         self.config = {
             "csv_id_to_node_id_map_allowed_hosts": ["https://localhost"],
+            "host": "https://localhost",
         }
         sql_snippet = workbench_utils.get_csv_id_to_node_id_map_allowed_hosts_sql(
             self.config
         )
         self.assertEqual(sql_snippet, '  host in ("https://localhost") and ')
+
+
+class TestPagedContentIgnoreFile(unittest.TestCase):
+    def test_full_filenames(self):
+        config = {"paged_content_ignore_files": ["Thumbs.db", "foo.bar"]}
+        res = workbench_utils.paged_content_ignore_file(config, "thumbs.db")
+        self.assertTrue(res)
+
+        res = workbench_utils.paged_content_ignore_file(config, "Pagefile-001.tif")
+        self.assertFalse(res)
+
+    def test_extension_is_wildcard(self):
+        config = {
+            "paged_content_ignore_files": [
+                "Thumbs.db",
+                "foo.bar",
+                "manifest.part.*",
+                "cache.*",
+            ]
+        }
+        res = workbench_utils.paged_content_ignore_file(config, "manifest.part.xml")
+        self.assertTrue(res)
+
+        res = workbench_utils.paged_content_ignore_file(config, "manifest.part")
+        self.assertFalse(res)
+
+        res = workbench_utils.paged_content_ignore_file(config, "foo.xml")
+        self.assertFalse(res)
+
+    def test_filename_is_wildcard(self):
+        config = {
+            "paged_content_ignore_files": [
+                "Thumbs.db",
+                "foo.bar",
+                "manifest.*",
+                "cache.*",
+                "*.txt",
+                "*.cache",
+            ]
+        }
+        res = workbench_utils.paged_content_ignore_file(config, "xxx.tXt")
+        self.assertTrue(res)
+
+        res = workbench_utils.paged_content_ignore_file(config, "xxx.foo.txt")
+        self.assertTrue(res)
+
+        res = workbench_utils.paged_content_ignore_file(config, "xxx.cache")
+        self.assertTrue(res)
+
+        res = workbench_utils.paged_content_ignore_file(config, "xxx.fcache")
+        self.assertFalse(res)
+
+        res = workbench_utils.paged_content_ignore_file(config, "xxx.xt")
+        self.assertFalse(res)
+
+        res = workbench_utils.paged_content_ignore_file(config, "foo.xml")
+        self.assertFalse(res)
 
 
 if __name__ == "__main__":

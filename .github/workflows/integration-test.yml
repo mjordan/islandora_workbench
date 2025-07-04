@@ -12,6 +12,15 @@ jobs:
 
     steps:
 
+      - name: Set TERM environment variable
+        run: echo "TERM=xterm" >> $GITHUB_ENV
+
+      - name: Set git email
+        run: git config --global user.email "mjordan@sfu.ca"
+
+      - name: Set git name
+        run: git config --global user.name "Mark Jordan"        
+
       - name: Checkout workbench
         uses: actions/checkout@v4
 

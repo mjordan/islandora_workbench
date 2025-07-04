@@ -24,7 +24,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Well tested
 * Well documented
 * Provides both sensible default configuration values and rich configuration options for power users
-* Run from within a Docker container.
+* Can be run from within a Docker container.
 
 ## Documentation
 

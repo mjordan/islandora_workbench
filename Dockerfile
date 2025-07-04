@@ -35,6 +35,9 @@ RUN chown -R $USER_ID:$GROUP_ID /workbench
 # Set the PATH environment variable to include .local/bin
 ENV PATH=/home/dockeruser/.local/bin:$PATH
 
+# Set an environment variable to indicate Workbench is running in a Docker container.
+ENV ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER=True
+
 # Switch to the non-root user
 USER dockeruser
 
