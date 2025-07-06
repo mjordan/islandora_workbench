@@ -3121,17 +3121,21 @@ def run_scripts():
                 executor_return
             ):
                 script_result = script_result_from_executor.result()
-                if script_result[1] == 0:
-                    print(script_result[0])
-                    if config["run_scripts_log_script_output"] is True:
-                        logging.info(
-                            f'Script "{command}" exectuted with output: {script_result[0]}'
-                        )
-                else:
-                    message = f'Script "{command}" execution failed with return code {script_result[1]}.'
+                if script_result is None:
+                    message = f'Error: Script "{command}" execution failed. See the Workbench log for more information.'
                     print(message)
-                    if config["run_scripts_log_script_output"] is True:
-                        logging.error(message)
+                else:
+                    if script_result[1] == 0:
+                        print(script_result[0])
+                        if config["run_scripts_log_script_output"] is True:
+                            logging.info(
+                                f'Script "{command}" exectuted with output: {script_result[0]}'
+                            )
+                    else:
+                        message = f'Script "{command}" execution failed with return code {script_result[1]}.'
+                        print(message)
+                        if config["run_scripts_log_script_output"] is True:
+                            logging.error(message)
 
 
 # Main program logic.

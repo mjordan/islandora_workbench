@@ -5309,27 +5309,32 @@ def execute_entity_post_task_script(
 
 def execute_script_to_run(config, path_to_script, entity_id):
     """Executes a entity-level script and returns its output and exit status code."""
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ", 1)
-        cmd = subprocess.Popen(
-            [
-                interpeter.strip(),
-                script.strip(),
-                config["config_file_path"],
-                str(entity_id),
-            ],
-            stdout=subprocess.PIPE,
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, config["config_file_path"], str(entity_id)],
-            stdout=subprocess.PIPE,
-        )
+    try:
+        if " " in path_to_script:
+            interpeter, script = path_to_script.split(" ", 1)
+            cmd = subprocess.Popen(
+                [
+                    interpeter.strip(),
+                    script.strip(),
+                    config["config_file_path"],
+                    str(entity_id),
+                ],
+                stdout=subprocess.PIPE,
+            )
+        else:
+            cmd = subprocess.Popen(
+                [path_to_script, config["config_file_path"], str(entity_id)],
+                stdout=subprocess.PIPE,
+            )
 
-    result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
+        result, stderrdata = cmd.communicate()
+        result = result.decode().strip()
 
-    return result, cmd.returncode
+        return result, cmd.returncode
+    except Exception as e:
+        message = f'Could not execute script "{path_to_script}": {e}'
+        logging.error(message)
+        return None
 
 
 # def upload_local_file(config, filename, media_type):
