@@ -5328,7 +5328,7 @@ def execute_script_to_run(config, path_to_script, entity_id):
             )
 
         result, stderrdata = cmd.communicate()
-        result = result.decode().strip()
+        result = result.decode(errors="replace").strip()
 
         return result, cmd.returncode
     except Exception as e:
