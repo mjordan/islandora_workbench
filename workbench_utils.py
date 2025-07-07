@@ -6634,6 +6634,9 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
 
             # Skip CSV records whose first column begins with #.
             if str(list(row.values())[0]).strip().startswith("#") is False:
+                # Skip row if the entity is not found.
+                if row[config["id_field"]] is False:
+                    continue
 
                 if "node_id" in row and value_is_numeric(row["node_id"]) is False:
                     row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
@@ -6701,7 +6704,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         repeats = set(
             ([x for x in unique_identifiers if unique_identifiers.count(x) > 1])
         )
-        if len(repeats) > 0:
+        if isinstance(repeats, set) and len(repeats) > 0:
             message = (
                 "Duplicate identifiers in column "
                 + config["id_field"]
