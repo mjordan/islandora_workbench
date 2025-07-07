@@ -290,6 +290,7 @@ class WorkbenchConfig:
             "http_cache_storage": "memory",
             "http_cache_storage_expire_after": 1200,
             "http_max_retries": 3,
+            "http_use_session_per_row": True,
             "http_retry_on_status_codes": [500, 502, 503, 504],
             "http_backoff_factor": 1,
             "http_retry_allowed_methods": [

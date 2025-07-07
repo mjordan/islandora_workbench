@@ -2993,6 +2993,10 @@ def create_redirects():
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)
 
+        if config["http_use_session_per_row"] is True:
+            global http_session
+            http_session = requests.Session()
+
         redirect_row_count += 1
 
         if len(row["redirect_source"].strip()) == 0:
