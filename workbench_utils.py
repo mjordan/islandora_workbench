@@ -238,6 +238,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
     requests.Response
     """
     with requests.Session() as session:
+        session.keep_alive = True
         retries = Retry(
             total=config["http_max_retries"],
             backoff_factor=config["http_backoff_factor"],
