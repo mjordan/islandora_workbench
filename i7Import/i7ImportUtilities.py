@@ -193,25 +193,34 @@ class i7ImportUtilities:
             self.logger.error(e)
             raise SystemExit(e)
 
-    def get_metadata_value(self, pid: str, ds_id: str, xpath: str):
+    def get_metadata_value(
+        self, pid: str, ds_id: str, xpath: str, first_only: bool = True
+    ):
         """Get a specific metadata element from the i7 metadata.
         Parameters:
             pid: str: The PID of the metadata object.
             ds_id: str: The datastream ID to retrieve.
             xpath: str: The XPath to the specific element to retrieve.
+            first_only: bool: If True, return only the first matching element.
         -------
         Returns:
-            str: The text content of the element, or None if not found.
+            str: The text content of the element or multiple elements (with | delimiter), or None if not found.
         """
         root = self._get_i7_metadata_data(pid, ds_id)
         if root is not None:
-            element = root.find(xpath)
-            if element is not None:
+            if first_only:
+                element = root.find(xpath)
+            else:
+                element = root.findall(xpath)
+            if element is not None and len(element) > 0:
                 if self.config["deep_debug"]:
                     self.logger.debug(
                         f"Found element for PID {pid} with xpath {xpath}: {element.text}"
                     )
-                return element.text
+                if first_only:
+                    return element.text
+                else:
+                    return "|".join([el.text for el in element if el.text is not None])
             else:
                 self.logger.warning(
                     f"Element not found for PID {pid} with xpath {xpath}"

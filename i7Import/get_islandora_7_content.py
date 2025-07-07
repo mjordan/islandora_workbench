@@ -84,7 +84,7 @@ def process_row(row: dict, row_id: int, failed_list: list) -> dict:
         metadata_value = ""
         if metadata_xpath and metadata_dsid:
             metadata_value = utils.get_metadata_value(
-                row["PID"], metadata_dsid, metadata_xpath
+                row["PID"], metadata_dsid, metadata_xpath, False
             )
         row[field_name] = metadata_value
     if config["fetch_files"] or config["get_file_url"]:
