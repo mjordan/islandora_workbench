@@ -37,11 +37,12 @@ from rich.traceback import install
 
 install()
 
-# Set some global variables.
-yaml = YAML()
-
 EXECUTION_START_TIME = datetime.datetime.now()
 INTEGRATION_MODULE_MIN_VERSION = "1.0"
+
+# Set some global variables.
+yaml = YAML()
+http_session = requests.Session()
 # Workaround for https://github.com/mjordan/islandora_workbench/issues/360.
 http.client._MAXHEADERS = 10000
 http_response_times = []
@@ -237,9 +238,6 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
     -------
     requests.Response
     """
-    if config["http_use_session_per_row"] is False:
-        http_session = requests.Session()
-
     retries = Retry(
         total=config["http_max_retries"],
         backoff_factor=config["http_backoff_factor"],

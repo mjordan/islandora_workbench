@@ -2993,10 +2993,6 @@ def create_redirects():
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)
 
-        if config["http_use_session_per_row"] is True:
-            global http_session
-            http_session = requests.Session()
-
         redirect_row_count += 1
 
         if len(row["redirect_source"].strip()) == 0:
@@ -3265,6 +3261,8 @@ if args.recovery_mode_starting_from_node_id is not None:
     config["recovery_mode_starting_from_node_id"] = (
         args.recovery_mode_starting_from_node_id
     )
+
+http_session = requests.Session()
 
 if args.check is True:
     check_for_workbench_updates(config)
