@@ -854,7 +854,11 @@ def ping_content_type(config):
         The HTTP response code.
     """
 
-    url = f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{config['content_type']}"
+    url = (
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{config['content_type']}"
+        if config["use_workbench_integration_routes"]
+        else f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
+    )
     return issue_request(config, "GET", url).status_code
 
 
@@ -1626,7 +1630,11 @@ def get_entity_fields(config, entity_type, bundle_type):
         message = f"Content type '{config['content_type']}' does not exist on {config['host']}."
         logging.error(message)
         sys.exit("Error: " + message)
-    fields_endpoint = f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/{entity_type}/{bundle_type}"
+    fields_endpoint = (
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/{entity_type}/{bundle_type}"
+        if config["use_workbench_integration_routes"]
+        else f"{config['host']}/entity/entity_form_display/{entity_type}.{bundle_type}.default?_format=json"
+    )
     bundle_type_response = issue_request(config, "GET", fields_endpoint)
     # If a vocabulary has no custom fields (like the default "Tags" vocab), this query will
     # return a 404 response. So, we need to use an alternative way to check if the vocabulary
@@ -1709,7 +1717,11 @@ def get_entity_field_config(config, fieldname, entity_type, bundle_type):
 
     Example query for taxo terms: /entity/field_config/taxonomy_term.islandora_media_use.field_external_uri?_format=json
     """
-    field_config_endpoint = f"{config['host']}/islandora_workbench_integration/node_actions/field_config/{entity_type}/{bundle_type}/{fieldname}"
+    field_config_endpoint = (
+        f"{config['host']}/islandora_workbench_integration/node_actions/field_config/{entity_type}/{bundle_type}/{fieldname}"
+        if config["use_workbench_integration_routes"]
+        else f"{config['host']}/entity/field_config/{entity_type}.{bundle_type}.{fieldname}?_format=json"
+    )
     field_config_response = issue_request(config, "GET", field_config_endpoint)
     if field_config_response.status_code == 200:
         return field_config_response.text
@@ -1724,7 +1736,11 @@ def get_entity_field_storage(config, fieldname, entity_type):
 
     Example query for taxo terms: /entity/field_storage_config/taxonomy_term.field_external_uri?_format=json
     """
-    field_storage_endpoint = f"{config['host']}/islandora_workbench_integration/node_actions/field_storage_config/{entity_type}/{fieldname}"
+    field_storage_endpoint = (
+        f"{config['host']}/islandora_workbench_integration/node_actions/field_storage_config/{entity_type}/{fieldname}"
+        if config["use_workbench_integration_routes"]
+        else f"{config['host']}/entity/field_storage_config/{entity_type}.{fieldname}?_format=json"
+    )
     field_storage_response = issue_request(config, "GET", field_storage_endpoint)
     if field_storage_response.status_code == 200:
         return field_storage_response.text
