@@ -3262,8 +3262,6 @@ if args.recovery_mode_starting_from_node_id is not None:
         args.recovery_mode_starting_from_node_id
     )
 
-http_session = requests.Session()
-
 if args.check is True:
     check_for_workbench_updates(config)
 
