@@ -404,7 +404,7 @@ class WorkbenchConfig:
         type_check = issue_request(
             self.config,
             "GET",
-            f"{self.config['host']}/entity/entity_form_display/node.{self.config['content_type']}.default?_format=json",
+            f"{self.config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{self.config['content_type']}",
         )
         if type_check.status_code == 404:
             message = f"Content type {self.config['content_type']} does not exist on {self.config['host']}."
