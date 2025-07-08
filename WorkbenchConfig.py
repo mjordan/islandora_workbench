@@ -380,6 +380,7 @@ class WorkbenchConfig:
             "recovery_mode_starting_from_node_id": False,
             "viewer_override_fieldname": "field_viewer_override",
             "check_for_workbench_updates": True,
+            "use_workbench_integration_routes": False,
         }
 
     # Tests validity and existence of configuration file path.
@@ -401,10 +402,15 @@ class WorkbenchConfig:
     # Validates config.
     def validate(self):
         error_messages = []
+        url = (
+            f"{self.config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{self.config['content_type']}"
+            if self.config["use_workbench_integration_routes"]
+            else f"{self.config['host']}/entity/entity_form_display/node.{self.config['content_type']}.default?_format=json"
+        )
         type_check = issue_request(
             self.config,
             "GET",
-            f"{self.config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{self.config['content_type']}",
+            url,
         )
         if type_check.status_code == 404:
             message = f"Content type {self.config['content_type']} does not exist on {self.config['host']}."
