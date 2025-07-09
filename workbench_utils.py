@@ -56,6 +56,7 @@ file_fields = [
     "field_media_audio_file",
     "field_media_video_file",
 ]
+commented_out_input_csv_rows_present = False
 
 
 def set_media_type(config, filepath, file_fieldname, csv_row):
@@ -2413,6 +2414,22 @@ def check_input(config, args):
         )
         print(message)
         logging.info(message)
+
+    row_filter_settings = []
+    if config["csv_start_row"] != 0:
+        row_filter_settings.append("csv_start_row")
+    if config["csv_stop_row"] is not None:
+        row_filter_settings.append("csv_stop_row")
+    if "csv_rows_to_process" in config:
+        row_filter_settings.append("csv_rows_to_process")
+    if "csv_row_filters" in config:
+        row_filter_settings.append("csv_row_filters")
+    if commented_out_input_csv_rows_present is True:
+        row_filter_settings.append(True)
+    if len(row_filter_settings) > 1:
+        preprocessed_input_csv_file_path = get_preprocessed_input_csv_file_path(config)
+        message = f'Your configuration contains more than one input CSV row filter setting, and/or your input CSV has some commented-out rows. Please check "{preprocessed_input_csv_file_path}" to confirm the rows you want are present.'
+        logging.warning(message)
 
     # Check existence of input data zip archives.
     if len(config["input_data_zip_archives"]) > 0:
@@ -6336,6 +6353,8 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         preprocessed_csv_reader
             The CSV DictReader object.
     """
+    global commented_out_input_csv_rows_present
+
     if csv_file_target == "node_fields":
         file_path = config["input_csv"]
 
@@ -6700,6 +6719,8 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     logging.error(message)
                     print("Error: " + message)
                     sys.exit(message)
+            else:
+                commented_out_input_csv_rows_present = True
 
         repeats = set(
             ([x for x in unique_identifiers if unique_identifiers.count(x) > 1])
