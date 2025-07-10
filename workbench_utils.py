@@ -1159,6 +1159,35 @@ def get_mid_from_media_url_alias(config, url_alias):
         return media["mid"][0]["value"]
 
 
+def get_tid_from_term_url_alias(config, url_alias):
+    """Gets a term ID from a term URL alias. This function also works
+    with canonical URLs, e.g. http://localhost:8000/taxonomy/term/1234.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    url_alias : string
+        The full URL alias (or canonical URL), including http://, etc.
+    Returns
+    -------
+    int|boolean
+        The term ID, or False if the URL cannot be found.
+    """
+    # Drupal sometimes returns "http://" instead of "https://" in the "location"
+    # response header. Check for that and replace it if necessary.
+    if url_alias.startswith("http://") and config["host"].startswith("https://"):
+        url_alias = re.sub(r"^http://", "https://", url_alias, flags=re.IGNORECASE)
+
+    url = url_alias + "?_format=json"
+    response = issue_request(config, "GET", url)
+    if response.status_code != 200:
+        return False
+    else:
+        term = json.loads(response.text)
+        return term["tid"][0]["value"]
+
+
 def get_nid_from_url_without_config(url):
     """Gets a node ID from a raw Drupal URL, with no accompanying config data. Useful
        within integration tests where the config is not directly accessible.
