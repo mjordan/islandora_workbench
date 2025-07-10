@@ -3113,7 +3113,11 @@ def run_scripts():
         for command in config["run_scripts"]:
             executor_return = {
                 executor.submit(
-                    execute_script_to_run, config, command, entity_id
+                    execute_script_to_run,
+                    config,
+                    command,
+                    config["run_scripts_entity_type"],
+                    entity_id,
                 ): entity_id
                 for entity_id in entity_ids
             }

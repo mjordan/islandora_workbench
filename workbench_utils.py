@@ -5353,8 +5353,33 @@ def execute_entity_post_task_script(
     return result, cmd.returncode
 
 
-def execute_script_to_run(config, path_to_script, entity_id):
-    """Executes a entity-level script and returns its output and exit status code."""
+def execute_script_to_run(config, path_to_script, entity_type, entity_id):
+    """Executes a entity-level script and returns its output and exit status code.
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    path_to_script : string
+        The absolute path to the Workbench config file.
+    entity_type: str
+        One of "node", "media", or "term".
+    entity_id: str
+         The name of the CSV column containing the filename. None if the file isn't
+         in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+    Returns
+    -------
+    str, str|None
+        The output of the script (stdout or stderr) and the script's return code,
+        or None if an exception within this function occurred.
+    """
+    if value_is_numeric(entity_id) is False:
+        if entity_type == "node":
+            entity_id = get_nid_from_url_alias(config, entity_id)
+        if entity_type == "media":
+            entity_id = get_mid_from_media_url_alias(config, entity_id)
+        if entity_type == "term":
+            entity_id = get_tid_from_term_url_alias(config, entity_id)
+
     try:
         if " " in path_to_script:
             interpeter, script = path_to_script.split(" ", 1)
@@ -5381,54 +5406,6 @@ def execute_script_to_run(config, path_to_script, entity_id):
         message = f'Could not execute script "{path_to_script}": {e}'
         logging.error(message)
         return None
-
-
-# def upload_local_file(config, filename, media_type):
-#     """Uploads a file to Drupal.
-#     """
-#     file_path = os.path.join(config['input_dir'], filename)
-#     if media_type in config['media_type_file_fields']:
-#         media_file_field = config['media_type_file_fields'][media_type]
-#     else:
-#         logging.error('File not created for CSV row "%s": media type "%s" not recognized.', media_csv_row[config['media_id']], media_type)
-#         return False
-
-#     # Requests/urllib3 requires filenames used in Content-Disposition headers to be encoded as latin-1.
-#     # Since it is impossible to reliably convert to latin-1 without knowing the source encoding of the filename
-#     # (which may or may not have originated on the machine running Workbench, so sys.stdout.encoding isn't reliable),
-#     # the best we can do for now is to use unidecode to replace non-ASCII characters in filenames with their ASCII
-#     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
-#     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
-#     # of both requirements.
-#     ascii_only = string_is_ascii(filename)
-#     if ascii_only is False:
-#         original_filename = copy.copy(filename)
-#         filename = unidecode(filename)
-#         logging.warning("Filename '" + original_filename + "' contains non-ASCII characters, normalized to '" + filename + "'.")
-
-#     file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field + '?_format=json'
-#     file_headers = {
-#         'Content-Type': 'application/octet-stream',
-#         'Content-Disposition': 'file; filename="' + filename + '"'
-#     }
-
-#     binary_data = open(file_path, 'rb')
-
-#     try:
-#         file_response = issue_request(config, 'POST', file_endpoint_path, file_headers, '', binary_data)
-#         if file_response.status_code == 201:
-#             file_json = json.loads(file_response.text)
-#             file_id = file_json['fid'][0]['value']
-#             return file_id
-#         else:
-#             logging.error('File not created for "' + file_path + '", POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
-#                         file_endpoint_path, file_response.status_code, file_response.content)
-#             return False
-#     except requests.exceptions.RequestException as e:
-#         logging.error(e)
-#         return False
-
-#     # TODO: Handle checksums, temporary files, etc. as in create_file
 
 
 def create_file(config, filename, file_fieldname, node_csv_row, node_id):
