@@ -1,7 +1,7 @@
 """
-   Script to generate tiles for an image viewed using the Mirador Viewer by rendering the node.
-   Also takes a screenshot of the page for quick QA of results. Input is a file containing a list
-   of node IDs for nodes with an Islandora Model of Page or Image.
+Script to generate tiles for an image viewed using the Mirador Viewer by rendering the node.
+Also takes a screenshot of the page for quick QA of results. Input is a file containing a list
+of node IDs for nodes with an Islandora Model of Page or Image.
 """
 
 import sys
@@ -59,8 +59,10 @@ chrome_options.add_argument("--start-maximized")
 ### Functions ###
 #################
 
+
 def get_screenshot_filename(url):
     return re.sub("[^0-9a-zA-Z]+", "_", url)
+
 
 def mirador_is_empty(screenshot_file_path, url):
     """Attempt to determine if the screenshot contains an empty
@@ -143,7 +145,6 @@ def warm_url(node_id):
     logging.info(f"Warming image tiles for {url}.")
     # First render.
     render_node(url, screenshot_file_path)
-
 
 
 ##########################
