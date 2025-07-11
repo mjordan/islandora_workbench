@@ -45,6 +45,7 @@ upper_gray = 255
 
 logging.basicConfig(
     filename=log_file_path,
+    filemode="a",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%d-%b-%y %H:%M:%S",
@@ -64,7 +65,7 @@ def get_screenshot_filename(url):
     return re.sub("[^0-9a-zA-Z]+", "_", url)
 
 
-def mirador_is_empty(screenshot_file_path, url):
+def mirador_is_empty(screenshot_file_path):
     """Attempt to determine if the screenshot contains an empty
     (i.e. all gray) Mirador Viewer by calculating the ratio
     of gray pixels to the total number of pixels in the cropped image.
@@ -130,6 +131,12 @@ def render_node(url, screenshot_file_path):
             f"Attempt to generate IIIF tiles for {url} encountered an error: {e}"
         )
 
+    outcome = mirador_is_empty(screenshot_file_path)
+    if outcome is True:
+        logging.warning(f"Mirador viewer for node {url} does not appear to show image.")
+    else:
+        logging.info(f"Mirador viewer for node {url} appears to show image.")
+
 
 def warm_url(node_id):
     """Processes a single node by hitting it with Selenium. If the resulting
@@ -142,8 +149,6 @@ def warm_url(node_id):
     screenshot_file_path = os.path.join(
         screenshots_dir_path, screenshot_filename + ".png"
     )
-    logging.info(f"Warming image tiles for {url}.")
-    # First render.
     render_node(url, screenshot_file_path)
 
 
