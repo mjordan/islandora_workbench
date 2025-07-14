@@ -380,7 +380,7 @@ class WorkbenchConfig:
             "recovery_mode_starting_from_node_id": False,
             "viewer_override_fieldname": "field_viewer_override",
             "check_for_workbench_updates": True,
-            "use_workbench_integration_routes": False,
+            "use_workbench_permissions": False,
         }
 
     # Tests validity and existence of configuration file path.
@@ -404,7 +404,7 @@ class WorkbenchConfig:
         error_messages = []
         url = (
             f"{self.config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{self.config['content_type']}"
-            if self.config["use_workbench_integration_routes"]
+            if self.config["use_workbench_permissions"]
             else f"{self.config['host']}/entity/entity_form_display/node.{self.config['content_type']}.default?_format=json"
         )
         type_check = issue_request(
