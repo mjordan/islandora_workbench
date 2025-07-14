@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
     """Switch to rows=0 to just get the count"""
     numFound = 0
-    metadata_solr_request_count = metadata_solr_request.replace("rows=\d+", "rows=0")
+    metadata_solr_request_count = re.sub("rows=\d+", "rows=0", metadata_solr_request)
     try:
         metadata_solr_response = requests.get(
             url=metadata_solr_request_count, allow_redirects=True
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 
     # Counter of all rows processed
     row_count = 1
-    total_processed = numFound if config["paginate"] else utils._get_config()["rows"]
+    total_processed = numFound if config["paginate"] else utils.config["rows"]
     pbar = InitBar(title="Exporting Islandora 7 content", size=total_processed)
     # Step counter for pagination
     step = 0
@@ -231,7 +231,7 @@ if __name__ == "__main__":
         if config["paginate"]:
             print("Exporting all {0} items".format(numFound))
             while row_count <= numFound:
-                max_row = row_count + utils._get_config()["rows"] - 1
+                max_row = row_count + utils.config["rows"] - 1
                 if max_row > numFound:
                     max_row = numFound
                 utils.logger.info(
