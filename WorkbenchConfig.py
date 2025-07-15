@@ -29,12 +29,42 @@ class WorkbenchConfig:
     def get_config(self):
         config = self.get_default_config()
         user_mods = self.get_user_config()
-        # If the password is not set in the config file, or in the environment
-        # variable, prompt the user for the password.
+        # If the password is not set in the config file, in the credentials file, or in the
+        # environment variable, prompt the user for the password.
         try:
             if "password" not in user_mods:
                 if "ISLANDORA_WORKBENCH_PASSWORD" in os.environ:
                     config["password"] = os.environ["ISLANDORA_WORKBENCH_PASSWORD"]
+                elif (
+                    "username" not in user_mods and "credentials_file_path" in user_mods
+                ):
+                    if os.path.exists(user_mods["credentials_file_path"]) is False:
+                        message = (
+                            'Error: Credentials file "'
+                            + user_mods["credentials_file_path"]
+                            + '" not found.'
+                        )
+                        logging.error(message)
+                        sys.exit(message)
+                    else:
+                        credentials_yaml = YAML()
+                        with open(user_mods["credentials_file_path"], "r") as stream:
+                            try:
+                                credentials = credentials_yaml.load(stream)
+                                config["username"] = credentials["username"]
+                                config["password"] = credentials["password"]
+                            except YAMLError as exc:
+                                print(
+                                    f'There appears to be a YAML syntax error in your credentials file, {user_mods["credentials_file_path"]}. See workbench.log for details.'
+                                )
+                                logging.basicConfig(
+                                    filename="workbench.log",
+                                    format="%(asctime)s - %(levelname)s - %(message)s",
+                                    datefmt="%d-%b-%y %H:%M:%S",
+                                )
+                                yaml_error = f"\nYAML parsing error in credentials file\nException type: {type(exc).__name__}\n{exc}"
+                                logging.error(yaml_error)
+                                sys.exit()
                 else:
                     config["password"] = getpass(
                         f"Password for Drupal user {user_mods['username']}:"
