@@ -1,39 +1,35 @@
 """Utility functions for Islandora Workbench."""
 
-import os
-import sys
-import json
-from json.decoder import JSONDecodeError
-import csv
-import openpyxl
-import time
-import string
-import re
+import collections
 import copy
-import logging
-import random
-import uuid
+import csv
 import datetime
-import requests
+import hashlib
+import http.client
+import itertools
+import json
+import mimetypes
+import random
+import re
+import shutil
+import sqlite3
+import string
+import subprocess
+import sys
+import time
+import urllib.parse
+import uuid
+import zipfile
+from pathlib import Path
+
+import edtf_validate.valid_edtf
+import openpyxl
+import requests_cache
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-import subprocess
-import hashlib
-import mimetypes
-import collections
-import urllib.parse
-from pathlib import Path
-from ruamel.yaml import YAML, YAMLError
-from unidecode import unidecode
-from progress_bar import InitBar
-import edtf_validate.valid_edtf
-import shutil
-import itertools
-import http.client
-import sqlite3
-import zipfile
-import requests_cache
 from rich.traceback import install
+from ruamel.yaml import YAML
+from unidecode import unidecode
 
 install()
 
@@ -1816,7 +1812,7 @@ def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
         if len(duplicate_labels) > 0:
             if die is True:
                 message = (
-                    f"Duplicate field labels exist ({', '. join(duplicate_labels)}). To continue, remove the \"csv_headers\" setting "
+                    f"Duplicate field labels exist ({', '.join(duplicate_labels)}). To continue, remove the \"csv_headers\" setting "
                     + "from your configuration file and change your CSV headers from field labels to field machine names."
                 )
                 logging.error(message)
@@ -3562,89 +3558,79 @@ def check_input(config, args):
                     logging.warning(message)
 
                 # Check for files that cannot be found.
-                if (
-                    not file_check_row["file"].startswith("http")
-                    and len(file_check_row["file"].strip()) > 0
-                ):
-                    if os.path.isabs(file_check_row["file"]):
-                        file_path = file_check_row["file"]
+            if (
+                config["task"] in ("create", "add_media", "update_media")
+                and "file" in csv_column_headers
+                and not config["nodes_only"]
+                and not config["paged_content_from_directories"]
+            ):
+                # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
+                if config["task"] == "add_media":
+                    config["id_field"] = "node_id"
+                elif config["task"] == "update_media":
+                    config["id_field"] = "media_id"
+
+                file_check_csv_data = get_csv_data(config)
+
+                for count, row in enumerate(file_check_csv_data, start=1):
+                    file_path = row["file"].strip()
+                    row["file"] = file_path
+                    row_id = row[config["id_field"]]
+
+                    if not file_path:
+                        logging.warning(
+                            f'CSV row with ID {row_id} contains an empty "file" value.'
+                        )
+                        continue
+
+                    file_exists = False
+                    # Local file check (absolute or relative)
+                    if not file_path.startswith(("http",) + config["file_systems"]):
+                        full_path = (
+                            file_path
+                            if os.path.isabs(file_path)
+                            else os.path.join(config["input_dir"], file_path)
+                        )
+                        file_exists = os.path.exists(full_path) and os.path.isfile(
+                            full_path
+                        )
+
+                    # Drupal file system check
+                    elif file_path.startswith(config["file_systems"]):
+                        full_path = file_path  # for consistent error messages
+                        file_exists = check_file_exists(config, file_path)
+
+                    # Remote file check
                     else:
-                        file_path = os.path.join(
-                            config["input_dir"], file_check_row["file"]
-                        )
-                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                        message = (
-                            'File "'
-                            + file_path
-                            + '" identified in CSV "file" column for row with ID "'
-                            + file_check_row[config["id_field"]]
-                            + '" not found.'
-                        )
-                        if config["allow_missing_files"] is False:
-                            logging.error(message)
-                            if config["perform_soft_checks"] is False:
-                                sys.exit("Error: " + message)
-                            else:
-                                if (
-                                    file_check_row[config["id_field"]]
-                                    not in rows_with_missing_files
-                                    and len(file_check_row["file"].strip()) > 0
-                                ):
-                                    rows_with_missing_files.append(
-                                        file_check_row[config["id_field"]]
-                                    )
-                        else:
-                            logging.error(message)
-                            if (
-                                file_check_row[config["id_field"]]
-                                not in rows_with_missing_files
-                                and len(file_check_row["file"].strip()) > 0
-                            ):
-                                rows_with_missing_files.append(
-                                    file_check_row[config["id_field"]]
-                                )
-                # Remote files.
-                else:
-                    if len(file_check_row["file"].strip()) > 0:
-                        http_response_code = ping_remote_file(
-                            config, file_check_row["file"]
-                        )
+                        http_response_code = ping_remote_file(config, file_path)
                         if (
                             http_response_code != 200
-                            or ping_remote_file(config, file_check_row["file"]) is False
+                            and http_response_code is not False
                         ):
                             message = (
-                                'Remote file "'
-                                + file_check_row["file"]
-                                + '" identified in CSV "file" column for row with ID "'
-                                + file_check_row[config["id_field"]]
-                                + '" not found or not accessible (HTTP response code '
-                                + str(http_response_code)
-                                + ")."
+                                f'Remote file "{file_path}" identified in CSV "file" column for row with ID "{row_id}" '
+                                f"not found or not accessible (HTTP response code {http_response_code})."
                             )
-                            if config["allow_missing_files"] is False:
-                                logging.error(message)
-                                if config["perform_soft_checks"] is False:
-                                    sys.exit("Error: " + message)
-                                else:
-                                    if (
-                                        file_check_row[config["id_field"]]
-                                        not in rows_with_missing_files
-                                        and len(file_check_row["file"].strip()) > 0
-                                    ):
-                                        rows_with_missing_files.append(
-                                            file_check_row[config["id_field"]]
-                                        )
-                            else:
-                                logging.error(message)
-                                if (
-                                    file_check_row[config["id_field"]]
-                                    not in rows_with_missing_files
-                                    and len(file_check_row["file"].strip()) > 0
-                                ):
-                                    rows_with_missing_files.append(
-                                        file_check_row[config["id_field"]]
-                                    )
+                            logging.error(message)
+                            if (
+                                not config["allow_missing_files"]
+                                and not config["perform_soft_checks"]
+                            ):
+                                sys.exit("Error: " + message)
+                            if row_id not in rows_with_missing_files:
+                                rows_with_missing_files.append(row_id)
+                        continue
+
+                    if not file_exists:
+                        message = f'File "{full_path}" identified in CSV "file" column for row with ID "{row_id}" not found.'
+                        logging.error(message)
+                        if (
+                            not config["allow_missing_files"]
+                            and not config["perform_soft_checks"]
+                        ):
+                            sys.exit("Error: " + message)
+                        if row_id not in rows_with_missing_files:
+                            rows_with_missing_files.append(row_id)
 
             # @todo for issue 268: All accumulator variables like 'rows_with_missing_files' should be checked at end of
             # check_input() (to work with perform_soft_checks: True) in addition to at place of check (to work wit perform_soft_checks: False).
@@ -5464,6 +5450,24 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
             )
             return False
         file_path = filename
+    elif filename.startswith(config["file_systems"]):
+        details = issue_request(
+            config,
+            "POST",
+            "/api/server-file",
+            {"Content-Type": "application/json", "XDEBUG-TRIGGER": "XDEBUG_SESSION"},
+            {"path": filename, "retval": "fid"},
+        )
+        if details.ok:
+            data = details.json()
+            return int(data["fid"])
+
+        else:
+            logging.error(
+                f"File creation for row {node_csv_row[config['id_field']]} returned code:{details.status_code} with message{details.text}"
+            )
+            return False
+
     else:
         if check_file_exists(config, filename) is False:
             logging.error(
@@ -5666,7 +5670,6 @@ def create_media(
 
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
-    import workbench_fields
 
     if value_is_numeric(node_id) is False:
         node_id = get_nid_from_url_alias(config, node_id)
@@ -5831,21 +5834,43 @@ def create_media(
         # extracted_text media must have their field_edited_text field populated for full text indexing.
         # Text must be encoded as utf-8.
         if media_type == "extracted_text":
-            if check_file_exists(config, filename):
-                media_json["field_edited_text"] = list()
-                if os.path.isabs(filename) is False:
-                    filename = os.path.join(config["input_dir"], filename)
-                try:
-                    extracted_text_file = open(filename, "r", -1, "utf-8-sig")
-                    media_json["field_edited_text"].append(
-                        {"value": extracted_text_file.read()}
-                    )
-                except Exception as e:
-                    logging.error(
-                        f'Extracted text file "{filename}" caused a problem that prevented it from being ingested ({e}).'
-                    )
-            else:
+            if not check_file_exists(config, filename):
                 logging.error("Extracted text file %s not found.", filename)
+            else:
+                media_json["field_edited_text"] = []
+
+                # Use server-side path if configured as such
+                if filename.startswith(config["file_systems"]):
+                    response = issue_request(
+                        config,
+                        "POST",
+                        "/api/server-file",
+                        {"Content-Type": "application/json"},
+                        {"path": filename, "retval": "contents"},
+                    )
+                    if response.ok:
+                        data = response.json()
+                        media_json["field_edited_text"].append(data["contents"])
+                    else:
+                        logging.error(
+                            f"Could not extract text from {filename}. Process returned code: {response.status_code} with message {response.text}"
+                        )
+                else:
+                    # Ensure absolute path
+                    if not os.path.isabs(filename):
+                        filename = os.path.join(config["input_dir"], filename)
+
+                    try:
+                        with open(
+                            filename, "r", encoding="utf-8-sig"
+                        ) as extracted_text_file:
+                            media_json["field_edited_text"].append(
+                                {"value": extracted_text_file.read()}
+                            )
+                    except Exception as e:
+                        logging.error(
+                            f'Extracted text file "{filename}" caused a problem that prevented it from being ingested ({e}).'
+                        )
 
         # WIP on #572: if this is an `add_media` task, add fields in CSV to media_json, being careful to
         # not stomp on existing fields. Block below is copied from create() and needs to be modified to
@@ -9290,7 +9315,6 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     """
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
-    import workbench_fields
 
     if config["task"] == "create_from_files":
         config["id_field"] = "ID"
@@ -10383,73 +10407,74 @@ def get_deduped_file_path(path):
     return incremented_path
 
 
-def check_file_exists(config, filename):
-    """Cconfirms file exists and is a file (not a directory).
-    For remote/downloaded files, checks for a 200 response from a HEAD request.
+import os
+import logging
+import requests
 
-    Does not check whether filename value is blank.
+
+def check_file_exists(config, filename):
     """
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        filename: string
-            The filename or path.
-        Returns
-        -------
-        boolean
-            True if the file exists, false if not.
+    Confirms whether a file exists and is a file (not a directory).
+
+    For remote files (URLs), performs a HEAD request and checks for a 200 response.
+    For server-side files, uses an API endpoint to check existence.
+    For local files, checks the filesystem directly.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration settings from workbench_config.get_config().
+    filename : str
+        The file path or URL.
+
+    Returns
+    -------
+    bool
+        True if the file exists, False otherwise.
     """
-    # It's a remote file.
+    # Check server-managed files
+    if filename.startswith(config["file_systems"]):
+        response = issue_request(
+            config,
+            "POST",
+            "/api/server-file",
+            {"Content-Type": "application/json"},
+            {"path": filename, "retval": "checkfile"},
+        )
+        data = json.loads(response.content.decode("utf-8"))
+        message = data.get("message")
+        if message:
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+        return data.get("existence") == "True"
+
+    # Check remote (HTTP/S) files
     if filename.startswith("http"):
         try:
             headers = {"User-Agent": config["user_agent"]}
-
-            head_response = requests.head(
+            response = requests.head(
                 filename,
                 allow_redirects=True,
                 verify=config["secure_ssl_only"],
                 headers=headers,
             )
-            if head_response.status_code == 200:
-                return True
-            else:
-                return False
-        except requests.exceptions.Timeout as err_timeout:
-            message = (
-                "Workbench timed out trying to reach "
-                + filename
-                + ". Details in next log entry."
-            )
-            logging.error(message)
-            logging.error(err_timeout)
-            return False
-        except requests.exceptions.ConnectionError as error_connection:
-            message = (
-                "Workbench cannot connect to "
-                + filename
-                + ". Details in next log entry."
-            )
-            logging.error(message)
-            logging.error(error_connection)
-            return False
-    # It's a local file.
-    else:
-        if os.path.isabs(filename):
-            file_path = filename
-        else:
-            file_path = os.path.join(config["input_dir"], filename)
+            return response.status_code == 200
+        except requests.exceptions.Timeout as e:
+            logging.error(f"Timeout reaching {filename}. Details below:")
+            logging.error(e)
+        except requests.exceptions.ConnectionError as e:
+            logging.error(f"Connection error reaching {filename}. Details below:")
+            logging.error(e)
+        return False
 
-        if os.path.isfile(file_path):
-            return True
-        else:
-            return False
-
-    # Fall back to False if existence of file can't be determined.
-    logging.warning(
-        f'Cannot determine if file "{filename}" exists, assuming it does not.'
+    # Check local files
+    file_path = (
+        filename
+        if os.path.isabs(filename)
+        else os.path.join(config["input_dir"], filename)
     )
-    return False
+    return os.path.isfile(file_path)
 
 
 def get_preprocessed_file_path(
