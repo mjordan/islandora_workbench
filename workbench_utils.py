@@ -41,7 +41,6 @@ install()
 yaml = YAML()
 
 EXECUTION_START_TIME = datetime.datetime.now()
-INTEGRATION_MODULE_MIN_VERSION = "1.0"
 # Workaround for https://github.com/mjordan/islandora_workbench/issues/360.
 http.client._MAXHEADERS = 10000
 http_response_times = []
@@ -438,8 +437,8 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
 
 
 def convert_semver_to_number(version_string):
-    """Convert a Semantic Version number (e.g. Drupal's) string to a number. We only need the major
-    and minor numbers (e.g. 9.2).
+    """Convert a Semantic Version number (e.g. Drupal's) string to a tuple. We only need the
+    major and minor numbers (e.g. 9.2).
 
     Parameters
     ----------
@@ -518,17 +517,27 @@ def check_integration_module_version(config, log_success=True):
         The configuration settings defined by workbench_config.get_config().
     log_success : bool
         Whether or not to log that the desired version of the module is installed
-        on the remote Drupal.
+        on the remote Drupal. Lack of minimum version is always logged.
     Returns
     -------
     None
     """
     version = get_integration_module_version(config)
 
+    integration_module_min_version = "1.0"
+    log_message = f'Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
+
+    """
+    # Logic that maps a feature to a miniumum Integration module version, and produces a specific log message.
+    if config["use_workbench_integration_permissions"] is True:
+        integration_module_min_version = "1.2"
+        log_message = f'In order to use the "use_workbench_integration_permissions" config setting, Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
+    """
+
     if version is False:
         message = (
             "Workbench cannot determine the Islandora Workbench Integration module's version number. It must be version "
-            + str(INTEGRATION_MODULE_MIN_VERSION)
+            + str(integration_module_min_version)
             + " or higher."
         )
         logging.error(message)
@@ -536,19 +545,19 @@ def check_integration_module_version(config, log_success=True):
     else:
         version_number = convert_semver_to_number(version)
         minimum_version_number = convert_semver_to_number(
-            INTEGRATION_MODULE_MIN_VERSION
+            integration_module_min_version
         )
         if version_number < minimum_version_number:
-            message = (
+            console_message = (
                 "The Islandora Workbench Integration module installed on "
                 + config["host"]
                 + " must be"
                 + " upgraded to version "
-                + str(INTEGRATION_MODULE_MIN_VERSION)
-                + "."
+                + str(integration_module_min_version)
+                + ". See your Workbench log for more information."
             )
-            logging.error(message)
-            sys.exit("Error: " + message)
+            logging.error(log_message)
+            sys.exit("Error: " + console_message)
         else:
             if log_success is True:
                 logging.info(
@@ -806,18 +815,6 @@ def ping_islandora(config, print_message=True):
         )
         logging.error(message)
         logging.error(error_connection)
-        sys.exit("Error: " + message)
-
-    if host_response.status_code == 404:
-        message = (
-            "Workbench cannot detect whether the Islandora Workbench Integration module is "
-            + "enabled on "
-            + config["host"]
-            + ". Please ensure it is enabled and that its version is "
-            + str(INTEGRATION_MODULE_MIN_VERSION)
-            + " or higher."
-        )
-        logging.error(message)
         sys.exit("Error: " + message)
 
     not_authorized = [401, 403]
