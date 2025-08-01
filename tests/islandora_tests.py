@@ -792,6 +792,8 @@ class TestSecondaryTask(unittest.TestCase):
 class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
     """Note: This test fetches data from https://docs.google.com/spreadsheets/d/19AxFWEFuwEoNqH8ciUo0PRAroIpNE9BuBhE5tIE6INQ/edit#gid=0"""
 
+    temp_bundle = None
+
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
         self.create_config_file_path = os.path.join(
@@ -800,6 +802,10 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
             "secondary_task_with_google_sheets_and_excel_test",
             "google_sheets_primary.yml",
         )
+        # Temporarily disable the REQUESTS_CA_BUNDLE environment variable to avoid SSL verification issues.
+        self.temp_bundle = os.environ.get("REQUESTS_CA_BUNDLE", None)
+        if self.temp_bundle:
+            os.environ["REQUESTS_CA_BUNDLE"] = ""
 
         yaml = YAML()
         with open(self.create_config_file_path, "r") as f:
@@ -886,6 +892,10 @@ class TestSecondaryTaskWithGoogleSheets(unittest.TestCase):
         )
         if os.path.exists(google_sheet_csv_preprocessed_path):
             os.remove(google_sheet_csv_preprocessed_path)
+
+        # Restore the REQUESTS_CA_BUNDLE environment variable if it was set.
+        if self.temp_bundle:
+            os.environ["REQUESTS_CA_BUNDLE"] = self.temp_bundle
 
 
 class TestSecondaryTaskWithExcel(unittest.TestCase):

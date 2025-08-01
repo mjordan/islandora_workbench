@@ -8,26 +8,24 @@ and islandora_tests_hooks.py also contain tests that interact with an Islandora 
 import sys
 import os
 from ruamel.yaml import YAML
-import tempfile
 import subprocess
-import argparse
 import requests
 import json
 import urllib.parse
 import unittest
 
+import workbench_test_class
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import workbench_utils
 
 
-class TestFailToConnect(unittest.TestCase):
+class TestFailToConnect(workbench_test_class.WorkbenchTest):
 
     def test_failed_to_connect(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "check_test", "fail_to_connect.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
@@ -38,16 +36,15 @@ class TestFailToConnect(unittest.TestCase):
             pass
 
 
-class TestCreateCheck(unittest.TestCase):
+class TestCreateCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
 
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "check_test", "create.yml"
         )
 
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -61,74 +58,22 @@ class TestCreateCheck(unittest.TestCase):
     "GITHUB_ACTIONS" in os.environ,
     "Passes when tests locally run but not in Github workflows.",
 )
-class TestCheckFromGoogleSpreadsheetCheck(unittest.TestCase):
+class TestCheckFromGoogleSpreadsheetCheck(workbench_test_class.WorkbenchTest):
     """Note: This test fetches data from https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0."""
 
-    def setUp(self):
-
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(
-            self.current_dir, "assets", "check_test", "google_sheet.yml"
-        )
-
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        self.output = output.decode().strip()
-
-    def test_create_from_google_spreadsheet_check(self):
-        self.assertRegex(
-            self.output, "Extracting CSV data from https://docs.google.com", ""
-        )
-        self.assertRegex(
-            self.output, "Configuration and input data appear to be valid", ""
-        )
-
-
-@unittest.skipIf(
-    "GITHUB_ACTIONS" in os.environ,
-    "Passes when tests locally run but not in Github workflows.",
-)
-class TestGoogleGid(unittest.TestCase):
-    """Note: This test fetches data from https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0."""
+    temp_bundle = None
 
     def setUp(self):
-        self.temp_dir = "/tmp"
-
-    def test_google_gid(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_file_path = os.path.join(
-            current_dir, "assets", "google_gid_test", "gid_0.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "OK, all 2 rows in the CSV file")
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "google_gid_test", "gid_1867618389.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "OK, all 3 rows in the CSV file")
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "google_gid_test", "gid_390347846.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "OK, all 5 rows in the CSV file")
-
-        config_file_path = os.path.join(
-            current_dir, "assets", "google_gid_test", "gid_953977578.yml"
-        )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        self.assertRegex(output, "OK, all 1 rows in the CSV file")
+        # Temporarily disable the REQUESTS_CA_BUNDLE environment variable to avoid SSL verification issues.
+        self.temp_bundle = os.environ.get("REQUESTS_CA_BUNDLE", None)
+        if self.temp_bundle:
+            os.environ["REQUESTS_CA_BUNDLE"] = ""
 
     def tearDown(self):
+        # Restore the REQUESTS_CA_BUNDLE environment variable if it was set.
+        if self.temp_bundle:
+            os.environ["REQUESTS_CA_BUNDLE"] = self.temp_bundle
+
         csv_path = os.path.join(self.temp_dir, "google_sheet.csv")
         if os.path.exists(csv_path):
             os.remove(csv_path)
@@ -139,17 +84,59 @@ class TestGoogleGid(unittest.TestCase):
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
+    def test_create_from_google_spreadsheet_check(self):
+        config_file_path = os.path.join(
+            self.current_dir, "assets", "check_test", "google_sheet.yml"
+        )
 
-class TestUpdateCheck(unittest.TestCase):
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "Extracting CSV data from https://docs.google.com", "")
+        self.assertRegex(output, "Configuration and input data appear to be valid", "")
+
+    def test_google_gid(self):
+        config_file_path = os.path.join(
+            self.current_dir, "assets", "google_gid_test", "gid_0.yml"
+        )
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "OK, all 2 rows in the CSV file")
+
+        config_file_path = os.path.join(
+            self.current_dir, "assets", "google_gid_test", "gid_1867618389.yml"
+        )
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "OK, all 3 rows in the CSV file")
+
+        config_file_path = os.path.join(
+            self.current_dir, "assets", "google_gid_test", "gid_390347846.yml"
+        )
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "OK, all 5 rows in the CSV file")
+
+        config_file_path = os.path.join(
+            self.current_dir, "assets", "google_gid_test", "gid_953977578.yml"
+        )
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd)
+        output = output.decode().strip()
+        self.assertRegex(output, "OK, all 1 rows in the CSV file")
+
+
+class TestUpdateCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "check_test", "update.yml"
         )
-        self.temp_dir = "/tmp"
 
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -166,16 +153,14 @@ class TestUpdateCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestDeleteCheck(unittest.TestCase):
+class TestDeleteCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "check_test", "delete.yml"
         )
-        self.temp_dir = "/tmp"
 
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -192,16 +177,14 @@ class TestDeleteCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestAddMediaCheck(unittest.TestCase):
+class TestAddMediaCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "check_test", "add_media.yml"
         )
-        self.temp_dir = "/tmp"
 
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -218,16 +201,14 @@ class TestAddMediaCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestCreateMaxNodeTitleLengthCheck(unittest.TestCase):
+class TestCreateMaxNodeTitleLengthCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "max_node_title_length_test", "create.yml"
         )
-        self.temp_dir = "/tmp"
 
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
@@ -256,17 +237,19 @@ class TestCreateMaxNodeTitleLengthCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestUpdateWithMaxNodeTitleLengthCheck(unittest.TestCase):
+class TestUpdateWithMaxNodeTitleLengthCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-
         # First, we create some nodes so we have the node IDs for the update CSV file. We are
         # reusing the CSV data used by the TestCreateWithMaxNodeTitleLength test class.
         self.create_config_file_path = os.path.join(
             self.current_dir, "assets", "max_node_title_length_test", "create.yml"
         )
-        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.create_cmd = [
+            self.workbench_path,
+            "--config",
+            self.create_config_file_path,
+        ]
         self.nids = list()
 
         self.update_csv_file_path = os.path.join(
@@ -279,13 +262,11 @@ class TestUpdateWithMaxNodeTitleLengthCheck(unittest.TestCase):
             self.current_dir, "assets", "max_node_title_length_test", "update.yml"
         )
         self.update_cmd = [
-            "./workbench",
+            self.workbench_path,
             "--config",
             self.update_config_file_path,
             "--check",
         ]
-
-        self.temp_dir = "/tmp"
 
     def test_for_too_long_titles(self):
         create_output = subprocess.check_output(self.create_cmd)
@@ -338,7 +319,7 @@ class TestUpdateWithMaxNodeTitleLengthCheck(unittest.TestCase):
         # Delete our test nodes we created.
         for nid in self.nids:
             quick_delete_cmd = [
-                "./workbench",
+                self.workbench_path,
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
@@ -368,17 +349,13 @@ class TestUpdateWithMaxNodeTitleLengthCheck(unittest.TestCase):
             os.remove(self.update_csv_file_path)
 
 
-class TestTypedRelationBadRelatorCheck(unittest.TestCase):
-
-    def setUp(self):
-        self.temp_dir = "/tmp"
+class TestTypedRelationBadRelatorCheck(workbench_test_class.WorkbenchTest):
 
     def test_bad_relator_check_fail(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "typed_relation_test", "bad_relator.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
@@ -408,17 +385,13 @@ class TestTypedRelationBadRelatorCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestTypedRelationBadUriCheck(unittest.TestCase):
-
-    def setUp(self):
-        self.temp_dir = "/tmp"
+class TestTypedRelationBadUriCheck(workbench_test_class.WorkbenchTest):
 
     def test_bad_uri_check_fail(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "typed_relation_test", "bad_uri.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
@@ -444,17 +417,16 @@ class TestTypedRelationBadUriCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
+class TestTypedRelationNewTypedRelationCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir,
             "assets",
             "typed_relation_test",
             "add_new_typed_relation.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
         self.temp_dir = "/tmp"
@@ -480,17 +452,13 @@ class TestTypedRelationNewTypedRelationCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
-
-    def setUp(self):
-        self.temp_dir = "/tmp"
+class TestTypedRelationNoNamespaceCheck(workbench_test_class.WorkbenchTest):
 
     def test_no_namespace_check_fail(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "typed_relation_test", "no_namespace.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
@@ -516,14 +484,13 @@ class TestTypedRelationNoNamespaceCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestDelimiterCheck(unittest.TestCase):
+class TestDelimiterCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "delimiter_test", "create_tab.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
         self.temp_dir = "/tmp"
@@ -539,17 +506,13 @@ class TestDelimiterCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestGeolocationCheck(unittest.TestCase):
-
-    def setUp(self):
-        self.temp_dir = "/tmp"
+class TestGeolocationCheck(workbench_test_class.WorkbenchTest):
 
     def test_geolocation_check(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "geolocation_test", "bad_geocoordinates.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
@@ -565,17 +528,13 @@ class TestGeolocationCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestHeaderColumnMismatchCheck(unittest.TestCase):
-
-    def setUp(self):
-        self.temp_dir = "/tmp"
+class TestHeaderColumnMismatchCheck(workbench_test_class.WorkbenchTest):
 
     def test_header_column_mismatch_fail(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "header_column_mismatch_test", "create.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         try:
             output = subprocess.check_output(cmd)
             output = output.decode().strip()
@@ -597,17 +556,15 @@ class TestHeaderColumnMismatchCheck(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
+class TestCreateWithFieldTemplatesCheck(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir, "assets", "create_with_field_templates_test", "create.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
-        self.temp_dir = "/tmp"
 
     def test_create_with_field_templates_check(self):
         self.assertRegex(
@@ -618,13 +575,13 @@ class TestCreateWithFieldTemplatesCheck(unittest.TestCase):
 
     def tearDown(self):
         templated_csv_path = os.path.join(self.temp_dir, "metadata.csv.preprocessed")
-        os.remove(templated_csv_path)
+        if os.path.exists(templated_csv_path):
+            os.remove(templated_csv_path)
 
 
-class TestTaxonomies(unittest.TestCase):
+class TestTaxonomies(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         self.taxonomies_config_file_path = os.path.join(
             self.current_dir, "assets", "taxonomies_test", "create.yml"
         )
@@ -640,12 +597,14 @@ class TestTaxonomies(unittest.TestCase):
         self.islandora_username = config["username"]
         self.islandora_password = config["password"]
 
-        self.create_cmd = ["./workbench", "--config", self.taxonomies_config_file_path]
+        self.create_cmd = [
+            self.workbench_path,
+            "--config",
+            self.taxonomies_config_file_path,
+        ]
 
-        self.temp_dir = "/tmp"
         self.nids = list()
 
-        nids = list()
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
 
@@ -663,7 +622,7 @@ class TestTaxonomies(unittest.TestCase):
             self.current_dir, "assets", "taxonomies_test", "create.yml"
         )
         cmd = [
-            "./workbench",
+            self.workbench_path,
             "--config",
             taxonomies_terms_exist_config_file_path,
             "--check",
@@ -684,7 +643,7 @@ class TestTaxonomies(unittest.TestCase):
             "term_name_not_in_taxonomy.yml",
         )
         cmd = [
-            "./workbench",
+            self.workbench_path,
             "--config",
             taxonomies_term_name_does_not_exist_config_file_path,
             "--check",
@@ -698,7 +657,7 @@ class TestTaxonomies(unittest.TestCase):
             self.current_dir, "assets", "taxonomies_test", "term_id_not_in_taxonomy.yml"
         )
         cmd = [
-            "./workbench",
+            self.workbench_path,
             "--config",
             taxonomies_term_id_does_not_exist_config_file_path,
             "--check",
@@ -738,7 +697,7 @@ class TestTaxonomies(unittest.TestCase):
                     + str(term_to_delete_tid)
                     + "?_format=json"
                 )
-                term_delete_response = requests.delete(
+                requests.delete(
                     delete_term_url,
                     auth=(self.islandora_username, self.islandora_password),
                     verify=False,
@@ -746,13 +705,13 @@ class TestTaxonomies(unittest.TestCase):
 
         for nid in self.nids:
             quick_delete_cmd = [
-                "./workbench",
+                self.workbench_path,
                 "--config",
                 self.taxonomies_config_file_path,
                 "--quick_delete_node",
                 self.islandora_host + "/node/" + nid,
             ]
-            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd)
 
         rollback_file_path = os.path.join(
             self.current_dir, "assets", "taxonomies_test", "rollback.csv"
@@ -777,17 +736,13 @@ class TestTaxonomies(unittest.TestCase):
             os.remove(preprocessed_csv_path)
 
 
-class TestParentsPrecedeChildren(unittest.TestCase):
-
-    def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = "/tmp"
+class TestParentsPrecedeChildren(workbench_test_class.WorkbenchTest):
 
     def test_good_csv(self):
         config_file_path = os.path.join(
             self.current_dir, "assets", "parents_precede_children_test", "good.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(output, "Configuration and input data appear to be valid")
@@ -796,7 +751,7 @@ class TestParentsPrecedeChildren(unittest.TestCase):
         config_file_path = os.path.join(
             self.current_dir, "assets", "parents_precede_children_test", "bad.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
         self.assertRegex(str(stdout), '"c2p2" must come after', "")
@@ -811,11 +766,9 @@ class TestParentsPrecedeChildren(unittest.TestCase):
             os.remove(preprocessed_csv_path)
 
 
-class TestCreateAllowMissingFiles(unittest.TestCase):
+class TestCreateAllowMissingFiles(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = "/tmp"
         self.false_log_file_path = os.path.join(
             self.current_dir,
             "assets",
@@ -842,7 +795,7 @@ class TestCreateAllowMissingFiles(unittest.TestCase):
             "allow_missing_files_test",
             "create_allow_missing_files_false.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
         self.assertRegex(
@@ -862,7 +815,7 @@ class TestCreateAllowMissingFiles(unittest.TestCase):
             "allow_missing_files_test",
             "create_allow_missing_files_true.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(
@@ -883,7 +836,7 @@ class TestCreateAllowMissingFiles(unittest.TestCase):
             "allow_missing_files_test",
             "create_allow_missing_files_false_with_soft_checks.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(
@@ -929,11 +882,11 @@ class TestCreateAllowMissingFiles(unittest.TestCase):
             os.remove(preprocessed_csv_path)
 
 
-class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
+class TestCreateAllowMissingFilesWithAdditionalFiles(
+    workbench_test_class.WorkbenchTest
+):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = "/tmp"
         self.false_log_file_path = os.path.join(
             self.current_dir,
             "assets",
@@ -960,7 +913,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
             "allow_missing_files_test",
             "create_additional_files_allow_missing_files_false.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
         self.assertRegex(
@@ -987,7 +940,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
             "allow_missing_files_test",
             "create_additional_files_allow_missing_files_true.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(
@@ -1016,7 +969,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
             "allow_missing_files_test",
             "create_additional_files_allow_missing_files_false_with_soft_checks.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(
@@ -1061,11 +1014,10 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(unittest.TestCase):
             os.remove(preprocessed_csv_path)
 
 
-class TestAddMediaAllowMissingFiles(unittest.TestCase):
+class TestAddMediaAllowMissingFiles(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
         # Create nodes to use in add_media task.
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         self.create_config_file_path = os.path.join(
             self.current_dir,
             "assets",
@@ -1108,7 +1060,6 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
         self.add_media_csv_file_path = os.path.join(
             self.current_dir, "assets", "allow_missing_files_test", "add_media.csv"
         )
-        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1122,7 +1073,11 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
         self.islandora_username = self.config["username"]
         self.islandora_password = self.config["password"]
 
-        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.create_cmd = [
+            self.workbench_path,
+            "--config",
+            self.create_config_file_path,
+        ]
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
 
@@ -1159,7 +1114,7 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_allow_missing_files_false.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
         self.assertRegex(
@@ -1186,7 +1141,7 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_allow_missing_files_true.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(
@@ -1209,7 +1164,7 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_allow_missing_files_false_with_soft_checks.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(
@@ -1241,13 +1196,13 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
         # Delete the nodes created in setUp.
         for nid in self.nids:
             quick_delete_cmd = [
-                "./workbench",
+                self.workbench_path,
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
                 self.islandora_host + "/node/" + nid,
             ]
-            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd)
 
         if os.path.exists(self.add_media_csv_file_path):
             os.remove(self.add_media_csv_file_path)
@@ -1286,11 +1241,10 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             os.remove(self.true_log_file_path)
 
 
-class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
+class TestAddMediaAllowMissingWithAdditionalFiles(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
         # Create nodes to use in add_media task.
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         self.create_config_file_path = os.path.join(
             self.current_dir,
             "assets",
@@ -1336,7 +1290,6 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files.csv",
         )
-        self.temp_dir = "/tmp"
         self.nids = list()
 
         yaml = YAML()
@@ -1350,7 +1303,11 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
         self.islandora_username = self.config["username"]
         self.islandora_password = self.config["password"]
 
-        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.create_cmd = [
+            self.workbench_path,
+            "--config",
+            self.create_config_file_path,
+        ]
         create_output = subprocess.check_output(self.create_cmd)
         create_output = create_output.decode().strip()
 
@@ -1389,7 +1346,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_false.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
         self.assertRegex(
@@ -1420,7 +1377,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_true.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(
@@ -1447,7 +1404,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_false_with_soft_checks.yml",
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(
@@ -1483,7 +1440,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
         # Delete the nodes created in setUp.
         for nid in self.nids:
             quick_delete_cmd = [
-                "./workbench",
+                self.workbench_path,
                 "--config",
                 self.create_config_file_path,
                 "--quick_delete_node",
@@ -1526,16 +1483,14 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
     "GITHUB_ACTIONS" in os.environ,
     "Passes when tests locally run but not in Github workflows.",
 )
-class TestCommentedCsvs(unittest.TestCase):
+class TestCommentedCsvs(workbench_test_class.WorkbenchTest):
 
     def test_commented_csv(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.temp_dir = "/tmp"
 
         config_file_path = os.path.join(
-            current_dir, "assets", "commented_csvs_test", "raw_csv.yml"
+            self.current_dir, "assets", "commented_csvs_test", "raw_csv.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(output, "all 3 rows in the CSV file", "")
@@ -1546,9 +1501,9 @@ class TestCommentedCsvs(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
         config_file_path = os.path.join(
-            current_dir, "assets", "commented_csvs_test", "excel.yml"
+            self.current_dir, "assets", "commented_csvs_test", "excel.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         self.assertRegex(output, "all 4 rows in the CSV file", "")
@@ -1562,14 +1517,19 @@ class TestCommentedCsvs(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
         config_file_path = os.path.join(
-            current_dir, "assets", "commented_csvs_test", "google_sheets.yml"
+            self.current_dir, "assets", "commented_csvs_test", "google_sheets.yml"
         )
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        temp_bundle = os.environ.get("REQUESTS_CA_BUNDLE", None)
+        if temp_bundle is not None:
+            os.environ["REQUESTS_CA_BUNDLE"] = ""
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
+        if temp_bundle is not None:
+            os.environ["REQUESTS_CA_BUNDLE"] = temp_bundle
         output = output.decode().strip()
         self.assertRegex(output, "all 5 rows in the CSV file", "")
         csv_file_path = os.path.join(
-            current_dir, "assets", "commented_csvs_test", "google_sheet.csv"
+            self.current_dir, "assets", "commented_csvs_test", "google_sheet.csv"
         )
         if os.path.exists(csv_file_path):
             os.remove(csv_file_path)
@@ -1580,22 +1540,20 @@ class TestCommentedCsvs(unittest.TestCase):
             os.remove(preprocessed_csv_file_path)
 
 
-class TestCsvRowFilters(unittest.TestCase):
+class TestCsvRowFilters(workbench_test_class.WorkbenchTest):
 
     def setUp(self):
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
         config_file_path = os.path.join(
             self.current_dir,
             "assets",
             "csv_row_filters_test",
             "csv_row_filters_test.yml",
         )
-        self.temp_dir = "/tmp"
         self.preprocessed_csv_file_path = os.path.join(
             self.temp_dir, "csv_row_filters_test.csv.preprocessed"
         )
 
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         self.output = output.decode().strip()
 
