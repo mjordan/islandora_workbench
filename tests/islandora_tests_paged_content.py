@@ -87,7 +87,7 @@ class TestCreatePagedContent(unittest.TestCase):
                 "--quick_delete_node",
                 self.islandora_host + "/node/" + nid,
             ]
-            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd)
 
         preprocessed_csv_path = os.path.join(self.temp_dir, "metadata.csv.preprocessed")
         if os.path.exists(preprocessed_csv_path):
