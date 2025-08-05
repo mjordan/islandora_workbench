@@ -300,6 +300,8 @@ class WorkbenchConfig:
             "use_nid_in_media_title": False,
             "use_node_title_for_media_title": False,
             "field_for_remote_filename": False,
+            "remote_file_cookie_name": "",
+            "remote_file_cookie_value": "",
             "field_for_media_title": False,
             "delete_tmp_upload": False,
             "input_data_zip_archives": [],

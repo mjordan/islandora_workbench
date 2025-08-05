@@ -1054,11 +1054,16 @@ def ping_remote_file(config, url):
     int|None
     """
     headers = {"User-Agent": config["user_agent"]}
+    cookies = {config["remote_file_cookie_name"]: config["remote_file_cookie_value"]}
 
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.head(
-            url, allow_redirects=True, verify=config["secure_ssl_only"], headers=headers
+            url,
+            allow_redirects=True,
+            verify=config["secure_ssl_only"],
+            headers=headers,
+            cookies=cookies,
         )
         return response.status_code
     except requests.exceptions.Timeout as err_timeout:
@@ -10401,12 +10406,16 @@ def check_file_exists(config, filename):
     if filename.startswith("http"):
         try:
             headers = {"User-Agent": config["user_agent"]}
+            cookies = {
+                config["remote_file_cookie_name"]: config["remote_file_cookie_value"]
+            }
 
             head_response = requests.head(
                 filename,
                 allow_redirects=True,
                 verify=config["secure_ssl_only"],
                 headers=headers,
+                cookies=cookies,
             )
             if head_response.status_code == 200:
                 return True
@@ -10664,6 +10673,9 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
     sections = urllib.parse.urlparse(url)
     try:
+        cookies = {
+            config["remote_file_cookie_name"]: config["remote_file_cookie_value"]
+        }
         if config["secure_ssl_only"] is False:
             requests.packages.urllib3.disable_warnings()
         # Do not cache the responses for downloaded files in requests_cache
@@ -10674,6 +10686,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
                 stream=True,
                 verify=config["secure_ssl_only"],
                 headers=headers,
+                cookies=cookies,
             )
     except requests.exceptions.Timeout as err_timeout:
         message = (
