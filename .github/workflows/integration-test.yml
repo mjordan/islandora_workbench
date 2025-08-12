@@ -22,7 +22,7 @@ jobs:
         run: git config --global user.name "Mark Jordan"        
 
       - name: Checkout workbench
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -30,7 +30,7 @@ jobs:
           python-version: 3.11
 
       - name: Checkout isle-site-template
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Islandora-Devops/isle-site-template
           path: isle-site-template
