@@ -11,6 +11,8 @@ import tempfile
 
 import subprocess
 import re
+
+import pytest
 import requests
 import json
 import urllib.parse
@@ -33,9 +35,9 @@ class TestFailToConnect(WorkbenchTest):
         }
         configuration = workbench_user.alter_configuration(configuration)
         config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
-            output = subprocess.check_output(cmd)
+            output = subprocess.check_output(cmd, cwd=self.workbench_dir)
             output = output.decode().strip()
             assert re.search(
                 "Workbench can't connect to https://somebadhost.org", output
@@ -59,8 +61,8 @@ class TestCreateCheck(WorkbenchTest):
         configuration = workbench_user.alter_configuration(configuration)
         config_file_path = self.write_config_and_get_path(configuration)
 
-        cmd = [self.workbench_path, "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
         try:
             assert re.search("Configuration and input data appear to be valid", output)
@@ -76,8 +78,6 @@ class TestCreateCheck(WorkbenchTest):
 class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
     """Note: This test fetches data from https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0."""
 
-    temp_bundle = None
-
     default_config = {
         "task": "create",
         "host": "https://islandora.dev",
@@ -86,16 +86,18 @@ class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
         "secure_ssl_only": False,
     }
 
-    def setup_method(self, method):
+    @pytest.fixture(scope="class")
+    def alter_requests_bundle(self):
         # Temporarily disable the REQUESTS_CA_BUNDLE environment variable to avoid SSL verification issues.
-        self.temp_bundle = os.environ.get("REQUESTS_CA_BUNDLE", None)
-        if self.temp_bundle:
+        temp_bundle = os.environ.get("REQUESTS_CA_BUNDLE", None)
+        if temp_bundle:
             os.environ["REQUESTS_CA_BUNDLE"] = ""
 
-    def teardown_method(self, method):
+        yield "bundle altered"
+
         # Restore the REQUESTS_CA_BUNDLE environment variable if it was set.
-        if self.temp_bundle:
-            os.environ["REQUESTS_CA_BUNDLE"] = self.temp_bundle
+        if temp_bundle:
+            os.environ["REQUESTS_CA_BUNDLE"] = temp_bundle
 
         csv_path = os.path.join(self.temp_dir, "google_sheet.csv")
         if os.path.exists(csv_path):
@@ -107,55 +109,65 @@ class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
-
-    def test_create_from_google_spreadsheet_check(self, workbench_user):
+    def test_create_from_google_spreadsheet_check(
+        self, alter_requests_bundle, workbench_user
+    ):
         configuration = self.default_config
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
 
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
+
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
+
         assert re.search("Extracting CSV data from https://docs.google.com", output)
         assert re.search("Configuration and input data appear to be valid", output)
         assert re.search("OK, all 2 rows in the CSV file", output)
 
-    def test_google_gid_1(self, workbench_user):
+    def test_google_gid_1(self, alter_requests_bundle, workbench_user):
         configuration = self.default_config
         configuration["google_sheets_gid"] = 1867618389
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
         assert re.search("OK, all 3 rows in the CSV file", output)
 
-    def test_google_gid_2(self, workbench_user):
+    def test_google_gid_2(self, alter_requests_bundle, workbench_user):
         configuration = self.default_config
         configuration["google_sheets_gid"] = 390347846
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
 
         assert re.search("OK, all 5 rows in the CSV file", output)
 
-    def test_google_gid_3(self, workbench_user):
+    def test_google_gid_3(self, alter_requests_bundle, workbench_user):
         configuration = self.default_config
         configuration["google_sheets_gid"] = 953977578
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
 
         assert re.search("OK, all 1 rows in the CSV file", output)
 
 
 class TestUpdateCheck(WorkbenchTest):
+    """Test workbench --check for an update action."""
 
     def test_update_check(self, workbench_user):
         configuration = {
@@ -165,23 +177,24 @@ class TestUpdateCheck(WorkbenchTest):
             "input_csv": "update.csv",
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        assert re.search("Configuration and input data appear to be valid", output)
-
-    def teardown_method(self, method):
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "update.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        try:
+            assert re.search("Configuration and input data appear to be valid", output)
+        finally:
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "update.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestDeleteCheck(WorkbenchTest):
+    """Test workbench --check for a delete action."""
 
     def test_delete_check(self, workbench_user):
         configuration = {
@@ -191,23 +204,24 @@ class TestDeleteCheck(WorkbenchTest):
             "input_csv": "delete.csv",
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        assert re.search("Configuration and input data appear to be valid", output)
-
-    def teardown_method(self, method_name):
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "delete.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        try:
+            assert re.search("Configuration and input data appear to be valid", output)
+        finally:
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "delete.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestAddMediaCheck(WorkbenchTest):
+    """Test workbench --check for an add_media action."""
 
     def test_add_media_check(self, workbench_user):
         configuration = {
@@ -215,26 +229,27 @@ class TestAddMediaCheck(WorkbenchTest):
             "host": "https://islandora.dev",
             "secure_ssl_only": False,
             "input_csv": "add_media.csv",
+            "media_type": "file",
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-
-        assert re.search("Configuration and input data appear to be valid", output)
-
-    def teardown_method(self, method_name):
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "add_media.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        try:
+            assert re.search("Configuration and input data appear to be valid", output)
+        finally:
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "add_media.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestCreateMaxNodeTitleLengthCheck(WorkbenchTest):
+    """Test workbench --check for a create action with max node title length."""
 
     def test_for_too_long_titles(self, workbench_user):
         configuration = {
@@ -247,42 +262,38 @@ class TestCreateMaxNodeTitleLengthCheck(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        assert re.search(
-            'CSV field "title" in record with ID 03 contains a value that is longer .32 characters',
-            output,
-        )
-        assert re.search(
-            'CSV field "title" in record with ID 04 contains a value that is longer .34 characters',
-            output,
-        )
-        assert re.search(
-            'CSV field "title" in record with ID 05 contains a value that is longer .36 characters',
-            output,
-        )
-
-    def teardown_method(self, method_name):
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "create_max_node_title_length.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        try:
+            assert re.search(
+                'CSV field "title" in record with ID 03 contains a value that is longer .32 characters',
+                output,
+            )
+            assert re.search(
+                'CSV field "title" in record with ID 04 contains a value that is longer .34 characters',
+                output,
+            )
+            assert re.search(
+                'CSV field "title" in record with ID 05 contains a value that is longer .36 characters',
+                output,
+            )
+        finally:
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "create_max_node_title_length.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
+    """Test workbench --check for an update action with max node title length."""
 
-    # Path to the config to create the nodes we will later update.
-    create_config_file_path = None
-
-    # List of node ids created by this test for cleanup.
-    nids = []
-
-    def test_for_too_long_titles(self, workbench_user):
+    @pytest.fixture(scope="function")
+    def setup_nodes(self):
         # First, we create some nodes so we have the node IDs for the update CSV file. We are
         # reusing the CSV data used by the TestCreateWithMaxNodeTitleLength test class.
         configuration = {
@@ -294,32 +305,24 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
             "max_node_title_length": 30,
             "secure_ssl_only": False,
         }
+        workbench_user = AdminUser()
         configuration = workbench_user.alter_configuration(configuration)
-        self.create_config_file_path = self.write_config_and_get_path(configuration)
+        create_config_file_path = self.write_config_and_get_path(configuration)
 
-        configuration = {
-            "task": "update",
-            "host": "https://islandora.dev",
-            "input_dir": "tests/assets/max_node_title_length_test",
-            "input_csv": "update_max_node_title_length.csv",
-            "max_node_title_length": 30,
-            "secure_ssl_only": False,
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-
-        create_cmd = [self.workbench_path, "--config", self.create_config_file_path]
-        create_output = subprocess.check_output(create_cmd)
+        create_cmd = ["./workbench", "--config", create_config_file_path]
+        create_output = subprocess.check_output(create_cmd, cwd=self.workbench_dir)
         create_output = create_output.decode().strip()
 
         create_lines = create_output.splitlines()
+
+        nids = []
         for line in create_lines:
             if "created at" in line:
                 nid = line.rsplit("/", 1)[-1]
                 nid = nid.strip(".")
-                self.nids.append(nid)
+                nids.append(nid)
 
-        assert len(self.nids) == 6
+        assert len(nids) == 6
 
         # Now that we have our node IDs, we write out the CSV file used in --check.
         update_csv_file_path = os.path.join(
@@ -340,45 +343,31 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
         update_csv_file_rows.append("node_id,title")
         i = 0
         while i <= 5:
-            update_csv_file_rows.append(f"{self.nids[i]},{test_titles[i]}")
+            update_csv_file_rows.append(f"{nids[i]},{test_titles[i]}")
             i = i + 1
-        with open(update_csv_file_path, mode="wt") as update_csv_file:
+
+        with tempfile.NamedTemporaryFile(
+            mode="w+", delete=False, suffix="update_max_node_title_length.csv"
+        ) as update_csv_file:
             update_csv_file.write("\n".join(update_csv_file_rows))
+            update_csv_file_path = update_csv_file.name
 
-        update_cmd = [
-            self.workbench_path,
-            "--config",
-            self.config_file_path,
-            "--check",
-        ]
+        # Test runs here.
+        yield {
+            "update_csv_file_path": update_csv_file_path,
+        }
 
-        check_output = subprocess.check_output(update_cmd)
-        check_output = check_output.decode().strip()
-
-        assert re.search(
-            "contains a value that is longer .37 characters.", check_output
-        )
-        assert re.search(
-            "contains a value that is longer .39 characters.", check_output
-        )
-        assert re.search(
-            "contains a value that is longer .42 characters.", check_output
-        )
-        assert re.search(
-            "contains a value that is longer .44 characters.", check_output
-        )
-
-    def teardown_method(self, method_name):
-        # Delete our test nodes we created.
-        for nid in self.nids:
+        # Clean up -- Delete our test nodes we created.
+        filtered_nids = list(set(nids))
+        for nid in filtered_nids:
             quick_delete_cmd = [
-                self.workbench_path,
+                "./workbench",
                 "--config",
-                self.create_config_file_path,
+                create_config_file_path,
                 "--quick_delete_node",
                 "https://islandora.dev/node/" + nid,
             ]
-            subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
         rollback_file_path = os.path.join(
             self.current_dir, "assets", "max_node_title_length_test", "rollback.csv"
@@ -398,13 +387,49 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
         if os.path.exists(preprocessed_create_file_path):
             os.remove(preprocessed_create_file_path)
 
-        if os.path.exists(self.create_config_file_path):
-            os.remove(self.create_config_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        if os.path.exists(create_config_file_path):
+            os.remove(create_config_file_path)
+
+    def test_for_too_long_titles(self, setup_nodes, workbench_user):
+        configuration = {
+            "task": "update",
+            "host": "https://islandora.dev",
+            "input_dir": "tests/assets/max_node_title_length_test",
+            "input_csv": setup_nodes["update_csv_file_path"],
+            "max_node_title_length": 30,
+            "secure_ssl_only": False,
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+
+        update_cmd = [
+            "./workbench",
+            "--config",
+            config_file_path,
+            "--check",
+        ]
+
+        check_output = subprocess.check_output(update_cmd, cwd=self.workbench_dir)
+        check_output = check_output.decode().strip()
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
+
+        assert re.search(
+            "contains a value that is longer \(37 characters\)", check_output
+        )
+        assert re.search(
+            "contains a value that is longer \(39 characters\)", check_output
+        )
+        assert re.search(
+            "contains a value that is longer \(42 characters\)", check_output
+        )
+        assert re.search(
+            "contains a value that is longer \(44 characters\)", check_output
+        )
 
 
 class TestTypedRelationBadRelatorCheck(WorkbenchTest):
+    """Test workbench --check for a bad relator in typed relation fields."""
 
     def test_bad_relator_check_fail(self, workbench_user):
         configuration = {
@@ -416,38 +441,38 @@ class TestTypedRelationBadRelatorCheck(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
-            output = subprocess.check_output(cmd)
+            output = subprocess.check_output(cmd, cwd=self.workbench_dir)
             output = output.decode().strip()
             assert re.search(
                 "does not use the structure required for typed relation fields", output
             )
         except subprocess.CalledProcessError as err:
             pass
+        finally:
+            rollback_file_path = os.path.join(
+                self.current_dir,
+                "assets",
+                "typed_relation_test",
+                "input_data",
+                "rollback.csv",
+            )
+            if os.path.exists(rollback_file_path):
+                os.remove(rollback_file_path)
 
-    def teardown_method(self, method_name):
-        rollback_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "typed_relation_test",
-            "input_data",
-            "rollback.csv",
-        )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "bad_typed_relation_fail.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "bad_typed_relation_fail.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestTypedRelationBadUriCheck(WorkbenchTest):
+    """Test workbench --check for a bad URI in typed relation fields."""
 
     def test_bad_uri_check_fail(self, workbench_user):
         configuration = {
@@ -459,36 +484,36 @@ class TestTypedRelationBadUriCheck(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
-            output = subprocess.check_output(cmd)
+            output = subprocess.check_output(cmd, cwd=self.workbench_dir)
             output = output.decode().strip()
             assert re.search("example.com", output)
         except subprocess.CalledProcessError as err:
             pass
+        finally:
+            rollback_file_path = os.path.join(
+                self.current_dir,
+                "assets",
+                "typed_relation_test",
+                "input_data",
+                "rollback.csv",
+            )
+            if os.path.exists(rollback_file_path):
+                os.remove(rollback_file_path)
 
-    def teardown_method(self, method_name):
-        rollback_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "typed_relation_test",
-            "input_data",
-            "rollback.csv",
-        )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "bad_uri_fail.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "bad_uri_fail.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestTypedRelationNewTypedRelationCheck(WorkbenchTest):
+    """Test workbench --check for a new terms in a typed relation field."""
 
     def test_new_typed_relation_check(self, workbench_user):
         configuration = {
@@ -501,34 +526,34 @@ class TestTypedRelationNewTypedRelationCheck(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
+        try:
+            assert re.search("new terms will be created as noted", output)
+        finally:
+            rollback_file_path = os.path.join(
+                self.current_dir,
+                "assets",
+                "typed_relation_test",
+                "input_data",
+                "rollback.csv",
+            )
+            if os.path.exists(rollback_file_path):
+                os.remove(rollback_file_path)
 
-        assert re.search("new terms will be created as noted", output)
-
-    def teardown_method(self, method_name):
-        rollback_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "typed_relation_test",
-            "input_data",
-            "rollback.csv",
-        )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "new_typed_relation.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "new_typed_relation.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestTypedRelationNoNamespaceCheck(WorkbenchTest):
+    """Test workbench --check for a missing vocabulary namespace in typed relation fields."""
 
     def test_no_namespace_check_fail(self, workbench_user):
         configuration = {
@@ -541,67 +566,68 @@ class TestTypedRelationNoNamespaceCheck(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
-            output = subprocess.check_output(cmd)
+            output = subprocess.check_output(cmd, cwd=self.workbench_dir)
             output = output.decode().strip()
             assert re.search("require a vocabulary namespace", output)
         except subprocess.CalledProcessError as err:
             pass
+        finally:
+            rollback_file_path = os.path.join(
+                self.current_dir,
+                "assets",
+                "typed_relation_test",
+                "input_data",
+                "rollback.csv",
+            )
+            if os.path.exists(rollback_file_path):
+                os.remove(rollback_file_path)
 
-    def teardown_method(self, method_name):
-        rollback_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "typed_relation_test",
-            "input_data",
-            "rollback.csv",
-        )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "no_namespace.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "no_namespace.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestDelimiterCheck(WorkbenchTest):
+    """Test workbench --check for a custom delimiter in the input CSV file."""
 
     def test_delimiter_check(self, workbench_user):
         configuration = {
             "task": "create",
             "host": "https://islandora.dev",
-            "input_dir": "tests/assets/typed_relation_test/input_data",
+            "input_dir": "tests/assets/delimiter_test",
             "media_type": "image",
             "input_csv": "metadata.tsv",
-            "delimiter": "\\t",
+            "delimiter": "\t",
             "allow_missing_files": True,
             "exit_on_first_missing_file_during_check": False,
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        assert re.search("input data appear to be valid", output)
-
-    def teardown_method(self, method_name):
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "metadata.tsv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        try:
+            assert re.search("input data appear to be valid", output)
+        finally:
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "metadata.tsv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestGeolocationCheck(WorkbenchTest):
+    """Test workbench --check for geolocation coordinates in the input CSV file."""
 
     def test_geolocation_check(self, workbench_user):
         configuration = {
@@ -613,26 +639,26 @@ class TestGeolocationCheck(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
-            output = subprocess.check_output(cmd)
+            output = subprocess.check_output(cmd, cwd=self.workbench_dir)
             output = output.decode().strip()
             assert re.search(r"\+43\.45-123\.17", output)
         except subprocess.CalledProcessError as err:
             pass
-
-    def teardown_method(self, method_name):
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "bad_geocoorindates_fail.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        finally:
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "bad_geocoorindates_fail.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestHeaderColumnMismatchCheck(WorkbenchTest):
+    """Test workbench --check for a header column mismatch in the input CSV file."""
 
     def test_header_column_mismatch_fail(self, workbench_user):
         configuration = {
@@ -643,33 +669,36 @@ class TestHeaderColumnMismatchCheck(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         try:
-            output = subprocess.check_output(cmd)
+            output = subprocess.check_output(cmd, cwd=self.workbench_dir)
             output = output.decode().strip()
             assert re.search("Row 2 of your CSV file does not", output)
         except subprocess.CalledProcessError as err:
             pass
+        finally:
+            rollback_file_path = os.path.join(
+                self.current_dir,
+                "assets",
+                "header_column_mismatch_test",
+                "rollback.csv",
+            )
+            if os.path.exists(rollback_file_path):
+                os.remove(rollback_file_path)
 
-    def teardown_method(self, method_name):
-        rollback_file_path = os.path.join(
-            self.current_dir, "assets", "header_column_mismatch_test", "rollback.csv"
-        )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
+            preprocessed_csv_file_path = os.path.join(
+                self.temp_dir, "metadata.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
 
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "metadata.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestCreateWithFieldTemplatesCheck(WorkbenchTest):
+    """Test workbench --check for a create action with CSV field templates."""
 
     def test_create_with_field_templates_check(self, workbench_user):
         configuration = {
@@ -677,46 +706,38 @@ class TestCreateWithFieldTemplatesCheck(WorkbenchTest):
             "host": "https://islandora.dev",
             "input_dir": "tests/assets/create_with_field_templates_test",
             "nodes_only": True,
-            "csv_field_templates": {
-                "field_rights": "This test is in the public domain.",
-                "field_description": "Testing CSV field templates.",
-                "field_model": "Image",
-            },
+            "csv_field_templates": [
+                {"field_rights": "This test is in the public domain."},
+                {"field_description": "Testing CSV field templates."},
+                {"field_model": "Image"},
+            ],
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-
-        assert re.search(
-            "all 3 rows in the CSV file have the same number of columns as there are headers .6.",
-            output,
-        )
-
-    def teardown_method(self, method_name):
-        templated_csv_path = os.path.join(self.temp_dir, "metadata.csv.preprocessed")
-        if os.path.exists(templated_csv_path):
-            os.remove(templated_csv_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        try:
+            assert re.search(
+                "all 3 rows in the CSV file have the same number of columns as there are headers .6.",
+                output,
+            )
+        finally:
+            templated_csv_path = os.path.join(
+                self.temp_dir, "metadata.csv.preprocessed"
+            )
+            if os.path.exists(templated_csv_path):
+                os.remove(templated_csv_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestTaxonomies(WorkbenchTest):
+    """Test workbench --check for taxonomies creating new terms or checking for existing terms."""
 
-    # Path to the taxonomy create configuration file.
-    taxonomies_config_file_path = None
-
-    # List of nodes ids created by this test for cleanup.
-    nids = []
-
-    # Credentials to handle cleanup, this might not work now that each test is run twice.
-    islandora_host = None
-    islandora_username = None
-    islandora_password = None
-
-    def setup_method(self, method_name):
+    @pytest.fixture(scope="class")
+    def taxonomy_setup(self):
         configuration = {
             "task": "create",
             "host": "https://islandora.dev",
@@ -729,92 +750,31 @@ class TestTaxonomies(WorkbenchTest):
         }
         workbench_user = AdminUser()
         configuration = workbench_user.alter_configuration(configuration)
-        self.taxonomies_config_file_path = self.write_config_and_get_path(configuration)
-
-        self.islandora_host = configuration["host"]
-        self.islandora_username = configuration["username"]
-        self.islandora_password = configuration["password"]
+        taxonomies_config_file_path = self.write_config_and_get_path(configuration)
 
         create_cmd = [
-            self.workbench_path,
+            "./workbench",
             "--config",
-            self.taxonomies_config_file_path,
+            taxonomies_config_file_path,
         ]
 
-        create_output = subprocess.check_output(create_cmd)
+        create_output = subprocess.check_output(create_cmd, cwd=self.workbench_dir)
         create_output = create_output.decode().strip()
 
         # Write a file to the system's temp directory containing the node IDs of the
         # nodes created during this test so they can be deleted in tearDown().
         create_lines = create_output.splitlines()
+        nids = []
         for line in create_lines:
             if "created at" in line:
                 nid = line.rsplit("/", 1)[-1]
                 nid = nid.strip(".")
-                self.nids.append(nid)
+                nids.append(nid)
 
-    def test_validate_term_names_exist(self, workbench_user):
-        # Using the same create configuration used in the setup.
-        cmd = [
-            self.workbench_path,
-            "--config",
-            self.taxonomies_config_file_path,
-            "--check",
-        ]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        assert re.search(
-            "term IDs/names in CSV file exist in their respective taxonomies",
-            output,
-        )
+        yield configuration["host"]  # This when the test runs.
 
-    def test_validate_term_name_does_not_exist(self, workbench_user):
-        configuration = {
-            "task": "create",
-            "host": "https://islandora.dev",
-            "allow_adding_terms": False,
-            "allow_missing_files": True,
-            "input_dir": "tests/assets/taxonomies_test",
-            "input_csv": "term_name_not_in_taxonomy.csv",
-            "media_type": "image",
-            "secure_ssl_only": False,
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [
-            self.workbench_path,
-            "--config",
-            self.config_file_path,
-            "--check",
-        ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
-        assert re.search('"XPosters"', str(stdout))
-
-    def test_validate_term_id_does_not_exist(self, workbench_user):
-        configuration = {
-            "task": "create",
-            "host": "https://islandora.dev",
-            "allow_adding_terms": False,
-            "allow_missing_files": True,
-            "input_dir": "tests/assets/taxonomies_test",
-            "input_csv": "term_id_not_in_taxonomy.csv",
-            "media_type": "image",
-            "secure_ssl_only": False,
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [
-            self.workbench_path,
-            "--config",
-            self.config_file_path,
-            "--check",
-        ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
-        assert re.search("1000000", str(stdout))
-
-    def teardown_method(self, method_name):
+        # After the test runs, we clean up any terms we created in the genre taxonomy and
+        # delete the nodes we created.
         requests.packages.urllib3.disable_warnings()
         # Delete all terms in the genre taxonomy created by these tests.
         terms_to_delete = [
@@ -826,40 +786,40 @@ class TestTaxonomies(WorkbenchTest):
         ]
         for term_name in terms_to_delete:
             get_tid_url = (
-                self.islandora_host
+                configuration["host"]
                 + "/term_from_term_name?vocab=genre&name="
                 + urllib.parse.quote(term_name.strip())
                 + "&_format=json"
             )
             get_tid_response = requests.get(
                 get_tid_url,
-                auth=(self.islandora_username, self.islandora_password),
+                auth=(configuration["username"], configuration["password"]),
                 verify=False,
             )
             term_data = json.loads(get_tid_response.text)
             if len(term_data):
                 term_to_delete_tid = term_data[0]["tid"][0]["value"]
                 delete_term_url = (
-                    self.islandora_host
+                    configuration["host"]
                     + "/taxonomy/term/"
                     + str(term_to_delete_tid)
                     + "?_format=json"
                 )
                 requests.delete(
                     delete_term_url,
-                    auth=(self.islandora_username, self.islandora_password),
+                    auth=(configuration["username"], configuration["password"]),
                     verify=False,
                 )
 
-        for nid in self.nids:
+        for nid in nids:
             quick_delete_cmd = [
-                self.workbench_path,
+                "./workbench",
                 "--config",
-                self.taxonomies_config_file_path,
+                taxonomies_config_file_path,
                 "--quick_delete_node",
-                self.islandora_host + "/node/" + nid,
+                configuration["host"] + "/node/" + nid,
             ]
-            subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
         rollback_file_path = os.path.join(
             self.current_dir, "assets", "taxonomies_test", "rollback.csv"
@@ -882,13 +842,100 @@ class TestTaxonomies(WorkbenchTest):
         )
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
-        if os.path.exists(self.taxonomies_config_file_path):
-            os.remove(self.taxonomies_config_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        if os.path.exists(taxonomies_config_file_path):
+            os.remove(taxonomies_config_file_path)
+
+    def test_validate_term_names_exist(self, taxonomy_setup, workbench_user):
+        configuration = {
+            "task": "create",
+            "host": "https://islandora.dev",
+            "allow_adding_terms": True,
+            "allow_missing_files": True,
+            "input_dir": "tests/assets/taxonomies_test",
+            "media_type": "image",
+            "exit_on_first_missing_file_during_check": False,
+            "secure_ssl_only": False,
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = [
+            "./workbench",
+            "--config",
+            config_file_path,
+            "--check",
+        ]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
+        output = output.decode().strip()
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
+        assert re.search(
+            "term IDs/names in CSV file exist in their respective taxonomies",
+            output,
+        )
+
+    def test_validate_term_name_does_not_exist(self, taxonomy_setup, workbench_user):
+        configuration = {
+            "task": "create",
+            "host": "https://islandora.dev",
+            "allow_adding_terms": False,
+            "allow_missing_files": True,
+            "input_dir": "tests/assets/taxonomies_test",
+            "input_csv": "term_name_not_in_taxonomy.csv",
+            "media_type": "image",
+            "secure_ssl_only": False,
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = [
+            "./workbench",
+            "--config",
+            config_file_path,
+            "--check",
+        ]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.workbench_dir,
+        )
+        stdout, stderr = proc.communicate()
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
+        assert re.search('"XPosters"', str(stdout))
+
+    def test_validate_term_id_does_not_exist(self, taxonomy_setup, workbench_user):
+        configuration = {
+            "task": "create",
+            "host": "https://islandora.dev",
+            "allow_adding_terms": False,
+            "allow_missing_files": True,
+            "input_dir": "tests/assets/taxonomies_test",
+            "input_csv": "term_id_not_in_taxonomy.csv",
+            "media_type": "image",
+            "secure_ssl_only": False,
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = [
+            "./workbench",
+            "--config",
+            config_file_path,
+            "--check",
+        ]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.workbench_dir,
+        )
+        stdout, stderr = proc.communicate()
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
+        assert re.search("1000000", str(stdout))
 
 
 class TestParentsPrecedeChildren(WorkbenchTest):
+    """Test workbench --check for parents preceding children in the input CSV file."""
 
     def test_good_csv(self, workbench_user):
         configuration = {
@@ -900,11 +947,18 @@ class TestParentsPrecedeChildren(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        assert re.search("Configuration and input data appear to be valid", output)
+        try:
+            assert re.search("Configuration and input data appear to be valid", output)
+        finally:
+            preprocessed_csv_path = os.path.join(self.temp_dir, "good.csv.preprocessed")
+            if os.path.exists(preprocessed_csv_path):
+                os.remove(preprocessed_csv_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
     def test_bad_csv(self, workbench_user):
         configuration = {
@@ -916,29 +970,27 @@ class TestParentsPrecedeChildren(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.workbench_dir,
+        )
         stdout, stderr = proc.communicate()
-        assert re.search('"c2p2" must come after', str(stdout))
-
-    def teardown_method(self, method_name):
-        preprocessed_csv_path = os.path.join(self.temp_dir, "good.csv.preprocessed")
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(self.temp_dir, "bad.csv.preprocessed")
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        try:
+            assert re.search('"c2p2" must come after', str(stdout))
+        finally:
+            preprocessed_csv_path = os.path.join(self.temp_dir, "bad.csv.preprocessed")
+            if os.path.exists(preprocessed_csv_path):
+                os.remove(preprocessed_csv_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestCreateAllowMissingFiles(WorkbenchTest):
-
-    # Path to the log file used for the tests.
-    log_file_path = None
+    """Test workbench --check for allow_missing_files configuration setting."""
 
     def test_false(self, workbench_user):
         configuration = {
@@ -951,24 +1003,40 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
-        assert re.search(
-            'identified in CSV "file" column for row with ID "03" not found',
-            str(stdout),
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.workbench_dir,
         )
-
-        self.log_file_path = os.path.join(
+        stdout, stderr = proc.communicate()
+        log_file_path = os.path.join(
             self.current_dir,
             "assets",
             "allow_missing_files_test",
             "allow_missing_files_false.log",
         )
-        with open(self.log_file_path) as log_file_false:
-            log_data_false = log_file_false.read()
-        assert re.search('ID "03" not found', log_data_false)
+        try:
+            assert re.search(
+                'identified in CSV "file" column for row with ID "03" not found',
+                str(stdout),
+            )
+
+            with open(log_file_path) as log_file_false:
+                log_data_false = log_file_false.read()
+            assert re.search('ID "03" not found', log_data_false)
+        finally:
+            if os.path.exists(log_file_path):
+                os.remove(log_file_path)
+            preprocessed_csv_path = os.path.join(
+                self.temp_dir, "metadata_check.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_path):
+                os.remove(preprocessed_csv_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
     def test_true(self, workbench_user):
         configuration = {
@@ -982,24 +1050,38 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        assert re.search(
-            'Warning: "allow_missing_files" configuration setting is set to "true", and CSV "file" column values',
-            output,
-        )
-
-        self.log_file_path = os.path.join(
+        log_file_path = os.path.join(
             self.current_dir,
             "assets",
             "allow_missing_files_test",
             "allow_missing_files_true.log",
         )
-        with open(self.log_file_path) as log_file_true:
-            log_data_true = log_file_true.read()
-        assert re.search('row with ID "06" not found or not accessible', log_data_true)
+        try:
+            assert re.search(
+                'Warning: "allow_missing_files" configuration setting is set to "true", and CSV "file" column values',
+                output,
+            )
+
+            with open(log_file_path) as log_file_true:
+                log_data_true = log_file_true.read()
+
+            assert re.search(
+                'row with ID "06" not found or not accessible', log_data_true
+            )
+        finally:
+            if os.path.exists(log_file_path):
+                os.remove(log_file_path)
+            preprocessed_csv_path = os.path.join(
+                self.temp_dir, "metadata_check.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_path):
+                os.remove(preprocessed_csv_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
     def test_false_with_soft_checks(self, workbench_user):
         configuration = {
@@ -1013,50 +1095,48 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        assert re.search(
-            'Warning: "perform_soft_checks" configuration setting is set to "true" and some values in the "file" column were not found',
-            output,
-        )
-
-        self.log_file_path = os.path.join(
+        log_file_path = os.path.join(
             self.current_dir,
             "assets",
             "allow_missing_files_test",
             "allow_missing_files_false_with_soft_checks.log",
         )
-        with open(self.log_file_path) as log_file_false_with_soft_checks:
-            log_file_false_with_soft_checks_data = (
-                log_file_false_with_soft_checks.read()
+        try:
+            assert re.search(
+                'Warning: "perform_soft_checks" configuration setting is set to "true" and some values in the "file" column were not found',
+                output,
             )
-        assert re.search(
-            'row with ID "03" not found', log_file_false_with_soft_checks_data
-        )
-        assert re.search(
-            'row with ID "06" not found or not accessible',
-            log_file_false_with_soft_checks_data,
-        )
 
-    def teardown_method(self, method_name):
-        if os.path.exists(self.log_file_path):
-            os.remove(self.log_file_path)
+            with open(log_file_path) as log_file_false_with_soft_checks:
+                log_file_false_with_soft_checks_data = (
+                    log_file_false_with_soft_checks.read()
+                )
 
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "metadata_check.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+            assert re.search(
+                'row with ID "03" not found', log_file_false_with_soft_checks_data
+            )
+            assert re.search(
+                'row with ID "06" not found or not accessible',
+                log_file_false_with_soft_checks_data,
+            )
+        finally:
+            if os.path.exists(log_file_path):
+                os.remove(log_file_path)
+            preprocessed_csv_path = os.path.join(
+                self.temp_dir, "metadata_check.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_path):
+                os.remove(preprocessed_csv_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
-
-    # Path to the config file used for the tests.
-    log_file_path = None
+    """Test workbench --check for allow_missing_files configuration setting with additional files."""
 
     def test_false(self, workbench_user):
         configuration = {
@@ -1066,35 +1146,51 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
             "input_csv": "metadata_additional_files_check.csv",
             "standalone_media_url": True,
             "log_file_path": "tests/assets/allow_missing_files_test/additional_files_allow_missing_files_false.log",
-            "additional_files": {"tn": "http://pcdm.org/use#ThumbnailImage"},
+            "additional_files": [{"tn": "http://pcdm.org/use#ThumbnailImage"}],
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
-        assert re.search(
-            'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found',
-            str(stdout),
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.workbench_dir,
         )
-
-        self.log_file_path = os.path.join(
+        stdout, stderr = proc.communicate()
+        log_file_path = os.path.join(
             self.current_dir,
             "assets",
             "allow_missing_files_test",
             "additional_files_allow_missing_files_false.log",
         )
-        with open(self.log_file_path) as log_file_false:
-            log_data_false = log_file_false.read()
-        assert re.search(
-            'CSV row with ID 003 contains an empty value in its "tn" column',
-            log_data_false,
-        )
-        assert re.search(
-            'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found or not accessible',
-            log_data_false,
-        )
+        try:
+            assert re.search(
+                'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found',
+                str(stdout),
+            )
+
+            with open(log_file_path) as log_file_false:
+                log_data_false = log_file_false.read()
+            assert re.search(
+                'CSV row with ID 003 contains an empty value in its "tn" column',
+                log_data_false,
+            )
+            assert re.search(
+                'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found or not accessible',
+                log_data_false,
+            )
+        finally:
+            preprocessed_csv_path = os.path.join(
+                self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_path):
+                os.remove(preprocessed_csv_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
+            if os.path.exists(log_file_path):
+                os.remove(log_file_path)
 
     def test_true(self, workbench_user):
         configuration = {
@@ -1104,36 +1200,48 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
             "input_csv": "metadata_additional_files_check.csv",
             "standalone_media_url": True,
             "log_file_path": "tests/assets/allow_missing_files_test/additional_files_allow_missing_files_true.log",
-            "additional_files": {"tn": "http://pcdm.org/use#ThumbnailImage"},
+            "additional_files": [{"tn": "http://pcdm.org/use#ThumbnailImage"}],
             "allow_missing_files": True,
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        assert re.search(
-            '"allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns',
-            output,
-        )
-
-        self.log_file_path = os.path.join(
+        log_file_path = os.path.join(
             self.current_dir,
             "assets",
             "allow_missing_files_test",
             "additional_files_allow_missing_files_true.log",
         )
-        with open(self.log_file_path) as log_file_true:
-            log_data_true = log_file_true.read()
-        assert re.search(
-            'Additional file "additional_files_2_tn.jpg" in CSV column "tn" in row with ID 002 not found',
-            log_data_true,
-        )
-        assert re.search(
-            'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found',
-            log_data_true,
-        )
+        try:
+            assert re.search(
+                '"allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns',
+                output,
+            )
+
+            with open(log_file_path) as log_file_true:
+                log_data_true = log_file_true.read()
+
+            assert re.search(
+                'Additional file "additional_files_2_tn.jpg" in CSV column "tn" in row with ID 002 not found',
+                log_data_true,
+            )
+            assert re.search(
+                'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found',
+                log_data_true,
+            )
+        finally:
+            preprocessed_csv_path = os.path.join(
+                self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_path):
+                os.remove(preprocessed_csv_path)
+            if os.path.exists(log_file_path):
+                os.remove(log_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
     def test_false_with_soft_checks(self, workbench_user):
         configuration = {
@@ -1143,69 +1251,54 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
             "input_csv": "metadata_additional_files_check.csv",
             "standalone_media_url": True,
             "log_file_path": "tests/assets/allow_missing_files_test/additional_files_allow_missing_files_false_with_soft_checks.log",
-            "additional_files": {"tn": "http://pcdm.org/use#ThumbnailImage"},
+            "additional_files": [{"tn": "http://pcdm.org/use#ThumbnailImage"}],
             "perform_soft_checks": True,
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
         assert re.search(
             'The "perform_soft_checks" configuration setting is set to "true"', output
         )
 
-        self.log_file_path = os.path.join(
+        log_file_path = os.path.join(
             self.current_dir,
             "assets",
             "allow_missing_files_test",
             "additional_files_allow_missing_files_false_with_soft_checks.log",
         )
-        with open(self.log_file_path) as log_file_false_with_soft_checks:
+        with open(log_file_path) as log_file_false_with_soft_checks:
             log_file_false_with_soft_checks_data = (
                 log_file_false_with_soft_checks.read()
             )
-        assert re.search(
-            'Additional file "additional_files_2_tn.jpg" in CSV column "tn" in row with ID 002 not found',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(", no problems found", log_file_false_with_soft_checks_data)
-
-    def teardown_method(self, method_name):
-        if os.path.exists(self.log_file_path):
-            os.remove(self.log_file_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        try:
+            assert re.search(
+                'Additional file "additional_files_2_tn.jpg" in CSV column "tn" in row with ID 002 not found',
+                log_file_false_with_soft_checks_data,
+            )
+            assert re.search(
+                ", no problems found", log_file_false_with_soft_checks_data
+            )
+        finally:
+            preprocessed_csv_path = os.path.join(
+                self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
+            )
+            if os.path.exists(preprocessed_csv_path):
+                os.remove(preprocessed_csv_path)
+            if os.path.exists(log_file_path):
+                os.remove(log_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)
 
 
 class TestAddMediaAllowMissingFiles(WorkbenchTest):
+    """Test workbench --check for allow_missing_files configuration setting with add_media task."""
 
-    # Path to the log file used for the tests.
-    log_file_path = None
-
-    # List of node IDs created by this test for cleanup.
-    nids = []
-
-    # Path to the config file used for the setup of tests.
-    create_config_file_path = None
-
-    # Path to the log file used for the setup of tests.
-    create_log_file_path = None
-
-    # Path to the CSV file of Node IDs created for the setup of tests.
-    add_media_csv_file_path = None
-
-    # Current test host
-    islandora_host = "https://islandora.dev"
-
-    def setup_method(self, method_name):
+    @pytest.fixture(scope="function")
+    def setup_nodes(self):
         configuration = {
             "task": "create",
             "host": "https://islandora.dev",
@@ -1218,26 +1311,27 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
         }
         workbench_user = AdminUser()
         configuration = workbench_user.alter_configuration(configuration)
-        self.create_config_file_path = self.write_config_and_get_path(configuration)
-        self.create_log_file_path = os.path.join(
+        create_config_file_path = self.write_config_and_get_path(configuration)
+        create_log_file_path = os.path.join(
             self.current_dir,
             "assets",
             "allow_missing_files_test",
             "add_media_create_nodes.log",
         )
         create_cmd = [
-            self.workbench_path,
+            "./workbench",
             "--config",
-            self.create_config_file_path,
+            create_config_file_path,
         ]
-        create_output = subprocess.check_output(create_cmd)
+        create_output = subprocess.check_output(create_cmd, cwd=self.workbench_dir)
         create_output = create_output.decode().strip()
         create_lines = create_output.splitlines()
+        nids = []
         for line in create_lines:
             if "created at" in line:
                 nid = line.rsplit("/", 1)[-1]
                 nid = nid.strip(".")
-                self.nids.append(nid)
+                nids.append(nid)
 
         add_media_csv_template_file_path = os.path.join(
             self.current_dir,
@@ -1256,152 +1350,32 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
             mode="w+", delete=False, suffix="add_media.csv"
         ) as add_media_csv:
             # Use a real temp file to store generated data.
-            self.add_media_csv_file_path = os.path.join(
-                self.temp_dir, add_media_csv.name
-            )
+            add_media_csv_file_path = os.path.join(self.temp_dir, add_media_csv.name)
             # The first line in the output CSV is the headers from the template.
             add_media_csv.write(csv_template_lines[template_line_index])
             # The subsequent lines should each start with a node ID from.
-            for node_id in self.nids:
+            for node_id in nids:
                 template_line_index = template_line_index + 1
                 add_media_csv.write(
                     f"{node_id}{csv_template_lines[template_line_index]}"
                 )
 
-    def test_false(self, workbench_user):
-        configuration = {
-            "task": "add_media",
-            "host": "https://islandora.dev",
-            "input_dir": "tests/assets/allow_missing_files_test",
-            "input_csv": "add_media.csv",
-            "standalone_media_url": True,
-            "log_file_path": "tests/assets/allow_missing_files_test/add_media_allow_missing_files_false.log",
-            "media_use_tid": "http://pcdm.org/use#Transcript",
-            "secure_ssl_only": False,
-            "media_type": "file",
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
-        assert re.search(
-            'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
-            str(stdout),
-        )
+        # This is where the test runs.
+        yield {"add_media_csv_file_path": add_media_csv_file_path}
 
-        self.log_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "allow_missing_files_test",
-            "add_media_allow_missing_files_false.log",
-        )
-        with open(self.log_file_path) as log_file_false:
-            log_data_false = log_file_false.read()
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value', log_data_false
-        )
-        assert re.search(
-            'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
-            log_data_false,
-        )
-
-    def test_true(self, workbench_user):
-        configuration = {
-            "task": "add_media",
-            "host": "https://islandora.dev",
-            "input_dir": "tests/assets/allow_missing_files_test",
-            "input_csv": "add_media.csv",
-            "standalone_media_url": True,
-            "log_file_path": "tests/assets/allow_missing_files_test/add_media_allow_missing_files_false.log",
-            "media_use_tid": "http://pcdm.org/use#Transcript",
-            "allow_missing_files": True,
-            "secure_ssl_only": False,
-            "media_type": "file",
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        assert re.search(
-            'Warning: "allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing',
-            output,
-        )
-
-        self.log_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "allow_missing_files_test",
-            "add_media_allow_missing_files_true.log",
-        )
-        with open(self.log_file_path) as log_file_true:
-            log_data_true = log_file_true.read()
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value', log_data_true
-        )
-        assert re.search("INFO - .*no problems found", log_data_true)
-
-    def test_false_with_soft_checks(self, workbench_user):
-        configuration = {
-            "task": "add_media",
-            "host": "https://islandora.dev",
-            "input_dir": "tests/assets/allow_missing_files_test",
-            "input_csv": "add_media.csv",
-            "standalone_media_url": True,
-            "log_file_path": "tests/assets/allow_missing_files_test/add_media_allow_missing_files_false.log",
-            "media_use_tid": "http://pcdm.org/use#Transcript",
-            "perform_soft_checks": True,
-            "secure_ssl_only": False,
-            "media_type": "file",
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        assert re.search(
-            'Warning: "perform_soft_checks" configuration setting is set to "true" and some values in the "file" column',
-            output,
-        )
-        assert re.search("Configuration and input data appear to be valid", output)
-
-        self.log_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "allow_missing_files_test",
-            "add_media_allow_missing_files_false_with_soft_checks.log",
-        )
-        with open(self.log_file_path) as log_file_false_with_soft_checks:
-            log_file_false_with_soft_checks_data = (
-                log_file_false_with_soft_checks.read()
-            )
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            "INFO - .*no problems found", log_file_false_with_soft_checks_data
-        )
-
-    def teardown_method(self, method_name):
-        # Delete the nodes created in setUp.
-        for nid in self.nids:
+        # After the test runs, we clean up any nodes we created.
+        for nid in nids:
             quick_delete_cmd = [
-                self.workbench_path,
+                "./workbench",
                 "--config",
-                self.create_config_file_path,
+                create_config_file_path,
                 "--quick_delete_node",
-                self.islandora_host + "/node/" + nid,
+                configuration["host"] + "/node/" + nid,
             ]
-            subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-        if os.path.exists(self.add_media_csv_file_path):
-            os.remove(self.add_media_csv_file_path)
+        if os.path.exists(add_media_csv_file_path):
+            os.remove(add_media_csv_file_path)
 
         rollback_file_path = os.path.join(
             self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
@@ -1427,35 +1401,153 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        if os.path.exists(self.create_log_file_path):
-            os.remove(self.create_log_file_path)
+        if os.path.exists(create_log_file_path):
+            os.remove(create_log_file_path)
 
-        if os.path.exists(self.log_file_path):
-            os.remove(self.log_file_path)
+        if os.path.exists(create_log_file_path):
+            os.remove(create_log_file_path)
+
+    def test_false(self, setup_nodes, workbench_user):
+        configuration = {
+            "task": "add_media",
+            "host": "https://islandora.dev",
+            "input_dir": "tests/assets/allow_missing_files_test",
+            "input_csv": setup_nodes["add_media_csv_file_path"],
+            "standalone_media_url": True,
+            "log_file_path": "tests/assets/allow_missing_files_test/add_media_allow_missing_files_false.log",
+            "media_use_tid": "http://pcdm.org/use#Transcript",
+            "secure_ssl_only": False,
+            "media_type": "file",
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.workbench_dir,
+        )
+        stdout, stderr = proc.communicate()
+        # Clean up the config file after the test but before assertions.
+        os.remove(config_file_path)
+        assert re.search(
+            r'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
+            str(stdout),
+        )
+
+        log_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "allow_missing_files_test",
+            "add_media_allow_missing_files_false.log",
+        )
+        with open(log_file_path) as log_file_false:
+            log_data_false = log_file_false.read()
+        os.remove(log_file_path)
+        assert re.search(
+            'CSV row with ID .* contains an empty "file" value', log_data_false
+        )
+        assert re.search(
+            'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
+            log_data_false,
+        )
+
+    def test_true(self, setup_nodes, workbench_user):
+        configuration = {
+            "task": "add_media",
+            "host": "https://islandora.dev",
+            "input_dir": "tests/assets/allow_missing_files_test",
+            "input_csv": setup_nodes["add_media_csv_file_path"],
+            "standalone_media_url": True,
+            "log_file_path": "tests/assets/allow_missing_files_test/add_media_allow_missing_files_true.log",
+            "media_use_tid": "http://pcdm.org/use#Transcript",
+            "allow_missing_files": True,
+            "secure_ssl_only": False,
+            "media_type": "file",
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
+        output = output.decode().strip()
+        # Clean up the config file after the test but before assertions.
+        os.remove(config_file_path)
+        assert re.search(
+            'Warning: "allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing',
+            output,
+        )
+
+        log_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "allow_missing_files_test",
+            "add_media_allow_missing_files_true.log",
+        )
+        with open(log_file_path) as log_file_true:
+            log_data_true = log_file_true.read()
+        os.remove(log_file_path)
+        assert re.search(
+            'CSV row with ID .* contains an empty "file" value', log_data_true
+        )
+        assert re.search("INFO - .*no problems found", log_data_true)
+
+    def test_false_with_soft_checks(self, setup_nodes, workbench_user):
+        configuration = {
+            "task": "add_media",
+            "host": "https://islandora.dev",
+            "input_dir": "tests/assets/allow_missing_files_test",
+            "input_csv": setup_nodes["add_media_csv_file_path"],
+            "standalone_media_url": True,
+            "log_file_path": "tests/assets/allow_missing_files_test/add_media_allow_missing_files_false_with_soft_checks.log",
+            "media_use_tid": "http://pcdm.org/use#Transcript",
+            "perform_soft_checks": True,
+            "secure_ssl_only": False,
+            "media_type": "file",
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
+        output = output.decode().strip()
+        # Clean up the config file after the test but before assertions.
+        os.remove(config_file_path)
+        assert re.search(
+            'Warning: "perform_soft_checks" configuration setting is set to "true" and some values in the "file" column',
+            output,
+        )
+        assert re.search("Configuration and input data appear to be valid", output)
+
+        log_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "allow_missing_files_test",
+            "add_media_allow_missing_files_false_with_soft_checks.log",
+        )
+        with open(log_file_path) as log_file_false_with_soft_checks:
+            log_file_false_with_soft_checks_data = (
+                log_file_false_with_soft_checks.read()
+            )
+        os.remove(log_file_path)
+        assert re.search(
+            'CSV row with ID .* contains an empty "file" value',
+            log_file_false_with_soft_checks_data,
+        )
+        assert re.search(
+            'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
+            log_file_false_with_soft_checks_data,
+        )
+        assert re.search(
+            "INFO - .*no problems found", log_file_false_with_soft_checks_data
+        )
 
 
 @unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
+    """Test workbench --check for allow_missing_files configuration setting with add_media task and additional files."""
 
-    # Path to the configuration file for setting up the test objects.
-    create_config_file_path = None
-
-    # Path to the log file for the setup of tests.
-    create_log_file_path = None
-
-    # Path to the log file for the tests.
-    log_file_path = None
-
-    # Path to the CSV file of generated nodes
-    add_media_csv_file_path = None
-
-    # Host for the tests.
-    islandora_host = "https://islandora.dev"
-
-    # List of node IDs created by this test for cleanup.
-    nids = []
-
-    def setup_method(self, method_name):
+    @pytest.fixture(scope="function")
+    def setup_nodes(self):
         # Create nodes to use in add_media task.
         configuration = {
             "task": "create",
@@ -1469,9 +1561,9 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         }
         workbench_user = AdminUser()
         configuration = workbench_user.alter_configuration(configuration)
-        self.create_config_file_path = self.write_config_and_get_path(configuration)
+        create_config_file_path = self.write_config_and_get_path(configuration)
 
-        self.create_log_file_path = os.path.join(
+        create_log_file_path = os.path.join(
             self.current_dir,
             "assets",
             "allow_missing_files_test",
@@ -1479,21 +1571,22 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         )
 
         create_cmd = [
-            self.workbench_path,
+            "./workbench",
             "--config",
-            self.create_config_file_path,
+            create_config_file_path,
         ]
-        create_output = subprocess.check_output(create_cmd)
+        create_output = subprocess.check_output(create_cmd, cwd=self.workbench_dir)
         create_output = create_output.decode().strip()
 
         # Get the node IDs of the nodes created during this test
         # so they can be deleted in tearDown().
         create_lines = create_output.splitlines()
+        nids = []
         for line in create_lines:
             if "created at" in line:
                 nid = line.rsplit("/", 1)[-1]
                 nid = nid.strip(".")
-                self.nids.append(nid)
+                nids.append(nid)
 
         add_media_csv_template_file_path = os.path.join(
             self.current_dir,
@@ -1509,175 +1602,38 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         # and write out an add_media input CSV file.
         template_line_index = 0
         with tempfile.NamedTemporaryFile(
-            mode="w+", delete=False, suffix="add_media_create_nodes.csv.preprocessed"
+            mode="w+", delete=False, suffix="_add_media_additional_files.csv"
         ) as add_media_csv:
             # Use a tempfile in a temporary directory to avoid putting files in our current directory.
-            self.add_media_csv_file_path = os.path.join(
+            add_media_additional_files_csv_path = os.path.join(
                 self.temp_dir, add_media_csv.name
             )
             # The first line in the output CSV is the headers from the template.
             add_media_csv.write(csv_template_lines[template_line_index])
             # The subsequent lines should each start with a node ID from.
-            for node_id in self.nids:
+            for node_id in nids:
                 template_line_index = template_line_index + 1
                 add_media_csv.write(
                     f"{node_id}{csv_template_lines[template_line_index]}"
                 )
 
-    def test_false(self, workbench_user):
-        configuration = {
-            "task": "add_media",
-            "host": "https://islandora.dev",
-            "input_dir": "tests/assets/allow_missing_files_test",
-            "input_csv": "add_media_additional_files.csv",
-            "standalone_media_url": True,
-            "log_file_path": "tests/assets/allow_missing_files_test/add_media_additional_files_allow_missing_files_false.log",
-            "additional_files": {
-                "preservation": "http://pcdm.org/use#PreservationMasterFile",
-                "transcript": "http://pcdm.org/use#Transcript",
-            },
-            "secure_ssl_only": False,
-            "media_type": "file",
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        stdout, stderr = proc.communicate()
-        assert re.search(
-            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
-            str(stdout),
-        )
+        yield {
+            "add_media_additional_files_csv_path": add_media_additional_files_csv_path
+        }  # This is where the test runs.
 
-        self.log_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "allow_missing_files_test",
-            "add_media_additional_files_allow_missing_files_false.log",
-        )
-        with open(self.log_file_path) as log_file_false:
-            log_data_false = log_file_false.read()
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value', log_data_false
-        )
-        assert re.search(
-            'CVS row with ID .* contains an empty value in its "preservation" column',
-            log_data_false,
-        )
-        assert re.search(
-            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
-            log_data_false,
-        )
-
-    def test_true(self, workbench_user):
-        configuration = {
-            "task": "add_media",
-            "host": "https://islandora.dev",
-            "input_dir": "tests/assets/allow_missing_files_test",
-            "input_csv": "add_media_additional_files.csv",
-            "standalone_media_url": True,
-            "log_file_path": "tests/assets/allow_missing_files_test/add_media_additional_files_allow_missing_files_false.log",
-            "additional_files": {
-                "preservation": "http://pcdm.org/use#PreservationMasterFile",
-                "transcript": "http://pcdm.org/use#Transcript",
-            },
-            "allow_missing_files": True,
-            "secure_ssl_only": False,
-            "media_type": "file",
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        assert re.search(
-            'Warning: "allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns containing missing',
-            output,
-        )
-
-        self.log_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "allow_missing_files_test",
-            "add_media_additional_files_allow_missing_files_true.log",
-        )
-        with open(self.log_file_path) as log_file_true:
-            log_data_true = log_file_true.read()
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value', log_data_true
-        )
-        assert re.search(
-            'CVS row with ID .* contains an empty value in its "preservation" column',
-            log_data_true,
-        )
-        assert re.search("INFO - .*no problems found", log_data_true)
-
-    def test_false_with_soft_checks(self, workbench_user):
-        configuration = {
-            "task": "add_media",
-            "host": "https://islandora.dev",
-            "input_dir": "tests/assets/allow_missing_files_test",
-            "input_csv": "add_media_additional_files.csv",
-            "standalone_media_url": True,
-            "log_file_path": "tests/assets/allow_missing_files_test/add_media_additional_files_allow_missing_files_false.log",
-            "additional_files": {
-                "preservation": "http://pcdm.org/use#PreservationMasterFile",
-                "transcript": "http://pcdm.org/use#Transcript",
-            },
-            "secure_ssl_only": False,
-            "perform_soft_checks": True,
-            "media_type": "file",
-        }
-        configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
-        output = output.decode().strip()
-        assert re.search(
-            '"perform_soft_checks" configuration setting is set to "true"', output
-        )
-        assert re.search("Configuration and input data appear to be valid", output)
-
-        self.log_file_path = os.path.join(
-            self.current_dir,
-            "assets",
-            "allow_missing_files_test",
-            "add_media_additional_files_allow_missing_files_false_with_soft_checks.log",
-        )
-        with open(self.log_file_path) as log_file_false_with_soft_checks:
-            log_file_false_with_soft_checks_data = (
-                log_file_false_with_soft_checks.read()
-            )
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            'CVS row with ID .* contains an empty value in its "preservation" column',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            "INFO - .*no problems found", log_file_false_with_soft_checks_data
-        )
-
-    def teardown_method(self):
         # Delete the nodes created in setUp.
-        for nid in self.nids:
+        for nid in nids:
             quick_delete_cmd = [
-                self.workbench_path,
+                "./workbench",
                 "--config",
-                self.create_config_file_path,
+                create_config_file_path,
                 "--quick_delete_node",
-                self.islandora_host + "/node/" + nid,
+                configuration["host"] + "/node/" + nid,
             ]
-            subprocess.check_output(quick_delete_cmd)
+            subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-        if os.path.exists(self.add_media_csv_file_path):
-            os.remove(self.add_media_csv_file_path)
+        if os.path.exists(add_media_additional_files_csv_path):
+            os.remove(add_media_additional_files_csv_path)
 
         rollback_file_path = os.path.join(
             self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
@@ -1697,17 +1653,162 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         if os.path.exists(preprocessed_csv_path):
             os.remove(preprocessed_csv_path)
 
-        if os.path.exists(self.create_log_file_path):
-            os.remove(self.create_log_file_path)
+        if os.path.exists(create_log_file_path):
+            os.remove(create_log_file_path)
 
-        if os.path.exists(self.log_file_path):
-            os.remove(self.log_file_path)
+    def test_false(self, setup_nodes, workbench_user):
+        configuration = {
+            "task": "add_media",
+            "host": "https://islandora.dev",
+            "input_dir": "tests/assets/allow_missing_files_test",
+            "input_csv": setup_nodes["add_media_additional_files_csv_path"],
+            "standalone_media_url": True,
+            "log_file_path": "tests/assets/allow_missing_files_test/add_media_additional_files_allow_missing_files_false.log",
+            "additional_files": [
+                {"preservation": "http://pcdm.org/use#PreservationMasterFile"},
+                {"transcript": "http://pcdm.org/use#Transcript"},
+            ],
+            "secure_ssl_only": False,
+            "media_type": "file",
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.workbench_dir,
+        )
+        stdout, stderr = proc.communicate()
+        # Clean up the config file after we use it but before assertions.
+        os.remove(config_file_path)
+        assert re.search(
+            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
+            str(stdout),
+        )
 
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        log_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "allow_missing_files_test",
+            "add_media_additional_files_allow_missing_files_false.log",
+        )
+        with open(log_file_path) as log_file_false:
+            log_data_false = log_file_false.read()
+        os.remove(log_file_path)
+        assert re.search(
+            'CSV row with ID .* contains an empty "file" value', log_data_false
+        )
+        assert re.search(
+            'CSV row with ID .* contains an empty value in its "preservation" column',
+            log_data_false,
+        )
+        assert re.search(
+            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
+            log_data_false,
+        )
 
-        if os.path.exists(self.add_media_csv_file_path):
-            os.remove(self.add_media_csv_file_path)
+    def test_true(self, setup_nodes, workbench_user):
+        configuration = {
+            "task": "add_media",
+            "host": "https://islandora.dev",
+            "input_dir": "tests/assets/allow_missing_files_test",
+            "input_csv": setup_nodes["add_media_additional_files_csv_path"],
+            "standalone_media_url": True,
+            "log_file_path": "tests/assets/allow_missing_files_test/add_media_additional_files_allow_missing_files_true.log",
+            "additional_files": [
+                {"preservation": "http://pcdm.org/use#PreservationMasterFile"},
+                {"transcript": "http://pcdm.org/use#Transcript"},
+            ],
+            "allow_missing_files": True,
+            "secure_ssl_only": False,
+            "media_type": "file",
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
+        # Clean up the config file after we use it but before assertions.
+        os.remove(config_file_path)
+        output = output.decode().strip()
+        assert re.search(
+            'Warning: "allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns containing missing',
+            output,
+        )
+
+        log_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "allow_missing_files_test",
+            "add_media_additional_files_allow_missing_files_true.log",
+        )
+        with open(log_file_path) as log_file_true:
+            log_data_true = log_file_true.read()
+        os.remove(log_file_path)
+        assert re.search(
+            'CSV row with ID .* contains an empty "file" value', log_data_true
+        )
+        assert re.search(
+            'CSV row with ID .* contains an empty value in its "preservation" column',
+            log_data_true,
+        )
+        assert re.search("INFO - .*no problems found", log_data_true)
+
+    def test_false_with_soft_checks(self, setup_nodes, workbench_user):
+        configuration = {
+            "task": "add_media",
+            "host": "https://islandora.dev",
+            "input_dir": "tests/assets/allow_missing_files_test",
+            "input_csv": setup_nodes["add_media_additional_files_csv_path"],
+            "standalone_media_url": True,
+            "log_file_path": "tests/assets/allow_missing_files_test/add_media_additional_files_allow_missing_files_false_with_soft_checks.log",
+            "additional_files": [
+                {"preservation": "http://pcdm.org/use#PreservationMasterFile"},
+                {"transcript": "http://pcdm.org/use#Transcript"},
+            ],
+            "secure_ssl_only": False,
+            "perform_soft_checks": True,
+            "media_type": "file",
+        }
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
+        output = output.decode().strip()
+        # Clean up the config file after we use it but before assertions.
+        os.remove(config_file_path)
+        assert re.search(
+            '"perform_soft_checks" configuration setting is set to "true"', output
+        )
+        assert re.search("Configuration and input data appear to be valid", output)
+
+        log_file_path = os.path.join(
+            self.current_dir,
+            "assets",
+            "allow_missing_files_test",
+            "add_media_additional_files_allow_missing_files_false_with_soft_checks.log",
+        )
+        with open(log_file_path) as log_file_false_with_soft_checks:
+            log_file_false_with_soft_checks_data = (
+                log_file_false_with_soft_checks.read()
+            )
+        os.remove(log_file_path)
+        assert re.search(
+            'CSV row with ID .* contains an empty "file" value',
+            log_file_false_with_soft_checks_data,
+        )
+        assert re.search(
+            'CSV row with ID .* contains an empty value in its "preservation" column',
+            log_file_false_with_soft_checks_data,
+        )
+        assert re.search(
+            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
+            log_file_false_with_soft_checks_data,
+        )
+        assert re.search(
+            "INFO - .*no problems found", log_file_false_with_soft_checks_data
+        )
 
 
 @unittest.skipIf(
@@ -1715,6 +1816,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
     "Passes when tests locally run but not in Github workflows.",
 )
 class TestCommentedCsvs(WorkbenchTest):
+    """Test workbench --check for commented CSV files."""
 
     def test_commented_csv(self, workbench_user):
         configuration = {
@@ -1725,8 +1827,8 @@ class TestCommentedCsvs(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
         assert re.search("all 3 rows in the CSV file", output)
@@ -1735,13 +1837,13 @@ class TestCommentedCsvs(WorkbenchTest):
         )
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
 
         configuration["input_csv"] = "test_excel_file_commented_row.xlsx"
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        config_file_path = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
         assert re.search("all 4 rows in the CSV file", output)
 
@@ -1753,20 +1855,20 @@ class TestCommentedCsvs(WorkbenchTest):
         )
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
 
         configuration["input_csv"] = (
             "https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0"
         )
         configuration["google_sheets_gid"] = 2133768507
-        self.config_file_path = self.write_config_and_get_path(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
 
         temp_bundle = os.environ.get("REQUESTS_CA_BUNDLE", None)
         if temp_bundle is not None:
             os.environ["REQUESTS_CA_BUNDLE"] = ""
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         if temp_bundle is not None:
             os.environ["REQUESTS_CA_BUNDLE"] = temp_bundle
         output = output.decode().strip()
@@ -1781,11 +1883,12 @@ class TestCommentedCsvs(WorkbenchTest):
         )
         if os.path.exists(preprocessed_csv_file_path):
             os.remove(preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
+        if os.path.exists(config_file_path):
+            os.remove(config_file_path)
 
 
 class TestCsvRowFilters(WorkbenchTest):
+    """Test workbench --check for csv_row_filters configuration setting."""
 
     def test_update_check(self, workbench_user):
         configuration = {
@@ -1802,31 +1905,30 @@ class TestCsvRowFilters(WorkbenchTest):
             ],
         }
         configuration = workbench_user.alter_configuration(configuration)
-        self.config_file_path = self.write_config_and_get_path(configuration)
-        self.preprocessed_csv_file_path = os.path.join(
+        config_file_path = self.write_config_and_get_path(configuration)
+        preprocessed_csv_file_path = os.path.join(
             self.temp_dir, "csv_row_filters_test.csv.preprocessed"
         )
 
-        cmd = [self.workbench_path, "--config", self.config_file_path, "--check"]
-        output = subprocess.check_output(cmd)
+        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
 
-        with open(self.preprocessed_csv_file_path, "r") as file:
+        with open(preprocessed_csv_file_path, "r") as file:
             csv_rows = file.readlines()
 
-        assert len(csv_rows) == 3
-        assert csv_rows[1].strip() == ",issue_812_001,Issue 812 item 1,Image,2020-01-01"
-        assert (
-            csv_rows[2].strip()
-            == "noo.jpg,issue_812_003,Issue 812 item 3,Binary,1999-01-01|2000"
-        )
-
-    def teardown_method(self, method_name):
-        if os.path.exists(self.preprocessed_csv_file_path):
-            os.remove(self.preprocessed_csv_file_path)
-        if os.path.exists(self.config_file_path):
-            os.remove(self.config_file_path)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        try:
+            assert len(csv_rows) == 3
+            assert (
+                csv_rows[1].strip()
+                == ",issue_812_001,Issue 812 item 1,Image,2020-01-01"
+            )
+            assert (
+                csv_rows[2].strip()
+                == "noo.jpg,issue_812_003,Issue 812 item 3,Binary,1999-01-01|2000"
+            )
+        finally:
+            if os.path.exists(preprocessed_csv_file_path):
+                os.remove(preprocessed_csv_file_path)
+            if os.path.exists(config_file_path):
+                os.remove(config_file_path)

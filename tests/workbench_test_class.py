@@ -6,8 +6,8 @@ from ruamel.yaml import YAML
 import tempfile
 
 
-def get_workbench_path(starting_path: str):
-    """Get the path to the workbench executable.
+def get_workbench_dir(starting_path: str):
+    """Get the path to the directory containing the workbench executable.
     Parameters
     ----------
     starting_path : str
@@ -15,18 +15,22 @@ def get_workbench_path(starting_path: str):
     Returns
     -------
     str
-        The absolute path to the workbench executable.
+        The absolute path to the workbench directory.
     Raises
     ------
     FileNotFoundError:
         If the workbench executable is not found in the expected location.
     """
     parent_dir = os.path.dirname(starting_path)
-    if not os.path.exists(os.path.join(parent_dir, "workbench")):
+    if (
+        not os.path.exists(os.path.join(parent_dir, "workbench"))
+        or not os.path.isfile(os.path.join(parent_dir, "workbench"))
+        or not os.access(os.path.join(parent_dir, "workbench"), os.X_OK)
+    ):
         raise FileNotFoundError(
             "Workbench executable not found in the expected location. "
         )
-    return os.path.abspath(os.path.join(parent_dir, "workbench"))
+    return os.path.abspath(parent_dir)
 
 
 class TestUser(ABC):
@@ -78,20 +82,14 @@ class WorkbenchTest(ABC):
         "workbench_user", [(NormalUser()), (AdminUser())]
     )
 
-    # Class variable to hold the path to the workbench executable
-    workbench_path = None
+    # Class variable to hold the directory of the workbench executable
+    workbench_dir = None
 
     # Class variable to hold the current directory of the test file
     current_dir = None
 
     # Class variable to hold the temporary directory path
     temp_dir = None
-
-    # Class variable to hold the configuration for the test
-    configuration = {}
-
-    # Class variable to hold the path to the configuration file for cleanup
-    config_file_path = None
 
     @classmethod
     def write_config_and_get_path(cls, config: dict) -> str:
@@ -114,5 +112,5 @@ class WorkbenchTest(ABC):
     @classmethod
     def setup_class(cls):
         cls.current_dir = os.path.dirname(os.path.abspath(__file__))
-        cls.workbench_path = get_workbench_path(cls.current_dir)
+        cls.workbench_dir = get_workbench_dir(cls.current_dir)
         cls.temp_dir = tempfile.gettempdir()
