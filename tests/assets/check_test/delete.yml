@@ -1,6 +1,0 @@
-task: delete
-host: https://islandora.dev
-username: admin
-password: password
-input_csv: delete.csv
-secure_ssl_only: false

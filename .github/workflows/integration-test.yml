@@ -58,8 +58,18 @@ jobs:
           docker exec isle-site-template-drupal-dev-1 drush config:set media.settings standalone_url FALSE -y
           docker exec isle-site-template-drupal-dev-1 drush cr
 
+      - name: Create content editor role
+        run: |
+          docker exec isle-site-template-drupal-dev-1 drush role:create content_editor
+          docker exec isle-site-template-drupal-dev-1 drush role:perm:add content_editor "$(cat tests/assets/user-role-permissions.txt | sed '/^$/d' | tr '\n' ',')"
+
+      - name: Create test user with content editor role
+        run: |
+          docker exec isle-site-template-drupal-dev-1 drush user:create test-user --mail='test@noreply.com' --password='testPassword'
+          docker exec isle-site-template-drupal-dev-1 drush user:role:add content_editor test-user
+
       - name: Run islandora_tests_check
-        run: python tests/islandora_tests_check.py
+        run: pytest -v tests/islandora_tests_check.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
           

@@ -284,8 +284,6 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
 
 
 class TestCreateWithNewTypedRelation(unittest.TestCase):
-    # Note: You can't run this test class on its own, e.g., python3 tests/islandora_tests.py TestCreateWithNewTypedRelation
-    # because passing "TestCreateWithNewTypedRelation" as an argument will cause the argparse parser to fail.
 
     def setUp(self):
         self.current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -299,13 +297,11 @@ class TestCreateWithNewTypedRelation(unittest.TestCase):
 
         self.temp_dir = "/tmp"
 
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--config")
-        parser.add_argument("--check")
-        parser.add_argument("--get_csv_template")
-        parser.set_defaults(config=self.config_file_path, check=False)
-        args = parser.parse_args()
-        workbench_config = WorkbenchConfig(args)
+        namespace = argparse.Namespace()
+        namespace.config = self.config_file_path
+        namespace.check = False
+        namespace.get_csv_template = None
+        workbench_config = WorkbenchConfig(namespace)
         config = workbench_config.get_config()
         self.config = config
 

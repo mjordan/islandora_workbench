@@ -1,6 +1,0 @@
-task: update
-host: https://islandora.dev
-username: admin
-password: password
-input_csv: update.csv
-secure_ssl_only: false
