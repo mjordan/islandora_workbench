@@ -1,0 +1,106 @@
+access administration pages
+access content
+access content overview
+access contextual links
+access files overview
+access help pages
+access toolbar
+administer url aliases
+create article content
+create audio media
+create document media
+create extracted_text media
+create file media
+create fits_technical_metadata media
+create image media
+create islandora_object content
+create page content
+create remote_video media
+create terms in corporate_body
+create terms in country
+create terms in family
+create terms in frequencies
+create terms in genre
+create terms in geo_location
+create terms in issuance_modes
+create terms in language
+create terms in person
+create terms in physical_form
+create terms in resource_types
+create terms in resource_types_dcmi
+create terms in subject
+create terms in tags
+create terms in temporal_subjects
+create url aliases
+create video media
+delete article revisions
+delete media
+delete own article content
+delete own audio media
+delete own document media
+delete own extracted_text media
+delete own file media
+delete own files
+delete own fits_technical_metadata media
+delete own image media
+delete own islandora_object content
+delete own page content
+delete own remote_video media
+delete own video media
+delete page revisions
+delete terms in corporate_body
+delete terms in country
+delete terms in family
+delete terms in frequencies
+delete terms in genre
+delete terms in geo_location
+delete terms in issuance_modes
+delete terms in language
+delete terms in person
+delete terms in physical_form
+delete terms in resource_types
+delete terms in resource_types_dcmi
+delete terms in subject
+delete terms in tags
+delete terms in temporal_subjects
+edit own article content
+edit own document media
+edit own extracted_text media
+edit own file media
+edit own fits_technical_metadata media
+edit own image media
+edit own islandora_object content
+edit own page content
+edit own remote_video media
+edit own video media
+edit terms in corporate_body
+edit terms in country
+edit terms in family
+edit terms in frequencies
+edit terms in genre
+edit terms in geo_location
+edit terms in islandora_display
+edit terms in islandora_media_use
+edit terms in islandora_models
+edit terms in issuance_modes
+edit terms in language
+edit terms in person
+edit terms in physical_form
+edit terms in resource_types
+edit terms in resource_types_dcmi
+edit terms in subject
+edit terms in tags
+edit terms in temporal_subjects
+manage media
+manage members
+replace files
+revert all revisions
+update media
+use islandora workbench
+use text format basic_html
+view all revisions
+view checksums
+view media
+view own unpublished content
+view own unpublished media
+view the administration theme
