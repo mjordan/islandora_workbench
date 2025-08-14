@@ -1286,7 +1286,6 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             os.remove(self.true_log_file_path)
 
 
-@unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
 
     def setUp(self):
