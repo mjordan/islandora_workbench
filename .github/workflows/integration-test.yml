@@ -58,15 +58,51 @@ jobs:
           docker exec isle-site-template-drupal-dev-1 drush config:set media.settings standalone_url FALSE -y
           docker exec isle-site-template-drupal-dev-1 drush cr
 
-      - name: Explicitly state the admin password
-        run: docker exec isle-site-template-drupal-dev-1 drush user:password admin --password='admin'
+      - name: Install migrations
+        run: docker exec isle-site-template-drupal-dev-1 drush migrate:import --userid=1 --tag=islandora -y
 
-      - name: Create content editor role
+      - name: Update file media type to allow jpg extension
+        run: |
+          EXTS=$(docker exec isle-site-template-drupal-dev-1 drush config:get field.field.media.file.field_media_file settings.file_extensions | sed -E "s/.*: '(.*)'/\1/") 
+          if echo "$EXTS" | grep -qw "jpg"; then
+            echo "jpg already present"
+          else
+            NEW_EXTS="$EXTS jpg"
+            echo "Updating extensions to: $NEW_EXTS"
+            docker exec isle-site-template-drupal-dev-1 drush config:set field.field.media.file.field_media_file settings.file_extensions "$NEW_EXTS" -y
+          fi
+
+      - name: Explicitly state the admin password
+        run: docker exec isle-site-template-drupal-dev-1 drush user:password admin 'admin'
+
+      # START --- Required for tests while permissions branch is not merged
+      - name: Uninstall islandora_workbench_integration
+        run: |
+          docker exec isle-site-template-drupal-dev-1 drush pm:uninstall islandora_workbench_integration -y || true
+          docker exec isle-site-template-drupal-dev-1 drush cr
+
+      - name: Checkout islandora_workbench_integration from Git and switch to permissions branch for testing
+        run: |
+          docker exec isle-site-template-drupal-dev-1 rm -rf /var/www/drupal/web/modules/contrib/islandora_workbench_integration
+          docker exec isle-site-template-drupal-dev-1 git clone https://github.com/whikloj/islandora_workbench_integration.git /var/www/drupal/web/modules/contrib/islandora_workbench_integration --branch permissions
+
+      - name: Reinstall islandora_workbench_integration
+        run: |
+          docker exec isle-site-template-drupal-dev-1 drush pm:install islandora_workbench_integration -y
+          docker exec isle-site-template-drupal-dev-1 drush cr
+
+      - name: Reinstall islandora_workbench_integration views
+        run: | 
+          docker exec isle-site-template-drupal-dev-1 drush config:import --partial --source=/var/www/drupal/web/modules/contrib/islandora_workbench_integration/config/optional -y
+          docker exec isle-site-template-drupal-dev-1 drush cr
+      # END --- Required for tests while permissions branch is not merged
+
+      - name: Create workbench_user role
         run: |
           docker exec isle-site-template-drupal-dev-1 drush role:create workbench_user
           docker exec isle-site-template-drupal-dev-1 drush role:perm:add workbench_user "$(cat tests/assets/user-role-permissions.txt | sed '/^$/d' | tr '\n' ',')"
 
-      - name: Create test user with content editor role
+      - name: Create test user with workbench_user role
         run: |
           docker exec isle-site-template-drupal-dev-1 drush user:create test-user --mail='test@noreply.com' --password='testPassword'
           docker exec isle-site-template-drupal-dev-1 drush user:role:add workbench_user test-user
@@ -82,7 +118,7 @@ jobs:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
 
       - name: Run islandora_tests  
-        run: python tests/islandora_tests.py
+        run: pytest -v tests/islandora_tests.py --no-header
 
       - name: Run islandora_tests_recovery_mode
         run: python tests/islandora_tests_recovery_mode.py

@@ -18,7 +18,11 @@ import json
 import urllib.parse
 import unittest
 
-from workbench_test_class import WorkbenchTest, AdminUser
+from workbench_test_class import (
+    WorkbenchTest,
+    AdminUser,
+    collect_nids_from_create_output,
+)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -313,14 +317,7 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
         create_output = subprocess.check_output(create_cmd, cwd=self.workbench_dir)
         create_output = create_output.decode().strip()
 
-        create_lines = create_output.splitlines()
-
-        nids = []
-        for line in create_lines:
-            if "created at" in line:
-                nid = line.rsplit("/", 1)[-1]
-                nid = nid.strip(".")
-                nids.append(nid)
+        nids = collect_nids_from_create_output(create_output)
 
         assert len(nids) == 6
 
@@ -763,13 +760,7 @@ class TestTaxonomies(WorkbenchTest):
 
         # Write a file to the system's temp directory containing the node IDs of the
         # nodes created during this test so they can be deleted in tearDown().
-        create_lines = create_output.splitlines()
-        nids = []
-        for line in create_lines:
-            if "created at" in line:
-                nid = line.rsplit("/", 1)[-1]
-                nid = nid.strip(".")
-                nids.append(nid)
+        nids = collect_nids_from_create_output(create_output)
 
         yield configuration["host"]  # This when the test runs.
 
@@ -1325,13 +1316,7 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
         ]
         create_output = subprocess.check_output(create_cmd, cwd=self.workbench_dir)
         create_output = create_output.decode().strip()
-        create_lines = create_output.splitlines()
-        nids = []
-        for line in create_lines:
-            if "created at" in line:
-                nid = line.rsplit("/", 1)[-1]
-                nid = nid.strip(".")
-                nids.append(nid)
+        nids = collect_nids_from_create_output(create_output)
 
         add_media_csv_template_file_path = os.path.join(
             self.current_dir,
@@ -1578,15 +1563,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         create_output = subprocess.check_output(create_cmd, cwd=self.workbench_dir)
         create_output = create_output.decode().strip()
 
-        # Get the node IDs of the nodes created during this test
-        # so they can be deleted in tearDown().
-        create_lines = create_output.splitlines()
-        nids = []
-        for line in create_lines:
-            if "created at" in line:
-                nid = line.rsplit("/", 1)[-1]
-                nid = nid.strip(".")
-                nids.append(nid)
+        nids = collect_nids_from_create_output(create_output)
 
         add_media_csv_template_file_path = os.path.join(
             self.current_dir,

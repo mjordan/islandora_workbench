@@ -33,6 +33,27 @@ def get_workbench_dir(starting_path: str):
     return os.path.abspath(parent_dir)
 
 
+def collect_nids_from_create_output(output: str) -> list:
+    """Get the node IDs of the nodes created during this test so they can be deleted later.
+    Parameters
+    ----------
+    output : str
+        The output string from the workbench create command.
+    Returns
+    -------
+    list
+        A list of node IDs extracted from the output.
+    """
+    create_lines = output.splitlines()
+
+    # for line in create_lines:
+    #    if "created at" in line:
+    #        nid = line.rsplit("/", 1)[-1]
+    #        nid = nid.strip(".")
+    #        nids.append(nid)
+    return [l.rsplit("/", 1)[-1].strip(".") for l in create_lines if "created at" in l]
+
+
 class TestUser(ABC):
     """Class representing a test user for workbench tests."""
 

@@ -40,8 +40,10 @@ delete own audio media
 delete own document media
 delete own extracted_text media
 delete own file media
+delete own files
 delete own fits_technical_metadata media
 delete own image media
+delete own islandora_object content
 delete own page content
 delete own remote_video media
 delete own video media
@@ -89,11 +91,15 @@ edit terms in resource_types_dcmi
 edit terms in subject
 edit terms in tags
 edit terms in temporal_subjects
+manage media
+manage members
+replace files
 revert all revisions
 update media
 use islandora workbench
 use text format basic_html
 view all revisions
+view checksums
 view media
 view own unpublished content
 view own unpublished media
