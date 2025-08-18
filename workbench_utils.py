@@ -4220,44 +4220,6 @@ def check_input(config, args):
             logging.error(message)
             sys.exit("Error: " + message)
 
-    if (
-        len(rows_with_missing_files) > 0
-        and config["allow_missing_files"] is False
-        and config["perform_soft_checks"] is False
-    ):
-        logging.error(
-            'Missing or empty CSV "file" column values detected. See log entries above.'
-        )
-        sys.exit(
-            'Error: Missing or empty CSV "file" column values detected. See the log for more information.'
-        )
-
-    if len(rows_with_missing_files) > 0 and config["perform_soft_checks"] is True:
-        message = '"perform_soft_checks" configuration setting is set to "true" and some values in the "file" column were not found.'
-        logging.warning(message + " See log entries above.")
-        print("Warning: " + message + " See the log for more information.")
-
-    if (
-        "additional_files" in config
-        and len(config["additional_files"]) > 0
-        and config["nodes_only"] is False
-    ):
-        if missing_additional_files is True:
-            if config["allow_missing_files"] is False:
-                message = '"allow_missing_files" configuration setting is set to "false", and some files in fields configured as "additional_file" fields cannot be found.'
-                logging.error(message + " See log entries above.")
-                print(message + " See the log for more information.")
-                if config["perform_soft_checks"] is True:
-                    message = 'The "perform_soft_checks" configuration setting is set to "true", so Workbench did not exit after finding the first missing file.'
-                    logging.warning(message)
-                    print(message + " See the log for more information.")
-                else:
-                    sys.exit("Error: " + message)
-        else:
-            message = 'OK, files in fields configured as "additional_file" fields are all present.'
-            logging.info(message)
-            print(message)
-
     # Checks for "run_scripts" task.
     if config["task"] == "run_scripts":
         run_scripts_check_csv_data = get_csv_data(config)
