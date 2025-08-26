@@ -1710,7 +1710,7 @@ class TestCommentedCsvs(WorkbenchTest):
         config_file_path_3 = ""
         try:
             assert re.search("all 3 rows in the CSV file", output)
-            cleanup_paths([os.path.join(self.temp_dir, "metadata.csv.preprocessed")])
+            cleanup_paths(os.path.join(self.temp_dir, "metadata.csv.preprocessed"))
 
             configuration["input_csv"] = "test_excel_file_commented_row.xlsx"
             config_file_path_2 = self.write_config_and_get_path(configuration)
