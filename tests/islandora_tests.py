@@ -27,8 +27,8 @@ import workbench_utils
 from WorkbenchConfig import WorkbenchConfig
 from workbench_test_class import (
     WorkbenchTest,
-    AdminUser,
     collect_nids_from_create_output,
+    cleanup_paths,
 )
 
 
@@ -45,7 +45,7 @@ class TestCreate(WorkbenchTest):
         }
         configuration = workbench_user.alter_configuration(configuration)
         create_config_file_path = self.write_config_and_get_path(configuration)
-        nids = list()
+
         create_cmd = ["./workbench", "--config", create_config_file_path]
         create_output = subprocess.check_output(create_cmd, cwd=self.workbench_dir)
         create_output = create_output.decode().strip()
@@ -64,19 +64,16 @@ class TestCreate(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            rollback_file_path = os.path.join(
-                self.current_dir, "assets", "create_test", "rollback.csv"
+            cleanup_paths(
+                create_config_file_path,
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "create_test",
+                    "metadata.csv.preprocessed",
+                ),
+                os.path.join(self.current_dir, "assets", "create_test", "rollback.csv"),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_file_path = os.path.join(
-                self.current_dir, "assets", "create_test", "metadata.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_file_path):
-                os.remove(preprocessed_file_path)
-            if os.path.exists(create_config_file_path):
-                os.remove(create_config_file_path)
 
 
 class TestCreateFromFiles(WorkbenchTest):
@@ -131,18 +128,16 @@ class TestCreateFromFiles(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            rollback_file_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "create_from_files_test",
-                "files",
-                "rollback.csv",
+            cleanup_paths(
+                create_config_file_path,
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "create_from_files_test",
+                    "files",
+                    "rollback.csv",
+                ),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            if os.path.exists(create_config_file_path):
-                os.remove(create_config_file_path)
 
 
 class TestCreateWithMaxNodeTitleLength(WorkbenchTest):
@@ -190,24 +185,23 @@ class TestCreateWithMaxNodeTitleLength(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            rollback_file_path = os.path.join(
-                self.current_dir, "assets", "max_node_title_length_test", "rollback.csv"
+            cleanup_paths(
+                os.path.join(
+                    self.temp_dir, "create_max_node_title_length.csv.preprocessed"
+                ),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "max_node_title_length_test",
+                    "rollback.csv",
+                ),
+                create_config_file_path,
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_file_path = os.path.join(
-                self.temp_dir, "create_max_node_title_length.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_file_path):
-                os.remove(preprocessed_file_path)
-            if os.path.exists(create_config_file_path):
-                os.remove(create_config_file_path)
 
 
 class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture
     def setup_nodes(self, workbench_user):
         requests.packages.urllib3.disable_warnings()
 
@@ -265,22 +259,19 @@ class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
             ]
             subprocess.check_output(quick_delete_cmd)
 
-        if os.path.exists(update_csv_file_name):
-            os.remove(update_csv_file_name)
-
-        rollback_file_path = os.path.join(
-            self.current_dir, "assets", "max_node_title_length_test", "rollback.csv"
+        cleanup_paths(
+            update_csv_file_name,
+            os.path.join(
+                self.current_dir,
+                "assets",
+                "max_node_title_length_test",
+                "rollback.csv",
+            ),
+            os.path.join(
+                self.temp_dir, "create_max_node_title_length.csv.preprocessed"
+            ),
+            create_config_file_path,
         )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_file_path = os.path.join(
-            self.temp_dir, "create_max_node_title_length.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_file_path):
-            os.remove(preprocessed_file_path)
-        if os.path.exists(create_config_file_path):
-            os.remove(create_config_file_path)
 
     def test_update(self, setup_nodes):
         configuration = {
@@ -311,13 +302,12 @@ class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
                 ), f"Node {nid_to_update} title is longer than 30 characters: {updated_title}"
         finally:
             # delete the update .preprocessed file and config file.
-            preprocessed_update_file_path = os.path.join(
-                self.temp_dir, "update_max_node_title_length.csv.preprocessed"
+            cleanup_paths(
+                os.path.join(
+                    self.temp_dir, "update_max_node_title_length.csv.preprocessed"
+                ),
+                update_config_file_path,
             )
-            if os.path.exists(preprocessed_update_file_path):
-                os.remove(preprocessed_update_file_path)
-            if os.path.exists(update_config_file_path):
-                os.remove(update_config_file_path)
 
 
 class TestCreateWithNewTypedRelation(WorkbenchTest):
@@ -374,18 +364,17 @@ class TestCreateWithNewTypedRelation(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "create_with_new_typed_relation.csv.preprocessed"
+            cleanup_paths(
+                os.path.join(
+                    self.temp_dir, "create_with_new_typed_relation.csv.preprocessed"
+                ),
+                config_file_path,
             )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestDelete(WorkbenchTest):
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture
     def setup_nodes(self, workbench_user):
         configuration = {
             "task": "create",
@@ -419,12 +408,11 @@ class TestDelete(WorkbenchTest):
             "workbench_user": workbench_user,
         }
 
-        if os.path.exists(nids_to_delete_file_path):
-            os.remove(nids_to_delete_file_path)
-        if os.path.exists(nids_to_delete_file_path + ".preprocessed"):
-            os.remove(nids_to_delete_file_path + ".preprocessed")
-        if os.path.exists(create_config_file_path):
-            os.remove(create_config_file_path)
+        cleanup_paths(
+            nids_to_delete_file_path,
+            nids_to_delete_file_path + ".preprocessed",
+            create_config_file_path,
+        )
 
     def test_delete(self, setup_nodes):
         configuration = {
@@ -443,17 +431,20 @@ class TestDelete(WorkbenchTest):
         if os.path.exists(delete_config_file_path):
             os.remove(delete_config_file_path)
 
-        assert len(delete_lines) == 5
+        try:
+            assert len(delete_lines) == 5
 
-        for nid in setup_nodes["nids"]:
-            node_url = "https://islandora.dev/node/" + str(nid) + "?_format=json"
-            response = requests.get(node_url, verify=False)
-            assert response.status_code == 404, f"Node {nid} was not deleted."
+            for nid in setup_nodes["nids"]:
+                node_url = "https://islandora.dev/node/" + str(nid) + "?_format=json"
+                response = requests.get(node_url, verify=False)
+                assert response.status_code == 404, f"Node {nid} was not deleted."
+        finally:
+            cleanup_paths(delete_config_file_path)
 
 
 class TestUpdate(WorkbenchTest):
 
-    @pytest.fixture(scope="function")
+    @pytest.fixture
     def setup_nodes(self, workbench_user):
         configuration = {
             "task": "create",
@@ -506,34 +497,21 @@ class TestUpdate(WorkbenchTest):
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
         subprocess.check_output(delete_cmd, cwd=self.workbench_dir)
 
-        if os.path.exists(nid_file_path):
-            os.remove(nid_file_path)
-        if os.path.exists(update_metadata_file_path):
-            os.remove(update_metadata_file_path)
-
-        nid_file_preprocessed_file = os.path.join(
-            self.temp_dir, os.path.basename(nid_file_path) + ".preprocessed"
+        cleanup_paths(
+            nid_file_path,
+            update_metadata_file_path,
+            os.path.join(
+                self.temp_dir, os.path.basename(nid_file_path) + ".preprocessed"
+            ),
+            os.path.join(
+                self.temp_dir,
+                os.path.basename(update_metadata_file_path) + ".preprocessed",
+            ),
+            os.path.join(self.temp_dir, "create.csv.preprocessed"),
+            os.path.join(self.current_dir, "assets", "update_test", "rollback.csv"),
+            create_config_file_path,
+            delete_config_file_path,
         )
-        if os.path.exists(nid_file_preprocessed_file):
-            os.remove(nid_file_preprocessed_file)
-
-        update_test_csv_preprocessed_file = os.path.join(
-            self.temp_dir, os.path.basename(update_metadata_file_path) + ".preprocessed"
-        )
-        if os.path.exists(update_test_csv_preprocessed_file):
-            os.remove(update_test_csv_preprocessed_file)
-
-        create_csv_preprocessed_file = os.path.join(
-            self.temp_dir, "create.csv.preprocessed"
-        )
-        if os.path.exists(create_csv_preprocessed_file):
-            os.remove(create_csv_preprocessed_file)
-
-        rollback_file_path = os.path.join(
-            self.current_dir, "assets", "update_test", "rollback.csv"
-        )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
 
     def test_update(self, setup_nodes):
         requests.packages.urllib3.disable_warnings()
@@ -567,8 +545,7 @@ class TestUpdate(WorkbenchTest):
             coodinates = str(node["field_coordinates"][0]["lat"])
             assert coodinates == "99.1"
         finally:
-            if os.path.exists(update_config_file_path):
-                os.remove(update_config_file_path)
+            cleanup_paths(update_config_file_path)
 
 
 class TestImageAltText(WorkbenchTest):
@@ -617,14 +594,16 @@ class TestImageAltText(WorkbenchTest):
             ]
             subprocess.check_output(quick_delete_cmd)
 
-        rollback_file_path = os.path.join(
-            TestImageAltText.current_dir,
-            "assets",
-            "alt_text_test",
-            "rollback.csv",
+        cleanup_paths(
+            create_config_file_path,
+            update_csv_path,
+            os.path.join(
+                TestImageAltText.current_dir,
+                "assets",
+                "alt_text_test",
+                "rollback.csv",
+            ),
         )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
 
     @unittest.skipIf(
         "GITHUB_ACTIONS" in os.environ,
@@ -662,8 +641,7 @@ class TestImageAltText(WorkbenchTest):
                         alt_text = media["field_media_image"][0]["alt"]
                         assert alt_text == "A medieval cat"
         finally:
-            if os.path.exists(update_config_file_path):
-                os.remove(update_config_file_path)
+            cleanup_paths(update_config_file_path)
 
 
 class TestCreateWithNonLatinText(WorkbenchTest):
@@ -728,31 +706,24 @@ class TestCreateWithNonLatinText(WorkbenchTest):
             delete_cmd = ["./workbench", "--config", delete_config_file_path]
             subprocess.check_output(delete_cmd, cwd=self.workbench_dir)
 
-            os.remove(nid_file)
-
-            rollback_file_path = os.path.join(
-                self.current_dir, "assets", "non_latin_text_test", "rollback.csv"
+            cleanup_paths(
+                create_config_file_path,
+                delete_config_file_path,
+                nid_file,
+                nid_file + ".preprocessed",
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "non_latin_text_test",
+                    "rollback.csv",
+                ),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "non_latin_text_test",
+                    "metadata.csv.preprocessed",
+                ),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_csv_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "non_latin_text_test",
-                "metadata.csv.preprocessed",
-            )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-
-            nid_file_preprocessed_path = nid_file + ".preprocessed"
-            if os.path.exists(nid_file_preprocessed_path):
-                os.remove(nid_file_preprocessed_path)
-
-            if os.path.exists(delete_config_file_path):
-                os.remove(delete_config_file_path)
-            if os.path.exists(create_config_file_path):
-                os.remove(create_config_file_path)
 
 
 class TestSecondaryTask(WorkbenchTest):
@@ -836,37 +807,29 @@ class TestSecondaryTask(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            preprocessed_csv_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "secondary_task_test",
-                "metadata.csv.preprocessed",
+            cleanup_paths(
+                create_config_file_path,
+                secondary_config_file_path,
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "secondary_task_test",
+                    "metadata.csv.preprocessed",
+                ),
+                os.path.join(self.temp_dir, "secondary.csv.preprocessed"),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "secondary_task_test",
+                    "id_to_node_map.tsv",
+                ),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "secondary_task_test",
+                    "rollback.csv",
+                ),
             )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-
-            secondary_preprocessed_csv_path = os.path.join(
-                self.temp_dir, "secondary.csv.preprocessed"
-            )
-            if os.path.exists(secondary_preprocessed_csv_path):
-                os.remove(secondary_preprocessed_csv_path)
-
-            map_file_path = os.path.join(
-                self.current_dir, "assets", "secondary_task_test", "id_to_node_map.tsv"
-            )
-            if os.path.exists(map_file_path):
-                os.remove(map_file_path)
-
-            rollback_file_path = os.path.join(
-                self.current_dir, "assets", "secondary_task_test", "rollback.csv"
-            )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            if os.path.exists(secondary_config_file_path):
-                os.remove(secondary_config_file_path)
-            if os.path.exists(create_config_file_path):
-                os.remove(create_config_file_path)
 
 
 class TestSecondaryTaskWithGoogleSheets(WorkbenchTest):
@@ -953,18 +916,18 @@ class TestSecondaryTaskWithGoogleSheets(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            rollback_file_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "secondary_task_with_google_sheets_and_excel_test",
-                "rollback.csv",
+            cleanup_paths(
+                secondary_config_file_path,
+                create_config_file_path,
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "secondary_task_with_google_sheets_and_excel_test",
+                    "rollback.csv",
+                ),
+                os.path.join(self.temp_dir, "google_sheet.csv"),
+                os.path.join(self.temp_dir, "google_sheet.csv.preprocessed"),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            google_sheet_csv_path = os.path.join(self.temp_dir, "google_sheet.csv")
-            if os.path.exists(google_sheet_csv_path):
-                os.remove(google_sheet_csv_path)
 
             secondary_task_google_sheets_csv_paths = glob.glob(
                 self.temp_dir
@@ -973,17 +936,6 @@ class TestSecondaryTaskWithGoogleSheets(WorkbenchTest):
             for secondary_csv_file_path in secondary_task_google_sheets_csv_paths:
                 if os.path.exists(os.path.join(self.temp_dir, secondary_csv_file_path)):
                     os.remove(os.path.join(self.temp_dir, secondary_csv_file_path))
-
-            google_sheet_csv_preprocessed_path = os.path.join(
-                self.temp_dir, "google_sheet.csv.preprocessed"
-            )
-            if os.path.exists(google_sheet_csv_preprocessed_path):
-                os.remove(google_sheet_csv_preprocessed_path)
-
-            if os.path.exists(secondary_config_file_path):
-                os.remove(secondary_config_file_path)
-            if os.path.exists(create_config_file_path):
-                os.remove(create_config_file_path)
 
 
 class TestSecondaryTaskWithExcel(WorkbenchTest):
@@ -1062,17 +1014,18 @@ class TestSecondaryTaskWithExcel(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            rollback_file_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "secondary_task_with_google_sheets_and_excel_test",
-                "rollback.csv",
+            cleanup_paths(
+                secondary_config_file_path,
+                create_config_file_path,
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "secondary_task_with_google_sheets_and_excel_test",
+                    "rollback.csv",
+                ),
+                os.path.join(self.temp_dir, "excel.csv"),
+                os.path.join(self.temp_dir, "excel.csv.preprocessed"),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-            excel_csv_path = os.path.join(self.temp_dir, "excel.csv")
-            if os.path.exists(excel_csv_path):
-                os.remove(excel_csv_path)
 
             secondary_task_excel_csv_paths = glob.glob(
                 "/**secondary_task_with_google_sheets_and_excel_test_google_sheets_secondary*"
@@ -1080,17 +1033,6 @@ class TestSecondaryTaskWithExcel(WorkbenchTest):
             for secondary_csv_file_path in secondary_task_excel_csv_paths:
                 if os.path.exists(os.path.join(self.temp_dir, secondary_csv_file_path)):
                     os.remove(os.path.join(self.temp_dir, secondary_csv_file_path))
-
-            excel_csv_preprocessed_path = os.path.join(
-                self.temp_dir, "excel.csv.preprocessed"
-            )
-            if os.path.exists(excel_csv_preprocessed_path):
-                os.remove(excel_csv_preprocessed_path)
-
-            if os.path.exists(secondary_config_file_path):
-                os.remove(secondary_config_file_path)
-            if os.path.exists(create_config_file_path):
-                os.remove(create_config_file_path)
 
 
 class TestAdditionalFilesCreate(WorkbenchTest):
@@ -1170,29 +1112,16 @@ class TestAdditionalFilesCreate(WorkbenchTest):
         delete_cmd = ["./workbench", "--config", delete_config_file_path]
         subprocess.check_output(delete_cmd, cwd=self.workbench_dir)
 
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_path = os.path.join(self.temp_dir, "create.csv.preprocessed")
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        rollback_csv_path = os.path.join(
-            self.current_dir, "assets", "additional_files_test", "rollback.csv"
+        cleanup_paths(
+            create_config_file_path,
+            rollback_file_path,
+            delete_config_file_path,
+            os.path.join(self.temp_dir, "create.csv.preprocessed"),
+            os.path.join(
+                self.current_dir, "assets", "additional_files_test", "rollback.csv"
+            ),
+            os.path.join(self.temp_dir, "rollback.csv.preprocessed"),
         )
-        if os.path.exists(rollback_csv_path):
-            os.remove(rollback_csv_path)
-
-        preprocessed_rollback_csv_path = os.path.join(
-            self.temp_dir, "rollback.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_rollback_csv_path):
-            os.remove(preprocessed_rollback_csv_path)
-
-        if os.path.exists(delete_config_file_path):
-            os.remove(delete_config_file_path)
-        if os.path.exists(create_config_file_path):
-            os.remove(create_config_file_path)
 
     def test_media_creation_and_media_use_tids(self, setup_nodes):
         # This is the original file's size.
@@ -1288,23 +1217,20 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            rollback_file_path = os.path.join(
-                self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
+            cleanup_paths(
+                create_config_file_path,
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "allow_missing_files_test",
+                    "rollback.csv",
+                ),
+                os.path.join(
+                    self.temp_dir,
+                    "metadata_additional_files_check.csv.preprocessed",
+                ),
+                create_log_file_path,
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-
-            if os.path.exists(create_log_file_path):
-                os.remove(create_log_file_path)
-
-            if os.path.exists(create_log_file_path):
-                os.remove(create_log_file_path)
 
 
 class TestAdditionalFilesCreateAllowMissingFilesTrue(WorkbenchTest):
@@ -1367,23 +1293,20 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(WorkbenchTest):
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-            rollback_file_path = os.path.join(
-                self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
+            cleanup_paths(
+                create_config_file_path,
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "allow_missing_files_test",
+                    "rollback.csv",
+                ),
+                os.path.join(
+                    self.temp_dir,
+                    "metadata_additional_files_check.csv.preprocessed",
+                ),
+                create_log_file_path,
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-
-            if os.path.exists(create_log_file_path):
-                os.remove(create_log_file_path)
-
-            if os.path.exists(create_config_file_path):
-                os.remove(create_config_file_path)
 
 
 class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
@@ -1459,26 +1382,14 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
             ]
             subprocess.check_output(quick_delete_cmd)
 
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        if os.path.exists(add_media_csv_file_path):
-            os.remove(add_media_csv_file_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "add_media_create_nodes.csv.preprocessed"
+        cleanup_paths(
+            create_config_file_path,
+            create_log_file_path,
+            rollback_file_path,
+            add_media_csv_file_path,
+            os.path.join(self.temp_dir, "add_media_create_nodes.csv.preprocessed"),
+            os.path.join(self.temp_dir, "add_media_additional_files.csv.preprocessed"),
         )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "add_media_additional_files.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        if os.path.exists(create_log_file_path):
-            os.remove(create_log_file_path)
 
     def test_false(self, setup_nodes):
         """Test the addition of additional files with allow_missing_files set to False."""
@@ -1550,10 +1461,10 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
             )
 
         finally:
-            if os.path.exists(false_with_additional_files_log_file_path):
-                os.remove(false_with_additional_files_log_file_path)
-            if os.path.exists(add_media_config_file_path):
-                os.remove(add_media_config_file_path)
+            cleanup_paths(
+                add_media_config_file_path,
+                false_with_additional_files_log_file_path,
+            )
 
     def test_true(self, setup_nodes):
         """Test the addition of additional files with allow_missing_files set to True."""
@@ -1620,10 +1531,10 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
                 "Islandora Workbench successfully completed", log_data_true
             )
         finally:
-            if os.path.exists(true_with_additional_files_log_file_path):
-                os.remove(true_with_additional_files_log_file_path)
-            if os.path.exists(add_media_config_file_path):
-                os.remove(add_media_config_file_path)
+            cleanup_paths(
+                add_media_config_file_path,
+                true_with_additional_files_log_file_path,
+            )
 
 
 class TestExportCSVWithAdditionalFiles(WorkbenchTest):
@@ -1687,8 +1598,10 @@ class TestExportCSVWithAdditionalFiles(WorkbenchTest):
             shutil.rmtree(export_dir)
 
         # Remove generated files
-        if os.path.exists(rollback_csv):
-            os.remove(rollback_csv)
+        cleanup_paths(
+            create_config_file_path,
+            rollback_csv,
+        )
 
     def test_export_additional_files_as_urls(self, setup_nodes):
         """Test exporting additional files as URLs."""
@@ -1739,10 +1652,10 @@ class TestExportCSVWithAdditionalFiles(WorkbenchTest):
                                 response.status_code == 200
                             ), f"Failed to access {url_field} URL: {row[url_field]}"
         finally:
-            if os.path.exists(exported_csv):
-                os.remove(exported_csv)
-            if os.path.exists(export_config):
-                os.remove(export_config)
+            cleanup_paths(
+                exported_csv,
+                export_config,
+            )
 
     def test_export_additional_files_as_files(self, setup_nodes, workbench_user):
         """Test exporting additional files as downloaded files."""
@@ -1781,10 +1694,10 @@ class TestExportCSVWithAdditionalFiles(WorkbenchTest):
                                 file_path
                             ), f"File {row[field]} not found in export directory"
         finally:
-            if os.path.exists(exported_csv):
-                os.remove(exported_csv)
-            if os.path.exists(export_config):
-                os.remove(export_config)
+            cleanup_paths(
+                exported_csv,
+                export_config,
+            )
 
 
 # TODO: Implement TestUpdateMediaFields to update media fields and verify changes

@@ -5,7 +5,6 @@ This test file contains tests for --check. Files islandora_tests.py, islandora_t
 and islandora_tests_hooks.py also contain tests that interact with an Islandora instance.
 """
 
-import sys
 import os
 import tempfile
 
@@ -22,9 +21,8 @@ from workbench_test_class import (
     WorkbenchTest,
     AdminUser,
     collect_nids_from_create_output,
+    cleanup_paths,
 )
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class TestFailToConnect(WorkbenchTest):
@@ -49,8 +47,7 @@ class TestFailToConnect(WorkbenchTest):
         except subprocess.CalledProcessError as err:
             pass
         finally:
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
+            cleanup_paths(config_file_path)
 
 
 class TestCreateCheck(WorkbenchTest):
@@ -71,8 +68,7 @@ class TestCreateCheck(WorkbenchTest):
         try:
             assert re.search("Configuration and input data appear to be valid", output)
         finally:
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
+            cleanup_paths(config_file_path)
 
 
 @unittest.skipIf(
@@ -103,15 +99,10 @@ class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
         if temp_bundle:
             os.environ["REQUESTS_CA_BUNDLE"] = temp_bundle
 
-        csv_path = os.path.join(self.temp_dir, "google_sheet.csv")
-        if os.path.exists(csv_path):
-            os.remove(csv_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "google_sheet.csv.preprocessed"
+        cleanup_paths(
+            os.path.join(self.temp_dir, "google_sheet.csv"),
+            os.path.join(self.temp_dir, "google_sheet.csv.preprocessed"),
         )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
 
     def test_create_from_google_spreadsheet_check(
         self, alter_requests_bundle, workbench_user
@@ -124,8 +115,7 @@ class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
 
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+        cleanup_paths(config_file_path)
 
         assert re.search("Extracting CSV data from https://docs.google.com", output)
         assert re.search("Configuration and input data appear to be valid", output)
@@ -139,8 +129,8 @@ class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+        cleanup_paths(config_file_path)
+
         assert re.search("OK, all 3 rows in the CSV file", output)
 
     def test_google_gid_2(self, alter_requests_bundle, workbench_user):
@@ -151,8 +141,7 @@ class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+        cleanup_paths(config_file_path)
 
         assert re.search("OK, all 5 rows in the CSV file", output)
 
@@ -164,8 +153,7 @@ class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+        cleanup_paths(config_file_path)
 
         assert re.search("OK, all 1 rows in the CSV file", output)
 
@@ -188,13 +176,10 @@ class TestUpdateCheck(WorkbenchTest):
         try:
             assert re.search("Configuration and input data appear to be valid", output)
         finally:
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "update.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "update.csv.preprocessed"),
             )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestDeleteCheck(WorkbenchTest):
@@ -215,13 +200,10 @@ class TestDeleteCheck(WorkbenchTest):
         try:
             assert re.search("Configuration and input data appear to be valid", output)
         finally:
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "delete.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "delete.csv.preprocessed"),
             )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestAddMediaCheck(WorkbenchTest):
@@ -243,13 +225,10 @@ class TestAddMediaCheck(WorkbenchTest):
         try:
             assert re.search("Configuration and input data appear to be valid", output)
         finally:
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "add_media.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "add_media.csv.preprocessed"),
             )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestCreateMaxNodeTitleLengthCheck(WorkbenchTest):
@@ -284,13 +263,12 @@ class TestCreateMaxNodeTitleLengthCheck(WorkbenchTest):
                 output,
             )
         finally:
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "create_max_node_title_length.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                os.path.join(
+                    self.temp_dir, "create_max_node_title_length.csv.preprocessed"
+                ),
             )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
@@ -366,26 +344,21 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
             ]
             subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-        rollback_file_path = os.path.join(
-            self.current_dir, "assets", "max_node_title_length_test", "rollback.csv"
+        cleanup_paths(
+            create_config_file_path,
+            os.path.join(
+                self.current_dir,
+                "assets",
+                "max_node_title_length_test",
+                "rollback.csv",
+            ),
+            os.path.join(
+                self.temp_dir, "create_max_node_title_length.csv.preprocessed"
+            ),
+            os.path.join(
+                self.temp_dir, "update_max_node_title_length.csv.preprocessed"
+            ),
         )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_create_file_path = os.path.join(
-            self.temp_dir, "create_max_node_title_length.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_create_file_path):
-            os.remove(preprocessed_create_file_path)
-
-        preprocessed_create_file_path = os.path.join(
-            self.temp_dir, "update_max_node_title_length.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_create_file_path):
-            os.remove(preprocessed_create_file_path)
-
-        if os.path.exists(create_config_file_path):
-            os.remove(create_config_file_path)
 
     def test_for_too_long_titles(self, setup_nodes, workbench_user):
         configuration = {
@@ -408,8 +381,7 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
 
         check_output = subprocess.check_output(update_cmd, cwd=self.workbench_dir)
         check_output = check_output.decode().strip()
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+        cleanup_paths(config_file_path)
 
         assert re.search(
             "contains a value that is longer \(37 characters\)", check_output
@@ -449,23 +421,17 @@ class TestTypedRelationBadRelatorCheck(WorkbenchTest):
         except subprocess.CalledProcessError as err:
             pass
         finally:
-            rollback_file_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "typed_relation_test",
-                "input_data",
-                "rollback.csv",
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "bad_typed_relation_fail.csv.preprocessed"),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "typed_relation_test",
+                    "input_data",
+                    "rollback.csv",
+                ),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "bad_typed_relation_fail.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestTypedRelationBadUriCheck(WorkbenchTest):
@@ -490,23 +456,17 @@ class TestTypedRelationBadUriCheck(WorkbenchTest):
         except subprocess.CalledProcessError as err:
             pass
         finally:
-            rollback_file_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "typed_relation_test",
-                "input_data",
-                "rollback.csv",
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "bad_uri_fail.csv.preprocessed"),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "typed_relation_test",
+                    "input_data",
+                    "rollback.csv",
+                ),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "bad_uri_fail.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestTypedRelationNewTypedRelationCheck(WorkbenchTest):
@@ -530,23 +490,17 @@ class TestTypedRelationNewTypedRelationCheck(WorkbenchTest):
         try:
             assert re.search("new terms will be created as noted", output)
         finally:
-            rollback_file_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "typed_relation_test",
-                "input_data",
-                "rollback.csv",
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "new_typed_relation.csv.preprocessed"),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "typed_relation_test",
+                    "input_data",
+                    "rollback.csv",
+                ),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "new_typed_relation.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestTypedRelationNoNamespaceCheck(WorkbenchTest):
@@ -572,23 +526,17 @@ class TestTypedRelationNoNamespaceCheck(WorkbenchTest):
         except subprocess.CalledProcessError as err:
             pass
         finally:
-            rollback_file_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "typed_relation_test",
-                "input_data",
-                "rollback.csv",
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "no_namespace.csv.preprocessed"),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "typed_relation_test",
+                    "input_data",
+                    "rollback.csv",
+                ),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "no_namespace.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestDelimiterCheck(WorkbenchTest):
@@ -614,13 +562,10 @@ class TestDelimiterCheck(WorkbenchTest):
         try:
             assert re.search("input data appear to be valid", output)
         finally:
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "metadata.tsv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "metadata.tsv.preprocessed"),
             )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestGeolocationCheck(WorkbenchTest):
@@ -645,13 +590,10 @@ class TestGeolocationCheck(WorkbenchTest):
         except subprocess.CalledProcessError as err:
             pass
         finally:
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "bad_geocoorindates_fail.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "bad_geocoorindates_fail.csv.preprocessed"),
             )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestHeaderColumnMismatchCheck(WorkbenchTest):
@@ -675,23 +617,16 @@ class TestHeaderColumnMismatchCheck(WorkbenchTest):
         except subprocess.CalledProcessError as err:
             pass
         finally:
-            rollback_file_path = os.path.join(
-                self.current_dir,
-                "assets",
-                "header_column_mismatch_test",
-                "rollback.csv",
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "metadata.csv.preprocessed"),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "header_column_mismatch_test",
+                    "rollback.csv",
+                ),
             )
-            if os.path.exists(rollback_file_path):
-                os.remove(rollback_file_path)
-
-            preprocessed_csv_file_path = os.path.join(
-                self.temp_dir, "metadata.csv.preprocessed"
-            )
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestCreateWithFieldTemplatesCheck(WorkbenchTest):
@@ -721,13 +656,10 @@ class TestCreateWithFieldTemplatesCheck(WorkbenchTest):
                 output,
             )
         finally:
-            templated_csv_path = os.path.join(
-                self.temp_dir, "metadata.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "metadata.csv.preprocessed"),
             )
-            if os.path.exists(templated_csv_path):
-                os.remove(templated_csv_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestTaxonomies(WorkbenchTest):
@@ -812,29 +744,13 @@ class TestTaxonomies(WorkbenchTest):
             ]
             subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-        rollback_file_path = os.path.join(
-            self.current_dir, "assets", "taxonomies_test", "rollback.csv"
+        cleanup_paths(
+            taxonomies_config_file_path,
+            os.path.join(self.temp_dir, "metadata.csv.preprocessed"),
+            os.path.join(self.temp_dir, "term_id_not_in_taxonomy.csv.preprocessed"),
+            os.path.join(self.temp_dir, "term_name_not_in_taxonomy.csv.preprocessed"),
+            os.path.join(self.current_dir, "assets", "taxonomies_test", "rollback.csv"),
         )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_path = os.path.join(self.temp_dir, "metadata.csv.preprocessed")
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "term_id_not_in_taxonomy.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "term_name_not_in_taxonomy.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-        if os.path.exists(taxonomies_config_file_path):
-            os.remove(taxonomies_config_file_path)
 
     def test_validate_term_names_exist(self, taxonomy_setup, workbench_user):
         configuration = {
@@ -857,8 +773,8 @@ class TestTaxonomies(WorkbenchTest):
         ]
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+        cleanup_paths(config_file_path)
+
         assert re.search(
             "term IDs/names in CSV file exist in their respective taxonomies",
             output,
@@ -890,8 +806,8 @@ class TestTaxonomies(WorkbenchTest):
             cwd=self.workbench_dir,
         )
         stdout, stderr = proc.communicate()
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+        cleanup_paths(config_file_path)
+
         assert re.search('"XPosters"', str(stdout))
 
     def test_validate_term_id_does_not_exist(self, taxonomy_setup, workbench_user):
@@ -920,8 +836,8 @@ class TestTaxonomies(WorkbenchTest):
             cwd=self.workbench_dir,
         )
         stdout, stderr = proc.communicate()
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+        cleanup_paths(config_file_path)
+
         assert re.search("1000000", str(stdout))
 
 
@@ -945,11 +861,9 @@ class TestParentsPrecedeChildren(WorkbenchTest):
         try:
             assert re.search("Configuration and input data appear to be valid", output)
         finally:
-            preprocessed_csv_path = os.path.join(self.temp_dir, "good.csv.preprocessed")
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
+            cleanup_paths(
+                config_file_path, os.path.join(self.temp_dir, "good.csv.preprocessed")
+            )
 
     def test_bad_csv(self, workbench_user):
         configuration = {
@@ -973,11 +887,10 @@ class TestParentsPrecedeChildren(WorkbenchTest):
         try:
             assert re.search('"c2p2" must come after', str(stdout))
         finally:
-            preprocessed_csv_path = os.path.join(self.temp_dir, "bad.csv.preprocessed")
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
+            cleanup_paths(
+                config_file_path,
+                os.path.join(self.temp_dir, "bad.csv.preprocessed"),
+            )
 
 
 class TestCreateAllowMissingFiles(WorkbenchTest):
@@ -1019,15 +932,11 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
                 log_data_false = log_file_false.read()
             assert re.search('ID "03" not found', log_data_false)
         finally:
-            if os.path.exists(log_file_path):
-                os.remove(log_file_path)
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "metadata_check.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+                os.path.join(self.temp_dir, "metadata_check.csv.preprocessed"),
             )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
     def test_true(self, workbench_user):
         configuration = {
@@ -1064,15 +973,11 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
                 'row with ID "06" not found or not accessible', log_data_true
             )
         finally:
-            if os.path.exists(log_file_path):
-                os.remove(log_file_path)
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "metadata_check.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+                os.path.join(self.temp_dir, "metadata_check.csv.preprocessed"),
             )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
     def test_false_with_soft_checks(self, workbench_user):
         configuration = {
@@ -1115,15 +1020,11 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
                 log_file_false_with_soft_checks_data,
             )
         finally:
-            if os.path.exists(log_file_path):
-                os.remove(log_file_path)
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "metadata_check.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+                os.path.join(self.temp_dir, "metadata_check.csv.preprocessed"),
             )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
@@ -1173,15 +1074,14 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
                 log_data_false,
             )
         finally:
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+                os.path.join(
+                    self.temp_dir,
+                    "metadata_additional_files_check.csv.preprocessed",
+                ),
             )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
-            if os.path.exists(log_file_path):
-                os.remove(log_file_path)
 
     def test_true(self, workbench_user):
         configuration = {
@@ -1224,15 +1124,14 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
                 log_data_true,
             )
         finally:
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+                os.path.join(
+                    self.temp_dir,
+                    "metadata_additional_files_check.csv.preprocessed",
+                ),
             )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(log_file_path):
-                os.remove(log_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
     def test_false_with_soft_checks(self, workbench_user):
         configuration = {
@@ -1274,15 +1173,14 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
                 ", no problems found", log_file_false_with_soft_checks_data
             )
         finally:
-            preprocessed_csv_path = os.path.join(
-                self.temp_dir, "metadata_additional_files_check.csv.preprocessed"
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+                os.path.join(
+                    self.temp_dir,
+                    "metadata_additional_files_check.csv.preprocessed",
+                ),
             )
-            if os.path.exists(preprocessed_csv_path):
-                os.remove(preprocessed_csv_path)
-            if os.path.exists(log_file_path):
-                os.remove(log_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
 
 
 class TestAddMediaAllowMissingFiles(WorkbenchTest):
@@ -1359,38 +1257,20 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
             ]
             subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-        if os.path.exists(add_media_csv_file_path):
-            os.remove(add_media_csv_file_path)
-
-        rollback_file_path = os.path.join(
-            self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
+        cleanup_paths(
+            create_config_file_path,
+            add_media_csv_file_path,
+            os.path.join(
+                self.current_dir,
+                "assets",
+                "allow_missing_files_test",
+                "rollback.csv",
+            ),
+            os.path.join(self.temp_dir, "add_media_create_nodes.csv.preprocessed"),
+            os.path.join(self.temp_dir, "add_media.csv.preprocessed"),
+            os.path.join(self.temp_dir, "metadata_check.csv.preprocessed"),
+            create_log_file_path,
         )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "add_media_create_nodes.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "add_media.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "metadata_check.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        if os.path.exists(create_log_file_path):
-            os.remove(create_log_file_path)
-
-        if os.path.exists(create_log_file_path):
-            os.remove(create_log_file_path)
 
     def test_false(self, setup_nodes, workbench_user):
         configuration = {
@@ -1414,12 +1294,6 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
             cwd=self.workbench_dir,
         )
         stdout, stderr = proc.communicate()
-        # Clean up the config file after the test but before assertions.
-        os.remove(config_file_path)
-        assert re.search(
-            r'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
-            str(stdout),
-        )
 
         log_file_path = os.path.join(
             self.current_dir,
@@ -1427,16 +1301,27 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
             "allow_missing_files_test",
             "add_media_allow_missing_files_false.log",
         )
-        with open(log_file_path) as log_file_false:
-            log_data_false = log_file_false.read()
-        os.remove(log_file_path)
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value', log_data_false
-        )
-        assert re.search(
-            'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
-            log_data_false,
-        )
+        try:
+            assert re.search(
+                r'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
+                str(stdout),
+            )
+
+            with open(log_file_path) as log_file_false:
+                log_data_false = log_file_false.read()
+
+            assert re.search(
+                'CSV row with ID .* contains an empty "file" value', log_data_false
+            )
+            assert re.search(
+                'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
+                log_data_false,
+            )
+        finally:
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+            )
 
     def test_true(self, setup_nodes, workbench_user):
         configuration = {
@@ -1456,12 +1341,6 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        # Clean up the config file after the test but before assertions.
-        os.remove(config_file_path)
-        assert re.search(
-            'Warning: "allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing',
-            output,
-        )
 
         log_file_path = os.path.join(
             self.current_dir,
@@ -1469,13 +1348,23 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
             "allow_missing_files_test",
             "add_media_allow_missing_files_true.log",
         )
-        with open(log_file_path) as log_file_true:
-            log_data_true = log_file_true.read()
-        os.remove(log_file_path)
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value', log_data_true
-        )
-        assert re.search("INFO - .*no problems found", log_data_true)
+        try:
+            assert re.search(
+                'Warning: "allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing',
+                output,
+            )
+
+            with open(log_file_path) as log_file_true:
+                log_data_true = log_file_true.read()
+            assert re.search(
+                'CSV row with ID .* contains an empty "file" value', log_data_true
+            )
+            assert re.search("INFO - .*no problems found", log_data_true)
+        finally:
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+            )
 
     def test_false_with_soft_checks(self, setup_nodes, workbench_user):
         configuration = {
@@ -1495,13 +1384,6 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        # Clean up the config file after the test but before assertions.
-        os.remove(config_file_path)
-        assert re.search(
-            'Warning: "perform_soft_checks" configuration setting is set to "true" and some values in the "file" column',
-            output,
-        )
-        assert re.search("Configuration and input data appear to be valid", output)
 
         log_file_path = os.path.join(
             self.current_dir,
@@ -1509,22 +1391,33 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
             "allow_missing_files_test",
             "add_media_allow_missing_files_false_with_soft_checks.log",
         )
-        with open(log_file_path) as log_file_false_with_soft_checks:
-            log_file_false_with_soft_checks_data = (
-                log_file_false_with_soft_checks.read()
+        try:
+            assert re.search(
+                'Warning: "perform_soft_checks" configuration setting is set to "true" and some values in the "file" column',
+                output,
             )
-        os.remove(log_file_path)
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            "INFO - .*no problems found", log_file_false_with_soft_checks_data
-        )
+            assert re.search("Configuration and input data appear to be valid", output)
+
+            with open(log_file_path) as log_file_false_with_soft_checks:
+                log_file_false_with_soft_checks_data = (
+                    log_file_false_with_soft_checks.read()
+                )
+            assert re.search(
+                'CSV row with ID .* contains an empty "file" value',
+                log_file_false_with_soft_checks_data,
+            )
+            assert re.search(
+                'File ".*missing_transcript.txt" identified in CSV "file" column for row with ID .* not found',
+                log_file_false_with_soft_checks_data,
+            )
+            assert re.search(
+                "INFO - .*no problems found", log_file_false_with_soft_checks_data
+            )
+        finally:
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+            )
 
 
 @unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
@@ -1609,29 +1502,19 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
             ]
             subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
-        if os.path.exists(add_media_additional_files_csv_path):
-            os.remove(add_media_additional_files_csv_path)
-
-        rollback_file_path = os.path.join(
-            self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
+        cleanup_paths(
+            create_config_file_path,
+            add_media_additional_files_csv_path,
+            create_log_file_path,
+            os.path.join(self.temp_dir, "add_media_create_nodes.csv.preprocessed"),
+            os.path.join(self.temp_dir, "add_media_additional_files.csv.preprocessed"),
+            os.path.join(
+                self.current_dir,
+                "assets",
+                "allow_missing_files_test",
+                "rollback.csv",
+            ),
         )
-        if os.path.exists(rollback_file_path):
-            os.remove(rollback_file_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "add_media_create_nodes.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        preprocessed_csv_path = os.path.join(
-            self.temp_dir, "add_media_additional_files.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_path):
-            os.remove(preprocessed_csv_path)
-
-        if os.path.exists(create_log_file_path):
-            os.remove(create_log_file_path)
 
     def test_false(self, setup_nodes, workbench_user):
         configuration = {
@@ -1658,12 +1541,6 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
             cwd=self.workbench_dir,
         )
         stdout, stderr = proc.communicate()
-        # Clean up the config file after we use it but before assertions.
-        os.remove(config_file_path)
-        assert re.search(
-            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
-            str(stdout),
-        )
 
         log_file_path = os.path.join(
             self.current_dir,
@@ -1671,20 +1548,31 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_false.log",
         )
-        with open(log_file_path) as log_file_false:
-            log_data_false = log_file_false.read()
-        os.remove(log_file_path)
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value', log_data_false
-        )
-        assert re.search(
-            'CSV row with ID .* contains an empty value in its "preservation" column',
-            log_data_false,
-        )
-        assert re.search(
-            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
-            log_data_false,
-        )
+
+        try:
+            assert re.search(
+                'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
+                str(stdout),
+            )
+
+            with open(log_file_path) as log_file_false:
+                log_data_false = log_file_false.read()
+            assert re.search(
+                'CSV row with ID .* contains an empty "file" value', log_data_false
+            )
+            assert re.search(
+                'CSV row with ID .* contains an empty value in its "preservation" column',
+                log_data_false,
+            )
+            assert re.search(
+                'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
+                log_data_false,
+            )
+        finally:
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+            )
 
     def test_true(self, setup_nodes, workbench_user):
         configuration = {
@@ -1706,13 +1594,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         config_file_path = self.write_config_and_get_path(configuration)
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
-        # Clean up the config file after we use it but before assertions.
-        os.remove(config_file_path)
         output = output.decode().strip()
-        assert re.search(
-            'Warning: "allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns containing missing',
-            output,
-        )
 
         log_file_path = os.path.join(
             self.current_dir,
@@ -1720,17 +1602,27 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_true.log",
         )
-        with open(log_file_path) as log_file_true:
-            log_data_true = log_file_true.read()
-        os.remove(log_file_path)
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value', log_data_true
-        )
-        assert re.search(
-            'CSV row with ID .* contains an empty value in its "preservation" column',
-            log_data_true,
-        )
-        assert re.search("INFO - .*no problems found", log_data_true)
+        try:
+            assert re.search(
+                'Warning: "allow_missing_files" configuration setting is set to "true", and "additional_files" CSV columns containing missing',
+                output,
+            )
+
+            with open(log_file_path) as log_file_true:
+                log_data_true = log_file_true.read()
+            assert re.search(
+                'CSV row with ID .* contains an empty "file" value', log_data_true
+            )
+            assert re.search(
+                'CSV row with ID .* contains an empty value in its "preservation" column',
+                log_data_true,
+            )
+            assert re.search("INFO - .*no problems found", log_data_true)
+        finally:
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+            )
 
     def test_false_with_soft_checks(self, setup_nodes, workbench_user):
         configuration = {
@@ -1753,12 +1645,6 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         cmd = ["./workbench", "--config", config_file_path, "--check"]
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
-        # Clean up the config file after we use it but before assertions.
-        os.remove(config_file_path)
-        assert re.search(
-            '"perform_soft_checks" configuration setting is set to "true"', output
-        )
-        assert re.search("Configuration and input data appear to be valid", output)
 
         log_file_path = os.path.join(
             self.current_dir,
@@ -1766,26 +1652,36 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_false_with_soft_checks.log",
         )
-        with open(log_file_path) as log_file_false_with_soft_checks:
-            log_file_false_with_soft_checks_data = (
-                log_file_false_with_soft_checks.read()
+        try:
+            assert re.search(
+                '"perform_soft_checks" configuration setting is set to "true"', output
             )
-        os.remove(log_file_path)
-        assert re.search(
-            'CSV row with ID .* contains an empty "file" value',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            'CSV row with ID .* contains an empty value in its "preservation" column',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
-            log_file_false_with_soft_checks_data,
-        )
-        assert re.search(
-            "INFO - .*no problems found", log_file_false_with_soft_checks_data
-        )
+            assert re.search("Configuration and input data appear to be valid", output)
+
+            with open(log_file_path) as log_file_false_with_soft_checks:
+                log_file_false_with_soft_checks_data = (
+                    log_file_false_with_soft_checks.read()
+                )
+            assert re.search(
+                'CSV row with ID .* contains an empty "file" value',
+                log_file_false_with_soft_checks_data,
+            )
+            assert re.search(
+                'CSV row with ID .* contains an empty value in its "preservation" column',
+                log_file_false_with_soft_checks_data,
+            )
+            assert re.search(
+                'Additional file "add_media_transcript_x.txt" in CSV column "transcript" in row with ID .* not found',
+                log_file_false_with_soft_checks_data,
+            )
+            assert re.search(
+                "INFO - .*no problems found", log_file_false_with_soft_checks_data
+            )
+        finally:
+            cleanup_paths(
+                config_file_path,
+                log_file_path,
+            )
 
 
 @unittest.skipIf(
@@ -1804,64 +1700,55 @@ class TestCommentedCsvs(WorkbenchTest):
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
-        config_file_path = self.write_config_and_get_path(configuration)
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
+        config_file_path_1 = self.write_config_and_get_path(configuration)
+        cmd = ["./workbench", "--config", config_file_path_1, "--check"]
         output = subprocess.check_output(cmd)
         output = output.decode().strip()
-        assert re.search("all 3 rows in the CSV file", output)
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "metadata.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
 
-        configuration["input_csv"] = "test_excel_file_commented_row.xlsx"
-        config_file_path = self.write_config_and_get_path(configuration)
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
-        output = output.decode().strip()
-        assert re.search("all 4 rows in the CSV file", output)
+        temp_bundle = None
+        config_file_path_2 = ""
+        config_file_path_3 = ""
+        try:
+            assert re.search("all 3 rows in the CSV file", output)
+            cleanup_paths([os.path.join(self.temp_dir, "metadata.csv.preprocessed")])
 
-        csv_file_path = os.path.join(self.temp_dir, "excel.csv")
-        if os.path.exists(csv_file_path):
-            os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "excel.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+            configuration["input_csv"] = "test_excel_file_commented_row.xlsx"
+            config_file_path_2 = self.write_config_and_get_path(configuration)
+            cmd = ["./workbench", "--config", config_file_path_2, "--check"]
+            output = subprocess.check_output(cmd, cwd=self.workbench_dir)
+            output = output.decode().strip()
+            assert re.search("all 4 rows in the CSV file", output)
 
-        configuration["input_csv"] = (
-            "https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0"
-        )
-        configuration["google_sheets_gid"] = 2133768507
-        config_file_path = self.write_config_and_get_path(configuration)
+            configuration["input_csv"] = (
+                "https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0"
+            )
+            configuration["google_sheets_gid"] = 2133768507
+            config_file_path_3 = self.write_config_and_get_path(configuration)
 
-        temp_bundle = os.environ.get("REQUESTS_CA_BUNDLE", None)
-        if temp_bundle is not None:
-            os.environ["REQUESTS_CA_BUNDLE"] = ""
-        cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
-        if temp_bundle is not None:
-            os.environ["REQUESTS_CA_BUNDLE"] = temp_bundle
-        output = output.decode().strip()
-        assert re.search("all 5 rows in the CSV file", output)
-        csv_file_path = os.path.join(
-            self.current_dir, "assets", "commented_csvs_test", "google_sheet.csv"
-        )
-        if os.path.exists(csv_file_path):
-            os.remove(csv_file_path)
-        preprocessed_csv_file_path = os.path.join(
-            self.temp_dir, "google_sheet.csv.preprocessed"
-        )
-        if os.path.exists(preprocessed_csv_file_path):
-            os.remove(preprocessed_csv_file_path)
-        if os.path.exists(config_file_path):
-            os.remove(config_file_path)
+            temp_bundle = os.environ.get("REQUESTS_CA_BUNDLE", None)
+            if temp_bundle is not None:
+                os.environ["REQUESTS_CA_BUNDLE"] = ""
+            cmd = ["./workbench", "--config", config_file_path_3, "--check"]
+            output = subprocess.check_output(cmd, cwd=self.workbench_dir)
+            output = output.decode().strip()
+            assert re.search("all 5 rows in the CSV file", output)
+        finally:
+            if temp_bundle is not None:
+                os.environ["REQUESTS_CA_BUNDLE"] = temp_bundle
+            cleanup_paths(
+                config_file_path_1,
+                config_file_path_2,
+                config_file_path_3,
+                os.path.join(self.temp_dir, "excel.csv"),
+                os.path.join(self.temp_dir, "excel.csv.preprocessed"),
+                os.path.join(self.temp_dir, "google_sheet.csv.preprocessed"),
+                os.path.join(
+                    self.current_dir,
+                    "assets",
+                    "commented_csvs_test",
+                    "google_sheet.csv",
+                ),
+            )
 
 
 class TestCsvRowFilters(WorkbenchTest):
@@ -1888,8 +1775,7 @@ class TestCsvRowFilters(WorkbenchTest):
         )
 
         cmd = ["./workbench", "--config", config_file_path, "--check"]
-        output = subprocess.check_output(cmd, cwd=self.workbench_dir)
-        output = output.decode().strip()
+        subprocess.check_output(cmd, cwd=self.workbench_dir)
 
         with open(preprocessed_csv_file_path, "r") as file:
             csv_rows = file.readlines()
@@ -1905,7 +1791,7 @@ class TestCsvRowFilters(WorkbenchTest):
                 == "noo.jpg,issue_812_003,Issue 812 item 3,Binary,1999-01-01|2000"
             )
         finally:
-            if os.path.exists(preprocessed_csv_file_path):
-                os.remove(preprocessed_csv_file_path)
-            if os.path.exists(config_file_path):
-                os.remove(config_file_path)
+            cleanup_paths(
+                preprocessed_csv_file_path,
+                config_file_path,
+            )

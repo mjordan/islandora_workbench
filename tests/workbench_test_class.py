@@ -1,9 +1,13 @@
-import os
 from abc import abstractmethod, ABC
-
+import os
 import pytest
 from ruamel.yaml import YAML
+import sys
 import tempfile
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from workbench_utils import get_nid_from_url_without_config, value_is_numeric
 
 
 def get_workbench_dir(starting_path: str):
@@ -46,12 +50,31 @@ def collect_nids_from_create_output(output: str) -> list:
     """
     create_lines = output.splitlines()
 
-    # for line in create_lines:
-    #    if "created at" in line:
-    #        nid = line.rsplit("/", 1)[-1]
-    #        nid = nid.strip(".")
-    #        nids.append(nid)
-    return [l.rsplit("/", 1)[-1].strip(".") for l in create_lines if "created at" in l]
+    nids = []
+    for line in create_lines:
+        if "created at" in line:
+            nid = line.rsplit("/", 1)[-1]
+            nid = nid.strip(".")
+            if not value_is_numeric(nid) and "http" in line:
+                url = line[line.find("http") :].strip(".")
+                nid = get_nid_from_url_without_config(url)
+            nids.append(nid)
+    return nids
+
+
+def cleanup_paths(*paths) -> None:
+    """Remove files and directories created during tests.
+    Parameters
+    ----------
+    paths : tuple<string, ...>
+        One or more file and directory paths to be removed.
+    """
+    for path in paths:
+        if os.path.exists(path):
+            if os.path.isfile(path):
+                os.remove(path)
+            elif os.path.isdir(path):
+                os.rmdir(path)
 
 
 class TestUser(ABC):
