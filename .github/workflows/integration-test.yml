@@ -108,20 +108,20 @@ jobs:
           docker exec isle-site-template-drupal-dev-1 drush user:role:add workbench_user test-user
 
       - name: Run islandora_tests_check
-        run: pytest -v tests/islandora_tests_check.py
+        run: pytest -v --no-header tests/islandora_tests_check.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
           
       - name: Run islandora_tests_paged_content  
-        run: python tests/islandora_tests_paged_content.py
+        run: pytest -v --no-header tests/islandora_tests_paged_content.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
 
       - name: Run islandora_tests  
-        run: pytest -v tests/islandora_tests.py --no-header
+        run: pytest -v --no-header tests/islandora_tests.py
 
       - name: Run islandora_tests_recovery_mode
-        run: python tests/islandora_tests_recovery_mode.py
+        run: pytest -v --no-header tests/islandora_tests_recovery_mode.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem        
 
