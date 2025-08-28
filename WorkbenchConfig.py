@@ -99,7 +99,11 @@ class WorkbenchConfig:
             config["preprocessors"] = {}
             for preprocessor in user_mods["preprocessors"]:
                 for key, value in preprocessor.items():
-                    config["preprocessors"][key] = value
+                    # Expand user home directory in preprocessor script paths
+                    if isinstance(value, str):
+                        config["preprocessors"][key] = os.path.expanduser(value)
+                    else:
+                        config["preprocessors"][key] = value
 
         config["host"] = config["host"].rstrip("/")
         if "csv_id_to_node_id_map_allowed_hosts" in user_mods:
@@ -465,4 +469,29 @@ class WorkbenchConfig:
         for key in path_keys:
             if key in config and isinstance(config[key], str):
                 config[key] = os.path.expanduser(config[key])
+
+        # Handle hook configurations that contain lists of script paths
+        hook_keys = [
+            "bootstrap",
+            "shutdown",
+            "node_post_create",
+            "node_post_update",
+            "media_post_create",
+            "node_post_export",
+            "run_scripts",
+        ]
+        for key in hook_keys:
+            if key in config and isinstance(config[key], list):
+                config[key] = [os.path.expanduser(path) for path in config[key]]
+
+        # Handle preprocessors configuration which is a dict mapping field names to script paths
+        if "preprocessors" in config and isinstance(config["preprocessors"], list):
+            for i, preprocessor_dict in enumerate(config["preprocessors"]):
+                if isinstance(preprocessor_dict, dict):
+                    for field_name, script_path in preprocessor_dict.items():
+                        if isinstance(script_path, str):
+                            config["preprocessors"][i][field_name] = os.path.expanduser(
+                                script_path
+                            )
+
         return config
