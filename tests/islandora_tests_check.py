@@ -1003,7 +1003,7 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
         )
         try:
             assert re.search(
-                'Warning: "perform_soft_checks" configuration setting is set to "true" and some values in the "file" column were not found',
+                'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.',
                 output,
             )
 
@@ -1151,7 +1151,8 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
         output = subprocess.check_output(cmd, cwd=self.workbench_dir)
         output = output.decode().strip()
         assert re.search(
-            'The "perform_soft_checks" configuration setting is set to "true"', output
+            'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.',
+            output,
         )
 
         log_file_path = os.path.join(
@@ -1393,7 +1394,7 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
         )
         try:
             assert re.search(
-                'Warning: "perform_soft_checks" configuration setting is set to "true" and some values in the "file" column',
+                'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.',
                 output,
             )
             assert re.search("Configuration and input data appear to be valid", output)
@@ -1653,7 +1654,8 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         )
         try:
             assert re.search(
-                '"perform_soft_checks" configuration setting is set to "true"', output
+                'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.',
+                output,
             )
             assert re.search("Configuration and input data appear to be valid", output)
 
