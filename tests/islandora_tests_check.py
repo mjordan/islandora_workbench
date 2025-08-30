@@ -1420,7 +1420,6 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
             )
 
 
-@unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
     """Test workbench --check for allow_missing_files configuration setting with add_media task and additional files."""
 
