@@ -596,7 +596,10 @@ def create():
                                 print(
                                     "- " + message + ". See log for more information."
                                 )
-                            logging.error(message + " because CSV field is empty.")
+                            if config["allow_missing_files"] is False:
+                                logging.error(message + " because CSV field is empty.")
+                            else:
+                                logging.warning(message + " because CSV field is empty.")
                             continue
                         filename = row[additional_file_field].strip()
                         file_exists = check_file_exists(config, filename)
