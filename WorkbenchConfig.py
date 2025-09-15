@@ -1,4 +1,5 @@
-"""Class to encapsulate Workbench configuration definitions."""
+"""Class to encapsulate Workbench configuration definitions.
+"""
 
 import logging
 from ruamel.yaml import YAML, YAMLError
@@ -31,20 +32,13 @@ class WorkbenchConfig:
         user_mods = self.get_user_config()
         # If the password is not set in the config file, or in the environment
         # variable, prompt the user for the password.
-        try:
-            if "password" not in user_mods:
-                if "ISLANDORA_WORKBENCH_PASSWORD" in os.environ:
-                    config["password"] = os.environ["ISLANDORA_WORKBENCH_PASSWORD"]
-                else:
-                    config["password"] = getpass(
-                        f"Password for Drupal user {user_mods['username']}:"
-                    )
-        except KeyboardInterrupt:
-            try:
-                sys.exit(0)
-            except SystemExit:
-                os._exit(0)
-
+        if "password" not in user_mods:
+            if "ISLANDORA_WORKBENCH_PASSWORD" in os.environ:
+                config["password"] = os.environ["ISLANDORA_WORKBENCH_PASSWORD"]
+            else:
+                config["password"] = getpass(
+                    f"Password for Drupal user {user_mods['username']}:"
+                )
         # Blend defaults with user mods
         for key, value in user_mods.items():
             config[key] = value
@@ -72,12 +66,6 @@ class WorkbenchConfig:
                     config["preprocessors"][key] = value
 
         config["host"] = config["host"].rstrip("/")
-        if "csv_id_to_node_id_map_allowed_hosts" in user_mods:
-            config["csv_id_to_node_id_map_allowed_hosts"] = user_mods[
-                "csv_id_to_node_id_map_allowed_hosts"
-            ]
-        else:
-            config["csv_id_to_node_id_map_allowed_hosts"] = ["", config["host"]]
         config["current_config_file_path"] = os.path.abspath(self.args.config)
         config["field_text_format_ids"] = self.get_field_level_text_output_formats()
 
@@ -96,11 +84,6 @@ class WorkbenchConfig:
                 config["csv_id_to_node_id_map_dir"],
                 config["csv_id_to_node_id_map_filename"],
             )
-
-        if "path_to_python" in user_mods:
-            config["path_to_python"] = user_mods["path_to_python"]
-        else:
-            config["path_to_python"] = sys.executable
 
         if "page_files_source_dir_field" in user_mods:
             config["page_files_source_dir_field"] = user_mods[
@@ -121,22 +104,8 @@ class WorkbenchConfig:
                 loaded = yaml.load(stream)
             except YAMLError as exc:
                 print(
-                    f"There appears to be a YAML syntax error in your configuration file, {self.args.config}. Remove "
-                    f"the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ "
-                    f"or your YAML validator of choice.\n"
-                    f"(Check 'workbench.log' file for additional error details.)"
+                    f"There appears to be a YAML syntax error in your configuration file, {self.args.config}. Remove the username and\npassword, and run the file through https://codebeautify.org/yaml-validator/ or your YAML validator of choice."
                 )
-                # We are using logging.basicConfig() here to set a temporary logger here because this method will
-                # run inside WorkbenchConfig.__init__() before the WorkbenchConfig class logger is configured.
-                # Also by using the logger we don't have to output the YAML parsing errors to the CLI
-                logging.basicConfig(
-                    filename="workbench.log",
-                    format="%(asctime)s - %(levelname)s - %(message)s",
-                    datefmt="%d-%b-%y %H:%M:%S",
-                )
-                yaml_error = f"\nYAML parsing error in configuration file\nException type: {type(exc).__name__}\n{exc}"
-                logging.error(yaml_error)
-
                 sys.exit()
 
         # 'media_file_fields' has been replaced with 'media_fields' and 'media_type_file_fields'.
@@ -236,7 +205,6 @@ class WorkbenchConfig:
             "perform_soft_checks": False,
             "update_mode": "replace",
             "max_node_title_length": 255,
-            "max_image_alt_text_length": 255,
             "paged_content_from_directories": False,
             "delete_media_with_nodes": True,
             "allow_adding_terms": False,
@@ -254,10 +222,6 @@ class WorkbenchConfig:
             "log_term_creation": True,
             "log_file_name_and_line_number": False,
             "progress_bar": False,
-            "show_percentage_of_csv_input_processed": False,
-            "prompt_user_before_delete_task": False,
-            "run_scripts_threads": 1,
-            "run_scripts_log_script_output": True,
             "user_agent": "Islandora Workbench",
             "allow_redirects": True,
             "secure_ssl_only": True,
@@ -282,7 +246,6 @@ class WorkbenchConfig:
             "fixity_algorithm": None,
             "validate_fixity_during_check": False,
             "output_csv_include_input_csv": False,
-            "export_file_url_instead_of_download": False,
             "timestamp_rollback": False,
             "rollback_dir": None,
             "rollback_file_include_node_info": False,
@@ -320,6 +283,7 @@ class WorkbenchConfig:
             "require_entity_reference_views": True,
             "csv_start_row": 0,
             "csv_stop_row": None,
+            "path_to_python": "python",
             "path_to_workbench_script": os.path.join(os.getcwd(), "workbench"),
             "oembed_providers": self.get_oembed_media_types(),
             "contact_sheet_output_dir": "contact_sheet_output",
@@ -343,11 +307,8 @@ class WorkbenchConfig:
             "media_type_by_media_use": False,
             "paged_content_ignore_files": ["Thumbs.db"],
             "include_password_in_rollback_config_file": False,
-            "remove_password_from_config_file": False,
             "recovery_mode_starting_from_node_id": False,
-            "viewer_override_fieldname": "field_viewer_override",
-            "check_for_workbench_updates": True,
-            "file_systems": ("public", "private"),
+            "file_systems": ('public', 'private'),
         }
 
     # Tests validity and existence of configuration file path.

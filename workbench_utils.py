@@ -1,35 +1,39 @@
 """Utility functions for Islandora Workbench."""
 
-import collections
-import copy
-import csv
-import datetime
-import hashlib
-import http.client
-import itertools
-import json
-import mimetypes
-import random
-import re
-import shutil
-import sqlite3
-import string
-import subprocess
+import os
 import sys
-import time
-import urllib.parse
-import uuid
-import zipfile
-from pathlib import Path
-
-import edtf_validate.valid_edtf
+import json
+from json.decoder import JSONDecodeError
+import csv
 import openpyxl
-import requests_cache
+import time
+import string
+import re
+import copy
+import logging
+import random
+import uuid
+import datetime
+import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-from rich.traceback import install
-from ruamel.yaml import YAML
+import subprocess
+import hashlib
+import mimetypes
+import collections
+import urllib.parse
+from pathlib import Path
+from ruamel.yaml import YAML, YAMLError
 from unidecode import unidecode
+from progress_bar import InitBar
+import edtf_validate.valid_edtf
+import shutil
+import itertools
+import http.client
+import sqlite3
+import zipfile
+import requests_cache
+from rich.traceback import install
 
 install()
 
@@ -309,7 +313,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    log_json(json)
+                    logging.info(json)
                 response = session.post(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -324,7 +328,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    log_json(json)
+                    logging.info(json)
                 response = session.put(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -339,7 +343,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    log_json(json)
+                    logging.info(json)
                 response = session.patch(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -1899,13 +1903,12 @@ def check_input(config, args):
         "create_redirects",
         "add_alt_text",
         "update_alt_text",
-        "run_scripts",
     ]
     joiner = ", "
     if config["task"] not in tasks:
         message = (
             '"task" in your configuration file must be one of "create", "update", "delete", "add_alt_text", "update_alt_text", '
-            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", "create_redirects", or "run_scripts".'
+            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", or "create_redirects".'
         )
         logging.error(message)
         sys.exit("Error: " + message)
@@ -1915,17 +1918,9 @@ def check_input(config, args):
 
     if config["task"] in ["create", "create_from_files"]:
         if config["csv_id_to_node_id_map_dir"] == config["temp_dir"]:
-            message = f'You should set your "csv_id_to_node_id_map_dir" config setting to a location other than your system\'s temporary directory ("{config["temp_dir"]}").'
-            # print("Warning: " + message)
+            message = f'You should set your "csv_id_to_node_id_map_dir" config setting to a location other than your system\'s temporary directory.'
+            print("Warning: " + message)
             logging.warning(message)
-
-        if is_running_in_docker() is True:
-            docker_message = (
-                "It appears you are running Workbench within a Docker container. Please ensure that your CSV ID to node ID map "
-                + "config setting defines a location accessible outside of the Docker container; otherwise, it might be deleted when you destroy or rebuild your Docker image."
-            )
-            print("Warning: " + docker_message)
-            logging.warning(docker_message)
         if (
             config["recovery_mode_starting_from_node_id"] is not False
             and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
@@ -1956,7 +1951,6 @@ def check_input(config, args):
             csv_to_node_id_map_path = config["csv_id_to_node_id_map_path"]
             current_host = config["host"]
 
-            prepare_csv_id_to_node_id_map(config)
             check_for_host_column_result = sqlite_manager(
                 config,
                 operation="select",
@@ -2269,19 +2263,11 @@ def check_input(config, args):
             os.remove(csv_file_path)
 
         # If nothing has failed by now, exit with a positive, upbeat message.
-        if config["perform_soft_checks"] is True:
-            always_review_log_message = ""
-        else:
-            always_review_log_message = (
-                " However, you should review your Workbench log after running --check."
-            )
-        config_and_data_appear_to_be_valid_message = f"Configuration and input data appear to be valid.{always_review_log_message}"
-        print(config_and_data_appear_to_be_valid_message)
+        print("Configuration and input data appear to be valid.")
         if config["perform_soft_checks"] is True:
             print(
                 'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
             )
-
         logging.info(
             'Configuration checked for "%s" task using config file "%s", no problems found.',
             config["task"],
@@ -2841,61 +2827,44 @@ def check_input(config, args):
             config["validate_fixity_during_check"] is True
             and config["fixity_algorithm"] is not None
         ):
-            field_and_checksum_in_csv = False
-            fixity_message = "Performing local checksum validation."
-            logging.info(fixity_message)
-            print(fixity_message + " This might take some time.")
-            validate_checksums_csv_data = get_csv_data(config)
-            if config["task"] == "add_media":
-                row_id = "node_id"
-            else:
-                row_id = config["id_field"]
-            checksum_validation_all_ok = True
-            for checksum_validation_row_count, checksum_validation_row in enumerate(
-                validate_checksums_csv_data, start=1
-            ):
-                file_name = checksum_validation_row["file"]
-                if (
-                    "file" in checksum_validation_row
-                    and "checksum" in checksum_validation_row
+            print("Performing local checksum validation. This might take some time.")
+            if "file" in csv_column_headers and "checksum" in csv_column_headers:
+                # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+                validate_checksums_csv_data = get_csv_data(config)
+                if config["task"] == "add_media":
+                    row_id = "node_id"
+                else:
+                    row_id = config["id_field"]
+                checksum_validation_all_ok = True
+                for checksum_validation_row_count, checksum_validation_row in enumerate(
+                    validate_checksums_csv_data, start=1
                 ):
-                    field_and_checksum_in_csv = True
-                    if (
-                        file_name.lower().startswith("http") is False
-                        and check_file_exists(config, file_name) is True
-                    ):
-                        if os.path.isabs(file_name):
-                            file_path = file_name
+                    file_path = checksum_validation_row["file"]
+                    hash_from_local = get_file_hash_from_local(
+                        config, file_path, config["fixity_algorithm"]
+                    )
+                    if "checksum" in checksum_validation_row:
+                        if (
+                            hash_from_local
+                            == checksum_validation_row["checksum"].strip()
+                        ):
+                            logging.info(
+                                'Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.',
+                                config["fixity_algorithm"],
+                                file_path,
+                                hash_from_local,
+                            )
                         else:
-                            file_path = os.path.join(config["input_dir"], file_name)
-                        hash_from_local = get_file_hash_from_local(
-                            config, file_path, config["fixity_algorithm"]
-                        )
-                        if hash_from_local is False:
-                            continue
-                        if "checksum" in checksum_validation_row:
-                            if (
-                                hash_from_local
-                                == checksum_validation_row["checksum"].strip()
-                            ):
-                                logging.info(
-                                    'Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.',
-                                    config["fixity_algorithm"],
-                                    file_path,
-                                    hash_from_local,
-                                )
-                            else:
-                                checksum_validation_all_ok = False
-                                logging.warning(
-                                    'Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
-                                    config["fixity_algorithm"],
-                                    file_path,
-                                    checksum_validation_row[row_id],
-                                    hash_from_local,
-                                    checksum_validation_row["checksum"],
-                                )
+                            checksum_validation_all_ok = False
+                            logging.warning(
+                                'Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
+                                config["fixity_algorithm"],
+                                file_path,
+                                checksum_validation_row[row_id],
+                                hash_from_local,
+                                checksum_validation_row["checksum"],
+                            )
 
-            if field_and_checksum_in_csv is True:
                 if checksum_validation_all_ok is True:
                     checksum_validation_message = (
                         "OK, checksum validation during complete. All checks pass."
@@ -2910,10 +2879,6 @@ def check_input(config, args):
                         + checksum_validation_message
                         + " See the log for more detail."
                     )
-            else:
-                checksum_validation_message = 'Could not validate checksums because the input CSV did not contain both "field" and "checksum" columns.'
-                print("Warning: " + checksum_validation_message)
-                logging.warning(checksum_validation_message)
 
     if config["task"] == "create_terms":
         # Check that all required fields are present in the CSV.
@@ -3481,79 +3446,89 @@ def check_input(config, args):
                     logging.warning(message)
 
                 # Check for files that cannot be found.
-            if (
-                config["task"] in ("create", "add_media", "update_media")
-                and "file" in csv_column_headers
-                and not config["nodes_only"]
-                and not config["paged_content_from_directories"]
-            ):
-                # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
-                if config["task"] == "add_media":
-                    config["id_field"] = "node_id"
-                elif config["task"] == "update_media":
-                    config["id_field"] = "media_id"
-
-                file_check_csv_data = get_csv_data(config)
-
-                for count, row in enumerate(file_check_csv_data, start=1):
-                    file_path = row["file"].strip()
-                    row["file"] = file_path
-                    row_id = row[config["id_field"]]
-
-                    if not file_path:
-                        logging.warning(
-                            f'CSV row with ID {row_id} contains an empty "file" value.'
-                        )
-                        continue
-
-                    file_exists = False
-                    # Local file check (absolute or relative)
-                    if not file_path.startswith(("http",) + config["file_systems"]):
-                        full_path = (
-                            file_path
-                            if os.path.isabs(file_path)
-                            else os.path.join(config["input_dir"], file_path)
-                        )
-                        file_exists = os.path.exists(full_path) and os.path.isfile(
-                            full_path
-                        )
-
-                    # Drupal file system check
-                    elif file_path.startswith(config["file_systems"]):
-                        full_path = file_path  # for consistent error messages
-                        file_exists = check_file_exists(config, file_path)
-
-                    # Remote file check
+                if (
+                    not file_check_row["file"].startswith("http")
+                    and len(file_check_row["file"].strip()) > 0
+                ):
+                    if os.path.isabs(file_check_row["file"]):
+                        file_path = file_check_row["file"]
                     else:
-                        http_response_code = ping_remote_file(config, file_path)
-                        if (
-                            http_response_code != 200
-                            and http_response_code is not False
-                        ):
-                            message = (
-                                f'Remote file "{file_path}" identified in CSV "file" column for row with ID "{row_id}" '
-                                f"not found or not accessible (HTTP response code {http_response_code})."
-                            )
+                        file_path = os.path.join(
+                            config["input_dir"], file_check_row["file"]
+                        )
+                    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                        message = (
+                            'File "'
+                            + file_path
+                            + '" identified in CSV "file" column for row with ID "'
+                            + file_check_row[config["id_field"]]
+                            + '" not found.'
+                        )
+                        if config["allow_missing_files"] is False:
+                            logging.error(message)
+                            if config["perform_soft_checks"] is False:
+                                sys.exit("Error: " + message)
+                            else:
+                                if (
+                                    file_check_row[config["id_field"]]
+                                    not in rows_with_missing_files
+                                    and len(file_check_row["file"].strip()) > 0
+                                ):
+                                    rows_with_missing_files.append(
+                                        file_check_row[config["id_field"]]
+                                    )
+                        else:
                             logging.error(message)
                             if (
-                                not config["allow_missing_files"]
-                                and not config["perform_soft_checks"]
+                                file_check_row[config["id_field"]]
+                                not in rows_with_missing_files
+                                and len(file_check_row["file"].strip()) > 0
                             ):
-                                sys.exit("Error: " + message)
-                            if row_id not in rows_with_missing_files:
-                                rows_with_missing_files.append(row_id)
-                        continue
-
-                    if not file_exists:
-                        message = f'File "{full_path}" identified in CSV "file" column for row with ID "{row_id}" not found.'
-                        logging.error(message)
+                                rows_with_missing_files.append(
+                                    file_check_row[config["id_field"]]
+                                )
+                # Remote files.
+                else:
+                    if len(file_check_row["file"].strip()) > 0:
+                        http_response_code = ping_remote_file(
+                            config, file_check_row["file"]
+                        )
                         if (
-                            not config["allow_missing_files"]
-                            and not config["perform_soft_checks"]
+                            http_response_code != 200
+                            or ping_remote_file(config, file_check_row["file"]) is False
                         ):
-                            sys.exit("Error: " + message)
-                        if row_id not in rows_with_missing_files:
-                            rows_with_missing_files.append(row_id)
+                            message = (
+                                'Remote file "'
+                                + file_check_row["file"]
+                                + '" identified in CSV "file" column for row with ID "'
+                                + file_check_row[config["id_field"]]
+                                + '" not found or not accessible (HTTP response code '
+                                + str(http_response_code)
+                                + ")."
+                            )
+                            if config["allow_missing_files"] is False:
+                                logging.error(message)
+                                if config["perform_soft_checks"] is False:
+                                    sys.exit("Error: " + message)
+                                else:
+                                    if (
+                                        file_check_row[config["id_field"]]
+                                        not in rows_with_missing_files
+                                        and len(file_check_row["file"].strip()) > 0
+                                    ):
+                                        rows_with_missing_files.append(
+                                            file_check_row[config["id_field"]]
+                                        )
+                            else:
+                                logging.error(message)
+                                if (
+                                    file_check_row[config["id_field"]]
+                                    not in rows_with_missing_files
+                                    and len(file_check_row["file"].strip()) > 0
+                                ):
+                                    rows_with_missing_files.append(
+                                        file_check_row[config["id_field"]]
+                                    )
 
             # @todo for issue 268: All accumulator variables like 'rows_with_missing_files' should be checked at end of
             # check_input() (to work with perform_soft_checks: True) in addition to at place of check (to work wit perform_soft_checks: False).
@@ -3913,13 +3888,9 @@ def check_input(config, args):
                 if os.path.isdir(os.path.join(dir_path, page_file_name)):
                     continue
 
-                if paged_content_ignore_file(config, page_file_name) is True:
-                    logging.info(
-                        f'Ignoring file "{os.path.join(dir_path, page_file_name)}" since it matches an entry in the "paged_content_ignore_files" config setting.'
-                    )
-                    continue
-
-                if paged_content_ignore_file(config, page_file_name) is False:
+                if page_file_name.strip().lower() not in [
+                    fn.strip().lower() for fn in config["paged_content_ignore_files"]
+                ]:
                     if config["paged_content_sequence_separator"] not in page_file_name:
                         message = (
                             "Page file "
@@ -3935,11 +3906,10 @@ def check_input(config, args):
                     config, page_file_name
                 )
                 if validate_weight_value(page_sequence_indicator) is False:
-                    if paged_content_ignore_file(config, page_file_name) is False:
-                        logging.warning(
-                            f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
-                        )
-                        paged_content_sequence_indicator_warnings = True
+                    logging.warning(
+                        f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
+                    )
+                    paged_content_sequence_indicator_warnings = True
 
             # Check additional page media files (e.g. OCR andhOCR files) for utf8 encoding.
             additional_page_media_no_utf8_warnings = list()
@@ -4165,106 +4135,8 @@ def check_input(config, args):
             logging.info(message)
             print(message)
 
-    # Checks for "run_scripts" task.
-    if config["task"] == "run_scripts":
-        run_scripts_check_csv_data = get_csv_data(config)
-        csv_column_headers = run_scripts_check_csv_data.fieldnames
-        if "run_scripts_entity_type" not in config:
-            message = 'Required "run_scripts_entity_type" setting not in config file.'
-            logging.error(message)
-            sys.exit("Error: " + message)
-        if config["run_scripts_entity_type"] not in ["node", "media", "term"]:
-            message = 'Required "run_scripts_entity_type" setting must be on of "node", "media" or "term".'
-            logging.error(message)
-            sys.exit("Error: " + message)
-
-        if (
-            config["run_scripts_entity_type"] == "node"
-            and "node_id" not in csv_column_headers
-        ):
-            message = 'run_scripts tasks for nodes require a "node_id" column in the intput CSV.'
-            logging.error(message)
-            sys.exit("Error: " + message)
-        if (
-            config["run_scripts_entity_type"] == "media"
-            and "media_id" not in csv_column_headers
-        ):
-            message = 'run_scripts tasks for media require a "media_id" column in the intput CSV.'
-            logging.error(message)
-            sys.exit("Error: " + message)
-        if (
-            config["run_scripts_entity_type"] == "term"
-            and "term_id" not in csv_column_headers
-        ):
-            message = 'run_scripts tasks for taxonomy terms a require a "term_id" column in the intput CSV.'
-            logging.error(message)
-            sys.exit("Error: " + message)
-
-        if "run_scripts" not in config:
-            message = 'Required "run_scripts" setting not in config file.'
-            logging.error(message)
-            sys.exit("Error: " + message)
-        if "run_scripts" in config and len(config["run_scripts"]) == 0:
-            message = 'Required "run_scripts" setting is in config file but does contain any scripts.'
-            logging.error(message)
-            sys.exit("Error: " + message)
-
-        for script_to_run in config["run_scripts"]:
-            if " " in script_to_run:
-                interpeter, script_to_run = script_to_run.split(" ")
-            if not os.path.exists(script_to_run):
-                message = "Script " + script_to_run + " not found."
-                logging.error(message)
-                sys.exit("Error: " + message)
-            if os.access(script_to_run, os.X_OK) is False:
-                message = "Script " + script_to_run + " is not executable."
-                logging.error(message)
-                sys.exit("Error: " + message)
-
-        message = "OK, registered scripts to run found and executable."
-        logging.info(message)
-        print(message)
-
-        # Ping each entity.
-        entities_found = True
-        if config["run_scripts_entity_type"] == "node":
-            for row in run_scripts_check_csv_data:
-                if ping_node(config, row["node_id"], warn=False) is False:
-                    logging.warning(f'Node ID {row["node_id"]} not found.')
-                    entities_found = False
-        if config["run_scripts_entity_type"] == "media":
-            for row in run_scripts_check_csv_data:
-                if ping_media(config, row["media_id"], warn=False) is False:
-                    logging.warning(f'Media ID {row["media_id"]} not found.')
-                    entities_found = False
-        if config["run_scripts_entity_type"] == "term":
-            for row in run_scripts_check_csv_data:
-                if ping_term(config, row["term_id"]) is False:
-                    logging.warning(f'Term ID {row["term_id"]} not found.')
-                    entities_found = False
-
-        if entities_found == True:
-            logging.info("All entities listed in input CSV found.")
-            print("OK, all entities listed in input CSV found.")
-        else:
-            message = "Some entities listed in input CSV not found; please see your Workbench log for more detail."
-            print("Warning: " + message)
-
     # If nothing has failed by now, exit with a positive, upbeat message.
-    if config["perform_soft_checks"] is True:
-        always_review_log_message = ""
-    else:
-        always_review_log_message = (
-            " However, you should review your Workbench log after running --check."
-        )
-    config_and_data_appear_to_be_valid_message = (
-        f"Configuration and input data appear to be valid.{always_review_log_message}"
-    )
-    print(config_and_data_appear_to_be_valid_message)
-    if config["perform_soft_checks"] is True:
-        print(
-            'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
-        )
+    print("Configuration and input data appear to be valid.")
     logging.info(
         'Configuration checked for "%s" task using config file "%s", no problems found.',
         config["task"],
@@ -4469,20 +4341,7 @@ def check_input_for_create_from_files(config, args):
         sys.exit("Error: " + message)
 
     # If nothing has failed by now, exit with a positive message.
-    if config["perform_soft_checks"] is True:
-        always_review_log_message = ""
-    else:
-        always_review_log_message = (
-            " However, you should review your Workbench log after running --check."
-        )
-    config_and_data_appear_to_be_valid_message = (
-        f"Configuration and input data appear to be valid.{always_review_log_message}"
-    )
-    print(config_and_data_appear_to_be_valid_message)
-    if config["perform_soft_checks"] is True:
-        print(
-            'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
-        )
+    print("Configuration and input data appear to be valid.")
     logging.info(
         'Configuration checked for "%s" task using config file %s, no problems found.',
         config["task"],
@@ -5184,52 +5043,30 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
     is passed the field subdelimiter as defined in the config YAML and the field's value, and
     prints a modified vesion of the value (result) back to this function.
     """
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, subdelimiter, field_value], stdout=subprocess.PIPE
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
-        )
+    cmd = subprocess.Popen(
+        [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
+    )
     result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
 
     return result, cmd.returncode
 
 
 def execute_bootstrap_script(path_to_script, path_to_config_file):
     """Executes a bootstrap script and returns its output and exit status code."""
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, path_to_config_file], stdout=subprocess.PIPE
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file], stdout=subprocess.PIPE
-        )
+    cmd = subprocess.Popen(
+        [path_to_script, path_to_config_file], stdout=subprocess.PIPE
+    )
     result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
 
     return result, cmd.returncode
 
 
 def execute_shutdown_script(path_to_script, path_to_config_file):
     """Executes a shutdown script and returns its output and exit status code."""
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, path_to_config_file], stdout=subprocess.PIPE
-        )
-
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file], stdout=subprocess.PIPE
-        )
+    cmd = subprocess.Popen(
+        [path_to_script, path_to_config_file], stdout=subprocess.PIPE
+    )
     result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5238,46 +5075,11 @@ def execute_entity_post_task_script(
     path_to_script, path_to_config_file, http_response_code, entity_json=""
 ):
     """Executes a entity-level post-task script and returns its output and exit status code."""
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [
-                interpeter,
-                script,
-                path_to_config_file,
-                str(http_response_code),
-                entity_json,
-            ],
-            stdout=subprocess.PIPE,
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file, str(http_response_code), entity_json],
-            stdout=subprocess.PIPE,
-        )
-
+    cmd = subprocess.Popen(
+        [path_to_script, path_to_config_file, str(http_response_code), entity_json],
+        stdout=subprocess.PIPE,
+    )
     result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
-
-    return result, cmd.returncode
-
-
-def execute_script_to_run(config, path_to_script, entity_id):
-    """Executes a entity-level script and returns its output and exit status code."""
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, config["config_file_path"], str(entity_id)],
-            stdout=subprocess.PIPE,
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, config["config_file_path"], str(entity_id)],
-            stdout=subprocess.PIPE,
-        )
-
-    result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5391,7 +5193,7 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
             config,
             "POST",
             "/api/server-file",
-            {"Content-Type": "application/json", "XDEBUG-TRIGGER": "XDEBUG_SESSION"},
+            {"Content-Type": "application/json"},
             {"path": filename, "retval": "fid"},
         )
         if details.ok:
@@ -5606,6 +5408,7 @@ def create_media(
 
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
+    import workbench_fields
 
     if value_is_numeric(node_id) is False:
         node_id = get_nid_from_url_alias(config, node_id)
@@ -9185,6 +8988,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     """
     # Importing the workbench_fields module at the top of this module with the
     # rest of the imports causes a circular import exception, so we do it here.
+    import workbench_fields
 
     if config["task"] == "create_from_files":
         config["id_field"] = "ID"
@@ -9340,10 +9144,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     required_fields = get_required_bundle_fields(config, "node", config["content_type"])
 
     for page_file_name in page_files:
-        if paged_content_ignore_file(config, page_file_name) is True:
-            logging.info(
-                f'Ignoring file "{os.path.join(page_dir_path, page_file_name)}" since it matches an entry in the "paged_content_ignore_files" config setting.'
-            )
+        if page_file_name.strip().lower() in [
+            fn.strip().lower() for fn in config["paged_content_ignore_files"]
+        ]:
             continue
 
         # Only want files, not directories.
@@ -9379,12 +9182,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         csv_row_to_apply_to_paged_children = copy.deepcopy(parent_csv_record)
         csv_row_to_apply_to_paged_children["file"] = page_file_name
         if validate_weight_value(weight) is False:
-            if paged_content_ignore_file(config, page_file_name) is False:
-                logging.warning(
-                    f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
-                )
-                weight = ""
-
+            logging.warning(
+                f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
+            )
+            weight = ""
         csv_row_to_apply_to_paged_children["field_weight"] = weight
 
         # Add any fields to the page's row that are defined in config["csv_value_templates_for_paged_content"].
@@ -10277,32 +10078,25 @@ def get_deduped_file_path(path):
     return incremented_path
 
 
-import os
-import logging
-import requests
-
-
 def check_file_exists(config, filename):
+    """Cconfirms file exists and is a file (not a directory).
+    For remote/downloaded files, checks for a 200 response from a HEAD request.
+
+    Does not check whether filename value is blank.
     """
-    Confirms whether a file exists and is a file (not a directory).
-
-    For remote files (URLs), performs a HEAD request and checks for a 200 response.
-    For server-side files, uses an API endpoint to check existence.
-    For local files, checks the filesystem directly.
-
-    Parameters
-    ----------
-    config : dict
-        Configuration settings from workbench_config.get_config().
-    filename : str
-        The file path or URL.
-
-    Returns
-    -------
-    bool
-        True if the file exists, False otherwise.
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        filename: string
+            The filename or path.
+        Returns
+        -------
+        boolean
+            True if the file exists, false if not.
     """
-    # Check server-managed files
+    # If file is supposed to already on the server we'll be notified later if it is missing.
+
     if filename.startswith(config["file_systems"]):
         response = issue_request(
             config,
@@ -10311,40 +10105,58 @@ def check_file_exists(config, filename):
             {"Content-Type": "application/json"},
             {"path": filename, "retval": "checkfile"},
         )
-        data = json.loads(response.content.decode("utf-8"))
-        message = data.get("message")
-        if message:
-            logging.error(message)
-            sys.exit("Error: " + message)
+        return response.status_code == 200
 
-        return data.get("existence") == "True"
-
-    # Check remote (HTTP/S) files
+    # It's a remote file.
     if filename.startswith("http"):
         try:
             headers = {"User-Agent": config["user_agent"]}
-            response = requests.head(
+
+            head_response = requests.head(
                 filename,
                 allow_redirects=True,
                 verify=config["secure_ssl_only"],
                 headers=headers,
             )
-            return response.status_code == 200
-        except requests.exceptions.Timeout as e:
-            logging.error(f"Timeout reaching {filename}. Details below:")
-            logging.error(e)
-        except requests.exceptions.ConnectionError as e:
-            logging.error(f"Connection error reaching {filename}. Details below:")
-            logging.error(e)
-        return False
+            if head_response.status_code == 200:
+                return True
+            else:
+                return False
+        except requests.exceptions.Timeout as err_timeout:
+            message = (
+                "Workbench timed out trying to reach "
+                + filename
+                + ". Details in next log entry."
+            )
+            logging.error(message)
+            logging.error(err_timeout)
+            return False
+        except requests.exceptions.ConnectionError as error_connection:
+            message = (
+                "Workbench cannot connect to "
+                + filename
+                + ". Details in next log entry."
+            )
+            logging.error(message)
+            logging.error(error_connection)
+            return False
+    # It's a local file.
+    else:
+        if os.path.isabs(filename):
+            file_path = filename
+        else:
+            file_path = os.path.join(config["input_dir"], filename)
 
-    # Check local files
-    file_path = (
-        filename
-        if os.path.isabs(filename)
-        else os.path.join(config["input_dir"], filename)
+        if os.path.isfile(file_path):
+            return True
+        else:
+            return False
+
+    # Fall back to False if existence of file can't be determined.
+    logging.warning(
+        f'Cannot determine if file "{filename}" exists, assuming it does not.'
     )
-    return os.path.isfile(file_path)
+    return False
 
 
 def get_preprocessed_file_path(
@@ -10644,11 +10456,6 @@ def get_csv_id_to_node_id_map_allowed_hosts_sql(config):
     """
     allowed_hosts = copy.copy(config["csv_id_to_node_id_map_allowed_hosts"])
     if len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0:
-        # Since the user needs to add the current host to this list, we need to make sure it doesn't
-        # contain any trailing / or path information. Assums the protocol (e.g. https) is the same.
-        for i in range(len(allowed_hosts)):
-            if allowed_hosts[i].startswith(config["host"]):
-                allowed_hosts[i] = config["host"]
         # "" represents an empty host value.
         if "" in config["csv_id_to_node_id_map_allowed_hosts"]:
             allowed_hosts.remove("")
@@ -10921,13 +10728,13 @@ def get_file_hash_from_local(config, file_path, algorithm):
         config : dict
             The configuration settings defined by workbench_config.get_config().
         file_path : string
-            The file's absolute path.
+            The file's path.
         algorithm : string
             One of 'md5', 'sha1', or 'sha256'
         Returns
         -------
-        string|bool
-            The requested hash, False if the file doesn't exist.
+        string
+            The requested hash.
     """
     if algorithm == "md5":
         hash_object = hashlib.md5()
@@ -10936,18 +10743,14 @@ def get_file_hash_from_local(config, file_path, algorithm):
     if algorithm == "sha256":
         hash_object = hashlib.sha256()
 
-    try:
-        with open(file_path, "rb") as file:
-            while True:
-                chunk = file.read(hash_object.block_size)
-                if not chunk:
-                    break
-                hash_object.update(chunk)
+    with open(file_path, "rb") as file:
+        while True:
+            chunk = file.read(hash_object.block_size)
+            if not chunk:
+                break
+            hash_object.update(chunk)
 
-        return hash_object.hexdigest()
-    except Exception as e:
-        logging.error(f"Could not get hash for file {file_path}: {e}")
-        return False
+    return hash_object.hexdigest()
 
 
 def create_temp_dir(config):
@@ -11710,8 +11513,8 @@ def create_contact_sheet_thumbnail(config, source_filename):
 
     # todo: get these from config['media_types']
     pdf_extensions = [".pdf"]
-    video_extensions = [".mp4", ".mov", ".avi"]
-    audio_extensions = [".mp3", ".wav", ".aac"]
+    video_extensions = [".mp4"]
+    audio_extensions = [".mp3"]
     image_extensions = [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".jp2"]
 
     source_file_name, source_file_extension = os.path.splitext(source_filename)
@@ -12475,7 +12278,6 @@ def download_remote_archive_file(config, remote_archive_url):
 def unzip_archive(config, archive_file_path):
     if archive_file_path is False:
         return None
-
     if os.path.exists(archive_file_path):
         if zipfile.is_zipfile(archive_file_path) is True:
             with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
@@ -12484,18 +12286,14 @@ def unzip_archive(config, archive_file_path):
                 print("OK, " + message)
                 logging.info(message)
 
-            if (
-                archive_file_path.lower().startswith("http")
-                and config["delete_zip_archive_after_extraction"] is True
-            ):
-                if config["check"] is False:
-                    try:
-                        os.remove(archive_file_path)
-                        logging.info(f'Zip archive "{archive_file_path}" deleted."')
-                    except Exception as e:
-                        logging.error(
-                            f'Could not remove input archive file "{archive_file_path}": {e}.'
-                        )
+            if config["delete_zip_archive_after_extraction"] is True:
+                try:
+                    os.remove(archive_file_path)
+                    logging.info(f'Zip archive "{archive_file_path}" deleted."')
+                except Exception as e:
+                    logging.error(
+                        f'Could not remove input archive file "{archive_file_path}": {e}.'
+                    )
         else:
             message = f'"{archive_file_path}" does not appear to be a valid Zip file.'
             logging.error(message)
@@ -12516,76 +12314,43 @@ def prompt_user(config):
             sys.exit("Exiting at user prompts.")
 
 
-def log_json(source_data):
-    """If config setting log_json is true, logs the JSON used in a HTTP request.
-
-    Params
-    ----------
-        source_data : dict
-            The data to be used in the request body.
-    Return
-    ------
-        None
-    """
-    try:
-        json_to_log = json.dumps(source_data)
-        logging.info(json_to_log)
-    except Exception as e:
-        logging.warning(e)
-        logging.warning(
-            f"Can't convert data to JSON, logging it instead. More info may be available in the previous log message. Data is: {source_data}"
-        )
-
-
 def check_for_workbench_updates(config):
     if config["check_for_workbench_updates"] is False:
         return
 
     # Get current local branch name.
-    try:
-        git_branch_cmd = ["git", "branch", "--show-current"]
-        current_branch_name = subprocess.check_output(git_branch_cmd)
-        current_branch_name = current_branch_name.decode().strip()
-        if current_branch_name != "main":
-            message = f'Workbench cannot check when your local "main" Git branch was last updated, since you are currently in the "{current_branch_name}" branch.'
-            logging.warning(message)
-            return
-    except Exception as e:
-        logging.error(f"Could not get current git branch name: {e}")
+    git_branch_cmd = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+    current_branch_name = subprocess.check_output(git_branch_cmd)
+    current_branch_name = current_branch_name.decode().strip()
+    if current_branch_name != "main":
+        message = f'Workbench cannot check when your local "main" Git branch was last updated, since you are currently in the "{current_branch_name}" branch.'
+        logging.warning(message)
         return
 
     # Get last 30 commits in local branch. We use 30 because that's that page size of the Github API commits endpoint.
-    try:
-        git_log_cmd = [
-            "git",
-            "log",
-            "--pretty=format:%h,%cd",
-            "--date=format:%Y-%m-%d",
-            "-30",
-        ]
-        git_log_cmd_output = subprocess.check_output(git_log_cmd)
-        git_log_output = git_log_cmd_output.decode().strip()
-        git_log_output_lines = git_log_output.splitlines()
-        latest_git_log_entry = git_log_output_lines[0]
-        latest_local_commit, latest_local_commit_date = latest_git_log_entry.split(",")
-    except Exception as e:
-        logging.error(f"Could not get local git log entries: {e}")
-        return
+    git_log_cmd = [
+        "git",
+        "log",
+        "--pretty=format:%h,%cd",
+        "--date=format:%Y-%m-%d",
+        "-30",
+    ]
+    git_log_cmd_output = subprocess.check_output(git_log_cmd)
+    git_log_output = git_log_cmd_output.decode().strip()
+    git_log_output_lines = git_log_output.splitlines()
+    latest_git_log_entry = git_log_output_lines[0]
+    latest_local_commit, latest_local_commit_date = latest_git_log_entry.split(",")
 
     # Get the last 30 commits from the main branch in Github.
-    try:
-        github_main_commits_url = (
-            "https://api.github.com/repos/mjordan/islandora_workbench/commits"
-        )
-        github_main_commits_response = requests.get(github_main_commits_url)
-        github_main_commits_list = json.loads(github_main_commits_response.content)
-        remote_main_branch_commits = list()
-        for c in github_main_commits_list:
-            short_sha = c["sha"][:7]
-            remote_main_branch_commits.append(short_sha)
-    except Exception as e:
-        logging.error(f"Could not get remote main branch commits from Github: {e}")
-        return
+    github_main_commits_url = (
+        "https://api.github.com/repos/mjordan/islandora_workbench/commits"
+    )
+    github_main_commits_response = requests.get(github_main_commits_url)
+    github_main_commits_list = json.loads(github_main_commits_response.content)
+    remote_main_branch_commits = list()
+    for c in github_main_commits_list:
+        short_sha = c["sha"][:7]
+        remote_main_branch_commits.append(short_sha)
 
     # Get the position of the latest local commit in the remote list of commits,
     # and construct corresponding output for the user and the log.
@@ -12595,91 +12360,21 @@ def check_for_workbench_updates(config):
         )
         if latest_local_commit_position_in_remote_main_branch_commits > 0:
             # Get date of most recent remote commit and include it in the message.
-            try:
-                github_main_latest_commit_url = f"https://api.github.com/repos/mjordan/islandora_workbench/commits/{remote_main_branch_commits[0]}"
-                github_main_latest_commit_response = requests.get(
-                    github_main_latest_commit_url
-                )
-
-                github_main_latest_commit = json.loads(
-                    github_main_latest_commit_response.content
-                )
-                github_main_latest_commit_date = github_main_latest_commit["commit"][
-                    "author"
-                ]["date"].split("T", 1)[0]
-                message = f'Your version of Workbench is {latest_local_commit_position_in_remote_main_branch_commits} commits behind the "main" branch in Github, which was last updated {github_main_latest_commit_date}.'
-                logging.warning(message)
-            except Exception as e:
-                logging.error(
-                    f"Could not get information on most recent commit in remote main branch from Github: {e}"
-                )
-                return
+            github_main_latest_commit_url = f"https://api.github.com/repos/mjordan/islandora_workbench/commits/{remote_main_branch_commits[0]}"
+            github_main_latest_commit_response = requests.get(
+                github_main_latest_commit_url
+            )
+            github_main_latest_commit = json.loads(
+                github_main_latest_commit_response.content
+            )
+            github_main_latest_commit_date = github_main_latest_commit["commit"][
+                "author"
+            ]["date"].split("T", 1)[0]
+            message = f'Your version of Workbench is {latest_local_commit_position_in_remote_main_branch_commits} commits behind the "main" branch in Github, which was last updated {github_main_latest_commit_date}.'
+            print("Warning: " + message)
+            logging.warning(message)
         else:
             message = "Looks like your copy of Workbench is up to date."
             logging.info(message)
     else:
         message = 'Looks like your copy of Workbench is at least 30 commits behind the "main" branch in Github. Your copy appears to have been last updated {latest_local_commit_date}.'
-
-
-def paged_content_ignore_file(config, filename_to_check):
-    """Checks to see if a given page filename matches an entry in the
-    paged_content_ignore_files config setting.
-    Params
-    ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        filename_to_check : string
-            The filename to check. Is lower-cased and stripped prior to the check.
-    Return
-    ------
-        bool
-            True if the file is to be ignored, False if the file is not be ignored.
-    """
-    # Normalize the incoming filename and paged_content_ignore_files entries.
-    filename_to_check_normalized = filename_to_check.lower().strip()
-    filters = copy.copy(config["paged_content_ignore_files"])
-    for i in range(len(filters)):
-        filters[i] = filters[i].lower()
-        filters[i] = filters[i].strip()
-
-    # * wildcard is the filename (e.g., ["*.db", "*.xml"]), so we can match on the extension with the wildcard filename.
-    # First, get a list of the *. patterns from configuration.
-    filename_is_wildcard_patterns = [fnp for fnp in filters if fnp.startswith("*.")]
-    # Then see if the filename_to_check ends with any of the extensions in those patterns.
-    extension_matches = any(
-        # Get rid of the leading * but keep the period.
-        filename_to_check_normalized.endswith(filename.lstrip("*"))
-        for filename in filename_is_wildcard_patterns
-    )
-    if extension_matches is True:
-        return True
-
-    # * wildcard is the extension (e.g., ["matchme.*", "imamatch.*"]), so we can match on the filename with the wildcard extension.
-    # First, get a list of the .* patterns from configuration.
-    extension_is_wildcard_patterns = [extp for extp in filters if extp.endswith(".*")]
-    # Then see if the filename_to_check starts with any of the filenames in those patterns.
-    filename_matches = any(
-        # Get rid of the trailing * but keep the period.
-        filename_to_check_normalized.startswith(filename.rstrip("*"))
-        for filename in extension_is_wildcard_patterns
-    )
-    if filename_matches is True:
-        return True
-
-    # Whole filenames with extensions.
-    if filename_to_check.strip().lower() in [
-        fn.strip().lower() for fn in config["paged_content_ignore_files"]
-    ]:
-        return True
-
-    return False
-
-
-def is_running_in_docker():
-    """Assumes Dockerfile sets an environment variable ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER.
-    If that environment variable is not present, return False.
-    """
-    if "ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER" in os.environ:
-        return True
-    else:
-        return False
