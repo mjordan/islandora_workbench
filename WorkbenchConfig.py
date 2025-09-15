@@ -1,5 +1,4 @@
-"""Class to encapsulate Workbench configuration definitions.
-"""
+"""Class to encapsulate Workbench configuration definitions."""
 
 import logging
 from ruamel.yaml import YAML, YAMLError
@@ -308,7 +307,7 @@ class WorkbenchConfig:
             "paged_content_ignore_files": ["Thumbs.db"],
             "include_password_in_rollback_config_file": False,
             "recovery_mode_starting_from_node_id": False,
-            "file_systems": ('public', 'private'),
+            "file_systems": ("public", "private"),
         }
 
     # Tests validity and existence of configuration file path.
