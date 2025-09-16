@@ -9506,13 +9506,17 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         )
         if "field_model" in entity_fields:
             if not value_is_numeric(
-                config["paged_content_page_model_tid"].strip()
-            ) and config["paged_content_page_model_tid"].strip().startswith("http"):
+                str(config["paged_content_page_model_tid"]).strip()
+            ) and str(config["paged_content_page_model_tid"]).strip().startswith(
+                "http"
+            ):
                 paged_content_model_tid = get_term_id_from_uri(
-                    config, config["paged_content_page_model_tid"].strip()
+                    config, str(config["paged_content_page_model_tid"]).strip()
                 )
             else:
-                paged_content_model_tid = config["paged_content_page_model_tid"].strip()
+                paged_content_model_tid = str(
+                    config["paged_content_page_model_tid"]
+                ).strip()
             node_json["field_model"] = [
                 {"target_id": paged_content_model_tid, "target_type": "taxonomy_term"}
             ]
