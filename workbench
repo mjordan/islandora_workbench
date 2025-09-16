@@ -3373,6 +3373,20 @@ if len(config["input_data_zip_archives"]) > 0 and config["nodes_only"] is not Tr
         else:
             unzip_archive(config, input_data_zip_archive)
 
+if (
+    config["task"] == "create"
+    or config["task"] == "add_media"
+    or config["task"] == "update_media"
+    or config["task"] == "update_media_by_node"
+):
+    if (
+        config["nodes_only"] is False
+        and config["keep_filename_parent_directory"] is False
+    ):
+        logging.info(
+            "Parent directory names for files will not be used when creating Drupal media, but the directory names will appear in Worbench messages and log entries."
+        )
+
 if "check" in config.keys():
     tasks_to_skip = ["create_from_files", "get_data_from_view"]
     if config["check"] is False and config["task"] not in tasks_to_skip:
