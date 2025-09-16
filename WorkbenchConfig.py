@@ -302,6 +302,7 @@ class WorkbenchConfig:
             "field_for_remote_filename": False,
             "remote_file_cookie_name": "",
             "remote_file_cookie_value": "",
+            "keep_filename_parent_directory": True,
             "field_for_media_title": False,
             "delete_tmp_upload": False,
             "input_data_zip_archives": [],
