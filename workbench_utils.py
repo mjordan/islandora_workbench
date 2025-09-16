@@ -5472,9 +5472,13 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     file_endpoint_path = (
         "/file/upload/media/" + media_type + "/" + media_file_field + "?_format=json"
     )
+    if config["keep_filename_parent_directory"] is True:
+        remote_filename = filename
+    else:
+        remote_filename = os.path.basename(filename)
     file_headers = {
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": 'file; filename="' + filename + '"',
+        "Content-Disposition": 'file; filename="' + remote_filename + '"',
     }
 
     binary_data = open(file_path, "rb")
