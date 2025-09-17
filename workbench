@@ -113,6 +113,8 @@ def create():
 
     row_count = 0
     for row in csv_data:
+        timer_start = time.perf_counter()
+        ot_trace_id = log_row_processing_time(config, "start", row[config["id_field"]])
         row_count += 1
         row_position_message = ""
         if (
@@ -659,6 +661,12 @@ def create():
             if config["paged_content_from_directories"] is True:
                 # Console output and logging are done in the create_children_from_directory() function.
                 create_children_from_directory(config, row_as_parent, node_id)
+
+        timer_stop = time.perf_counter()
+        seconds_for_row = f"{timer_stop - timer_start:0.1f}"
+        log_row_processing_time(
+            config, "stop", row[config["id_field"]], seconds_for_row, ot_trace_id
+        )
 
 
 def update():

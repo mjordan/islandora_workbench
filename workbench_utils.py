@@ -11616,6 +11616,38 @@ def calculate_response_time_trend(config, response_time):
         return average
 
 
+def log_row_processing_time(config, operation, row_id, seconds=None, trace_id=None):
+    """Logs how long it took to process a single input CSV row."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        operation : str
+            One of "start" or "stop".
+        row_id : str
+            The row's ID, as stated in the "id" (or other configured) column.
+        seconds : int
+            The number of elapsed seconds between the start and the stop.
+        trace_id : string
+            The OpenTelemetry trace ID generated when the tracking is started.
+        Returns
+            None
+    """
+    if config["log_input_csv_row_processing_time"] is False:
+        return
+
+    if operation == "start":
+        trace_id = uuid_string = str(uuid.uuid4())
+        logging.info(
+            f'ot_trace_id:{trace_id} Start logging input CSV row "{row_id}" processing time.'
+        )
+        return trace_id
+    if operation == "stop":
+        logging.info(
+            f'ot_trace_id:{trace_id} Stop logging input CSV row "{row_id}" processing time: {seconds} seconds.'
+        )
+
+
 def string_is_ascii(input):
     """Check if a string contains only ASCII characters."""
     """Parameters
