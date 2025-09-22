@@ -22,6 +22,7 @@ import hashlib
 import mimetypes
 import collections
 import urllib.parse
+import tempfile
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from unidecode import unidecode
@@ -47,6 +48,8 @@ http_response_times = []
 # Global lists of terms to reduce queries to Drupal.
 checked_terms = list()
 newly_created_terms = list()
+# Global variable to store session-specific temp file identifier
+_session_temp_identifier = None
 # These are the Drupal field names on the standard types of media.
 file_fields = [
     "field_media_file",
@@ -10112,6 +10115,8 @@ def get_csv_from_google_sheet(config):
         )
         logging.error(message)
         sys.exit("Error: " + message)
+    
+    config_file_id = get_config_file_identifier_shortened(config)
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
@@ -10163,6 +10168,8 @@ def get_csv_from_excel(config):
             if headers[x] is not None and row[x] is not None:
                 record[headers[x]] = row[x].value
         records.append(record)
+    
+    config_file_id = get_config_file_identifier_shortened(config)
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
@@ -10212,6 +10219,8 @@ def get_extracted_csv_file_path(config):
         exported_csv_filename = config["excel_csv_filename"]
     else:
         return False
+    
+    config_file_id = get_config_file_identifier_shortened(config)
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
@@ -11575,12 +11584,21 @@ def get_config_file_identifier(config):
             A string based on the config file's path, with directory slashes and backslashes
             replaced with underscores.
     """
-    split_path = os.path.splitdrive(
-        os.path.splitext(config["current_config_file_path"])[0]
-    )
-    config_file_id = re.sub(r"[/\\]", "_", split_path[1].strip("/\\"))
+    global _session_temp_identifier
+    
+    # Extract just the filename without path and extension
+    config_file_path = config["current_config_file_path"]
+    config_file_name = os.path.basename(config_file_path)
+    config_file_id = os.path.splitext(config_file_name)[0]
 
-    return config_file_id
+    # Create session-specific identifier once per session using process ID for uniqueness
+    if _session_temp_identifier is None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{config_file_id}", prefix=f"pid{os.getpid()}_") as temp:
+            _session_temp_identifier = os.path.basename(temp.name)
+            # Clean up the temporary file since we only need the name
+            os.unlink(temp.name)
+
+    return _session_temp_identifier
 
 
 def calculate_response_time_trend(config, response_time):
