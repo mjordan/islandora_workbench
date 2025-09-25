@@ -11584,6 +11584,24 @@ def get_config_file_identifier(config):
             A string based on the config file's path, with directory slashes and backslashes
             replaced with underscores.
     """
+    split_path = os.path.splitdrive(
+        os.path.splitext(config["current_config_file_path"])[0]
+    )
+    config_file_id = re.sub(r"[/\\]", "_", split_path[1].strip("/\\"))
+
+    return config_file_id
+
+def get_config_file_identifier_shortened(config):
+    """Gets a unique identifier of the current config file. Used in names of temp files, etc."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        Returns
+        -------
+        string
+            A string based on just the config file's name (without path or extension).
+    """
     global _session_temp_identifier
     
     # Extract just the filename without path and extension
