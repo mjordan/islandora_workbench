@@ -825,9 +825,8 @@ def update():
 
             # Build language-specific endpoint if langcode is specified
             langcode = row.get("langcode", "").strip() if "langcode" in row else None
-            node_endpoint = build_language_aware_endpoint(
-                config, f"/node/{row['node_id']}", langcode
-            )
+            language_prefix = f"/{langcode}" if langcode else ""
+            node_endpoint = f"{config['host']}{language_prefix}/node/{row['node_id']}?_format=json"
             node_headers = {"Content-Type": "application/json"}
             # Make a GET request to the content type
             content_type_endpoint = f"{config['host']}/entity/node_type/{config['content_type']}?_format=json"
@@ -2948,9 +2947,8 @@ def update_terms():
         if term_has_all_fields is True:
             # Build language-specific endpoint if langcode is specified
             langcode = row.get("langcode", "").strip() if "langcode" in row else None
-            term_endpoint = build_language_aware_endpoint(
-                config, f"/taxonomy/term/{row['term_id']}", langcode
-            )
+            language_prefix = f"/{langcode}" if langcode else ""
+            term_endpoint = f"{config['host']}{language_prefix}/taxonomy/term/{row['term_id']}?_format=json"
             term_headers = {"Content-Type": "application/json"}
             term_response = issue_request(
                 config, "PATCH", term_endpoint, term_headers, term

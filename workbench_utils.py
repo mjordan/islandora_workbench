@@ -58,30 +58,6 @@ file_fields = [
 commented_out_input_csv_rows_present = False
 
 
-def build_language_aware_endpoint(config, base_path, langcode=None, query_params="?_format=json"):
-    """Build language-aware endpoint URLs for multilingual support.
-
-    Parameters
-    ----------
-    config : dict
-        The configuration settings
-    base_path : str
-        The base path like "/node/123" or "/node/123/media"
-    langcode : str, optional
-        Language code to prefix the path with
-    query_params : str
-        Query parameters to append (default: "?_format=json")
-
-    Returns
-    -------
-    str
-        Complete URL with optional language prefix
-    """
-    language_prefix = ""
-    if langcode and langcode.strip():
-        language_prefix = "/" + langcode.strip()
-
-    return config["host"] + language_prefix + base_path + query_params
 
 
 def set_media_type(config, filepath, file_fieldname, csv_row):
