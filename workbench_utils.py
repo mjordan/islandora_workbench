@@ -10115,14 +10115,12 @@ def get_csv_from_google_sheet(config):
         )
         logging.error(message)
         sys.exit("Error: " + message)
-    
-    config_file_id = get_config_file_identifier_shortened(config)
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        config_file_id = get_config_file_identifier(config)
+        config_file_id = get_config_file_identifier_shortened(config)
         if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
-            config_file_id = get_config_file_identifier(config)
+            config_file_id = get_config_file_identifier_shortened(config)
             exported_csv_path = os.path.join(
                 config["temp_dir"],
                 config["google_sheets_csv_filename"] + "." + config_file_id,
@@ -10168,14 +10166,12 @@ def get_csv_from_excel(config):
             if headers[x] is not None and row[x] is not None:
                 record[headers[x]] = row[x].value
         records.append(record)
-    
-    config_file_id = get_config_file_identifier_shortened(config)
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        config_file_id = get_config_file_identifier(config)
+        config_file_id = get_config_file_identifier_shortened(config)
         if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
-            config_file_id = get_config_file_identifier(config)
+            config_file_id = get_config_file_identifier_shortened(config)
             exported_csv_path = os.path.join(
                 config["temp_dir"], config["excel_csv_filename"] + "." + config_file_id
             )
@@ -10219,13 +10215,12 @@ def get_extracted_csv_file_path(config):
         exported_csv_filename = config["excel_csv_filename"]
     else:
         return False
-    
-    config_file_id = get_config_file_identifier_shortened(config)
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
+        config_file_id = get_config_file_identifier_shortened(config)
         if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
-            config_file_id = get_config_file_identifier(config)
+            config_file_id = get_config_file_identifier_shortened(config)
             exported_csv_filename = exported_csv_filename + "." + config_file_id
 
     return os.path.join(config["temp_dir"], exported_csv_filename)
