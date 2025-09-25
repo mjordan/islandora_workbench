@@ -1,0 +1,11 @@
+task: create
+host: https://islandora.dev
+username: admin
+password: password
+input_csv: multilingual_tests/create_content.csv
+input_dir: ""
+content_type: islandora_object
+media_type: image
+allow_missing_files: true
+allow_adding_terms: true
+secure_ssl_only: false

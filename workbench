@@ -822,8 +822,11 @@ def update():
         if node_has_all_fields is True:
             if value_is_numeric(row["node_id"]) is False:
                 row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
-            node_endpoint = (
-                config["host"] + "/node/" + str(row["node_id"]) + "?_format=json"
+
+            # Build language-specific endpoint if langcode is specified
+            langcode = row.get("langcode", "").strip() if "langcode" in row else None
+            node_endpoint = build_language_aware_endpoint(
+                config, f"/node/{row['node_id']}", langcode
             )
             node_headers = {"Content-Type": "application/json"}
             # Make a GET request to the content type
@@ -910,6 +913,8 @@ def update():
             # If 'url_alias' is in the CSV, create the alias.
             if "url_alias" in row and len(row["url_alias"]) > 0:
                 create_url_alias(config, row["node_id"], row["url_alias"])
+
+
 
 
 def delete():
@@ -2873,6 +2878,10 @@ def update_terms():
             if len(row["published"].strip()) != 0:
                 term["status"] = [{"value": row["published"]}]
 
+        if "langcode" in csv_column_headers:
+            if len(row["langcode"]) > 0:
+                term["langcode"] = [{"value": row["langcode"]}]
+
         # Add custom (non-required) fields.
         required_fields = ["term_id"]
         custom_fields = list(set(csv_column_headers) - set(required_fields))
@@ -2885,6 +2894,7 @@ def update_terms():
                 "description",
                 "term_name",
                 "published",
+                "langcode",
             ]
             if (
                 custom_field not in json.loads(term_response.text)
@@ -2916,6 +2926,10 @@ def update_terms():
             if custom_field == "published":
                 continue
 
+            # 'langcode' is a core Drupal field, but is not considered a base field.
+            if custom_field == "langcode":
+                continue
+
             # Assemble Drupal field structures from CSV data. If new field types are added to
             # workbench_fields.py, they need to be registered in the following if/elif/else block.
 
@@ -2932,8 +2946,10 @@ def update_terms():
             )
 
         if term_has_all_fields is True:
-            term_endpoint = (
-                config["host"] + "/taxonomy/term/" + row["term_id"] + "?_format=json"
+            # Build language-specific endpoint if langcode is specified
+            langcode = row.get("langcode", "").strip() if "langcode" in row else None
+            term_endpoint = build_language_aware_endpoint(
+                config, f"/taxonomy/term/{row['term_id']}", langcode
             )
             term_headers = {"Content-Type": "application/json"}
             term_response = issue_request(
