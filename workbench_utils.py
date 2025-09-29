@@ -9918,21 +9918,27 @@ def get_rollback_config_filepath(config):
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
 
     if config["timestamp_rollback"] is True:
+        # Always use unique naming to prevent conflicts between multiple workbench instances
+        config_file_id = get_config_file_identifier_shortened(config)
         rollback_config_filepath = os.path.join(
             f"{rb_config_file_dir}",
-            f"{rollback_config_filename_basename}.{now_string}.yml",
+            f"{rollback_config_filename_basename}.{now_string}.{config_file_id}.yml",
         )
     elif (
         config["recovery_mode_starting_from_node_id"] is not False
         and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
+        # Always use unique naming to prevent conflicts between multiple workbench instances
+        config_file_id = get_config_file_identifier_shortened(config)
         rollback_config_filepath = os.path.join(
             f"{rb_config_file_dir}",
-            f"{rollback_config_filename_basename}.{now_string}.recovery_mode.yml",
+            f"{rollback_config_filename_basename}.{now_string}.{config_file_id}.recovery_mode.yml",
         )
     else:
+        # Always use unique naming to prevent conflicts between multiple workbench instances
+        config_file_id = get_config_file_identifier_shortened(config)
         rollback_config_filepath = os.path.join(
-            f"{rb_config_file_dir}", f"{rollback_config_filename_basename}.yml"
+            f"{rb_config_file_dir}", f"{rollback_config_filename_basename}.{config_file_id}.yml"
         )
 
     if (
@@ -9952,9 +9958,19 @@ def get_rollback_config_filepath(config):
             )
             return os.path.abspath(rollback_config_file_path)
         else:
-            rollback_config_filepath = os.path.abspath(
+            # Always use unique naming to prevent conflicts between multiple workbench instances
+            config_file_id = get_config_file_identifier_shortened(config)
+            rollback_config_file_path_head, rollback_config_file_path_tail = os.path.split(
                 config["rollback_config_file_path"]
             )
+            rollback_config_file_basename, rollback_config_file_ext = os.path.splitext(
+                rollback_config_file_path_tail
+            )
+            rollback_config_filepath = os.path.join(
+                rollback_config_file_path_head,
+                f"{rollback_config_file_basename}.{config_file_id}{rollback_config_file_ext}",
+            )
+            rollback_config_filepath = os.path.abspath(rollback_config_filepath)
 
     return rollback_config_filepath
 
