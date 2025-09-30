@@ -9833,11 +9833,9 @@ def get_rollback_csv_filepath(config):
     else:
         rollback_csv_filename = f"{rollback_csv_filename_basename}.csv"
 
-    if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
-        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
-            config_file_id = get_config_file_identifier(config)
-            rollback_csv_filename = rollback_csv_filename + "." + config_file_id
+    # Always use unique naming to prevent conflicts between multiple workbench instances
+    config_file_id = get_config_file_identifier_shortened(config)
+    rollback_csv_filename = rollback_csv_filename + "." + config_file_id
 
     if "rollback_csv_file_path" in config and len(config["rollback_csv_file_path"]) > 0:
         if config["timestamp_rollback"] is True:
