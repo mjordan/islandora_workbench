@@ -12640,3 +12640,57 @@ def check_for_workbench_updates(config):
             logging.info(message)
     else:
         message = 'Looks like your copy of Workbench is at least 30 commits behind the "main" branch in Github. Your copy appears to have been last updated {latest_local_commit_date}.'
+
+
+def paged_content_ignore_file(config, filename_to_check):
+    """Checks to see if a given page filename matches an entry in the
+    paged_content_ignore_files config setting.
+    Params
+    ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        filename_to_check : string
+            The filename to check. Is lower-cased and stripped prior to the check.
+    Return
+    ------
+        bool
+            True if the file is to be ignored, False if the file is not be ignored.
+    """
+    # Normalize the incoming filename and paged_content_ignore_files entries.
+    filename_to_check_normalized = filename_to_check.lower().strip()
+    filters = copy.copy(config["paged_content_ignore_files"])
+    for i in range(len(filters)):
+        filters[i] = filters[i].lower()
+        filters[i] = filters[i].strip()
+
+    # * wildcard is the filename (e.g., ["*.db", "*.xml"]), so we can match on the extension with the wildcard filename.
+    # First, get a list of the *. patterns from configuration.
+    filename_is_wildcard_patterns = [fnp for fnp in filters if fnp.startswith("*.")]
+    # Then see if the filename_to_check ends with any of the extensions in those patterns.
+    extension_matches = any(
+        # Get rid of the leading * but keep the period.
+        filename_to_check_normalized.endswith(filename.lstrip("*"))
+        for filename in filename_is_wildcard_patterns
+    )
+    if extension_matches is True:
+        return True
+
+    # * wildcard is the extension (e.g., ["matchme.*", "imamatch.*"]), so we can match on the filename with the wildcard extension.
+    # First, get a list of the .* patterns from configuration.
+    extension_is_wildcard_patterns = [extp for extp in filters if extp.endswith(".*")]
+    # Then see if the filename_to_check starts with any of the filenames in those patterns.
+    filename_matches = any(
+        # Get rid of the trailing * but keep the period.
+        filename_to_check_normalized.startswith(filename.rstrip("*"))
+        for filename in extension_is_wildcard_patterns
+    )
+    if filename_matches is True:
+        return True
+
+    # Whole filenames with extensions.
+    if filename_to_check.strip().lower() in [
+        fn.strip().lower() for fn in config["paged_content_ignore_files"]
+    ]:
+        return True
+
+    return False
