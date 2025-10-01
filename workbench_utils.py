@@ -313,7 +313,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    log_json(json)
+                    logging.info(json)
                 response = session.post(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -328,7 +328,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    log_json(json)
+                    logging.info(json)
                 response = session.put(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -343,7 +343,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 if config["log_headers"] is True:
                     logging.info(headers)
                 if config["log_json"] is True:
-                    log_json(json)
+                    logging.info(json)
                 response = session.patch(
                     url,
                     allow_redirects=config["allow_redirects"],
@@ -1818,7 +1818,7 @@ def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
         if len(duplicate_labels) > 0:
             if die is True:
                 message = (
-                    f"Duplicate field labels exist ({', '. join(duplicate_labels)}). To continue, remove the \"csv_headers\" setting "
+                    f"Duplicate field labels exist ({', '.join(duplicate_labels)}). To continue, remove the \"csv_headers\" setting "
                     + "from your configuration file and change your CSV headers from field labels to field machine names."
                 )
                 logging.error(message)
@@ -1940,7 +1940,6 @@ def check_input(config, args):
         "create_redirects",
         "add_alt_text",
         "update_alt_text",
-        "run_scripts",
     ]
     joiner = ", "
     if config["task"] not in tasks:
@@ -1956,17 +1955,9 @@ def check_input(config, args):
 
     if config["task"] in ["create", "create_from_files"]:
         if config["csv_id_to_node_id_map_dir"] == config["temp_dir"]:
-            message = f'You should set your "csv_id_to_node_id_map_dir" config setting to a location other than your system\'s temporary directory ("{config["temp_dir"]}").'
-            # print("Warning: " + message)
+            message = f'You should set your "csv_id_to_node_id_map_dir" config setting to a location other than your system\'s temporary directory.'
+            print("Warning: " + message)
             logging.warning(message)
-
-        if is_running_in_docker() is True:
-            docker_message = (
-                "It appears you are running Workbench within a Docker container. Please ensure that your CSV ID to node ID map "
-                + "config setting defines a location accessible outside of the Docker container; otherwise, it might be deleted when you destroy or rebuild your Docker image."
-            )
-            print("Warning: " + docker_message)
-            logging.warning(docker_message)
         if (
             config["recovery_mode_starting_from_node_id"] is not False
             and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
@@ -1997,7 +1988,6 @@ def check_input(config, args):
             csv_to_node_id_map_path = config["csv_id_to_node_id_map_path"]
             current_host = config["host"]
 
-            prepare_csv_id_to_node_id_map(config)
             check_for_host_column_result = sqlite_manager(
                 config,
                 operation="select",
@@ -2310,19 +2300,11 @@ def check_input(config, args):
             os.remove(csv_file_path)
 
         # If nothing has failed by now, exit with a positive, upbeat message.
-        if config["perform_soft_checks"] is True:
-            always_review_log_message = ""
-        else:
-            always_review_log_message = (
-                " However, you should review your Workbench log after running --check."
-            )
-        config_and_data_appear_to_be_valid_message = f"Configuration and input data appear to be valid.{always_review_log_message}"
-        print(config_and_data_appear_to_be_valid_message)
+        print("Configuration and input data appear to be valid.")
         if config["perform_soft_checks"] is True:
             print(
                 'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
             )
-
         logging.info(
             'Configuration checked for "%s" task using config file "%s", no problems found.',
             config["task"],
@@ -2916,61 +2898,44 @@ def check_input(config, args):
             config["validate_fixity_during_check"] is True
             and config["fixity_algorithm"] is not None
         ):
-            field_and_checksum_in_csv = False
-            fixity_message = "Performing local checksum validation."
-            logging.info(fixity_message)
-            print(fixity_message + " This might take some time.")
-            validate_checksums_csv_data = get_csv_data(config)
-            if config["task"] == "add_media":
-                row_id = "node_id"
-            else:
-                row_id = config["id_field"]
-            checksum_validation_all_ok = True
-            for checksum_validation_row_count, checksum_validation_row in enumerate(
-                validate_checksums_csv_data, start=1
-            ):
-                file_name = checksum_validation_row["file"]
-                if (
-                    "file" in checksum_validation_row
-                    and "checksum" in checksum_validation_row
+            print("Performing local checksum validation. This might take some time.")
+            if "file" in csv_column_headers and "checksum" in csv_column_headers:
+                # @todo: add the 'rows_with_missing_files' method of accumulating invalid values (issue 268).
+                validate_checksums_csv_data = get_csv_data(config)
+                if config["task"] == "add_media":
+                    row_id = "node_id"
+                else:
+                    row_id = config["id_field"]
+                checksum_validation_all_ok = True
+                for checksum_validation_row_count, checksum_validation_row in enumerate(
+                    validate_checksums_csv_data, start=1
                 ):
-                    field_and_checksum_in_csv = True
-                    if (
-                        file_name.lower().startswith("http") is False
-                        and check_file_exists(config, file_name) is True
-                    ):
-                        if os.path.isabs(file_name):
-                            file_path = file_name
+                    file_path = checksum_validation_row["file"]
+                    hash_from_local = get_file_hash_from_local(
+                        config, file_path, config["fixity_algorithm"]
+                    )
+                    if "checksum" in checksum_validation_row:
+                        if (
+                            hash_from_local
+                            == checksum_validation_row["checksum"].strip()
+                        ):
+                            logging.info(
+                                'Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.',
+                                config["fixity_algorithm"],
+                                file_path,
+                                hash_from_local,
+                            )
                         else:
-                            file_path = os.path.join(config["input_dir"], file_name)
-                        hash_from_local = get_file_hash_from_local(
-                            config, file_path, config["fixity_algorithm"]
-                        )
-                        if hash_from_local is False:
-                            continue
-                        if "checksum" in checksum_validation_row:
-                            if (
-                                hash_from_local
-                                == checksum_validation_row["checksum"].strip()
-                            ):
-                                logging.info(
-                                    'Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.',
-                                    config["fixity_algorithm"],
-                                    file_path,
-                                    hash_from_local,
-                                )
-                            else:
-                                checksum_validation_all_ok = False
-                                logging.warning(
-                                    'Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
-                                    config["fixity_algorithm"],
-                                    file_path,
-                                    checksum_validation_row[row_id],
-                                    hash_from_local,
-                                    checksum_validation_row["checksum"],
-                                )
+                            checksum_validation_all_ok = False
+                            logging.warning(
+                                'Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
+                                config["fixity_algorithm"],
+                                file_path,
+                                checksum_validation_row[row_id],
+                                hash_from_local,
+                                checksum_validation_row["checksum"],
+                            )
 
-            if field_and_checksum_in_csv is True:
                 if checksum_validation_all_ok is True:
                     checksum_validation_message = (
                         "OK, checksum validation during complete. All checks pass."
@@ -2985,10 +2950,6 @@ def check_input(config, args):
                         + checksum_validation_message
                         + " See the log for more detail."
                     )
-            else:
-                checksum_validation_message = 'Could not validate checksums because the input CSV did not contain both "field" and "checksum" columns.'
-                print("Warning: " + checksum_validation_message)
-                logging.warning(checksum_validation_message)
 
     if config["task"] == "create_terms":
         # Check that all required fields are present in the CSV.
@@ -4006,13 +3967,9 @@ def check_input(config, args):
                 if os.path.isdir(os.path.join(dir_path, page_file_name)):
                     continue
 
-                if paged_content_ignore_file(config, page_file_name) is True:
-                    logging.info(
-                        f'Ignoring file "{os.path.join(dir_path, page_file_name)}" since it matches an entry in the "paged_content_ignore_files" config setting.'
-                    )
-                    continue
-
-                if paged_content_ignore_file(config, page_file_name) is False:
+                if page_file_name.strip().lower() not in [
+                    fn.strip().lower() for fn in config["paged_content_ignore_files"]
+                ]:
                     if config["paged_content_sequence_separator"] not in page_file_name:
                         message = (
                             "Page file "
@@ -4028,11 +3985,10 @@ def check_input(config, args):
                     config, page_file_name
                 )
                 if validate_weight_value(page_sequence_indicator) is False:
-                    if paged_content_ignore_file(config, page_file_name) is False:
-                        logging.warning(
-                            f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
-                        )
-                        paged_content_sequence_indicator_warnings = True
+                    logging.warning(
+                        f'Sequence indicator in page filename "{os.path.join(dir_path, page_file_name)}" is not a valid "field_weight" value.'
+                    )
+                    paged_content_sequence_indicator_warnings = True
 
             # Check additional page media files (e.g. OCR andhOCR files) for utf8 encoding.
             additional_page_media_no_utf8_warnings = list()
@@ -4306,20 +4262,7 @@ def check_input(config, args):
             print("Warning: " + message)
 
     # If nothing has failed by now, exit with a positive, upbeat message.
-    if config["perform_soft_checks"] is True:
-        always_review_log_message = ""
-    else:
-        always_review_log_message = (
-            " However, you should review your Workbench log after running --check."
-        )
-    config_and_data_appear_to_be_valid_message = (
-        f"Configuration and input data appear to be valid.{always_review_log_message}"
-    )
-    print(config_and_data_appear_to_be_valid_message)
-    if config["perform_soft_checks"] is True:
-        print(
-            'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
-        )
+    print("Configuration and input data appear to be valid.")
     logging.info(
         'Configuration checked for "%s" task using config file "%s", no problems found.',
         config["task"],
@@ -4524,20 +4467,7 @@ def check_input_for_create_from_files(config, args):
         sys.exit("Error: " + message)
 
     # If nothing has failed by now, exit with a positive message.
-    if config["perform_soft_checks"] is True:
-        always_review_log_message = ""
-    else:
-        always_review_log_message = (
-            " However, you should review your Workbench log after running --check."
-        )
-    config_and_data_appear_to_be_valid_message = (
-        f"Configuration and input data appear to be valid.{always_review_log_message}"
-    )
-    print(config_and_data_appear_to_be_valid_message)
-    if config["perform_soft_checks"] is True:
-        print(
-            'Warning: "perform_soft_checks" is enabled so you need to review your log for errors despite the "OK" reports above.'
-        )
+    print("Configuration and input data appear to be valid.")
     logging.info(
         'Configuration checked for "%s" task using config file %s, no problems found.',
         config["task"],
@@ -5239,52 +5169,30 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
     is passed the field subdelimiter as defined in the config YAML and the field's value, and
     prints a modified vesion of the value (result) back to this function.
     """
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, subdelimiter, field_value], stdout=subprocess.PIPE
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
-        )
+    cmd = subprocess.Popen(
+        [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
+    )
     result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
 
     return result, cmd.returncode
 
 
 def execute_bootstrap_script(path_to_script, path_to_config_file):
     """Executes a bootstrap script and returns its output and exit status code."""
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, path_to_config_file], stdout=subprocess.PIPE
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file], stdout=subprocess.PIPE
-        )
+    cmd = subprocess.Popen(
+        [path_to_script, path_to_config_file], stdout=subprocess.PIPE
+    )
     result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
 
     return result, cmd.returncode
 
 
 def execute_shutdown_script(path_to_script, path_to_config_file):
     """Executes a shutdown script and returns its output and exit status code."""
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, path_to_config_file], stdout=subprocess.PIPE
-        )
-
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file], stdout=subprocess.PIPE
-        )
+    cmd = subprocess.Popen(
+        [path_to_script, path_to_config_file], stdout=subprocess.PIPE
+    )
     result, stderrdata = cmd.communicate()
-    result = result.decode().strip()
 
     return result, cmd.returncode
 
@@ -5428,6 +5336,24 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
             )
             return False
         file_path = filename
+    elif filename.startswith(config["file_systems"]):
+        details = issue_request(
+            config,
+            "POST",
+            "/api/server-file",
+            {"Content-Type": "application/json"},
+            {"path": filename, "retval": "fid"},
+        )
+        if details.ok:
+            data = details.json()
+            return int(data["fid"])
+
+        else:
+            logging.error(
+                f"File creation for row {node_csv_row[config['id_field']]} returned code:{details.status_code} with message{details.text}"
+            )
+            return False
+
     else:
         if check_file_exists(config, filename) is False:
             logging.error(
@@ -5799,21 +5725,43 @@ def create_media(
         # extracted_text media must have their field_edited_text field populated for full text indexing.
         # Text must be encoded as utf-8.
         if media_type == "extracted_text":
-            if check_file_exists(config, filename):
-                media_json["field_edited_text"] = list()
-                if os.path.isabs(filename) is False:
-                    filename = os.path.join(config["input_dir"], filename)
-                try:
-                    extracted_text_file = open(filename, "r", -1, "utf-8-sig")
-                    media_json["field_edited_text"].append(
-                        {"value": extracted_text_file.read()}
-                    )
-                except Exception as e:
-                    logging.error(
-                        f'Extracted text file "{filename}" caused a problem that prevented it from being ingested ({e}).'
-                    )
-            else:
+            if not check_file_exists(config, filename):
                 logging.error("Extracted text file %s not found.", filename)
+            else:
+                media_json["field_edited_text"] = []
+
+                # Use server-side path if configured as such
+                if filename.startswith(config["file_systems"]):
+                    response = issue_request(
+                        config,
+                        "POST",
+                        "/api/server-file",
+                        {"Content-Type": "application/json"},
+                        {"path": filename, "retval": "contents"},
+                    )
+                    if response.ok:
+                        data = response.json()
+                        media_json["field_edited_text"].append(data["contents"])
+                    else:
+                        logging.error(
+                            f"Could not extract text from {filename}. Process returned code: {response.status_code} with message {response.text}"
+                        )
+                else:
+                    # Ensure absolute path
+                    if not os.path.isabs(filename):
+                        filename = os.path.join(config["input_dir"], filename)
+
+                    try:
+                        with open(
+                            filename, "r", encoding="utf-8-sig"
+                        ) as extracted_text_file:
+                            media_json["field_edited_text"].append(
+                                {"value": extracted_text_file.read()}
+                            )
+                    except Exception as e:
+                        logging.error(
+                            f'Extracted text file "{filename}" caused a problem that prevented it from being ingested ({e}).'
+                        )
 
         # WIP on #572: if this is an `add_media` task, add fields in CSV to media_json, being careful to
         # not stomp on existing fields. Block below is copied from create() and needs to be modified to
@@ -9414,10 +9362,9 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
     required_fields = get_required_bundle_fields(config, "node", config["content_type"])
 
     for page_file_name in page_files:
-        if paged_content_ignore_file(config, page_file_name) is True:
-            logging.info(
-                f'Ignoring file "{os.path.join(page_dir_path, page_file_name)}" since it matches an entry in the "paged_content_ignore_files" config setting.'
-            )
+        if page_file_name.strip().lower() in [
+            fn.strip().lower() for fn in config["paged_content_ignore_files"]
+        ]:
             continue
 
         # Only want files, not directories.
@@ -9453,12 +9400,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         csv_row_to_apply_to_paged_children = copy.deepcopy(parent_csv_record)
         csv_row_to_apply_to_paged_children["file"] = page_file_name
         if validate_weight_value(weight) is False:
-            if paged_content_ignore_file(config, page_file_name) is False:
-                logging.warning(
-                    f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
-                )
-                weight = ""
-
+            logging.warning(
+                f'Sequence indicator in page filename "{os.path.join(page_dir_path, page_file_name)}" is not a valid "field_weight" value; that field will not be populated on the page node.'
+            )
+            weight = ""
         csv_row_to_apply_to_paged_children["field_weight"] = weight
 
         # Add any fields to the page's row that are defined in config["csv_value_templates_for_paged_content"].
@@ -10372,6 +10317,18 @@ def check_file_exists(config, filename):
         boolean
             True if the file exists, false if not.
     """
+    # If file is supposed to already on the server we'll be notified later if it is missing.
+
+    if filename.startswith(config["file_systems"]):
+        response = issue_request(
+            config,
+            "POST",
+            "/api/server-file",
+            {"Content-Type": "application/json"},
+            {"path": filename, "retval": "checkfile"},
+        )
+        return response.status_code == 200
+
     # It's a remote file.
     if filename.startswith("http"):
         try:
@@ -10761,11 +10718,6 @@ def get_csv_id_to_node_id_map_allowed_hosts_sql(config):
     """
     allowed_hosts = copy.copy(config["csv_id_to_node_id_map_allowed_hosts"])
     if len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0:
-        # Since the user needs to add the current host to this list, we need to make sure it doesn't
-        # contain any trailing / or path information. Assums the protocol (e.g. https) is the same.
-        for i in range(len(allowed_hosts)):
-            if allowed_hosts[i].startswith(config["host"]):
-                allowed_hosts[i] = config["host"]
         # "" represents an empty host value.
         if "" in config["csv_id_to_node_id_map_allowed_hosts"]:
             allowed_hosts.remove("")
@@ -11038,13 +10990,13 @@ def get_file_hash_from_local(config, file_path, algorithm):
         config : dict
             The configuration settings defined by workbench_config.get_config().
         file_path : string
-            The file's absolute path.
+            The file's path.
         algorithm : string
             One of 'md5', 'sha1', or 'sha256'
         Returns
         -------
-        string|bool
-            The requested hash, False if the file doesn't exist.
+        string
+            The requested hash.
     """
     if algorithm == "md5":
         hash_object = hashlib.md5()
@@ -11053,18 +11005,14 @@ def get_file_hash_from_local(config, file_path, algorithm):
     if algorithm == "sha256":
         hash_object = hashlib.sha256()
 
-    try:
-        with open(file_path, "rb") as file:
-            while True:
-                chunk = file.read(hash_object.block_size)
-                if not chunk:
-                    break
-                hash_object.update(chunk)
+    with open(file_path, "rb") as file:
+        while True:
+            chunk = file.read(hash_object.block_size)
+            if not chunk:
+                break
+            hash_object.update(chunk)
 
-        return hash_object.hexdigest()
-    except Exception as e:
-        logging.error(f"Could not get hash for file {file_path}: {e}")
-        return False
+    return hash_object.hexdigest()
 
 
 def create_temp_dir(config):
@@ -11827,8 +11775,8 @@ def create_contact_sheet_thumbnail(config, source_filename):
 
     # todo: get these from config['media_types']
     pdf_extensions = [".pdf"]
-    video_extensions = [".mp4", ".mov", ".avi"]
-    audio_extensions = [".mp3", ".wav", ".aac"]
+    video_extensions = [".mp4"]
+    audio_extensions = [".mp3"]
     image_extensions = [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".jp2"]
 
     source_file_name, source_file_extension = os.path.splitext(source_filename)
@@ -12592,7 +12540,6 @@ def download_remote_archive_file(config, remote_archive_url):
 def unzip_archive(config, archive_file_path):
     if archive_file_path is False:
         return None
-
     if os.path.exists(archive_file_path):
         if zipfile.is_zipfile(archive_file_path) is True:
             with zipfile.ZipFile(archive_file_path, "r") as zip_ref:
@@ -12601,18 +12548,14 @@ def unzip_archive(config, archive_file_path):
                 print("OK, " + message)
                 logging.info(message)
 
-            if (
-                archive_file_path.lower().startswith("http")
-                and config["delete_zip_archive_after_extraction"] is True
-            ):
-                if config["check"] is False:
-                    try:
-                        os.remove(archive_file_path)
-                        logging.info(f'Zip archive "{archive_file_path}" deleted."')
-                    except Exception as e:
-                        logging.error(
-                            f'Could not remove input archive file "{archive_file_path}": {e}.'
-                        )
+            if config["delete_zip_archive_after_extraction"] is True:
+                try:
+                    os.remove(archive_file_path)
+                    logging.info(f'Zip archive "{archive_file_path}" deleted."')
+                except Exception as e:
+                    logging.error(
+                        f'Could not remove input archive file "{archive_file_path}": {e}.'
+                    )
         else:
             message = f'"{archive_file_path}" does not appear to be a valid Zip file.'
             logging.error(message)
@@ -12633,76 +12576,43 @@ def prompt_user(config):
             sys.exit("Exiting at user prompts.")
 
 
-def log_json(source_data):
-    """If config setting log_json is true, logs the JSON used in a HTTP request.
-
-    Params
-    ----------
-        source_data : dict
-            The data to be used in the request body.
-    Return
-    ------
-        None
-    """
-    try:
-        json_to_log = json.dumps(source_data)
-        logging.info(json_to_log)
-    except Exception as e:
-        logging.warning(e)
-        logging.warning(
-            f"Can't convert data to JSON, logging it instead. More info may be available in the previous log message. Data is: {source_data}"
-        )
-
-
 def check_for_workbench_updates(config):
     if config["check_for_workbench_updates"] is False:
         return
 
     # Get current local branch name.
-    try:
-        git_branch_cmd = ["git", "branch", "--show-current"]
-        current_branch_name = subprocess.check_output(git_branch_cmd)
-        current_branch_name = current_branch_name.decode().strip()
-        if current_branch_name != "main":
-            message = f'Workbench cannot check when your local "main" Git branch was last updated, since you are currently in the "{current_branch_name}" branch.'
-            logging.warning(message)
-            return
-    except Exception as e:
-        logging.error(f"Could not get current git branch name: {e}")
+    git_branch_cmd = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+    current_branch_name = subprocess.check_output(git_branch_cmd)
+    current_branch_name = current_branch_name.decode().strip()
+    if current_branch_name != "main":
+        message = f'Workbench cannot check when your local "main" Git branch was last updated, since you are currently in the "{current_branch_name}" branch.'
+        logging.warning(message)
         return
 
     # Get last 30 commits in local branch. We use 30 because that's that page size of the Github API commits endpoint.
-    try:
-        git_log_cmd = [
-            "git",
-            "log",
-            "--pretty=format:%h,%cd",
-            "--date=format:%Y-%m-%d",
-            "-30",
-        ]
-        git_log_cmd_output = subprocess.check_output(git_log_cmd)
-        git_log_output = git_log_cmd_output.decode().strip()
-        git_log_output_lines = git_log_output.splitlines()
-        latest_git_log_entry = git_log_output_lines[0]
-        latest_local_commit, latest_local_commit_date = latest_git_log_entry.split(",")
-    except Exception as e:
-        logging.error(f"Could not get local git log entries: {e}")
-        return
+    git_log_cmd = [
+        "git",
+        "log",
+        "--pretty=format:%h,%cd",
+        "--date=format:%Y-%m-%d",
+        "-30",
+    ]
+    git_log_cmd_output = subprocess.check_output(git_log_cmd)
+    git_log_output = git_log_cmd_output.decode().strip()
+    git_log_output_lines = git_log_output.splitlines()
+    latest_git_log_entry = git_log_output_lines[0]
+    latest_local_commit, latest_local_commit_date = latest_git_log_entry.split(",")
 
     # Get the last 30 commits from the main branch in Github.
-    try:
-        github_main_commits_url = (
-            "https://api.github.com/repos/mjordan/islandora_workbench/commits"
-        )
-        github_main_commits_response = requests.get(github_main_commits_url)
-        github_main_commits_list = json.loads(github_main_commits_response.content)
-        remote_main_branch_commits = list()
-        for c in github_main_commits_list:
-            short_sha = c["sha"][:7]
-            remote_main_branch_commits.append(short_sha)
-    except Exception as e:
-        logging.error(f"Could not get remote main branch commits from Github: {e}")
-        return
+    github_main_commits_url = (
+        "https://api.github.com/repos/mjordan/islandora_workbench/commits"
+    )
+    github_main_commits_response = requests.get(github_main_commits_url)
+    github_main_commits_list = json.loads(github_main_commits_response.content)
+    remote_main_branch_commits = list()
+    for c in github_main_commits_list:
+        short_sha = c["sha"][:7]
+        remote_main_branch_commits.append(short_sha)
 
     # Get the position of the latest local commit in the remote list of commits,
     # and construct corresponding output for the user and the log.
@@ -12712,25 +12622,19 @@ def check_for_workbench_updates(config):
         )
         if latest_local_commit_position_in_remote_main_branch_commits > 0:
             # Get date of most recent remote commit and include it in the message.
-            try:
-                github_main_latest_commit_url = f"https://api.github.com/repos/mjordan/islandora_workbench/commits/{remote_main_branch_commits[0]}"
-                github_main_latest_commit_response = requests.get(
-                    github_main_latest_commit_url
-                )
-
-                github_main_latest_commit = json.loads(
-                    github_main_latest_commit_response.content
-                )
-                github_main_latest_commit_date = github_main_latest_commit["commit"][
-                    "author"
-                ]["date"].split("T", 1)[0]
-                message = f'Your version of Workbench is {latest_local_commit_position_in_remote_main_branch_commits} commits behind the "main" branch in Github, which was last updated {github_main_latest_commit_date}.'
-                logging.warning(message)
-            except Exception as e:
-                logging.error(
-                    f"Could not get information on most recent commit in remote main branch from Github: {e}"
-                )
-                return
+            github_main_latest_commit_url = f"https://api.github.com/repos/mjordan/islandora_workbench/commits/{remote_main_branch_commits[0]}"
+            github_main_latest_commit_response = requests.get(
+                github_main_latest_commit_url
+            )
+            github_main_latest_commit = json.loads(
+                github_main_latest_commit_response.content
+            )
+            github_main_latest_commit_date = github_main_latest_commit["commit"][
+                "author"
+            ]["date"].split("T", 1)[0]
+            message = f'Your version of Workbench is {latest_local_commit_position_in_remote_main_branch_commits} commits behind the "main" branch in Github, which was last updated {github_main_latest_commit_date}.'
+            print("Warning: " + message)
+            logging.warning(message)
         else:
             message = "Looks like your copy of Workbench is up to date."
             logging.info(message)
@@ -12790,13 +12694,3 @@ def paged_content_ignore_file(config, filename_to_check):
         return True
 
     return False
-
-
-def is_running_in_docker():
-    """Assumes Dockerfile sets an environment variable ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER.
-    If that environment variable is not present, return False.
-    """
-    if "ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER" in os.environ:
-        return True
-    else:
-        return False
