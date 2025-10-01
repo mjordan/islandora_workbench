@@ -14,7 +14,15 @@ class WorkbenchExportBase:
         self.config = config
         self.args = args
         self.field_definitions = get_field_definitions(config, "node")
-        self.required_fields = ["created", "uid", "langcode", "title", "node_id"]
+        self.required_fields = [
+            "created",
+            "changed",
+            "uid",
+            "uuid",
+            "langcode",
+            "title",
+            "node_id",
+        ]
         self.seen_nids = set()
         self.pbar = InitBar() if config.get("progress_bar") else None
 
@@ -45,6 +53,20 @@ class WorkbenchExportBase:
                 field_labels[field_name] = self.field_definitions[field_name]["label"]
             elif field_name == "REMOVE THIS COLUMN (KEEP THIS ROW)":
                 field_labels[field_name] = "LABEL (REMOVE THIS ROW)"
+            elif field_name == "node_id":
+                field_labels[field_name] = "Node ID"
+            elif field_name == "created":
+                field_labels[field_name] = "Created"
+            elif field_name == "changed":
+                field_labels[field_name] = "Changed"
+            elif field_name == "uid":
+                field_labels[field_name] = "User ID"
+            elif field_name == "uuid":
+                field_labels[field_name] = "UUID"
+            elif field_name == "langcode":
+                field_labels[field_name] = "Drupal language code"
+            elif field_name == "url_alias":
+                field_labels[field_name] = "URL alias"
             else:
                 field_labels[field_name] = ""
         writer.writerow(field_labels)
@@ -54,10 +76,13 @@ class WorkbenchExportBase:
             "NUMBER OF VALUES ALLOWED (REMOVE THIS ROW)"
         )
         cardinality["node_id"] = "1"
+        cardinality["uuid"] = "1"
         cardinality["uid"] = "1"
         cardinality["langcode"] = "1"
         cardinality["created"] = "1"
+        cardinality["changed"] = "1"
         cardinality["title"] = "1"
+        cardinality["url_alias"] = "1"
 
         for field_name in self.field_definitions:
             if field_name in field_names:
@@ -105,7 +130,11 @@ class WorkbenchExportBase:
         ):
             self.pbar(get_percentage(row_count, total_rows))
         else:
-            print(f"{logging.getLevelName(level)}: {message}")
+            logging_level = logging.getLevelName(level)
+            if logging_level == "INFO":
+                print(message)
+            else:
+                print(f"{logging.getLevelName(level)}: {message}")
 
         # Log to file with appropriate level
         if level == logging.INFO:
@@ -207,9 +236,12 @@ class CSVExporter(WorkbenchExportBase):
         self.csv_data = get_csv_data(config)
         self.required_fields = [
             "created",
+            "changed",
             "uid",
+            "uuid",
             "langcode",
             "title",
+            "url_alias",
             "node_id",
             "REMOVE THIS COLUMN (KEEP THIS ROW)",
         ]
@@ -231,6 +263,7 @@ class CSVExporter(WorkbenchExportBase):
     def prepare_headers(self):
         """Generate deduplicated list of CSV column headers for export_csv."""
         field_names = list(self.field_definitions.keys())
+        field_names.append("url_alias")
 
         if len(self.config["export_csv_field_list"]) > 0:
             field_names = self.config["export_csv_field_list"]
@@ -243,6 +276,7 @@ class CSVExporter(WorkbenchExportBase):
 
         # We always include 'node_id and 'REMOVE THIS COLUMN (KEEP THIS ROW)'.
         if "node_id" not in deduped_field_names:
+            deduped_field_names.insert(0, "url_alias")
             deduped_field_names.insert(0, "node_id")
             deduped_field_names.insert(0, "REMOVE THIS COLUMN (KEEP THIS ROW)")
 
@@ -298,6 +332,12 @@ class CSVExporter(WorkbenchExportBase):
 
         row["node_id"] = nid
         row["title"] = node_json.get("title", [{}])[0].get("value", "No title")
+        row["url_alias"] = node_json.get("path", [{}])[0].get("alias", "")
+        row["uuid"] = node_json.get("uuid", [{}])[0].get("value", "")
+        row["uid"] = node_json.get("uid", [{}])[0].get("target_id", "")
+        row["created"] = node_json.get("created", [{}])[0].get("value", "")
+        row["changed"] = node_json.get("changed", [{}])[0].get("value", "")
+        row["langcode"] = node_json.get("langcode", [{}])[0].get("value", "")
 
         # Process fields
         for field in field_names:
@@ -424,7 +464,21 @@ class ViewExporter(WorkbenchExportBase):
 
     def prepare_headers(self):
         """Generate deduplicated list of CSV column headers."""
-        fields = ["node_id", "title"]
+        if len(self.config.get("export_csv_field_list")) == 0:
+            fields = [
+                "node_id",
+                "title",
+                "changed",
+                "created",
+                "uuid",
+                "uid",
+                "url_alias",
+            ]
+        else:
+            fields = [
+                "node_id",
+                "title",
+            ]
 
         if self.config.get("export_csv_field_list"):
             fields += [
@@ -452,7 +506,19 @@ class ViewExporter(WorkbenchExportBase):
             return None
 
         row["node_id"] = nid
-        row["title"] = node_json.get("title", [{}])[0].get("value", "No title")
+        row["title"] = node_json.get("title", [{}])[0].get("value", "")
+        if "url_alias" in field_names:
+            row["url_alias"] = node_json.get("path", [{}])[0].get("alias", "")
+        if "uuid" in field_names:
+            row["uuid"] = node_json.get("uuid", [{}])[0].get("value", "")
+        if "uid" in field_names:
+            row["uid"] = node_json.get("uid", [{}])[0].get("target_id", "")
+        if "created" in field_names:
+            row["created"] = node_json.get("created", [{}])[0].get("value", "")
+        if "changed" in field_names:
+            row["changed"] = node_json.get("changed", [{}])[0].get("value", "")
+        if "langcode" in field_names:
+            row["langcode"] = node_json.get("langcode", [{}])[0].get("value", "")
 
         # Process fields
         for field in field_names:

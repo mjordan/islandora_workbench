@@ -24,7 +24,7 @@ Note that this tool is not related in any way to the Drupal contrib module calle
 * Well tested
 * Well documented
 * Provides both sensible default configuration values and rich configuration options for power users
-* Run from within a Docker container.
+* Can be run from within a Docker container.
 
 ## Documentation
 
@@ -34,7 +34,7 @@ Complete documentation is [available](https://mjordan.github.io/islandora_workbe
 
 Metadata, files, and Drupal configurations are, in the real world, extremly complex and varied. Testing Islandora Workbench in the wild is best way to help make it better for everyone. If you encouter a difficulty, an unexpected behavior, or Workbench crashes on you, reach out on the #islandoraworkbench Slack channel or open an issue in this Github repo.
 
-If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues) and tag your issue "documentation".
+If you have a suggestion for improving the documentation, please open an issue on [this repository's queue](https://github.com/mjordan/islandora_workbench/issues).
 
 If you want to contribute code (bug fixes, optimizations, new features, etc.), consult the [developer's guide](https://mjordan.github.io/islandora_workbench_docs/development_guide/).
 

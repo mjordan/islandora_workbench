@@ -1286,7 +1286,6 @@ class TestAddMediaAllowMissingFiles(unittest.TestCase):
             os.remove(self.true_log_file_path)
 
 
-@unittest.skip("See https://github.com/mjordan/islandora_workbench/issues/561")
 class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
 
     def setUp(self):
@@ -1406,7 +1405,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             )
             self.assertRegex(
                 log_data_false,
-                'CVS row with ID .* contains an empty value in its "preservation" column',
+                'CSV row with ID .* contains an empty value in its "preservation" column',
             )
             self.assertRegex(
                 log_data_false,
@@ -1436,7 +1435,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             )
             self.assertRegex(
                 log_data_true,
-                'CVS row with ID .* contains an empty value in its "preservation" column',
+                'CSV row with ID .* contains an empty value in its "preservation" column',
                 "",
             )
             self.assertRegex(log_data_true, "INFO - .*no problems found", "")
@@ -1468,7 +1467,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(unittest.TestCase):
             )
             self.assertRegex(
                 log_file_false_with_soft_checks_data,
-                'CVS row with ID .* contains an empty value in its "preservation" column',
+                'CSV row with ID .* contains an empty value in its "preservation" column',
                 "",
             )
             self.assertRegex(
