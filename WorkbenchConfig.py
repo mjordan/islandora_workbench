@@ -29,12 +29,42 @@ class WorkbenchConfig:
     def get_config(self):
         config = self.get_default_config()
         user_mods = self.get_user_config()
-        # If the password is not set in the config file, or in the environment
-        # variable, prompt the user for the password.
+        # If the password is not set in the config file, in the credentials file, or in the
+        # environment variable, prompt the user for the password.
         try:
             if "password" not in user_mods:
                 if "ISLANDORA_WORKBENCH_PASSWORD" in os.environ:
                     config["password"] = os.environ["ISLANDORA_WORKBENCH_PASSWORD"]
+                elif (
+                    "username" not in user_mods and "credentials_file_path" in user_mods
+                ):
+                    if os.path.exists(user_mods["credentials_file_path"]) is False:
+                        message = (
+                            'Error: Credentials file "'
+                            + user_mods["credentials_file_path"]
+                            + '" not found.'
+                        )
+                        logging.error(message)
+                        sys.exit(message)
+                    else:
+                        credentials_yaml = YAML()
+                        with open(user_mods["credentials_file_path"], "r") as stream:
+                            try:
+                                credentials = credentials_yaml.load(stream)
+                                config["username"] = credentials["username"]
+                                config["password"] = credentials["password"]
+                            except YAMLError as exc:
+                                print(
+                                    f'There appears to be a YAML syntax error in your credentials file, {user_mods["credentials_file_path"]}. See workbench.log for details.'
+                                )
+                                logging.basicConfig(
+                                    filename="workbench.log",
+                                    format="%(asctime)s - %(levelname)s - %(message)s",
+                                    datefmt="%d-%b-%y %H:%M:%S",
+                                )
+                                yaml_error = f"\nYAML parsing error in credentials file\nException type: {type(exc).__name__}\n{exc}"
+                                logging.error(yaml_error)
+                                sys.exit()
                 else:
                     config["password"] = getpass(
                         f"Password for Drupal user {user_mods['username']}:"
@@ -72,12 +102,6 @@ class WorkbenchConfig:
                     config["preprocessors"][key] = value
 
         config["host"] = config["host"].rstrip("/")
-        if "csv_id_to_node_id_map_allowed_hosts" in user_mods:
-            config["csv_id_to_node_id_map_allowed_hosts"] = user_mods[
-                "csv_id_to_node_id_map_allowed_hosts"
-            ]
-        else:
-            config["csv_id_to_node_id_map_allowed_hosts"] = ["", config["host"]]
         config["current_config_file_path"] = os.path.abspath(self.args.config)
         config["field_text_format_ids"] = self.get_field_level_text_output_formats()
 
@@ -217,7 +241,6 @@ class WorkbenchConfig:
             "perform_soft_checks": False,
             "update_mode": "replace",
             "max_node_title_length": 255,
-            "max_image_alt_text_length": 255,
             "paged_content_from_directories": False,
             "delete_media_with_nodes": True,
             "allow_adding_terms": False,
@@ -235,8 +258,6 @@ class WorkbenchConfig:
             "log_term_creation": True,
             "log_file_name_and_line_number": False,
             "progress_bar": False,
-            "show_percentage_of_csv_input_processed": False,
-            "prompt_user_before_delete_task": False,
             "user_agent": "Islandora Workbench",
             "allow_redirects": True,
             "secure_ssl_only": True,
@@ -249,6 +270,9 @@ class WorkbenchConfig:
             "use_nid_in_media_title": False,
             "use_node_title_for_media_title": False,
             "field_for_remote_filename": False,
+            "remote_file_cookie_name": "",
+            "remote_file_cookie_value": "",
+            "keep_filename_parent_directory": True,
             "field_for_media_title": False,
             "delete_tmp_upload": False,
             "input_data_zip_archives": [],
@@ -261,7 +285,6 @@ class WorkbenchConfig:
             "fixity_algorithm": None,
             "validate_fixity_during_check": False,
             "output_csv_include_input_csv": False,
-            "export_file_url_instead_of_download": False,
             "timestamp_rollback": False,
             "rollback_dir": None,
             "rollback_file_include_node_info": False,
@@ -290,6 +313,7 @@ class WorkbenchConfig:
             "media_track_file_fields": self.get_media_track_file_fields(),
             "media_fields": self.get_media_fields(),
             "delete_media_by_node_media_use_tids": [],
+            "update_media_by_node_media_use_tids": [],
             "export_csv_term_mode": "tid",
             "export_csv_file_path": None,
             "export_csv_field_list": [],
@@ -323,10 +347,7 @@ class WorkbenchConfig:
             "media_type_by_media_use": False,
             "paged_content_ignore_files": ["Thumbs.db"],
             "include_password_in_rollback_config_file": False,
-            "remove_password_from_config_file": False,
             "recovery_mode_starting_from_node_id": False,
-            "viewer_override_fieldname": "field_viewer_override",
-            "check_for_workbench_updates": True,
             "file_systems": ("public", "private"),
         }
 
