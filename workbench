@@ -807,7 +807,6 @@ def update():
 
             # Assemble Drupal field structures from CSV data. If new field types are added to
             # workbench_fields.py, they need to be registered in the following if/elif/else block.
-
             field = workbench_fields.WorkbenchFieldFactory.get_field_handler(
                 field_definitions[custom_field]["field_type"]
             )
@@ -1225,7 +1224,8 @@ def add_media():
 
 
 def update_media() -> None:
-    """Update media from media IDs in the input CSV."""
+    """Callback for "update_media" and "update_media_from_node" tasks. Update media from media IDs (or node ID
+    if the task is "update_media_by_node") in the input CSV."""
     from typing import Optional
 
     # ========================================================= Helper functions =========================================================
@@ -1563,15 +1563,27 @@ def update_media() -> None:
 
     # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
 
-    message = (
-        '"Update media" ('
-        + config["update_mode"]
-        + ") task started using config file "
-        + args.config
-        + "."
-    )
-    print(message)
-    logging.info(message)
+    if config["task"] == "update_media":
+        message = (
+            '"Update media" ('
+            + config["update_mode"]
+            + ") task started using config file "
+            + args.config
+            + "."
+        )
+        print(message)
+        logging.info(message)
+
+    if config["task"] == "update_media_by_node":
+        message = (
+            '"Update media by node" ('
+            + config["update_mode"]
+            + ") task started using config file "
+            + args.config
+            + "."
+        )
+        print(message)
+        logging.info(message)
 
     csv_data = get_csv_data(config)
     csv_column_headers = csv_data.fieldnames
@@ -1911,7 +1923,13 @@ def update_media() -> None:
         for custom_field in custom_fields:
             media_has_all_fields = True
             # If media doesn't have the field, log that fact and skip updating the field.
-            reserved_fields = ["published", "url_alias", "file", "revision_log"]
+            reserved_fields = [
+                "published",
+                "url_alias",
+                "file",
+                "revision_log",
+                "node_id",
+            ]
             if (
                 custom_field not in json.loads(ping_media_result)
                 and custom_field not in reserved_fields
@@ -3095,7 +3113,11 @@ def run_scripts():
         for command in config["run_scripts"]:
             executor_return = {
                 executor.submit(
-                    execute_script_to_run, config, command, entity_id
+                    execute_script_to_run,
+                    config,
+                    command,
+                    config["run_scripts_entity_type"],
+                    entity_id,
                 ): entity_id
                 for entity_id in entity_ids
             }
@@ -3103,17 +3125,21 @@ def run_scripts():
                 executor_return
             ):
                 script_result = script_result_from_executor.result()
-                if script_result[1] == 0:
-                    print(script_result[0])
-                    if config["run_scripts_log_script_output"] is True:
-                        logging.info(
-                            f'Script "{command}" exectuted with output: {script_result[0]}'
-                        )
-                else:
-                    message = f'Script "{command}" execution failed with return code {script_result[1]}.'
+                if script_result is None:
+                    message = f'Error: Script "{command}" execution failed. See the Workbench log for more information.'
                     print(message)
-                    if config["run_scripts_log_script_output"] is True:
-                        logging.error(message)
+                else:
+                    if script_result[1] == 0:
+                        print(script_result[0])
+                        if config["run_scripts_log_script_output"] is True:
+                            logging.info(
+                                f'Script "{command}" exectuted with output: {script_result[0]}'
+                            )
+                    else:
+                        message = f'Script "{command}" execution failed with return code {script_result[1]}.'
+                        print(message)
+                        if config["run_scripts_log_script_output"] is True:
+                            logging.error(message)
 
 
 # Main program logic.
@@ -3347,6 +3373,20 @@ if len(config["input_data_zip_archives"]) > 0 and config["nodes_only"] is not Tr
         else:
             unzip_archive(config, input_data_zip_archive)
 
+if (
+    config["task"] == "create"
+    or config["task"] == "add_media"
+    or config["task"] == "update_media"
+    or config["task"] == "update_media_by_node"
+):
+    if (
+        config["nodes_only"] is False
+        and config["keep_filename_parent_directory"] is False
+    ):
+        logging.info(
+            "Parent directory names for files will not be used when creating Drupal media, but the directory names will appear in Worbench messages and log entries."
+        )
+
 if "check" in config.keys():
     tasks_to_skip = ["create_from_files", "get_data_from_view"]
     if config["check"] is False and config["task"] not in tasks_to_skip:
@@ -3397,7 +3437,7 @@ logging.info(message)
 
 check_drupal_core_version(config)
 
-if config["task"] in ["create", "update", "add_media"]:
+if config["task"] in ["create", "update", "add_media", "run_scripts"]:
     csv_subset_warning(config)
 
 if config["task"] in ["create", "create_from_files"]:
@@ -3513,7 +3553,7 @@ try:
         get_media_report_from_view()
     if config["task"] == "create_terms":
         create_terms()
-    if config["task"] == "update_media":
+    if config["task"] in ["update_media", "update_media_by_node"]:
         update_media()
     if config["task"] == "update_terms":
         update_terms()

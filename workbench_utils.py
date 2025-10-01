@@ -41,7 +41,6 @@ install()
 yaml = YAML()
 
 EXECUTION_START_TIME = datetime.datetime.now()
-INTEGRATION_MODULE_MIN_VERSION = "1.0"
 # Workaround for https://github.com/mjordan/islandora_workbench/issues/360.
 http.client._MAXHEADERS = 10000
 http_response_times = []
@@ -56,6 +55,7 @@ file_fields = [
     "field_media_audio_file",
     "field_media_video_file",
 ]
+commented_out_input_csv_rows_present = False
 
 
 def set_media_type(config, filepath, file_fieldname, csv_row):
@@ -437,8 +437,8 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
 
 
 def convert_semver_to_number(version_string):
-    """Convert a Semantic Version number (e.g. Drupal's) string to a number. We only need the major
-    and minor numbers (e.g. 9.2).
+    """Convert a Semantic Version number (e.g. Drupal's) string to a tuple. We only need the
+    major and minor numbers (e.g. 9.2).
 
     Parameters
     ----------
@@ -508,23 +508,36 @@ def check_drupal_core_version(config):
         print(message)
 
 
-def check_integration_module_version(config):
+def check_integration_module_version(config, log_success=True):
     """Verifies if the minimum required version of the workbench integration module is being used.
 
     Parameters
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
+    log_success : bool
+        Whether or not to log that the desired version of the module is installed
+        on the remote Drupal. Lack of minimum version is always logged.
     Returns
     -------
     None
     """
     version = get_integration_module_version(config)
 
+    integration_module_min_version = "1.0"
+    log_message = f'Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
+
+    """
+    # Logic that maps a feature to a miniumum Integration module version, and produces a specific log message.
+    if config["use_workbench_integration_permissions"] is True:
+        integration_module_min_version = "1.2"
+        log_message = f'In order to use the "use_workbench_integration_permissions" config setting, Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
+    """
+
     if version is False:
         message = (
             "Workbench cannot determine the Islandora Workbench Integration module's version number. It must be version "
-            + str(INTEGRATION_MODULE_MIN_VERSION)
+            + str(integration_module_min_version)
             + " or higher."
         )
         logging.error(message)
@@ -532,27 +545,28 @@ def check_integration_module_version(config):
     else:
         version_number = convert_semver_to_number(version)
         minimum_version_number = convert_semver_to_number(
-            INTEGRATION_MODULE_MIN_VERSION
+            integration_module_min_version
         )
         if version_number < minimum_version_number:
-            message = (
+            console_message = (
                 "The Islandora Workbench Integration module installed on "
                 + config["host"]
                 + " must be"
                 + " upgraded to version "
-                + str(INTEGRATION_MODULE_MIN_VERSION)
-                + "."
+                + str(integration_module_min_version)
+                + ". See your Workbench log for more information."
             )
-            logging.error(message)
-            sys.exit("Error: " + message)
+            logging.error(log_message)
+            sys.exit("Error: " + console_message)
         else:
-            logging.info(
-                "OK, Islandora Workbench Integration module installed on "
-                + config["host"]
-                + " is at version "
-                + str(version)
-                + "."
-            )
+            if log_success is True:
+                logging.info(
+                    "OK, Islandora Workbench Integration module installed on "
+                    + config["host"]
+                    + " is at version "
+                    + str(version)
+                    + "."
+                )
 
 
 def get_integration_module_version(config):
@@ -803,18 +817,6 @@ def ping_islandora(config, print_message=True):
         logging.error(error_connection)
         sys.exit("Error: " + message)
 
-    if host_response.status_code == 404:
-        message = (
-            "Workbench cannot detect whether the Islandora Workbench Integration module is "
-            + "enabled on "
-            + config["host"]
-            + ". Please ensure it is enabled and that its version is "
-            + str(INTEGRATION_MODULE_MIN_VERSION)
-            + " or higher."
-        )
-        logging.error(message)
-        sys.exit("Error: " + message)
-
     not_authorized = [401, 403]
     if host_response.status_code in not_authorized:
         message = (
@@ -1052,11 +1054,16 @@ def ping_remote_file(config, url):
     int|None
     """
     headers = {"User-Agent": config["user_agent"]}
+    cookies = {config["remote_file_cookie_name"]: config["remote_file_cookie_value"]}
 
     sections = urllib.parse.urlparse(url)
     try:
         response = requests.head(
-            url, allow_redirects=True, verify=config["secure_ssl_only"], headers=headers
+            url,
+            allow_redirects=True,
+            verify=config["secure_ssl_only"],
+            headers=headers,
+            cookies=cookies,
         )
         return response.status_code
     except requests.exceptions.Timeout as err_timeout:
@@ -1152,6 +1159,35 @@ def get_mid_from_media_url_alias(config, url_alias):
     else:
         media = json.loads(response.text)
         return media["mid"][0]["value"]
+
+
+def get_tid_from_term_url_alias(config, url_alias):
+    """Gets a term ID from a term URL alias. This function also works
+    with canonical URLs, e.g. http://localhost:8000/taxonomy/term/1234.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    url_alias : string
+        The full URL alias (or canonical URL), including http://, etc.
+    Returns
+    -------
+    int|boolean
+        The term ID, or False if the URL cannot be found.
+    """
+    # Drupal sometimes returns "http://" instead of "https://" in the "location"
+    # response header. Check for that and replace it if necessary.
+    if url_alias.startswith("http://") and config["host"].startswith("https://"):
+        url_alias = re.sub(r"^http://", "https://", url_alias, flags=re.IGNORECASE)
+
+    url = url_alias + "?_format=json"
+    response = issue_request(config, "GET", url)
+    if response.status_code != 200:
+        return False
+    else:
+        term = json.loads(response.text)
+        return term["tid"][0]["value"]
 
 
 def get_nid_from_url_without_config(url):
@@ -1853,7 +1889,7 @@ def check_input(config, args):
             os.remove(config["check_lock_file_path"])
 
     ping_islandora(config, print_message=False)
-    check_integration_module_version(config)
+    check_integration_module_version(config, log_success=False)
 
     rows_with_missing_files = list()
 
@@ -1892,6 +1928,7 @@ def check_input(config, args):
         "delete",
         "add_media",
         "update_media",
+        "update_media_by_node",
         "delete_media",
         "delete_media_by_node",
         "create_from_files",
@@ -1908,7 +1945,7 @@ def check_input(config, args):
     if config["task"] not in tasks:
         message = (
             '"task" in your configuration file must be one of "create", "update", "delete", "add_alt_text", "update_alt_text", '
-            + '"add_media", "update_media", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", or "create_redirects".'
+            + '"add_media", "update_media", "update_media_by_node", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", "create_redirects", or "run_scripts".'
         )
         logging.error(message)
         sys.exit("Error: " + message)
@@ -2060,7 +2097,7 @@ def check_input(config, args):
                 )
                 logging.error(message)
                 sys.exit("Error: " + message)
-    if config["task"] == "update_media":
+    if config["task"] in ["update_media", "update_media_by_node"]:
         update_media_required_options = [
             "task",
             "host",
@@ -2279,7 +2316,7 @@ def check_input(config, args):
 
     check_csv_file_exists(config, "node_fields")
 
-    # Check column headers in CSV file. Does not apply to add_media or update_media tasks (handled just below).
+    # Check column headers in CSV file. Does not apply to add_media or update_media/update_media_by_node tasks (handled just below).
     csv_data = get_csv_data(config)
     if config["csv_headers"] == "labels" and config["task"] in [
         "create",
@@ -2305,7 +2342,7 @@ def check_input(config, args):
     else:
         csv_column_headers = csv_data.fieldnames
 
-    if config["task"] in ["add_media", "update_media"]:
+    if config["task"] in ["add_media", "update_media", "update_media_by_node"]:
         field_definitions = get_field_definitions(config, "media", config["media_type"])
         base_media_fields = ["status", "uid", "langcode"]
         drupal_fieldnames = []
@@ -2390,6 +2427,22 @@ def check_input(config, args):
         )
         print(message)
         logging.info(message)
+
+    row_filter_settings = []
+    if config["csv_start_row"] != 0:
+        row_filter_settings.append("csv_start_row")
+    if config["csv_stop_row"] is not None:
+        row_filter_settings.append("csv_stop_row")
+    if "csv_rows_to_process" in config:
+        row_filter_settings.append("csv_rows_to_process")
+    if "csv_row_filters" in config:
+        row_filter_settings.append("csv_row_filters")
+    if commented_out_input_csv_rows_present is True:
+        row_filter_settings.append(True)
+    if len(row_filter_settings) > 1:
+        preprocessed_input_csv_file_path = get_preprocessed_input_csv_file_path(config)
+        message = f'Your configuration contains more than one input CSV row filter setting, and/or your input CSV has some commented-out rows. Please check "{preprocessed_input_csv_file_path}" to confirm the rows you want are present.'
+        logging.warning(message)
 
     # Check existence of input data zip archives.
     if len(config["input_data_zip_archives"]) > 0:
@@ -2785,7 +2838,7 @@ def check_input(config, args):
         logging.info(message)
 
     # If the task is update media, check if all media_id values are valid.
-    if config["task"] == "update_media":
+    if config["task"] in ["update_media"]:
         csv_data = get_csv_data(config)
         row_number = 1
         for row in csv_data:
@@ -2799,6 +2852,24 @@ def check_input(config, args):
                 logging.error(message)
                 sys.exit(message)
             row_number += 1
+
+    if config["task"] == "update_media_by_node":
+        node_media_ids = get_node_media_ids(
+            config,
+            row["node_id"],
+            media_use_tids=config["update_media_by_node_media_use_tids"],
+            media_type=config["media_type"],
+        )
+        if len(node_media_ids) == 1:
+            logging.info(
+                f'Matching media on node {{row["node_id"]}} (media ID {node_media_ids[0]}) will be updated.'
+            )
+        elif len(node_media_ids) == 0:
+            logging.warning(f'No matching media on node {row["node_id"]} found.')
+        else:
+            logging.warning(
+                f'Multiple matching media on node {row["node_id"]} found, with media IDs {", ".join([str(x) for x in node_media_ids]).strip()}. Workbench can only update one media per node at a time.'
+            )
 
     if (
         config["task"] == "add_media"
@@ -3271,6 +3342,11 @@ def check_input(config, args):
             message = 'For "update_media" tasks, your CSV file must contain a "media_id" column.'
             logging.error(message)
             sys.exit("Error: " + message)
+    if config["task"] == "update_media_by_node":
+        if "node_id" not in csv_column_headers:
+            message = 'For "update_media_by_node" tasks, your CSV file must contain a "node_id" column.'
+            logging.error(message)
+            sys.exit("Error: " + message)
     if config["task"] == "delete_media":
         if "media_id" not in csv_column_headers:
             message = 'For "delete_media" tasks, your CSV file must contain a "media_id" column.'
@@ -3421,6 +3497,7 @@ def check_input(config, args):
         config["task"] == "create"
         or config["task"] == "add_media"
         or config["task"] == "update_media"
+        or config["task"] == "update_media_by_node"
         and "file" in csv_column_headers
     ):
         if (
@@ -3432,6 +3509,8 @@ def check_input(config, args):
                 config["id_field"] = "node_id"
             if config["task"] == "update_media":
                 config["id_field"] = "media_id"
+            if config["task"] == "update_media_by_node":
+                config["id_field"] = "node_id"
 
             file_check_csv_data = get_csv_data(config)
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
@@ -4096,44 +4175,91 @@ def check_input(config, args):
             message = f'Unknown value for configuration setting "export_file_media_use_term_id": {config["export_file_media_use_term_id"]}.'
             logging.error(message)
             sys.exit("Error: " + message)
+            
+    # Checks for "run_scripts" task.
+    if config["task"] == "run_scripts":
+        run_scripts_check_csv_data = get_csv_data(config)
+        csv_column_headers = run_scripts_check_csv_data.fieldnames
+        if "run_scripts_entity_type" not in config:
+            message = 'Required "run_scripts_entity_type" setting not in config file.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if config["run_scripts_entity_type"] not in ["node", "media", "term"]:
+            message = 'Required "run_scripts_entity_type" setting must be on of "node", "media" or "term".'
+            logging.error(message)
+            sys.exit("Error: " + message)
 
-    if (
-        len(rows_with_missing_files) > 0
-        and config["allow_missing_files"] is False
-        and config["perform_soft_checks"] is False
-    ):
-        logging.error(
-            'Missing or empty CSV "file" column values detected. See log entries above.'
-        )
-        sys.exit(
-            'Error: Missing or empty CSV "file" column values detected. See the log for more information.'
-        )
+        if (
+            config["run_scripts_entity_type"] == "node"
+            and "node_id" not in csv_column_headers
+        ):
+            message = 'run_scripts tasks for nodes require a "node_id" column in the intput CSV.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if (
+            config["run_scripts_entity_type"] == "media"
+            and "media_id" not in csv_column_headers
+        ):
+            message = 'run_scripts tasks for media require a "media_id" column in the intput CSV.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if (
+            config["run_scripts_entity_type"] == "term"
+            and "term_id" not in csv_column_headers
+        ):
+            message = 'run_scripts tasks for taxonomy terms a require a "term_id" column in the intput CSV.'
+            logging.error(message)
+            sys.exit("Error: " + message)
 
-    if len(rows_with_missing_files) > 0 and config["perform_soft_checks"] is True:
-        message = '"perform_soft_checks" configuration setting is set to "true" and some values in the "file" column were not found.'
-        logging.warning(message + " See log entries above.")
-        print("Warning: " + message + " See the log for more information.")
+        if "run_scripts" not in config:
+            message = 'Required "run_scripts" setting not in config file.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+        if "run_scripts" in config and len(config["run_scripts"]) == 0:
+            message = 'Required "run_scripts" setting is in config file but does contain any scripts.'
+            logging.error(message)
+            sys.exit("Error: " + message)
 
-    if (
-        "additional_files" in config
-        and len(config["additional_files"]) > 0
-        and config["nodes_only"] is False
-    ):
-        if missing_additional_files is True:
-            if config["allow_missing_files"] is False:
-                message = '"allow_missing_files" configuration setting is set to "false", and some files in fields configured as "additional_file" fields cannot be found.'
-                logging.error(message + " See log entries above.")
-                print(message + " See the log for more information.")
-                if config["perform_soft_checks"] is True:
-                    message = 'The "perform_soft_checks" configuration setting is set to "true", so Workbench did not exit after finding the first missing file.'
-                    logging.warning(message)
-                    print(message + " See the log for more information.")
-                else:
-                    sys.exit("Error: " + message)
+        for script_to_run in config["run_scripts"]:
+            if " " in script_to_run:
+                interpeter, script_to_run = script_to_run.split(" ", 1)
+            if not os.path.exists(script_to_run.strip()):
+                message = "Script " + script_to_run + " not found."
+                logging.error(message)
+                sys.exit("Error: " + message)
+            if os.access(script_to_run, os.X_OK) is False:
+                message = "Script " + script_to_run + " is not executable."
+                logging.error(message)
+                sys.exit("Error: " + message)
+
+        message = "OK, registered scripts to run found and executable."
+        logging.info(message)
+        print(message)
+
+        # Ping each entity.
+        entities_found = True
+        if config["run_scripts_entity_type"] == "node":
+            for row in run_scripts_check_csv_data:
+                if ping_node(config, row["node_id"], warn=False) is False:
+                    logging.warning(f'Node ID {row["node_id"]} not found.')
+                    entities_found = False
+        if config["run_scripts_entity_type"] == "media":
+            for row in run_scripts_check_csv_data:
+                if ping_media(config, row["media_id"], warn=False) is False:
+                    logging.warning(f'Media ID {row["media_id"]} not found.')
+                    entities_found = False
+        if config["run_scripts_entity_type"] == "term":
+            for row in run_scripts_check_csv_data:
+                if ping_term(config, row["term_id"]) is False:
+                    logging.warning(f'Term ID {row["term_id"]} not found.')
+                    entities_found = False
+
+        if entities_found == True:
+            logging.info("All entities listed in input CSV found.")
+            print("OK, all entities listed in input CSV found.")
         else:
-            message = 'OK, files in fields configured as "additional_file" fields are all present.'
-            logging.info(message)
-            print(message)
+            message = "Some entities listed in input CSV not found; please see your Workbench log for more detail."
+            print("Warning: " + message)
 
     # If nothing has failed by now, exit with a positive, upbeat message.
     print("Configuration and input data appear to be valid.")
@@ -5075,61 +5201,83 @@ def execute_entity_post_task_script(
     path_to_script, path_to_config_file, http_response_code, entity_json=""
 ):
     """Executes a entity-level post-task script and returns its output and exit status code."""
-    cmd = subprocess.Popen(
-        [path_to_script, path_to_config_file, str(http_response_code), entity_json],
-        stdout=subprocess.PIPE,
-    )
+    if " " in path_to_script:
+        interpeter, script = path_to_script.split(" ")
+        cmd = subprocess.Popen(
+            [
+                interpeter,
+                script,
+                path_to_config_file,
+                str(http_response_code),
+                entity_json,
+            ],
+            stdout=subprocess.PIPE,
+        )
+    else:
+        cmd = subprocess.Popen(
+            [path_to_script, path_to_config_file, str(http_response_code), entity_json],
+            stdout=subprocess.PIPE,
+        )
+
     result, stderrdata = cmd.communicate()
+    result = result.decode().strip()
 
     return result, cmd.returncode
 
 
-# def upload_local_file(config, filename, media_type):
-#     """Uploads a file to Drupal.
-#     """
-#     file_path = os.path.join(config['input_dir'], filename)
-#     if media_type in config['media_type_file_fields']:
-#         media_file_field = config['media_type_file_fields'][media_type]
-#     else:
-#         logging.error('File not created for CSV row "%s": media type "%s" not recognized.', media_csv_row[config['media_id']], media_type)
-#         return False
+def execute_script_to_run(config, path_to_script, entity_type, entity_id):
+    """Executes a entity-level script and returns its output and exit status code.
+    Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    path_to_script : string
+        The absolute path to the Workbench config file.
+    entity_type: str
+        One of "node", "media", or "term".
+    entity_id: str
+         The name of the CSV column containing the filename. None if the file isn't
+         in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+    Returns
+    -------
+    str, str|None
+        The output of the script (stdout or stderr) and the script's return code,
+        or None if an exception within this function occurred.
+    """
+    if value_is_numeric(entity_id) is False:
+        if entity_type == "node":
+            entity_id = get_nid_from_url_alias(config, entity_id)
+        if entity_type == "media":
+            entity_id = get_mid_from_media_url_alias(config, entity_id)
+        if entity_type == "term":
+            entity_id = get_tid_from_term_url_alias(config, entity_id)
 
-#     # Requests/urllib3 requires filenames used in Content-Disposition headers to be encoded as latin-1.
-#     # Since it is impossible to reliably convert to latin-1 without knowing the source encoding of the filename
-#     # (which may or may not have originated on the machine running Workbench, so sys.stdout.encoding isn't reliable),
-#     # the best we can do for now is to use unidecode to replace non-ASCII characters in filenames with their ASCII
-#     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
-#     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
-#     # of both requirements.
-#     ascii_only = string_is_ascii(filename)
-#     if ascii_only is False:
-#         original_filename = copy.copy(filename)
-#         filename = unidecode(filename)
-#         logging.warning("Filename '" + original_filename + "' contains non-ASCII characters, normalized to '" + filename + "'.")
+    try:
+        if " " in path_to_script:
+            interpeter, script = path_to_script.split(" ", 1)
+            cmd = subprocess.Popen(
+                [
+                    interpeter.strip(),
+                    script.strip(),
+                    config["config_file_path"],
+                    str(entity_id),
+                ],
+                stdout=subprocess.PIPE,
+            )
+        else:
+            cmd = subprocess.Popen(
+                [path_to_script, config["config_file_path"], str(entity_id)],
+                stdout=subprocess.PIPE,
+            )
 
-#     file_endpoint_path = '/file/upload/media/' + media_type + '/' + media_file_field + '?_format=json'
-#     file_headers = {
-#         'Content-Type': 'application/octet-stream',
-#         'Content-Disposition': 'file; filename="' + filename + '"'
-#     }
+        result, stderrdata = cmd.communicate()
+        result = result.decode(errors="replace").strip()
 
-#     binary_data = open(file_path, 'rb')
-
-#     try:
-#         file_response = issue_request(config, 'POST', file_endpoint_path, file_headers, '', binary_data)
-#         if file_response.status_code == 201:
-#             file_json = json.loads(file_response.text)
-#             file_id = file_json['fid'][0]['value']
-#             return file_id
-#         else:
-#             logging.error('File not created for "' + file_path + '", POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
-#                         file_endpoint_path, file_response.status_code, file_response.content)
-#             return False
-#     except requests.exceptions.RequestException as e:
-#         logging.error(e)
-#         return False
-
-#     # TODO: Handle checksums, temporary files, etc. as in create_file
+        return result, cmd.returncode
+    except Exception as e:
+        message = f'Could not execute script "{path_to_script}": {e}'
+        logging.error(message)
+        return None
 
 
 def create_file(config, filename, file_fieldname, node_csv_row, node_id):
@@ -5250,9 +5398,13 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     file_endpoint_path = (
         "/file/upload/media/" + media_type + "/" + media_file_field + "?_format=json"
     )
+    if config["keep_filename_parent_directory"] is True:
+        remote_filename = filename
+    else:
+        remote_filename = os.path.basename(filename)
     file_headers = {
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": 'file; filename="' + filename + '"',
+        "Content-Disposition": 'file; filename="' + remote_filename + '"',
     }
 
     binary_data = open(file_path, "rb")
@@ -6123,6 +6275,8 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         preprocessed_csv_reader
             The CSV DictReader object.
     """
+    global commented_out_input_csv_rows_present
+
     if csv_file_target == "node_fields":
         file_path = config["input_csv"]
 
@@ -6164,7 +6318,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
     csv_writer_file_handle = open(
         preprocessed_csv_path, "w+", newline="", encoding="utf-8"
     )
-    # 'restval' is used to populate superfluous fields/labels.
+    # The CSV reader argument 'restval' is used to populate superfluous fields/labels.
     csv_reader = csv.DictReader(
         csv_reader_file_handle,
         delimiter=config["delimiter"],
@@ -6190,7 +6344,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
     else:
         csv_reader_fieldnames = csv_reader.fieldnames
 
-    # Even though we check for the columrespective ID column n in the incoming CSV in check_input(),
+    # Even though we check for the task's expected ID column in the incoming CSV in check_input(),
     # we need to check it here as well since check_input() reads the CSV prior to those checks.
     id_columns = {
         "create": config["id_field"],
@@ -6200,6 +6354,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         "delete_media": "media_id",
         "delete_media_by_node": "node_id",
         "update_media": "media_id",
+        "update_media_by_node": "node_id",
         "create_terms": "term_name",
         "update_terms": "term_id",
         "export_csv": "node_id",
@@ -6212,6 +6367,17 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             message = f'"{task}" tasks require a "{id_columns[task]}" CSV column. Please check your input CSV file and try again.'
             logging.error(message)
             sys.exit("Error: " + message)
+
+    if config["task"] == "run_scripts":
+        run_scripts_entity_type = config["run_scripts_entity_type"]
+        id_columns = {"node": "node_id", "media": "media_id", "term": "term_id"}
+        if id_columns[config["run_scripts_entity_type"]] not in csv_reader_fieldnames:
+            message = f'"run_scripts" tasks for "{run_scripts_entity_type}" entities require a "{id_columns[run_scripts_entity_type]}" CSV column. Please check your input CSV file and try again.'
+            logging.error(message)
+            sys.exit("Error: " + message)
+
+    if config["task"] == "update_media_by_node":
+        csv_reader_fieldnames.append("media_id")
 
     confirmed = []
     duplicates = []
@@ -6238,7 +6404,11 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
 
     # CSV field templates and CSV value templates currently apply only to node CSV files, not vocabulary CSV files.
     tasks = ["create", "update", "add_media"]
-    if config["task"] in tasks and csv_file_target == "node_fields":
+    if (
+        config["task"] in tasks
+        and csv_file_target == "node_fields"
+        or config["task"] == "run_scripts"
+    ):
         # If the config file contains CSV field templates, append them to the CSV data.
         # Make a copy of the column headers so we can skip adding templates to the new CSV
         # if they're present in the source CSV. We don't want fields in the source CSV to be
@@ -6249,6 +6419,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                 for field_name, field_value in template.items():
                     if field_name not in csv_reader_fieldnames_orig:
                         csv_reader_fieldnames.append(field_name)
+
         csv_writer = csv.DictWriter(
             csv_writer_file_handle,
             fieldnames=csv_reader_fieldnames,
@@ -6300,10 +6471,27 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         else:
             csv_start_row = config["csv_start_row"]
 
+        if config["task"] == "run_scripts":
+            if config["run_scripts_entity_type"] == "node":
+                config["id_field"] = "node_id"
+            if config["run_scripts_entity_type"] == "media":
+                config["id_field"] = "media_id"
+            if config["run_scripts_entity_type"] == "term":
+                config["id_field"] = "term_id"
+
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
 
-            csv_rows_to_process_allowed_tasks = ["create", "update", "add_media"]
+            if "node_id" in row and value_is_numeric(row["node_id"]) is False:
+                row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+
+            csv_rows_to_process_allowed_tasks = [
+                "create",
+                "update",
+                "add_media",
+                "run_scripts",
+            ]
+
             # If the value in config['csv_rows_to_process'] is a path to a file, skip rows not identified in the file.
             if (
                 "csv_rows_to_process" in config
@@ -6385,8 +6573,15 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         if field_name not in csv_reader_fieldnames_orig:
                             row[field_name] = field_value
 
-            # Skip CSV records whose first column begin with #.
-            if not list(row.values())[0].startswith("#"):
+            # Skip CSV records whose first column begins with #.
+            if str(list(row.values())[0]).strip().startswith("#") is False:
+                # Skip row if the entity is not found.
+                if row[config["id_field"]] is False:
+                    continue
+
+                if "node_id" in row and value_is_numeric(row["node_id"]) is False:
+                    row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+
                 try:
                     unique_identifiers.append(row[config["id_field"]])
 
@@ -6413,6 +6608,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         "delete",
                         "add_media",
                         "delete_media_by_node",
+                        "update_media_by_node",
                     ]:
                         incoming_node_id = copy.copy(row["node_id"])
                         if value_is_numeric(row["node_id"]) is False:
@@ -6445,11 +6641,13 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     logging.error(message)
                     print("Error: " + message)
                     sys.exit(message)
+            else:
+                commented_out_input_csv_rows_present = True
 
         repeats = set(
             ([x for x in unique_identifiers if unique_identifiers.count(x) > 1])
         )
-        if len(repeats) > 0:
+        if isinstance(repeats, set) and len(repeats) > 0:
             message = (
                 "Duplicate identifiers in column "
                 + config["id_field"]
@@ -6476,15 +6674,45 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
             csv_start_row = config["csv_start_row"]
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
+
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config["ignore_csv_columns"]) > 0:
                 for column_to_ignore in config["ignore_csv_columns"]:
                     if column_to_ignore in row:
                         del row[column_to_ignore]
 
-            # Skip CSV records whose first column begin with #.
-            if not list(row.values())[0].startswith("#"):
+            # Skip CSV records whose first column begins with #.
+            if str(list(row.values())[0]).strip().startswith("#") is False:
+
+                if "node_id" in row and value_is_numeric(row["node_id"]) is False:
+                    row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
+
                 try:
+                    # Get the media ID(s) attached to the node at row["node_id"]. If there is only one
+                    # media ID, write it to the .preprocessed CSV file in the "media_id" column. If there
+                    # are none, or more than one, log that and move on to next row.
+                    if config["task"] == "update_media_by_node":
+                        node_media_ids = get_node_media_ids(
+                            config,
+                            row["node_id"],
+                            media_use_tids=config[
+                                "update_media_by_node_media_use_tids"
+                            ],
+                            media_type=config["media_type"],
+                        )
+                        if len(node_media_ids) == 1:
+                            row["media_id"] = node_media_ids[0]
+                        elif len(node_media_ids) == 0:
+                            logging.warning(
+                                f'No matching media on node {row["node_id"]} found.'
+                            )
+                            continue
+                        else:
+                            logging.warning(
+                                f'Multiple matching media on node {row["node_id"]} found, with media IDs {", ".join([str(x) for x in node_media_ids]).strip()}. Workbench can only update one media per node at a time.'
+                            )
+                            continue
+
                     row = clean_csv_values(config, row)
                     csv_writer.writerow(row)
                 except ValueError:
@@ -6505,16 +6733,6 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     )
                     logging.error(message)
                     sys.exit("Error: " + message)
-
-            # Convert node URLs into node IDs.
-            if config["task"] in [
-                "update",
-                "delete",
-                "add_media",
-                "delete_media_by_node",
-            ]:
-                if value_is_numeric(row["node_id"]) is False:
-                    row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
 
     csv_writer_file_handle.close()
     preprocessed_csv_reader_file_handle = open(
@@ -9233,13 +9451,17 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         )
         if "field_model" in entity_fields:
             if not value_is_numeric(
-                config["paged_content_page_model_tid"].strip()
-            ) and config["paged_content_page_model_tid"].strip().startswith("http"):
+                str(config["paged_content_page_model_tid"]).strip()
+            ) and str(config["paged_content_page_model_tid"]).strip().startswith(
+                "http"
+            ):
                 paged_content_model_tid = get_term_id_from_uri(
-                    config, config["paged_content_page_model_tid"].strip()
+                    config, str(config["paged_content_page_model_tid"]).strip()
                 )
             else:
-                paged_content_model_tid = config["paged_content_page_model_tid"].strip()
+                paged_content_model_tid = str(
+                    config["paged_content_page_model_tid"]
+                ).strip()
             node_json["field_model"] = [
                 {"target_id": paged_content_model_tid, "target_type": "taxonomy_term"}
             ]
@@ -10111,12 +10333,16 @@ def check_file_exists(config, filename):
     if filename.startswith("http"):
         try:
             headers = {"User-Agent": config["user_agent"]}
+            cookies = {
+                config["remote_file_cookie_name"]: config["remote_file_cookie_value"]
+            }
 
             head_response = requests.head(
                 filename,
                 allow_redirects=True,
                 verify=config["secure_ssl_only"],
                 headers=headers,
+                cookies=cookies,
             )
             if head_response.status_code == 200:
                 return True
@@ -10201,7 +10427,8 @@ def get_preprocessed_file_path(
                 config["temp_dir"],
                 re.sub("[^A-Za-z0-9]+", "_", str(node_csv_row["node_id"])),
             )
-        elif config["task"] == "update_media":
+        # elif config["task"] == "update_media":
+        elif config["task"] in ["update_media", "update_media_by_node"]:
             subdir = os.path.join(
                 config["temp_dir"],
                 re.sub("[^A-Za-z0-9]+", "_", node_csv_row["media_id"]),
@@ -10297,7 +10524,7 @@ def get_preprocessed_file_path(
         return file_path
 
 
-def get_node_media_ids(config, node_id, media_use_tids=None):
+def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
     """Gets a list of media IDs for a node."""
     """Parameters
         ----------
@@ -10309,13 +10536,41 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
             Term IDs from the Islandora Media Use vocabulary. If present, media
             with one of these tids will be added to the returned list of media IDs.
             If empty, all media will be included in the returned list of media IDs.
+        media_type: string
+            A media type machine name to filter on.
         Returns
         -------
-        list
-            List of media IDs.
+        list|bool
+            List of media IDs, or False if there was a problem fetching the list of media.
     """
     if media_use_tids is None:
         media_use_tids = []
+
+    # Convert entries in media_use_tids from term names or URIs into term IDs.
+    if len(media_use_tids) > 0:
+        for i in range(len(media_use_tids)):
+            if (
+                value_is_numeric(media_use_tids[i]) is False
+                and media_use_tids[i].strip().startswith("http") is True
+            ):
+                media_use_tid_info = get_all_representations_of_term(
+                    config,
+                    vocab_id="islandora_media_use",
+                    uri=media_use_tids[i],
+                )
+                media_use_tids[i] = media_use_tid_info["term_id"]
+            elif (
+                value_is_numeric(media_use_tids[i]) is False
+                and media_use_tids[i].strip().startswith("http") is False
+            ):
+                media_use_tid_info = get_all_representations_of_term(
+                    config,
+                    vocab_id="islandora_media_use",
+                    name=media_use_tids[i],
+                )
+                media_use_tids[i] = media_use_tid_info["term_id"]
+            else:
+                media_use_tids[i] = media_use_tids[i]
 
     media_id_list = list()
     url = f"{config['host']}/node/{node_id}/media?_format=json"
@@ -10323,6 +10578,9 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
     if response.status_code == 200:
         body = json.loads(response.text)
         for media in body:
+            if media_type is not None:
+                if media_type != media["bundle"][0]["target_id"]:
+                    continue
             if len(media_use_tids) == 0:
                 media_id_list.append(media["mid"][0]["value"])
             else:
@@ -10331,7 +10589,7 @@ def get_node_media_ids(config, node_id, media_use_tids=None):
                         media_id_list.append(media["mid"][0]["value"])
         return media_id_list
     else:
-        message = f"Attempt to get media for node ID {node_id} returned a {response.status_code} status code."
+        message = f"Attempt to get media list for node ID {node_id} returned a {response.status_code} status code."
         print("Error: " + message)
         logging.warning(message)
         return False
@@ -10342,6 +10600,9 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
 
     sections = urllib.parse.urlparse(url)
     try:
+        cookies = {
+            config["remote_file_cookie_name"]: config["remote_file_cookie_value"]
+        }
         if config["secure_ssl_only"] is False:
             requests.packages.urllib3.disable_warnings()
         # Do not cache the responses for downloaded files in requests_cache
@@ -10352,6 +10613,7 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
                 stream=True,
                 verify=config["secure_ssl_only"],
                 headers=headers,
+                cookies=cookies,
             )
     except requests.exceptions.Timeout as err_timeout:
         message = (
@@ -10580,7 +10842,7 @@ def find_file_url_in_media(config, media_list, media_use_term_id, node_id):
                         file_url = file_info[0].get("url")
                         if file_url:
                             return file_url
-    logging.debug(
+    logging.warning(
         f"No valid media found for node {node_id} with use term {media_use_term_id}"
     )
     return None
