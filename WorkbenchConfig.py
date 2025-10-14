@@ -122,9 +122,14 @@ class WorkbenchConfig:
                 "csv_id_to_node_id_map_path"
             ]
         else:
+            # Add unique identifier to prevent conflicts between multiple workbench instances
+            from workbench_utils import get_config_file_identifier_shortened
+            config_file_id = get_config_file_identifier_shortened(config)
+            base_filename, ext = os.path.splitext(config["csv_id_to_node_id_map_filename"])
+            unique_filename = f"{base_filename}.{config_file_id}{ext}"
             config["csv_id_to_node_id_map_path"] = os.path.join(
                 config["csv_id_to_node_id_map_dir"],
-                config["csv_id_to_node_id_map_filename"],
+                unique_filename,
             )
 
         if "path_to_python" in user_mods:
