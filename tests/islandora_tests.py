@@ -18,6 +18,7 @@ import unittest
 import time
 import copy
 import shutil
+import tempfile
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
@@ -283,6 +284,154 @@ class TestUpdateWithMaxNodeTitleLength(unittest.TestCase):
             os.remove(self.preprocessed_update_file_path)
 
 
+class TestUpdateFileName(unittest.TestCase):
+
+    def setUp(self):
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.create_config_file_path = os.path.join(
+            self.current_dir, "assets", "update_file_name_test", "create.yml"
+        )
+        self.create_csv_file_path = os.path.join(
+            self.current_dir, "assets", "update_file_name_test", "create.csv"
+        )
+        self.create_cmd = ["./workbench", "--config", self.create_config_file_path]
+        self.nids = list()
+        self.fids = list()
+
+        self.update_csv_file_path = os.path.join(
+            self.current_dir, "assets", "update_file_name_test", "update_filenames.csv"
+        )
+        self.update_config_file_path = os.path.join(
+            self.current_dir, "assets", "update_file_name_test", "update.yml"
+        )
+        self.update_cmd = ["./workbench", "--config", self.update_config_file_path]
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--config")
+        parser.add_argument("--check")
+        parser.add_argument("--get_csv_template")
+        parser.add_argument("--quick_delete_node")
+        parser.set_defaults(config=self.create_config_file_path, check=False)
+        args = parser.parse_args(sys.argv[1:-1])
+        workbench_config = WorkbenchConfig(args)
+        config = workbench_config.get_config()
+        self.config = config
+
+        self.temp_dir = tempfile.gettempdir()
+
+    def test_update(self):
+        create_output = subprocess.check_output(self.create_cmd)
+        self.create_output = create_output.decode().strip()
+
+        create_lines = self.create_output.splitlines()
+        for line in create_lines:
+            if "created at" in line:
+                nid = line.rsplit("/", 1)[-1]
+                nid = nid.strip(".")
+                self.nids.append(nid)
+        self.assertEqual(len(self.nids), 2)
+        test_file_names = ["add_media_file_1.jpg", "add_media_file_2.jpg"]
+
+        i = 0
+        with open(self.create_csv_file_path):
+            csv_data = workbench_utils.get_csv_data(self.config)
+        for row in csv_data:
+            self.test_file_path = os.path.join(
+                self.current_dir, "assets", "update_file_name_test", test_file_names[i]
+            )
+            with open(self.test_file_path):
+                file_id = workbench_utils.create_file(
+                    self.config, test_file_names[i], "file", row, row["id"]
+                )
+            self.assertIsNot(file_id, False)
+            self.fids.append(file_id)
+            i = i + 1
+
+        # Hit URL to see if file was created
+        i = 0
+        while i <= 1:
+            file = {}
+            file_endpoint = (
+                self.config["host"]
+                + "/entity/file/"
+                + str(self.fids[i])
+                + "?_format=json"
+            )
+            file_headers = {"Content-Type": "application/json"}
+            file_response = workbench_utils.issue_request(
+                self.config, "GET", file_endpoint, file_headers, file
+            )
+            self.assertEqual(file_response.status_code, 200)
+            i = i + 1
+
+        # Write out an update_filenames CSV
+        update_csv_file_rows = list()
+        new_file_names = ["new_file_name_1.jpg", "new_file_name_2.jpg"]
+        update_csv_file_rows.append("file_id,filename")
+        i = 0
+        while i <= 1:
+            update_csv_file_rows.append(f"{self.fids[i]},{new_file_names[i]}")
+            i = i + 1
+        with open(self.update_csv_file_path, mode="wt") as update_csv_file:
+            update_csv_file.write("\n".join(update_csv_file_rows))
+        subprocess.check_output(self.update_cmd)
+
+        # Hit URL to see if file was successfully renamed
+        i = 0
+        while i <= 1:
+            file = {}
+            file_endpoint = (
+                self.config["host"]
+                + "/entity/file/"
+                + str(self.fids[i])
+                + "?_format=json"
+            )
+            file_headers = {"Content-Type": "application/json"}
+            file_response = workbench_utils.issue_request(
+                self.config, "GET", file_endpoint, file_headers, file
+            )
+            self.assertEqual(file_response.status_code, 200)
+            self.assertEqual(
+                file_response.json()["filename"][0]["value"], new_file_names[i]
+            )
+            i = i + 1
+
+    def tearDown(self):
+        for nid in self.nids:
+            quick_delete_cmd = [
+                "./workbench",
+                "--config",
+                self.create_config_file_path,
+                "--quick_delete_node",
+                "https://islandora.dev/node/" + nid,
+            ]
+            quick_delete_output = subprocess.check_output(quick_delete_cmd)
+
+        for fid in self.fids:
+            file_endpoint = (
+                self.config["host"] + "/entity/file/" + str(fid)
+            )
+            file_headers = {"Content-Type": "application/json"}
+            file_response = workbench_utils.issue_request(
+                self.config, "DELETE", file_endpoint, file_headers, {}
+            )
+
+        self.rollback_file_path = os.path.join(
+            self.current_dir, "assets", "update_file_name_test", "rollback.csv"
+        )
+        if os.path.exists(self.rollback_file_path):
+            os.remove(self.rollback_file_path)
+
+        self.preprocessed_file_path = os.path.join(
+            self.temp_dir, "create.csv.preprocessed"
+        )
+        if os.path.exists(self.preprocessed_file_path):
+            os.remove(self.preprocessed_file_path)
+
+        if os.path.exists(self.update_csv_file_path):
+            os.remove(self.update_csv_file_path)
+
+            
 class TestCreateWithNewTypedRelation(unittest.TestCase):
     # Note: You can't run this test class on its own, e.g., python3 tests/islandora_tests.py TestCreateWithNewTypedRelation
     # because passing "TestCreateWithNewTypedRelation" as an argument will cause the argparse parser to fail.
