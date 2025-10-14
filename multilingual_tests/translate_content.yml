@@ -1,0 +1,10 @@
+task: update
+host: https://islandora.dev
+username: admin
+password: password
+input_csv: multilingual_tests/translate_content.csv
+input_dir: ""
+content_type: islandora_object
+media_type: image
+allow_missing_files: true
+secure_ssl_only: false
