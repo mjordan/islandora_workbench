@@ -70,7 +70,8 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
         The value of the CSV 'file' column.
     file_fieldname: string
          The name of the CSV column containing the filename (usually 'file'). None if the file
-         isn't in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+         isn't in a CSV field (e.g., when config['paged_content_from_directories'] or
+         config['paged_content_from_directories_parents_exist'] is True).
     csv_row : OrderedDict
          The CSV row for the current item.
     Returns
@@ -2494,7 +2495,10 @@ def check_input(config, args):
         if (
             config["nodes_only"] is False
             and "file" not in csv_column_headers
-            and config["paged_content_from_directories"] is False
+            and (
+                config["paged_content_from_directories"] is False
+                or config["paged_content_from_directories_parents_exist"] is False
+            )
         ):
             message = 'For "create" tasks, your CSV file must contain a "file" column.'
             logging.error(message)
@@ -3539,9 +3543,9 @@ def check_input(config, args):
         or config["task"] == "update_media_by_node"
         and "file" in csv_column_headers
     ):
-        if (
-            config["nodes_only"] is False
-            and config["paged_content_from_directories"] is False
+        if config["nodes_only"] is False and (
+            config["paged_content_from_directories"] is False
+            or config["paged_content_from_directories_parents_exist"] is False
         ):
             # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
             if config["task"] == "add_media":
@@ -3740,7 +3744,10 @@ def check_input(config, args):
     if (
         (config["task"] == "create" or config["task"] == "add_media")
         and config["nodes_only"] is False
-        and config["paged_content_from_directories"] is False
+        and (
+            config["paged_content_from_directories"] is False
+            or config["paged_content_from_directories_parents_exist"] is False
+        )
     ):
         if "additional_files" in config and len(config["additional_files"]) > 0:
             additional_files_entries = get_additional_files_config(config)
@@ -3948,7 +3955,10 @@ def check_input(config, args):
                                     sys.exit("Error: " + message)
 
     # @todo Add warning to accommodate #639
-    if config["task"] == "create" and config["paged_content_from_directories"] is True:
+    if config["task"] == "create" and (
+        config["paged_content_from_directories"] is True
+        or config["paged_content_from_directories_parents_exist"] is True
+    ):
         if "paged_content_page_model_tid" not in config:
             message = 'If you are creating paged content, you must include "paged_content_page_model_tid" in your configuration.'
             logging.error(
@@ -4036,7 +4046,10 @@ def check_input(config, args):
 
             # Check additional page media files (e.g. OCR andhOCR files) for utf8 encoding.
             additional_page_media_no_utf8_warnings = list()
-            if config["paged_content_from_directories"] is True:
+            if (
+                config["paged_content_from_directories"] is True
+                or config["paged_content_from_directories_parents_exist"] is True
+            ):
                 if "paged_content_additional_page_media" in config:
                     for extension_mapping in config[
                         "paged_content_additional_page_media"
@@ -4473,6 +4486,7 @@ def check_input_for_create_from_files(config, args):
         "subdelimiter",
         "allow_missing_files",
         "paged_content_from_directories",
+        "paged_content_from_directories_parents_exist",
         "delete_media_with_nodes",
         "allow_adding_terms",
     ]
@@ -5329,7 +5343,8 @@ def execute_script_to_run(config, path_to_script, entity_type, entity_id):
         One of "node", "media", or "term".
     entity_id: str
          The name of the CSV column containing the filename. None if the file isn't
-         in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+         in a CSV field (e.g., when config['paged_content_from_directories'] is True or
+         config["paged_content_from_directories_parents_exist"] is True).
     Returns
     -------
     str, str|None
@@ -5382,7 +5397,8 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
          The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
      file_fieldname: string
          The name of the CSV column containing the filename. None if the file isn't
-         in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+         in a CSV field (e.g., when config['paged_content_from_directories'] is True or
+         config["paged_content_from_directories_parents_exist"] is True).
      node_csv_row: OrderedDict
          E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
      node_id: string
@@ -5583,7 +5599,8 @@ def create_media(
          The value of the CSV 'file' field for the current node.
      file_fieldname: string
          The name of the CSV column containing the filename. None if the file isn't
-         in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+         in a CSV field (e.g., when config['paged_content_from_directories'] is True
+         or config["paged_content_from_directories_parents_exist"] is True).
      node_id: string
          The ID of the node to attach the media to. This is False if file creation failed.
      csv_row: OrderedDict
@@ -9672,7 +9689,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                     logging.info("Media for %s created.", page_file_path)
                     print(f"+ Media for {page_file_path} created.")
 
-            if config["paged_content_from_directories"] is True:
+            if (
+                config["paged_content_from_directories"] is True
+                or config["paged_content_from_directories_parents_exist"] is True
+            ):
                 if "paged_content_additional_page_media" in config:
                     for extension_mapping in config[
                         "paged_content_additional_page_media"
@@ -11926,7 +11946,10 @@ def generate_contact_sheet_from_csv(config):
 
     compound_items = list()
     csv_data_to_get_children = get_csv_data(config)
-    if config["paged_content_from_directories"]:
+    if (
+        config["paged_content_from_directories"] is True
+        or config["paged_content_from_directories_parents_exist"] is True
+    ):
         # Collect the IDs of top-level items for use in the "Using subdirectories" method
         # of creating compound/paged content.
         for get_children_row in csv_data_to_get_children:
@@ -11995,12 +12018,15 @@ def generate_contact_sheet_from_csv(config):
         )
 
     for row in csv_data:
-        if config["paged_content_from_directories"]:
+        if (
+            config["paged_content_from_directories"] is True
+            or config["paged_content_from_directories_parents_exist"] is True
+        ):
             # Note: parent items (i.e. items with rows in the CSV) are processed below.
             if row[config["id_field"]] in compound_items:
                 # Get all the page files for this parent and create a new contact sheet containing them.
                 page_files_dir_path = os.path.join(
-                    config["input_dir"], row[config["id_field"]]
+                    config["input_dir"], row[config["page_files_source_dir_field"]]
                 )
                 page_files = os.listdir(page_files_dir_path)
 
@@ -12081,13 +12107,16 @@ def generate_contact_sheet_from_csv(config):
                 output_file = "main_contact_sheet"
                 tn_filename = create_contact_sheet_thumbnail(config, row["file"])
 
-        # During 'paged_content_from_directories' parent items (i.e. items with rows in the CSV)
-        # are processed from this point on.
+        # During 'paged_content_from_directories' or 'paged_content_from_directories_parents_exist',
+        # parent items (i.e. items with rows in the CSV) are processed from this point on.
         csv_id = row[config["id_field"]]
         title = row["title"]
 
         # Ensure that parent items get the compound icon.
-        if config["paged_content_from_directories"]:
+        if (
+            config["paged_content_from_directories"] is True
+            or config["paged_content_from_directories_parents_exist"] is True
+        ):
             output_file = "main_contact_sheet"
             tn_filename = create_contact_sheet_thumbnail(config, "compound")
 
@@ -12107,7 +12136,10 @@ def generate_contact_sheet_from_csv(config):
         contact_sheet_output_files[output_file][
             "markup"
         ] += f'\n<div class="field system"><span class="field-label">{config["id_field"]}</span>: {csv_id}</div>'
-        if config["paged_content_from_directories"] is False and len(row["file"]) > 0:
+        if (
+            config["paged_content_from_directories"] is False
+            or config["paged_content_from_directories_parents_exist"] is False
+        ) and len(row["file"]) > 0:
             contact_sheet_output_files[output_file][
                 "markup"
             ] += f'\n<div class="field system"><span class="field-label">file</span>: {row["file"]}</div>'
