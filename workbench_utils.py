@@ -3966,6 +3966,12 @@ def check_input(config, args):
             )
             sys.exit("Error: " + message)
 
+        if config["paged_content_from_directories_parents_exist"] is True:
+            if "field_member_of" not in csv_column_headers:
+                message = '"field_member_of" is a required column in your input CSV when using the "paged_content_from_directories_parents_exist: true" configuration setting.'
+                logging.error(message)
+                sys.exit("Error: " + message)
+
         if "paged_content_additional_page_media" in config:
             disable_action_message = (
                 'Including the "paged_content_additional_page_media" setting in your configuration will create '

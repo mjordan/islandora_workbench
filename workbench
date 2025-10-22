@@ -131,8 +131,6 @@ def create():
                 if config["paged_content_from_directories"] is True:
                     create_children_from_directory(config, row, nid_in_map)
 
-                # Issue 1006?
-
                 continue
 
             # If we have gotten this far, the current row has not been created in Drupal.
@@ -185,8 +183,12 @@ def create():
             # create_children_from_directory function.
             row_as_parent = copy.deepcopy(row)
 
-        # WIP on #1006.
         if config["paged_content_from_directories_parents_exist"] is True:
+            if "field_member_of" not in csv_column_headers:
+                message = '"field_member_of" is a required column in your input CSV when using the "paged_content_from_directories_parents_exist: true" configuration setting.'
+                logging.error(message)
+                sys.exit("Error: " + message)
+
             # Create a copy of the current item's row to pass to the
             # create_children_from_directory function.
             row_as_parent = copy.deepcopy(row)
@@ -401,12 +403,16 @@ def create():
                         }
                     ]
 
-        # WIP on #1006.
         if config["paged_content_from_directories_parents_exist"] is True:
-            # Console output and logging are done in the create_children_from_directory() function.
-            create_children_from_directory(
-                config, row_as_parent, row["field_member_of"]
-            )
+            if ping_node(config, row["field_member_of"], warn=False) is True:
+                # Console output and logging are done in the create_children_from_directory() function.
+                create_children_from_directory(
+                    config, row_as_parent, row["field_member_of"]
+                )
+            else:
+                message = f'Node {row["field_member_of"]} identified in the "field_member_of" column in your input CSV doesn\'t exist, skipping adding children.'
+                logging.warning(message)
+                print("Warning: " + message)
 
             # We don't want to create the parent node, it already exists.
             continue
