@@ -163,6 +163,7 @@ def create():
 
         if (
             "node_exists_verification_view_endpoint" in config
+            and config["paged_content_from_directories_parents_exist"] is False
             and get_node_exists_verification_view_endpoint(config) is not False
         ):
             candidate_node_id = verify_node_exists_by_key(config, copy.copy(row))
