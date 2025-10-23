@@ -10133,7 +10133,13 @@ def get_csv_from_google_sheet(config):
         sys.exit("Error: " + message)
 
     # Always use unique naming to prevent conflicts between multiple workbench instances
-    config_file_id = get_config_file_identifier_shortened(config)
+    # In recovery mode with session suffix, use that suffix; otherwise generate new unique ID
+    if (config["recovery_mode_starting_from_node_id"] is not False and 
+        config["recovery_mode_session_suffix"] is not False):
+        config_file_id = config["recovery_mode_session_suffix"]
+    else:
+        config_file_id = get_config_file_identifier_shortened(config)
+    
     exported_csv_path = os.path.join(
         config["temp_dir"],
         config["google_sheets_csv_filename"] + "." + config_file_id,
@@ -10173,7 +10179,13 @@ def get_csv_from_excel(config):
         records.append(record)
 
     # Always use unique naming to prevent conflicts between multiple workbench instances
-    config_file_id = get_config_file_identifier_shortened(config)
+    # In recovery mode with session suffix, use that suffix; otherwise generate new unique ID
+    if (config["recovery_mode_starting_from_node_id"] is not False and 
+        config["recovery_mode_session_suffix"] is not False):
+        config_file_id = config["recovery_mode_session_suffix"]
+    else:
+        config_file_id = get_config_file_identifier_shortened(config)
+    
     exported_csv_path = os.path.join(
         config["temp_dir"], config["excel_csv_filename"] + "." + config_file_id
     )
@@ -10211,7 +10223,13 @@ def get_extracted_csv_file_path(config):
         return False
 
     # Always use unique naming to prevent conflicts between multiple workbench instances
-    config_file_id = get_config_file_identifier_shortened(config)
+    # In recovery mode with session suffix, use that suffix; otherwise generate new unique ID
+    if (config["recovery_mode_starting_from_node_id"] is not False and 
+        config["recovery_mode_session_suffix"] is not False):
+        config_file_id = config["recovery_mode_session_suffix"]
+    else:
+        config_file_id = get_config_file_identifier_shortened(config)
+    
     exported_csv_filename = exported_csv_filename + "." + config_file_id
 
     return os.path.join(config["temp_dir"], exported_csv_filename)
