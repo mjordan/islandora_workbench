@@ -1,7 +1,0 @@
-task: add_media
-host: https://islandora.dev
-username: admin
-password: password
-input_csv: add_media.csv
-secure_ssl_only: false
-media_type: file
