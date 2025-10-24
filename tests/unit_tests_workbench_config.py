@@ -216,6 +216,131 @@ class TestWorkbenchConfig(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
                 test_config_obj = WorkbenchConfig(args)
 
+    def test_home_path_expansion_full_integration(self):
+        """Test full integration of home path expansion through WorkbenchConfig processing."""
+        test_file_name = (
+            "tests/assets/WorkbenchConfig_test/config_03_home_path_expansion.yml"
+        )
+
+        args = self.parser.parse_args(["--config", test_file_name])
+
+        with patch(
+            "WorkbenchConfig.WorkbenchConfig.validate"
+        ) as mocked_validate, patch("WorkbenchConfig.logging") as mocked_logging:
+
+            mocked_validate.return_value = None
+            mocked_logging.return_value = None
+
+            test_config_obj = WorkbenchConfig(args)
+            test_config_dict = test_config_obj.get_config()
+
+            # Get the expected expanded home directory
+            home_dir = os.path.expanduser("~")
+
+            # Test regular path configurations - verify they are valid paths
+            self.assertTrue(
+                os.path.isabs(test_config_dict["input_dir"]),
+                f"input_dir is not an absolute path: {test_config_dict['input_dir']}",
+            )
+            self.assertEqual(
+                test_config_dict["input_dir"], os.path.join(home_dir, "test_input")
+            )
+
+            self.assertTrue(
+                os.path.isabs(test_config_dict["log_file_path"]),
+                f"log_file_path is not an absolute path: {test_config_dict['log_file_path']}",
+            )
+            self.assertEqual(
+                test_config_dict["log_file_path"],
+                os.path.join(home_dir, "logs", "workbench.log"),
+            )
+
+            # Test hook configurations (lists of script paths) - verify all paths are valid
+            expected_bootstrap = [
+                os.path.join(home_dir, "scripts", "bootstrap.py"),
+                os.path.join(home_dir, "other", "bootstrap2.py"),
+            ]
+            self.assertEqual(test_config_dict["bootstrap"], expected_bootstrap)
+            for path in test_config_dict["bootstrap"]:
+                self.assertTrue(
+                    os.path.isabs(path), f"Bootstrap path is not absolute: {path}"
+                )
+
+            expected_shutdown = [os.path.join(home_dir, "scripts", "shutdown.py")]
+            self.assertEqual(test_config_dict["shutdown"], expected_shutdown)
+            for path in test_config_dict["shutdown"]:
+                self.assertTrue(
+                    os.path.isabs(path), f"Shutdown path is not absolute: {path}"
+                )
+
+            expected_node_post_create = [
+                os.path.join(home_dir, "scripts", "post_create.py")
+            ]
+            self.assertEqual(
+                test_config_dict["node_post_create"], expected_node_post_create
+            )
+            for path in test_config_dict["node_post_create"]:
+                self.assertTrue(
+                    os.path.isabs(path),
+                    f"Node post create path is not absolute: {path}",
+                )
+
+            expected_node_post_update = [
+                os.path.join(home_dir, "scripts", "post_update.py")
+            ]
+            self.assertEqual(
+                test_config_dict["node_post_update"], expected_node_post_update
+            )
+            for path in test_config_dict["node_post_update"]:
+                self.assertTrue(
+                    os.path.isabs(path),
+                    f"Node post update path is not absolute: {path}",
+                )
+
+            expected_media_post_create = [
+                os.path.join(home_dir, "scripts", "media_create.py")
+            ]
+            self.assertEqual(
+                test_config_dict["media_post_create"], expected_media_post_create
+            )
+            for path in test_config_dict["media_post_create"]:
+                self.assertTrue(
+                    os.path.isabs(path),
+                    f"Media post create path is not absolute: {path}",
+                )
+
+            expected_node_post_export = [os.path.join(home_dir, "scripts", "export.py")]
+            self.assertEqual(
+                test_config_dict["node_post_export"], expected_node_post_export
+            )
+            for path in test_config_dict["node_post_export"]:
+                self.assertTrue(
+                    os.path.isabs(path),
+                    f"Node post export path is not absolute: {path}",
+                )
+
+            expected_run_scripts = [
+                os.path.join(home_dir, "scripts", "run.py"),
+                os.path.join(home_dir, "scripts", "run2.py"),
+            ]
+            self.assertEqual(test_config_dict["run_scripts"], expected_run_scripts)
+            for path in test_config_dict["run_scripts"]:
+                self.assertTrue(
+                    os.path.isabs(path), f"Run scripts path is not absolute: {path}"
+                )
+
+            # Test preprocessors configuration (dict mapping field names to script paths) - verify all paths are valid
+            expected_preprocessors = {
+                "field_description": os.path.join(home_dir, "scripts", "preprocess.py"),
+                "field_title": os.path.join(home_dir, "scripts", "preprocess2.py"),
+            }
+            self.assertEqual(test_config_dict["preprocessors"], expected_preprocessors)
+            for field_name, script_path in test_config_dict["preprocessors"].items():
+                self.assertTrue(
+                    os.path.isabs(script_path),
+                    f"Preprocessor path for {field_name} is not absolute: {script_path}",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
