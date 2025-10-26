@@ -10894,6 +10894,7 @@ def find_file_url_in_file(config, file_info):
         logging.error(f"File metadata request for file {target_id} failed: {e}")
         return None
 
+
 def find_file_url_in_media(config, media_list, media_use_term_id, node_id):
     """Find the file URL in media entries matching the use term."""
     for media in media_list:
@@ -10951,21 +10952,6 @@ def get_media_file_url(config, node_id, media_use_term_id=None, media_list=None)
 
 def download_file_from_drupal(config, node_id, media_use_term_id=None, media_list=None):
     """Download a media file from Drupal."""
-    if config.get("export_file_directory") is None:
-        logging.error("export_file_directory is not configured")
-        return False
-
-    if not os.path.exists(config["export_file_directory"]):
-        try:
-            os.mkdir(config["export_file_directory"])
-        except Exception as e:
-            message = f'Path "export_file_directory" ("{config["export_file_directory"]}") is not writable: {str(e)}'
-            logging.error(message)
-            sys.exit("Error: " + message + " See log for more detail.")
-    else:
-        logging.info(
-            f'Path "export_file_directory" ("{config["export_file_directory"]}") already exists.'
-        )
 
     media_list = get_media_list(config, node_id, media_list)
     if media_list is None:
