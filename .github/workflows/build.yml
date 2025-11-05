@@ -38,7 +38,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install "pyinstaller" "requests>=2.22,<3" "requests_cache" "ruamel.yaml<=0.17.21" "progress_bar" "openpyxl" "unidecode" "edtf_validate" "typing-extensions" "rich"        
+        pip install "pyinstaller" "requests>=2.22,<3" "requests_cache" "ruamel.yaml<=0.17.21" "progress_bar" "openpyxl" "unidecode" "edtf_validate" "typing-extensions>=4.14.0" "rich"
     - name: Build for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}}    
     - name: Upload Release Asset
