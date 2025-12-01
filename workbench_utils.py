@@ -1879,9 +1879,14 @@ def check_input(config, args):
     None
         Exits if an error is encountered.
     """
+    if config["task"] == "update":
+        update_mode_string = f' ({config["update_mode"]})'
+    else:
+        update_mode_string = ""
+
     logging.info(
-        'Starting configuration check for "%s" task using config file %s.',
-        config["task"],
+        f'Starting configuration check for "%s" task using config file %s.',
+        config["task"] + update_mode_string,
         args.config,
     )
 
