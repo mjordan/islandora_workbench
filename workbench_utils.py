@@ -7709,6 +7709,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                     field_cardinalities[field_name] == 1
                     and len(delimited_field_values) > 1
                 ):
+                    message = ""
                     if config["task"] == "create":
                         message = (
                             'CSV field "'
@@ -7717,7 +7718,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                             + row[config["id_field"]]
                             + " contains more values than the number "
                         )
-                    if config["task"] == "update":
+                    elif config["task"] == "update":
                         message = (
                             'CSV field "'
                             + field_name
@@ -7725,6 +7726,22 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                             + row["node_id"]
                             + " contains more values than the number "
                         )
+                    elif config["task"] == "create_terms":
+                        message = (
+                            'CSV field "'
+                            + field_name
+                            + '" in record with term name '
+                            + row["term_name"]
+                            + " contains more values than the number "
+                        )
+                    elif config["task"] == "update_terms":
+                        message = (
+                            'CSV field "'
+                            + field_name
+                            + '" in record with term ID '
+                            + row["term_id"]
+                            + " contains more values than the number "
+                        )                        
                     message_2 = (
                         "allowed for that field ("
                         + str(field_cardinalities[field_name])
@@ -7736,6 +7753,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                     int(field_cardinalities[field_name]) > 1
                     and len(delimited_field_values) > field_cardinalities[field_name]
                 ):
+                    message = ""
                     if config["task"] == "create":
                         message = (
                             'CSV field "'
@@ -7744,12 +7762,28 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                             + row[config["id_field"]]
                             + " contains more values than the number "
                         )
-                    if config["task"] == "update":
+                    elif config["task"] == "update":
                         message = (
                             'CSV field "'
                             + field_name
                             + '" in record with node ID '
                             + row["node_id"]
+                            + " contains more values than the number "
+                        )
+                    elif config["task"] == "create_terms":
+                        message = (
+                            'CSV field "'
+                            + field_name
+                            + '" in record with term name '
+                            + row["term_name"]
+                            + " contains more values than the number "
+                        )
+                    elif config["task"] == "update_terms":
+                        message = (
+                            'CSV field "'
+                            + field_name
+                            + '" in record with term ID '
+                            + row["term_id"]
                             + " contains more values than the number "
                         )
                     message_2 = (
