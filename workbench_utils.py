@@ -58,6 +58,8 @@ file_fields = [
 commented_out_input_csv_rows_present = False
 
 
+
+
 def set_media_type(config, filepath, file_fieldname, csv_row):
     """Using either the 'media_type' or 'media_types_override' configuration
     setting, determine which media bundle type to use.
@@ -6663,7 +6665,12 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                     row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
 
                 try:
-                    unique_identifiers.append(row[config["id_field"]])
+                    # If langcode is present, create composite key to allow same entity ID with different langcodes
+                    if "langcode" in row and row["langcode"].strip():
+                        identifier_key = f"{row[config['id_field']]}|{row['langcode']}"
+                    else:
+                        identifier_key = row[config["id_field"]]
+                    unique_identifiers.append(identifier_key)
 
                     if (
                         "csv_value_templates" in config
