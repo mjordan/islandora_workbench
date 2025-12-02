@@ -2999,6 +2999,83 @@ def update_terms():
                 row_position = get_percentage(row_count, num_csv_records)
                 pbar(row_position)
 
+def update_filenames():
+    """Update files via PATCH. Note that PATCHing replaces the target field,
+    so if we are adding an additional value to a multivalued field, we need
+    to include the existing value(s) in our PATCH. The field classes take
+    care of preserving existing values in 'append' updates.
+    """
+    message = (
+        '"Update Files" ('
+        + config["update_mode"]
+        + ") task started using config file "
+        + args.config
+        + "."
+    )
+    print(message)
+    logging.info(message)
+
+    csv_data = get_csv_data(config)
+    csv_column_headers = csv_data.fieldnames
+
+    if "file_id" not in csv_column_headers:
+        message = (
+            'For "update_filenames" tasks, your CSV file must contain a "file_id" column.'
+        )
+        logging.error(message)
+        sys.exit("Error: " + message)
+    method = "POST"
+    row_count = 0
+    for row in csv_data:
+        # Delete expired items from request_cache before processing a row.
+        if config["enable_http_cache"] is True:
+            requests_cache.delete(expired=True)
+        file = {}
+        if "filename" in csv_column_headers:
+            if len(row["filename"].strip()) != 0:
+                file["new_filename"] = row["filename"]
+
+        file_endpoint = (
+            config["host"] + "/islandora_workbench_integration/rename/" + row["file_id"] + "?_format=json"
+        )
+        file_headers = {"Content-Type": "application/json"}
+        file_response = issue_request(
+            config, method.upper(), file_endpoint, file_headers, file
+        )
+
+
+        if file_response.status_code == 200:
+            if config["progress_bar"] is False:
+                print(
+                    "File "
+                    + config["host"]
+                    + "/islandora_workbench_integration/rename/"
+                    + row["file_id"]
+                    + " updated."
+                )
+            logging.info(
+                "File %s updated.",
+                config["host"] + "/islandora_workbench_integration/rename/" + row["file_id"],
+            )
+        else:
+            if config["progress_bar"] is False:
+                print(
+                    "File "
+                    + config["host"]
+                    + "/islandora_workbench_integration/rename/"
+                    + row["file_id"]
+                    + " could not be updated."
+                )
+            logging.info(
+                "File %s could not be updated.",
+                config["host"] + "/islandora_workbench_integration/rename/" + row["file_id"],
+            )
+
+        if config["progress_bar"] is True:
+            row_count += 1
+            row_position = get_percentage(row_count, num_csv_records)
+            pbar(row_position)
+
 
 def create_redirects():
     """Create new redirect entities via POST."""
@@ -3562,6 +3639,8 @@ try:
         create()
     if config["task"] == "update":
         update()
+    if config["task"] == "update_filenames":
+        update_filenames()
     if config["task"] == "delete":
         delete()
     if config["task"] == "add_media":

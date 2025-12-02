@@ -1,0 +1,8 @@
+task: update_filenames
+host: https://islandora.dev
+username: admin
+password: password
+input_dir: "tests/assets/update_file_name_test"
+input_csv: update_filenames.csv
+standalone_media_url: true
+secure_ssl_only: false
