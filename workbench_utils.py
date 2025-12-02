@@ -22,6 +22,7 @@ import hashlib
 import mimetypes
 import collections
 import urllib.parse
+import tempfile
 from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from unidecode import unidecode
@@ -47,6 +48,8 @@ http_response_times = []
 # Global lists of terms to reduce queries to Drupal.
 checked_terms = list()
 newly_created_terms = list()
+# Global variable to store session-specific temp file identifier
+_session_temp_identifier = None
 # These are the Drupal field names on the standard types of media.
 file_fields = [
     "field_media_file",
@@ -6325,9 +6328,11 @@ def remove_media_and_file(config, media_id):
 
 
 def get_preprocessed_input_csv_file_path(config):
+    # Always use unique naming to prevent conflicts between multiple workbench instances
+    config_file_id = get_config_file_identifier_shortened(config)
     return (
         os.path.join(config["temp_dir"], os.path.basename(config["input_csv"]))
-        + ".preprocessed"
+        + "." + config_file_id + ".preprocessed"
     )
 
 
@@ -9867,11 +9872,9 @@ def get_rollback_csv_filepath(config):
     else:
         rollback_csv_filename = f"{rollback_csv_filename_basename}.csv"
 
-    if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
-        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
-            config_file_id = get_config_file_identifier(config)
-            rollback_csv_filename = rollback_csv_filename + "." + config_file_id
+    # Always use unique naming to prevent conflicts between multiple workbench instances
+    config_file_id = get_config_file_identifier_shortened(config)
+    rollback_csv_filename = rollback_csv_filename + "." + config_file_id
 
     if "rollback_csv_file_path" in config and len(config["rollback_csv_file_path"]) > 0:
         if config["timestamp_rollback"] is True:
@@ -9952,21 +9955,27 @@ def get_rollback_config_filepath(config):
         now_string = EXECUTION_START_TIME.strftime("%Y_%m_%d_%H_%M_%S")
 
     if config["timestamp_rollback"] is True:
+        # Always use unique naming to prevent conflicts between multiple workbench instances
+        config_file_id = get_config_file_identifier_shortened(config)
         rollback_config_filepath = os.path.join(
             f"{rb_config_file_dir}",
-            f"{rollback_config_filename_basename}.{now_string}.yml",
+            f"{rollback_config_filename_basename}.{now_string}.{config_file_id}.yml",
         )
     elif (
         config["recovery_mode_starting_from_node_id"] is not False
         and value_is_numeric(config["recovery_mode_starting_from_node_id"]) is True
     ):
+        # Always use unique naming to prevent conflicts between multiple workbench instances
+        config_file_id = get_config_file_identifier_shortened(config)
         rollback_config_filepath = os.path.join(
             f"{rb_config_file_dir}",
-            f"{rollback_config_filename_basename}.{now_string}.recovery_mode.yml",
+            f"{rollback_config_filename_basename}.{now_string}.{config_file_id}.recovery_mode.yml",
         )
     else:
+        # Always use unique naming to prevent conflicts between multiple workbench instances
+        config_file_id = get_config_file_identifier_shortened(config)
         rollback_config_filepath = os.path.join(
-            f"{rb_config_file_dir}", f"{rollback_config_filename_basename}.yml"
+            f"{rb_config_file_dir}", f"{rollback_config_filename_basename}.{config_file_id}.yml"
         )
 
     if (
@@ -9986,9 +9995,19 @@ def get_rollback_config_filepath(config):
             )
             return os.path.abspath(rollback_config_file_path)
         else:
-            rollback_config_filepath = os.path.abspath(
+            # Always use unique naming to prevent conflicts between multiple workbench instances
+            config_file_id = get_config_file_identifier_shortened(config)
+            rollback_config_file_path_head, rollback_config_file_path_tail = os.path.split(
                 config["rollback_config_file_path"]
             )
+            rollback_config_file_basename, rollback_config_file_ext = os.path.splitext(
+                rollback_config_file_path_tail
+            )
+            rollback_config_filepath = os.path.join(
+                rollback_config_file_path_head,
+                f"{rollback_config_file_basename}.{config_file_id}{rollback_config_file_ext}",
+            )
+            rollback_config_filepath = os.path.abspath(rollback_config_filepath)
 
     return rollback_config_filepath
 
@@ -10152,23 +10171,18 @@ def get_csv_from_google_sheet(config):
         logging.error(message)
         sys.exit("Error: " + message)
 
-    if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
-        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        config_file_id = get_config_file_identifier(config)
-        if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
-            config_file_id = get_config_file_identifier(config)
-            exported_csv_path = os.path.join(
-                config["temp_dir"],
-                config["google_sheets_csv_filename"] + "." + config_file_id,
-            )
-        else:
-            exported_csv_path = os.path.join(
-                config["temp_dir"], config["google_sheets_csv_filename"]
-            )
+    # Always use unique naming to prevent conflicts between multiple workbench instances
+    # In recovery mode with session suffix, use that suffix; otherwise generate new unique ID
+    if (config["recovery_mode_starting_from_node_id"] is not False and 
+        config["recovery_mode_session_suffix"] is not False):
+        config_file_id = config["recovery_mode_session_suffix"]
     else:
-        exported_csv_path = os.path.join(
-            config["temp_dir"], config["google_sheets_csv_filename"]
-        )
+        config_file_id = get_config_file_identifier_shortened(config)
+    
+    exported_csv_path = os.path.join(
+        config["temp_dir"],
+        config["google_sheets_csv_filename"] + "." + config_file_id,
+    )
 
     open(exported_csv_path, "wb+").write(response.content)
 
@@ -10203,22 +10217,17 @@ def get_csv_from_excel(config):
                 record[headers[x]] = row[x].value
         records.append(record)
 
-    if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
-        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        config_file_id = get_config_file_identifier(config)
-        if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
-            config_file_id = get_config_file_identifier(config)
-            exported_csv_path = os.path.join(
-                config["temp_dir"], config["excel_csv_filename"] + "." + config_file_id
-            )
-        else:
-            exported_csv_path = os.path.join(
-                config["temp_dir"], config["excel_csv_filename"]
-            )
+    # Always use unique naming to prevent conflicts between multiple workbench instances
+    # In recovery mode with session suffix, use that suffix; otherwise generate new unique ID
+    if (config["recovery_mode_starting_from_node_id"] is not False and 
+        config["recovery_mode_session_suffix"] is not False):
+        config_file_id = config["recovery_mode_session_suffix"]
     else:
-        exported_csv_path = os.path.join(
-            config["temp_dir"], config["excel_csv_filename"]
-        )
+        config_file_id = get_config_file_identifier_shortened(config)
+    
+    exported_csv_path = os.path.join(
+        config["temp_dir"], config["excel_csv_filename"] + "." + config_file_id
+    )
 
     csv_writer_file_handle = open(exported_csv_path, "w+", newline="", encoding="utf-8")
     csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
@@ -10252,11 +10261,15 @@ def get_extracted_csv_file_path(config):
     else:
         return False
 
-    if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
-        secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
-            config_file_id = get_config_file_identifier(config)
-            exported_csv_filename = exported_csv_filename + "." + config_file_id
+    # Always use unique naming to prevent conflicts between multiple workbench instances
+    # In recovery mode with session suffix, use that suffix; otherwise generate new unique ID
+    if (config["recovery_mode_starting_from_node_id"] is not False and 
+        config["recovery_mode_session_suffix"] is not False):
+        config_file_id = config["recovery_mode_session_suffix"]
+    else:
+        config_file_id = get_config_file_identifier_shortened(config)
+    
+    exported_csv_filename = exported_csv_filename + "." + config_file_id
 
     return os.path.join(config["temp_dir"], exported_csv_filename)
 
@@ -11620,6 +11633,33 @@ def get_config_file_identifier(config):
     config_file_id = re.sub(r"[/\\]", "_", split_path[1].strip("/\\"))
 
     return config_file_id
+
+def get_config_file_identifier_shortened(config):
+    """Gets a unique identifier of the current config file. Used in names of temp files, etc."""
+    """Parameters
+        ----------
+        config : dict
+            The configuration settings defined by workbench_config.get_config().
+        Returns
+        -------
+        string
+            A string based on just the config file's name (without path or extension).
+    """
+    global _session_temp_identifier
+    
+    # Extract just the filename without path and extension
+    config_file_path = config["current_config_file_path"]
+    config_file_name = os.path.basename(config_file_path)
+    config_file_id = os.path.splitext(config_file_name)[0]
+
+    # Create session-specific identifier once per session using process ID for uniqueness
+    if _session_temp_identifier is None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{config_file_id}", prefix=f"pid{os.getpid()}_") as temp:
+            _session_temp_identifier = os.path.basename(temp.name)
+            # Clean up the temporary file since we only need the name
+            os.unlink(temp.name)
+
+    return _session_temp_identifier
 
 
 def calculate_response_time_trend(config, response_time):

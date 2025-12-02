@@ -122,10 +122,26 @@ class WorkbenchConfig:
                 "csv_id_to_node_id_map_path"
             ]
         else:
-            config["csv_id_to_node_id_map_path"] = os.path.join(
-                config["csv_id_to_node_id_map_dir"],
-                config["csv_id_to_node_id_map_filename"],
-            )
+            # Check if we're in recovery mode with a specific session suffix
+            if (config["recovery_mode_starting_from_node_id"] is not False and 
+                config["recovery_mode_session_suffix"] is not False):
+                # Use the provided recovery mode session suffix
+                base_filename, ext = os.path.splitext(config["csv_id_to_node_id_map_filename"])
+                unique_filename = f"{base_filename}.{config['recovery_mode_session_suffix']}{ext}"
+                config["csv_id_to_node_id_map_path"] = os.path.join(
+                    config["csv_id_to_node_id_map_dir"],
+                    unique_filename,
+                )
+            else:
+                # Add unique identifier to prevent conflicts between multiple workbench instances
+                from workbench_utils import get_config_file_identifier_shortened
+                config_file_id = get_config_file_identifier_shortened(config)
+                base_filename, ext = os.path.splitext(config["csv_id_to_node_id_map_filename"])
+                unique_filename = f"{base_filename}.{config_file_id}{ext}"
+                config["csv_id_to_node_id_map_path"] = os.path.join(
+                    config["csv_id_to_node_id_map_dir"],
+                    unique_filename,
+                )
 
         if "path_to_python" in user_mods:
             config["path_to_python"] = user_mods["path_to_python"]
@@ -380,6 +396,7 @@ class WorkbenchConfig:
             "include_password_in_rollback_config_file": False,
             "remove_password_from_config_file": False,
             "recovery_mode_starting_from_node_id": False,
+            "recovery_mode_session_suffix": False,
             "viewer_override_fieldname": "field_viewer_override",
             "check_for_workbench_updates": True,
         }
