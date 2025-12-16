@@ -5,7 +5,7 @@ import sys
 import json
 import tempfile
 
-temp_dir = "/tmp"
+temp_dir = tempfile.gettempdir()
 output_file_path = os.path.join(temp_dir, "execute_post_action_entity_script.dat")
 
 http_response_body = sys.argv[3]

@@ -855,7 +855,11 @@ def ping_content_type(config):
         The HTTP response code.
     """
 
-    url = f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
+    url = (
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{config['content_type']}"
+        if config["use_workbench_permissions"]
+        else f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
+    )
     return issue_request(config, "GET", url).status_code
 
 
@@ -1271,15 +1275,12 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname]["entity_type"] = field_config["entity_type"]
             field_definitions[fieldname]["required"] = field_config["required"]
             field_definitions[fieldname]["label"] = field_config["label"]
-            raw_vocabularies = [
-                x
+            vocabularies = [
+                x.replace("taxonomy.vocabulary.", "")
                 for x in field_config["dependencies"]["config"]
-                if re.match("^taxonomy.vocabulary.", x)
+                if x.startswith("taxonomy.vocabulary.")
             ]
-            if len(raw_vocabularies) > 0:
-                vocabularies = [
-                    x.replace("taxonomy.vocabulary.", "") for x in raw_vocabularies
-                ]
+            if len(vocabularies) > 0:
                 field_definitions[fieldname]["vocabularies"] = vocabularies
             # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
             if "handler" in field_config["settings"]:
@@ -1631,12 +1632,9 @@ def get_entity_fields(config, entity_type, bundle_type):
         logging.error(message)
         sys.exit("Error: " + message)
     fields_endpoint = (
-        config["host"]
-        + "/entity/entity_form_display/"
-        + entity_type
-        + "."
-        + bundle_type
-        + ".default?_format=json"
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/{entity_type}/{bundle_type}"
+        if config["use_workbench_permissions"]
+        else f"{config['host']}/entity/entity_form_display/{entity_type}.{bundle_type}.default?_format=json"
     )
     bundle_type_response = issue_request(config, "GET", fields_endpoint)
     # If a vocabulary has no custom fields (like the default "Tags" vocab), this query will
@@ -1658,15 +1656,11 @@ def get_entity_fields(config, entity_type, bundle_type):
     if bundle_type_response.status_code == 200:
         node_config_raw = json.loads(bundle_type_response.text)
         fieldname_prefix = "field.field." + entity_type + "." + bundle_type + "."
-        fieldnames = [
+        fields = [
             field_dependency.replace(fieldname_prefix, "")
             for field_dependency in node_config_raw["dependencies"]["config"]
+            if field_dependency.startswith(fieldname_prefix)
         ]
-        for fieldname in node_config_raw["dependencies"]["config"]:
-            fieldname_prefix = "field.field." + entity_type + "." + bundle_type + "."
-            if re.match(fieldname_prefix, fieldname):
-                fieldname = fieldname.replace(fieldname_prefix, "")
-                fields.append(fieldname)
     else:
         message = "Workbench cannot retrieve field definitions from Drupal."
         if config["task"] == "create_terms" or config["task"] == "update_terms":
@@ -1725,14 +1719,9 @@ def get_entity_field_config(config, fieldname, entity_type, bundle_type):
     Example query for taxo terms: /entity/field_config/taxonomy_term.islandora_media_use.field_external_uri?_format=json
     """
     field_config_endpoint = (
-        config["host"]
-        + "/entity/field_config/"
-        + entity_type
-        + "."
-        + bundle_type
-        + "."
-        + fieldname
-        + "?_format=json"
+        f"{config['host']}/islandora_workbench_integration/node_actions/field_config/{entity_type}/{bundle_type}/{fieldname}"
+        if config["use_workbench_permissions"]
+        else f"{config['host']}/entity/field_config/{entity_type}.{bundle_type}.{fieldname}?_format=json"
     )
     field_config_response = issue_request(config, "GET", field_config_endpoint)
     if field_config_response.status_code == 200:
@@ -1749,12 +1738,9 @@ def get_entity_field_storage(config, fieldname, entity_type):
     Example query for taxo terms: /entity/field_storage_config/taxonomy_term.field_external_uri?_format=json
     """
     field_storage_endpoint = (
-        config["host"]
-        + "/entity/field_storage_config/"
-        + entity_type
-        + "."
-        + fieldname
-        + "?_format=json"
+        f"{config['host']}/islandora_workbench_integration/node_actions/field_storage_config/{entity_type}/{fieldname}"
+        if config["use_workbench_permissions"]
+        else f"{config['host']}/entity/field_storage_config/{entity_type}.{fieldname}?_format=json"
     )
     field_storage_response = issue_request(config, "GET", field_storage_endpoint)
     if field_storage_response.status_code == 200:
@@ -1863,6 +1849,21 @@ def replace_field_labels_with_names(config, csv_headers):
             csv_headers[header_index] = field_map.get(csv_headers[header_index])
 
     return csv_headers
+
+
+def check_for_required_config_keys(config: list, required_keys: list):
+    """Check that the config file has all required keys.
+    Parameters:
+        config: (list) The configuration settings defined by workbench_config.get_config().
+        required_keys: (list) A list of required keys that must be present in the config.
+    Returns:
+        None
+    """
+    missing_keys = [k for k in required_keys if k not in config]
+    if len(missing_keys) > 0:
+        message = f"Please check your config file for required values: {', '.join(required_keys)}."
+        logging.error(message)
+        sys.exit("Error: " + message)
 
 
 def check_input(config, args):
@@ -2055,27 +2056,13 @@ def check_input(config, args):
             message = '"nodes_only" option in effect. Media files will not be checked/validated.'
             print(message)
             logging.info(message)
-        create_required_options = ["task", "host", "username", "password"]
-        for create_required_option in create_required_options:
-            if create_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(create_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "update":
-        update_required_options = ["task", "host", "username", "password"]
-        for update_required_option in update_required_options:
-            if update_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(update_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
+    elif config["task"] == "update":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
         update_mode_options = ["replace", "append", "delete"]
         if config["update_mode"] not in update_mode_options:
             message = (
@@ -2085,52 +2072,19 @@ def check_input(config, args):
             )
             logging.error(message)
             sys.exit("Error: " + message)
-    if config["task"] == "delete":
-        delete_required_options = ["task", "host", "username", "password"]
-        for delete_required_option in delete_required_options:
-            if delete_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(delete_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "add_media":
-        add_media_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "media_type",
-        ]
-        for add_media_required_option in add_media_required_options:
-            if add_media_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(add_media_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] in ["update_media", "update_media_by_node"]:
-        update_media_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "input_csv",
-            "media_type",
-        ]
-        for update_media_required_option in update_media_required_options:
-            if update_media_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(update_media_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
+    elif config["task"] == "delete":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
+    elif config["task"] == "add_media":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password", "media_type"]
+        )
+    elif config["task"] in ["update_media", "update_media_by_node"]:
+        check_for_required_config_keys(
+            config_keys,
+            ["task", "host", "username", "password", "input_csv", "media_type"],
+        )
         update_mode_options = ["replace", "append", "delete"]
         if config["update_mode"] not in update_mode_options:
             message = (
@@ -2140,98 +2094,33 @@ def check_input(config, args):
             )
             logging.error(message)
             sys.exit("Error: " + message)
-    if config["task"] == "delete_media":
-        delete_media_required_options = ["task", "host", "username", "password"]
-        for delete_media_required_option in delete_media_required_options:
-            if delete_media_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(delete_media_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "delete_media_by_node":
-        delete_media_by_node_required_options = ["task", "host", "username", "password"]
-        for (
-            delete_media_by_node_required_option
-        ) in delete_media_by_node_required_options:
-            if delete_media_by_node_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(delete_media_by_node_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "export_csv":
-        export_csv_required_options = ["task", "host", "username", "password"]
-        for export_csv_required_option in export_csv_required_options:
-            if export_csv_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(export_csv_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
+    elif config["task"] == "delete_media":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
+    elif config["task"] == "delete_media_by_node":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
+    elif config["task"] == "export_csv":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
         if config["export_csv_term_mode"] == "name":
             message = 'The "export_csv_term_mode" configuration option is set to "name", which will slow down the export.'
             print(message)
-    if config["task"] == "create_terms":
-        create_terms_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "vocab_id",
-        ]
-        for create_terms_required_option in create_terms_required_options:
-            if create_terms_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(create_terms_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if (
-        config["task"] == "get_data_from_view"
-        or config["task"] == "get_media_report_from_view"
-    ):
-        get_data_from_view_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "view_path",
-        ]
-        for get_data_from_view_required_option in get_data_from_view_required_options:
-            if get_data_from_view_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(get_data_from_view_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "update_terms":
-        update_terms_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "vocab_id",
-        ]
-        for update_terms_required_option in update_terms_required_options:
-            if update_terms_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(update_terms_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
+    elif config["task"] == "create_terms":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password", "vocab_id"]
+        )
+    elif config["task"] in ["get_data_from_view", "get_media_report_from_view"]:
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password", "view_path"]
+        )
+    elif config["task"] == "update_terms":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password", "vocab_id"]
+        )
 
     message = "OK, configuration file has all required values (did not check for optional values)."
     print(message)
