@@ -150,7 +150,7 @@ jobs:
 
       - name: Upload debug artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: debug-artifacts-${{ github.run_id }}
           path: debug-artifacts/
