@@ -310,6 +310,7 @@ class SimpleField(WorkbenchField):
 
         if config["update_mode"] == "append":
             subvalues = str(row[field_name]).split(config["subdelimiter"])
+            subvalues = self.dedupe_values(subvalues)
             subvalues = self.remove_invalid_values(
                 config, field_definitions, field_name, subvalues
             )
@@ -338,6 +339,8 @@ class SimpleField(WorkbenchField):
                         subvalue = float(subvalue)
                     entity_field_values.append({"value": subvalue})
             entity[field_name] = self.dedupe_values(entity_field_values)
+
+            entity_field_values = self.dedupe_values(entity_field_values)
             if -1 < cardinality < len(entity_field_values):
                 log_field_cardinality_violation(
                     field_name, row[entity_id_field], str(cardinality)
