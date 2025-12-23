@@ -528,19 +528,16 @@ def check_integration_module_version(config, log_success=True):
     integration_module_min_version = "1.0"
     log_message = f'Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
 
-    """
-    # Logic that maps a feature to a miniumum Integration module version, and produces a specific log message.
-    if config["use_workbench_integration_permissions"] is True:
+    #####################################################################################################################
+    # Add logic here that maps a feature to a miniumum Integration module version, and produces a specific log message. #
+    #####################################################################################################################
+    if config["use_workbench_permissions"] is True:
         integration_module_min_version = "1.2"
-        log_message = f'In order to use the "use_workbench_integration_permissions" config setting, Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
-    """
+        log_message = f'In order to use the "use_workbench_permissions" config setting, Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module ({config["host"]} is running version {version}).'
+    #####################################################################################################################
 
     if version is False:
-        message = (
-            "Workbench cannot determine the Islandora Workbench Integration module's version number. It must be version "
-            + str(integration_module_min_version)
-            + " or higher."
-        )
+        message = f"Workbench cannot determine the Islandora Workbench Integration module's version number. It must be version {integration_module_min_version} or higher."
         logging.error(message)
         sys.exit("Error: " + message)
     else:
@@ -549,24 +546,13 @@ def check_integration_module_version(config, log_success=True):
             integration_module_min_version
         )
         if version_number < minimum_version_number:
-            console_message = (
-                "The Islandora Workbench Integration module installed on "
-                + config["host"]
-                + " must be"
-                + " upgraded to version "
-                + str(integration_module_min_version)
-                + ". See your Workbench log for more information."
-            )
+            console_message = f'The Islandora Workbench Integration module installed on {config["host"]} must be upgraded to version {integration_module_min_version}. See your Workbench log for more information.'
             logging.error(log_message)
             sys.exit("Error: " + console_message)
         else:
             if log_success is True:
                 logging.info(
-                    "OK, Islandora Workbench Integration module installed on "
-                    + config["host"]
-                    + " is at version "
-                    + str(version)
-                    + "."
+                    f'OK, Islandora Workbench Integration module installed on {config["host"]} is at version {version}.'
                 )
 
 
@@ -854,12 +840,12 @@ def ping_content_type(config):
     int
         The HTTP response code.
     """
-
     url = (
         f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{config['content_type']}"
         if config["use_workbench_permissions"]
         else f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
     )
+
     return issue_request(config, "GET", url).status_code
 
 
@@ -1628,7 +1614,12 @@ def get_entity_fields(config, entity_type, bundle_type):
 
     """
     if ping_content_type(config) == 404:
-        message = f"Content type '{config['content_type']}' does not exist on {config['host']}."
+        if config["use_workbench_permissions"] is True:
+            # Could be because the Workbench Integration Module is not compatible with "use_workbench_permissions"
+            # or because the specified content type doesn't exist.
+            message = f"Workbench cannot determine if content type '{config['content_type']}' exists on {config['host']}."
+        else:
+            message = f"Content type '{config['content_type']}' does not exist on {config['host']}."
         logging.error(message)
         sys.exit("Error: " + message)
     fields_endpoint = (
