@@ -84,7 +84,7 @@ jobs:
       - name: Checkout islandora_workbench_integration from Git and switch to permissions branch for testing
         run: |
           docker exec isle-site-template-drupal-dev-1 rm -rf /var/www/drupal/web/modules/contrib/islandora_workbench_integration
-          docker exec isle-site-template-drupal-dev-1 git clone https://github.com/whikloj/islandora_workbench_integration.git /var/www/drupal/web/modules/contrib/islandora_workbench_integration --branch permissions
+          docker exec isle-site-template-drupal-dev-1 git clone https://github.com/whikloj/islandora_workbench_integration.git /var/www/drupal/web/modules/contrib/islandora_workbench_integration --branch main
 
       - name: Reinstall islandora_workbench_integration
         run: |
