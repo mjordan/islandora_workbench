@@ -76,25 +76,25 @@ jobs:
         run: docker exec isle-site-template-drupal-dev-1 drush user:password admin 'admin'
 
       # START --- Required for tests while permissions branch is not merged
-      - name: Uninstall islandora_workbench_integration
-        run: |
-          docker exec isle-site-template-drupal-dev-1 drush pm:uninstall islandora_workbench_integration -y || true
-          docker exec isle-site-template-drupal-dev-1 drush cr
+      # - name: Uninstall islandora_workbench_integration
+      #  run: |
+      #    docker exec isle-site-template-drupal-dev-1 drush pm:uninstall islandora_workbench_integration -y || true
+      #    docker exec isle-site-template-drupal-dev-1 drush cr
 
-      - name: Checkout islandora_workbench_integration from Git and switch to permissions branch for testing
-        run: |
-          docker exec isle-site-template-drupal-dev-1 rm -rf /var/www/drupal/web/modules/contrib/islandora_workbench_integration
-          docker exec isle-site-template-drupal-dev-1 git clone https://github.com/whikloj/islandora_workbench_integration.git /var/www/drupal/web/modules/contrib/islandora_workbench_integration --branch main
+      # - name: Checkout islandora_workbench_integration from Git and switch to permissions branch for testing
+      #  run: |
+      #    docker exec isle-site-template-drupal-dev-1 rm -rf /var/www/drupal/web/modules/contrib/islandora_workbench_integration
+      #    docker exec isle-site-template-drupal-dev-1 git clone https://github.com/whikloj/islandora_workbench_integration.git /var/www/drupal/web/modules/contrib/islandora_workbench_integration --branch main
 
-      - name: Reinstall islandora_workbench_integration
-        run: |
-          docker exec isle-site-template-drupal-dev-1 drush pm:install islandora_workbench_integration -y
-          docker exec isle-site-template-drupal-dev-1 drush cr
+      # - name: Reinstall islandora_workbench_integration
+      #  run: |
+      #    docker exec isle-site-template-drupal-dev-1 drush pm:install islandora_workbench_integration -y
+      #    docker exec isle-site-template-drupal-dev-1 drush cr
 
-      - name: Reinstall islandora_workbench_integration views
-        run: | 
-          docker exec isle-site-template-drupal-dev-1 drush config:import --partial --source=/var/www/drupal/web/modules/contrib/islandora_workbench_integration/config/optional -y
-          docker exec isle-site-template-drupal-dev-1 drush cr
+      # - name: Reinstall islandora_workbench_integration views
+      #  run: | 
+      #    docker exec isle-site-template-drupal-dev-1 drush config:import --partial --source=/var/www/drupal/web/modules/contrib/islandora_workbench_integration/config/optional -y
+      #    docker exec isle-site-template-drupal-dev-1 drush cr
       # END --- Required for tests while permissions branch is not merged
 
       - name: Create workbench_user role
