@@ -16,7 +16,6 @@ class WorkbenchConfig:
         self.args = args
         self.path_check()
         self.config = self.get_config()
-        self.validate()
         logging.basicConfig(
             filename=self.config["log_file_path"],
             level=logging.INFO,
@@ -378,6 +377,8 @@ class WorkbenchConfig:
             "validate_parent_node_exists": True,
             "validate_terms_exist": True,
             "viewer_override_fieldname": "field_viewer_override",
+            "check_for_workbench_updates": True,
+            "use_workbench_permissions": False,
         }
 
     # Tests validity and existence of configuration file path.
@@ -395,33 +396,6 @@ class WorkbenchConfig:
             message = 'Error: Configuration file "' + self.args.config + '" not found.'
             logging.error(message)
             sys.exit(message)
-
-    # Validates config.
-    def validate(self):
-        error_messages = []
-        type_check = issue_request(
-            self.config,
-            "GET",
-            f"{self.config['host']}/entity/entity_form_display/node.{self.config['content_type']}.default?_format=json",
-        )
-        if type_check.status_code == 404:
-            message = f"Content type {self.config['content_type']} does not exist on {self.config['host']}."
-            error_messages.append(message)
-        mutators = [
-            "use_node_title_for_media",
-            "use_nid_in_media_title",
-            "field_for_media_title",
-        ]
-        selected = [mutator for mutator in mutators if self.config[mutator]]
-        if len(selected) > 1:
-            message = f"You may only select one of {mutators}.\n  - This config  has selected {selected}."
-            error_messages.append(message)
-
-        if error_messages:
-            output = ""
-            for error_message in error_messages:
-                output += f"{error_message}\n"
-            sys.exit("Error: " + output)
 
     # Convenience function for debugging - Prints config to console screen.
     def print_config(self):

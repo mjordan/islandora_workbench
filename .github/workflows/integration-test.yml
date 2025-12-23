@@ -22,7 +22,7 @@ jobs:
         run: git config --global user.name "Mark Jordan"        
 
       - name: Checkout workbench
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
@@ -30,7 +30,7 @@ jobs:
           python-version: 3.11
 
       - name: Checkout isle-site-template
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: Islandora-Devops/isle-site-template
           path: isle-site-template
@@ -58,23 +58,100 @@ jobs:
           docker exec isle-site-template-drupal-dev-1 drush config:set media.settings standalone_url FALSE -y
           docker exec isle-site-template-drupal-dev-1 drush cr
 
+      - name: Install migrations
+        run: docker exec isle-site-template-drupal-dev-1 drush migrate:import --userid=1 --tag=islandora -y
+
+      - name: Update file media type to allow jpg extension
+        run: |
+          EXTS=$(docker exec isle-site-template-drupal-dev-1 drush config:get field.field.media.file.field_media_file settings.file_extensions | sed -E "s/.*: '(.*)'/\1/") 
+          if echo "$EXTS" | grep -qw "jpg"; then
+            echo "jpg already present"
+          else
+            NEW_EXTS="$EXTS jpg"
+            echo "Updating extensions to: $NEW_EXTS"
+            docker exec isle-site-template-drupal-dev-1 drush config:set field.field.media.file.field_media_file settings.file_extensions "$NEW_EXTS" -y
+          fi
+
+      - name: Explicitly state the admin password
+        run: docker exec isle-site-template-drupal-dev-1 drush user:password admin 'admin'
+
+      # START --- Required for tests while permissions branch is not merged
+      - name: Uninstall islandora_workbench_integration
+        run: |
+          docker exec isle-site-template-drupal-dev-1 drush pm:uninstall islandora_workbench_integration -y || true
+          docker exec isle-site-template-drupal-dev-1 drush cr
+
+      - name: Checkout islandora_workbench_integration from Git and switch to permissions branch for testing
+        run: |
+          docker exec isle-site-template-drupal-dev-1 rm -rf /var/www/drupal/web/modules/contrib/islandora_workbench_integration
+          docker exec isle-site-template-drupal-dev-1 git clone https://github.com/whikloj/islandora_workbench_integration.git /var/www/drupal/web/modules/contrib/islandora_workbench_integration --branch permissions
+
+      - name: Reinstall islandora_workbench_integration
+        run: |
+          docker exec isle-site-template-drupal-dev-1 drush pm:install islandora_workbench_integration -y
+          docker exec isle-site-template-drupal-dev-1 drush cr
+
+      - name: Reinstall islandora_workbench_integration views
+        run: | 
+          docker exec isle-site-template-drupal-dev-1 drush config:import --partial --source=/var/www/drupal/web/modules/contrib/islandora_workbench_integration/config/optional -y
+          docker exec isle-site-template-drupal-dev-1 drush cr
+      # END --- Required for tests while permissions branch is not merged
+
+      - name: Create workbench_user role
+        run: |
+          docker exec isle-site-template-drupal-dev-1 drush role:create workbench_user
+          docker exec isle-site-template-drupal-dev-1 drush role:perm:add workbench_user "$(cat tests/assets/user-role-permissions.txt | sed '/^$/d' | tr '\n' ',')"
+
+      - name: Create test user with workbench_user role
+        run: |
+          docker exec isle-site-template-drupal-dev-1 drush user:create test-user --mail='test@noreply.com' --password='testPassword'
+          docker exec isle-site-template-drupal-dev-1 drush user:role:add workbench_user test-user
+
       - name: Run islandora_tests_check
-        run: python tests/islandora_tests_check.py
+        run: pytest -v --no-header tests/islandora_tests_check.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
           
       - name: Run islandora_tests_paged_content  
-        run: python tests/islandora_tests_paged_content.py
+        run: pytest -v --no-header tests/islandora_tests_paged_content.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
 
       - name: Run islandora_tests  
-        run: python tests/islandora_tests.py
+        run: pytest -v --no-header tests/islandora_tests.py
 
       - name: Run islandora_tests_recovery_mode
-        run: python tests/islandora_tests_recovery_mode.py
+        run: pytest -v --no-header tests/islandora_tests_recovery_mode.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem        
 
       - name: Run csv_id_to_node_id_map_tests  
         run: python tests/csv_id_to_node_id_map_tests.py
+
+      # DEBUG ARTIFACTS - Add these steps at the end
+      - name: Collect debug artifacts on failure
+        if: failure()
+        run: |
+          mkdir -p debug-artifacts
+          # Docker container logs
+          echo "=== Docker container logs ===" > debug-artifacts/docker-info.log
+          docker ps -a >> debug-artifacts/docker-info.log
+          echo -e "\n=== Drupal container logs ===" >> debug-artifacts/docker-info.log
+          docker logs isle-site-template-drupal-dev-1 >> debug-artifacts/drupal.log 2>&1 || echo "Could not get Drupal logs"
+
+          # Drupal status and configuration
+          docker exec isle-site-template-drupal-dev-1 drush status > debug-artifacts/drupal-status.txt 2>&1 || echo "Could not get Drupal status"
+          docker exec isle-site-template-drupal-dev-1 drush config:get system.site > debug-artifacts/site-config.txt 2>&1 || echo "Could not get site config"
+
+          # Environment variables and Python info
+          env | grep -E "(PYTHON|PATH|PWD)" > debug-artifacts/environment.txt
+          python --version >> debug-artifacts/environment.txt
+          pip list >> debug-artifacts/pip-packages.txt 2>&1 || echo "Could not list pip packages"
+
+      - name: Upload debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: debug-artifacts-${{ github.run_id }}
+          path: debug-artifacts/
+          retention-days: 7

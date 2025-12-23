@@ -961,6 +961,23 @@ class TestIntegrationModuleVersionNumbers(unittest.TestCase):
                 res, "Version number " + str(version_number) + " is less than 1.0."
             )
 
+        minimum_version = tuple([1, 2])
+        lower_versions = ["0.9", "0.8", "0.8.0-dev", "1.0.0", "1.0.1", "1.1", "1.1.9"]
+        for version in lower_versions:
+            version_number = workbench_utils.convert_semver_to_number(version)
+            res = version_number < minimum_version
+            self.assertTrue(
+                res, "Version number " + str(version_number) + " is greater than 1.2."
+            )
+
+        higher_versions = ["1.2.1", "1.3.0", "10.0"]
+        for version in higher_versions:
+            version_number = workbench_utils.convert_semver_to_number(version)
+            res = version_number >= minimum_version
+            self.assertTrue(
+                res, "Version number " + str(version_number) + " is less than 1.2."
+            )
+
 
 class TestDedupedFilePaths(unittest.TestCase):
     def test_deduped_file_paths(self):

@@ -307,8 +307,10 @@ class SimpleField(WorkbenchField):
             entity_id_field = "media_id"
 
         cardinality = int(field_definitions[field_name].get("cardinality", -1))
+
         if config["update_mode"] == "append":
             subvalues = str(row[field_name]).split(config["subdelimiter"])
+            subvalues = self.dedupe_values(subvalues)
             subvalues = self.remove_invalid_values(
                 config, field_definitions, field_name, subvalues
             )
@@ -323,7 +325,7 @@ class SimpleField(WorkbenchField):
                     "formatted_text" in field_definitions[field_name]
                     and field_definitions[field_name]["formatted_text"] is True
                 ):
-                    entity[field_name].append(
+                    entity_field_values.append(
                         {"value": subvalue, "format": text_format}
                     )
                 else:
@@ -335,13 +337,16 @@ class SimpleField(WorkbenchField):
                         "field_type"
                     ] == "float" and value_is_numeric(subvalue, allow_decimals=True):
                         subvalue = float(subvalue)
-                    entity[field_name].append({"value": subvalue})
-            entity[field_name] = self.dedupe_values(entity[field_name])
-            if -1 < cardinality < len(entity[field_name]):
+                    entity_field_values.append({"value": subvalue})
+            entity[field_name] = self.dedupe_values(entity_field_values)
+
+            entity_field_values = self.dedupe_values(entity_field_values)
+            if -1 < cardinality < len(entity_field_values):
                 log_field_cardinality_violation(
                     field_name, row[entity_id_field], str(cardinality)
                 )
-                entity[field_name] = entity[field_name][:cardinality]
+                entity[field_name] = entity_field_values[:cardinality]
+
         if config["update_mode"] == "replace":
             field_values = []
             subvalues = str(row[field_name]).split(config["subdelimiter"])
