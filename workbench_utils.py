@@ -5279,43 +5279,49 @@ def execute_script_to_run(config, path_to_script, entity_type, entity_id):
 
 
 def create_file(config, filename, file_fieldname, node_csv_row, node_id):
-    """Creates a file in Drupal, which is then referenced by the accompanying media.
+    """
+    Creates a file in Drupal, which is then referenced by the accompanying media.
+
     Parameters
     ----------
-     config : dict
-         The configuration settings defined by workbench_config.get_config().
-     filename : string
-         The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
-     file_fieldname: string
-         The name of the CSV column containing the filename. None if the file isn't
-         in a CSV field (e.g., when config['paged_content_from_directories'] is True or
-         config["paged_content_from_directories_parents_exist"] is True).
-     node_csv_row: OrderedDict
-         E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
-     node_id: string
-         The nid of the parent media's parent node.
-     Returns
-     -------
-     int|bool|None
-         The file ID (int) of the successfully created file; False if there is insufficient
-         information to create the file or file creation failed, or None if config['nodes_only'].
+    config : dict
+        Configuration settings from workbench_config.get_config().
+    filename : str
+        Full path or URL to file.
+    file_fieldname : str|None
+        Column name in CSV that contains the file reference.
+    node_csv_row : OrderedDict
+        Example: OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island')])
+    node_id : str
+        NID of the parent node.
+
+    Returns
+    -------
+    int | bool | None
+        File ID (fid) on success,
+        False on failure,
+        None when config['nodes_only'] is True.
     """
-    if config["nodes_only"] is True:
+
+    #  Early returns
+    if config.get("nodes_only"):
         return None
 
-    if config["task"] == "add_media" or config["task"] == "create":
-        if (
-            file_fieldname is not None
-            and len(node_csv_row[file_fieldname].strip()) == 0
-        ):
+    # If creating media, ensure the CSV field actually has a filename
+    if config["task"] in ("add_media", "create"):
+        if file_fieldname and not node_csv_row[file_fieldname].strip():
             return None
 
-    is_remote = False
+    #  Normalize filename
     filename = filename.strip()
+    row_id = node_csv_row[config["id_field"]]
 
+    #  Determine local, in place or remote file source
+    is_remote = False
+
+    # Remote HTTP file
     if filename.startswith("http"):
-        remote_file_http_response_code = ping_remote_file(config, filename)
-        if remote_file_http_response_code != 200:
+        if ping_remote_file(config, filename) != 200:
             return False
 
         file_path = download_remote_file(
@@ -5323,158 +5329,140 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
         )
         if file_path is False:
             return False
-        filename = file_path.split("/")[-1]
+
+        filename = os.path.basename(file_path)
         is_remote = True
+
+    # Absolute local path
     elif os.path.isabs(filename):
-        # Validate that the file exists
-        if check_file_exists(config, filename) is False:
+        if not check_file_exists(config, filename):
             logging.error(
-                'File not created for CSV row "%s": file "%s" does not exist.',
-                node_csv_row[config["id_field"]],
-                filename,
+                'File "%s" does not exist for CSV row "%s".', filename, row_id
             )
             return False
+
         file_path = filename
-    else:
-        if check_file_exists(config, filename) is False:
-            logging.error(
-                'File not created for CSV row "%s": file "%s" does not exist.',
-                node_csv_row[config["id_field"]],
-                filename,
-            )
-            return False
-        file_path = os.path.join(config["input_dir"], filename)
 
-    media_type = set_media_type(config, file_path, file_fieldname, node_csv_row)
+    # File provided via server-file API (Drupal internal FS)
+    elif filename.startswith(config["file_systems"]):
+        details = issue_request(
+            config,
+            "POST",
+            "/api/server-file",
+            {"Content-Type": "application/json"},
+            {"path": filename, "retval": "fid"},
+        )
 
-    if media_type in config["media_type_file_fields"]:
-        media_file_field = config["media_type_file_fields"][media_type]
-    else:
+        if details.ok:
+            return int(details.json()["fid"])
+
         logging.error(
-            'File not created for CSV row "%s": media type "%s" not recognized.',
-            node_csv_row[config["id_field"]],
-            media_type,
+            f"File creation for row {row_id} returned code {details.status_code} "
+            f"with message: {details.text}"
         )
         return False
 
-    # Requests/urllib3 requires filenames used in Content-Disposition headers to be encoded as latin-1.
-    # Since it is impossible to reliably convert to latin-1 without knowing the source encoding of the filename
-    # (which may or may not have originated on the machine running Workbench, so sys.stdout.encoding isn't reliable),
-    # the best we can do for now is to use unidecode to replace non-ASCII characters in filenames with their ASCII
-    # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
-    # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
-    # of both requirements.
-    ascii_only = string_is_ascii(filename)
-    if ascii_only is False:
-        original_filename = copy.copy(filename)
-        filename = unidecode(filename)
-        logging.warning(
-            "Filename '"
-            + original_filename
-            + "' contains non-ASCII characters, normalized to '"
-            + filename
-            + "'."
-        )
-
-    file_endpoint_path = (
-        "/file/upload/media/" + media_type + "/" + media_file_field + "?_format=json"
-    )
-    if config["keep_filename_parent_directory"] is True:
-        remote_filename = filename
+    # File relative to input_dir
     else:
-        remote_filename = os.path.basename(filename)
-    file_headers = {
-        "Content-Type": "application/octet-stream",
-        "Content-Disposition": 'file; filename="' + remote_filename + '"',
-    }
-
-    binary_data = open(file_path, "rb")
-
-    try:
-        file_response = issue_request(
-            config, "POST", file_endpoint_path, file_headers, "", binary_data
-        )
-        if file_response.status_code == 201:
-            file_json = json.loads(file_response.text)
-            file_id = file_json["fid"][0]["value"]
-            # For now, we can only validate checksums for files named in the 'file' CSV column.
-            # See https://github.com/mjordan/islandora_workbench/issues/307.
-            if config["fixity_algorithm"] is not None and file_fieldname == "file":
-                file_uuid = file_json["uuid"][0]["value"]
-                hash_from_drupal = get_file_hash_from_drupal(
-                    config, file_uuid, config["fixity_algorithm"]
-                )
-                hash_from_local = get_file_hash_from_local(
-                    config, file_path, config["fixity_algorithm"]
-                )
-                if hash_from_drupal == hash_from_local:
-                    logging.info(
-                        'Local and Drupal %s checksums for file "%s" (%s) match.',
-                        config["fixity_algorithm"],
-                        file_path,
-                        hash_from_local,
-                    )
-                else:
-                    print(
-                        "Warning: local and Drupal checksums for '"
-                        + file_path
-                        + "' do not match. See the log for more detail."
-                    )
-                    logging.warning(
-                        'Local and Drupal %s checksums for file "%s" (named in CSV row "%s") do not match (local: %s, Drupal: %s).',
-                        config["fixity_algorithm"],
-                        file_path,
-                        node_csv_row[config["id_field"]],
-                        hash_from_local,
-                        hash_from_drupal,
-                    )
-                if "checksum" in node_csv_row:
-                    if hash_from_local == node_csv_row["checksum"].strip():
-                        logging.info(
-                            'Local %s checksum and value in the CSV "checksum" field for file "%s" (%s) match.',
-                            config["fixity_algorithm"],
-                            file_path,
-                            hash_from_local,
-                        )
-                    else:
-                        print(
-                            "Warning: local checksum and value in CSV for '"
-                            + file_path
-                            + "' do not match. See the log for more detail."
-                        )
-                        logging.warning(
-                            'Local %s checksum and value in the CSV "checksum" field for file "%s" (named in CSV row "%s") do not match (local: %s, CSV: %s).',
-                            config["fixity_algorithm"],
-                            file_path,
-                            node_csv_row[config["id_field"]],
-                            hash_from_local,
-                            node_csv_row["checksum"],
-                        )
-            if is_remote and config["delete_tmp_upload"] is True:
-                containing_folder = os.path.join(
-                    config["temp_dir"],
-                    re.sub("[^A-Za-z0-9]+", "_", node_csv_row[config["id_field"]]),
-                )
-                try:
-                    # E.g., on Windows, "[WinError 32] The process cannot access the file because it is being used by another process"
-                    shutil.rmtree(containing_folder)
-                except PermissionError as e:
-                    logging.error(e)
-
-            return file_id
-        else:
+        if not check_file_exists(config, filename):
             logging.error(
-                'File not created for "'
-                + file_path
-                + '", POST request to "%s" returned an HTTP status code of "%s" and a response body of %s.',
-                file_endpoint_path,
-                file_response.status_code,
-                file_response.content,
+                'File "%s" does not exist for CSV row "%s".', filename, row_id
             )
             return False
+
+        file_path = os.path.join(config["input_dir"], filename)
+
+    #  Determine media type and file field
+    media_type = set_media_type(config, file_path, file_fieldname, node_csv_row)
+    media_file_field = config["media_type_file_fields"].get(media_type)
+
+    if not media_file_field:
+        logging.error(
+            'Unrecognized media type "%s" for CSV row "%s".',
+            media_type,
+            row_id,
+        )
+        return False
+
+    #  Normalize filename to ASCII for upload headers
+    if not string_is_ascii(filename):
+        original_filename = filename
+        filename = unidecode(filename)
+        logging.warning(
+            f"Filename '{original_filename}' contains non-ASCII characters; "
+            f"normalized to '{filename}'."
+        )
+
+    #  Upload file to Drupal
+    upload_path = f"/file/upload/media/{media_type}/{media_file_field}?_format=json"
+    headers = {
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": f'file; filename="{filename}"',
+    }
+
+    try:
+        with open(file_path, "rb") as binary_data:
+            response = issue_request(
+                config, "POST", upload_path, headers, "", binary_data
+            )
+
+        if response.status_code != 201:
+            logging.error(
+                f'File upload failed for "{file_path}". POST to "{upload_path}" '
+                f"returned HTTP {response.status_code}. Response body: {response.content}"
+            )
+            return False
+
     except requests.exceptions.RequestException as e:
         logging.error(e)
         return False
+
+    #  Parse successful response
+    file_json = response.json()
+    file_id = file_json["fid"][0]["value"]
+    file_uuid = file_json["uuid"][0]["value"]
+
+    #  Fixity check (only for files from CSV "file" column)
+    if config["fixity_algorithm"] and file_fieldname == "file":
+        algorithm = config["fixity_algorithm"]
+        local_hash = get_file_hash_from_local(config, file_path, algorithm)
+        drupal_hash = get_file_hash_from_drupal(config, file_uuid, algorithm)
+
+        if local_hash == drupal_hash:
+            logging.info(
+                f'Local and Drupal {algorithm} checksums for "{file_path}" match ({local_hash}).'
+            )
+        else:
+            logging.warning(
+                f'Checksum mismatch for "{file_path}" (row "{row_id}"). '
+                f"Local: {local_hash}, Drupal: {drupal_hash}"
+            )
+
+        # Compare with CSV-provided checksum, if present
+        if "checksum" in node_csv_row:
+            csv_hash = node_csv_row["checksum"].strip()
+            if local_hash == csv_hash:
+                logging.info(
+                    f'Local {algorithm} checksum matches CSV "checksum" value for "{file_path}". ({local_hash})'
+                )
+            else:
+                logging.warning(
+                    f'CSV checksum mismatch for "{file_path}" (row "{row_id}"). '
+                    f"Local: {local_hash}, CSV: {csv_hash}"
+                )
+
+    #  Cleanup temp directory for remote downloads
+    if is_remote and config.get("delete_tmp_upload"):
+        containing_folder = os.path.join(
+            config["temp_dir"],
+            re.sub(r"[^A-Za-z0-9]+", "_", row_id),
+        )
+        try:
+            shutil.rmtree(containing_folder)
+        except PermissionError as e:
+            logging.error(e)
+
+    return file_id
 
 
 def create_media(
@@ -10283,6 +10271,16 @@ def check_file_exists(config, filename):
         boolean
             True if the file exists, false if not.
     """
+    # Check in place files
+    if filename.startswith(config["file_systems"]):
+        response = issue_request(
+            config,
+            "POST",
+            "/api/server-file",
+            {"Content-Type": "application/json"},
+            {"path": filename, "retval": "checkfile"},
+        )
+        return response.status_code == 200
     # It's a remote file.
     if filename.startswith("http"):
         try:
