@@ -6189,9 +6189,21 @@ def find_files_from_media(media_response_body: dict) -> Union[str, None]:
     """
     file_ids = []
     for field_id, field_info in media_response_body.items():
-        if len(field_info) == 0 or "target_id" not in field_info[0] or "target_type" not in field_info[0]:
+        if (
+            len(field_info) == 0
+            or "target_id" not in field_info[0]
+            or "target_type" not in field_info[0]
+        ):
             continue
-        file_ids.extend([item["target_id"] for item in field_info if "target_id" in item and "target_type" in item and item["target_type"] == "file"])
+        file_ids.extend(
+            [
+                item["target_id"]
+                for item in field_info
+                if "target_id" in item
+                and "target_type" in item
+                and item["target_type"] == "file"
+            ]
+        )
     set_of_ids = set(file_ids)
 
     return next(iter(set_of_ids)) if len(set_of_ids) > 0 else None
