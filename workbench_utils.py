@@ -6180,6 +6180,22 @@ def patch_image_alt_text(
     return patch_media_response.status_code
 
 
+def find_files_from_media(media_response_body: dict) -> Union[str, None]:
+    """Given a media JSON response body, return the file IDs associated with it if they have target_type of "file".
+    Parameters:
+        @param media_response_body: The JSON response body from a GET request to a media entity.
+    Returns:
+        @return: A file ID associated with the media or None
+    """
+    file_ids = []
+    for field_id, field_info in media_response_body.items():
+        if len(field_info) == 0 or "target_id" not in field_info[0] or "target_type" not in field_info[0]:
+            continue
+        file_ids.extend([item["target_id"] for item in field_info if "target_id" in item and "target_type" in item and item["target_type"] == "file"])
+    set_of_ids = set(file_ids)
+
+    return next(iter(set_of_ids)) if len(set_of_ids) > 0 else None
+
 def remove_media_and_file(config: dict, media_id: Union[int, str]) -> Union[int, bool]:
     """Delete a media and the file associated with it.
     Parameters
@@ -6214,21 +6230,9 @@ def remove_media_and_file(config: dict, media_id: Union[int, str]) -> Union[int,
         logging.error(message)
         sys.exit("Error: " + message)
 
-    for file_field_name in file_fields:
-        if file_field_name in get_media_response_body:
-            try:
-                file_id = get_media_response_body[file_field_name][0]["target_id"]
-            except Exception as e:
-                logging.error(
-                    "Unable to get file ID for media %s (reason: %s); proceeding to delete media without file.",
-                    media_id,
-                    e,
-                )
-                file_id = None
-            break
+    file_id = find_files_from_media(get_media_response_body)
 
     # Delete the file first.
-    # TODO: file_id might be undefined here if none of the file_fields are in get_media_response_body.
     if file_id is not None:
         file_endpoint = (
             config["host"] + "/entity/file/" + str(file_id) + "?_format=json"
@@ -11853,8 +11857,8 @@ def get_config_file_identifier(config: dict) -> str:
 
 
 def calculate_response_time_trend(config: dict, response_time: int) -> Optional[float]:
-    """Gets the average response time from the most recent 20 HTTP requests."""
-    """Parameters
+    """Gets the average response time from the most recent 20 HTTP requests.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().

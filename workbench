@@ -1368,18 +1368,7 @@ def update_media() -> None:
             True if the file was successfully deleted or if there was no file attached to this media, False otherwise.
         """
         # Inspect the JSON response to get the file ID
-        for file_field_name in file_fields:
-            if file_field_name in get_media_response_body:
-                try:
-                    file_to_delete = str(
-                        get_media_response_body[file_field_name][0]["target_id"]
-                    )
-                except Exception as e:
-                    logging.warning(
-                        'Unable to get file ID for media "%s" (%s).', media_id, e
-                    )
-                    return True
-                break
+        file_to_delete = find_files_from_media(get_media_response_body)
 
         if file_to_delete:
             # Now we delete the file
@@ -1400,6 +1389,7 @@ def update_media() -> None:
                     file_response.status_code,
                 )
                 return False
+        return True
 
     def delete_media_track_files(
         config: dict, media_id: str, media_type: str, get_media_response_body: dict
