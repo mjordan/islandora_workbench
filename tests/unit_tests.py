@@ -2173,7 +2173,7 @@ class TestGeneralTests(unittest.TestCase):
             "csv_id_to_node_id_map_path": "/some/path/test/allowed_hosts.db",
             "path_to_python": "/some/path/bin/python3",
             "page_files_source_dir_field": "pages_directory",
-            "paged_content_page_content_type": "some_paged_content_type"
+            "paged_content_page_content_type": "some_paged_content_type",
         }
         for key, value in expected_config.items():
             if isinstance(value, dict):
