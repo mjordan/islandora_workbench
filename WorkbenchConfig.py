@@ -146,6 +146,9 @@ class WorkbenchConfig:
         if "page_files_source_dir_field" not in config:
             config["page_files_source_dir_field"] = config["id_field"]
 
+        if "paged_content_page_content_type" not in config:
+            config["paged_content_page_content_type"] = config["content_type"]
+
         config["config_file"] = self.args.config
 
         return config

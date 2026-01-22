@@ -2173,12 +2173,30 @@ class TestGeneralTests(unittest.TestCase):
             "csv_id_to_node_id_map_path": "/some/path/test/allowed_hosts.db",
             "path_to_python": "/some/path/bin/python3",
             "page_files_source_dir_field": "pages_directory",
+            "paged_content_page_content_type": "some_paged_content_type"
         }
         for key, value in expected_config.items():
             if isinstance(value, dict):
                 self.assertDictEqual(value, config[key])
             else:
                 self.assertEqual(value, config[key])
+
+    def test_get_config_no_paged_content_type(self):
+        """Tests that the paged_content_page_content_type defaults to 'islandora_object' if not set in config."""
+        config_file_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "assets",
+            "config_test",
+            "test_minimal_config.yml",
+        )
+        args = argparse.Namespace(
+            config=config_file_path,
+            check=False,
+            get_csv_template=False,
+        )
+        config_object = WorkbenchConfig(args)
+        config = config_object.get_config()
+        self.assertEqual("islandora_object", config["paged_content_page_content_type"])
 
 
 if __name__ == "__main__":
