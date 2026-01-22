@@ -1,0 +1,9 @@
+task: create_terms
+host: https://islandora.dev
+username: admin
+password: password
+input_csv: multilingual_tests/create_taxonomy.csv
+input_dir: ""
+vocabulary: subject
+vocab_id: subject
+secure_ssl_only: false
