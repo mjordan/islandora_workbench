@@ -1,0 +1,4 @@
+task: create
+username: test_user
+password: test_password
+host: 'https://example.com'
