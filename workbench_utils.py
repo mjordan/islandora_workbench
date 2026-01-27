@@ -10166,6 +10166,7 @@ def write_rollback_config(config: dict, path_to_rollback_csv_file: str):
             "host": config["host"],
             "username": config["username"],
             "password": password,
+            "use_workbench_permissions": config["use_workbench_permissions"],
             "input_dir": config["input_dir"],
             "standalone_media_url": config["standalone_media_url"],
             "secure_ssl_only": config["secure_ssl_only"],
