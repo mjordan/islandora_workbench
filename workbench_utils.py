@@ -6208,6 +6208,7 @@ def find_files_from_media(media_response_body: dict) -> Union[str, None]:
 
     return next(iter(set_of_ids)) if len(set_of_ids) > 0 else None
 
+
 def remove_media_and_file(config: dict, media_id: Union[int, str]) -> Union[int, bool]:
     """Delete a media and the file associated with it.
     Parameters
