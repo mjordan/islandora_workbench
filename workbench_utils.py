@@ -1190,6 +1190,7 @@ def get_node_title_from_nid(config: dict, node_id: str) -> Union[str, bool]:
     else:
         return False
 
+
 def get_field_definitions(
     config: dict, entity_type: str, bundle_type: str = None
 ) -> dict:
@@ -1218,7 +1219,9 @@ def get_field_definitions(
         if bundle_type is None:
             bundle_type = config["content_type"]
         fields = get_entity_fields(config, entity_type, bundle_type)
-        field_definitions = parse_field_definition(config, fields, entity_type, bundle_type)
+        field_definitions = parse_field_definition(
+            config, fields, entity_type, bundle_type
+        )
 
         # title's configuration is not returned by Drupal so we construct it here. Note: if you add a new key to
         # 'field_definitions', also add it to title's entry here. Also add it for 'title' in the other entity types, below.
@@ -1236,7 +1239,9 @@ def get_field_definitions(
 
     elif entity_type == "taxonomy_term":
         fields = get_entity_fields(config, "taxonomy_term", bundle_type)
-        field_definitions = parse_field_definition(config, fields, "taxonomy_term", bundle_type)
+        field_definitions = parse_field_definition(
+            config, fields, "taxonomy_term", bundle_type
+        )
 
         field_definitions["term_name"] = {
             "entity_type": "taxonomy_term",
@@ -1252,7 +1257,9 @@ def get_field_definitions(
 
     elif entity_type == "media":
         fields = get_entity_fields(config, entity_type, bundle_type)
-        field_definitions = parse_field_definition(config, fields, entity_type, bundle_type)
+        field_definitions = parse_field_definition(
+            config, fields, entity_type, bundle_type
+        )
 
         field_definitions["name"] = {
             "entity_type": "media",
@@ -1269,12 +1276,16 @@ def get_field_definitions(
     elif entity_type == "paragraph":
         fields = get_entity_fields(config, entity_type, bundle_type)
         # NOTE, WIP on #292. Code below copied from 'node' section above, may need modification.
-        field_definitions = parse_field_definition(config, fields, entity_type, bundle_type)
+        field_definitions = parse_field_definition(
+            config, fields, entity_type, bundle_type
+        )
 
     return field_definitions
 
 
-def parse_field_definition(config: dict, fields: dict, entity_type: str, bundle_type: str) -> dict:
+def parse_field_definition(
+    config: dict, fields: dict, entity_type: str, bundle_type: str
+) -> dict:
     """Parse a single field's definition into a more digestible format.
     Parameters
     :param config: dict - The configuration settings defined by workbench_config.get_config().
@@ -1286,9 +1297,9 @@ def parse_field_definition(config: dict, fields: dict, entity_type: str, bundle_
     field_definitions = {}
     for fieldname, field_info in fields.items():
         field_definitions[fieldname] = {}
-        if config['use_workbench_permissions']:
-            field_config = field_info['config']
-            field_storage_config = field_info['storage_config']
+        if config["use_workbench_permissions"]:
+            field_config = field_info["config"]
+            field_storage_config = field_info["storage_config"]
         else:
             raw_field_config = get_entity_field_config(
                 config, fieldname, entity_type, bundle_type
@@ -1298,13 +1309,13 @@ def parse_field_definition(config: dict, fields: dict, entity_type: str, bundle_
             field_storage_config = json.loads(raw_field_storage)
         field_definition = {"entity_type": field_config["entity_type"]}
 
-        if field_config['entity_type'] == 'media':
-            field_definition['media_type'] = field_config['bundle']
+        if field_config["entity_type"] == "media":
+            field_definition["media_type"] = field_config["bundle"]
 
         field_definition["required"] = field_config["required"]
         field_definition["label"] = field_config["label"]
 
-        if 'dependencies' in field_config and 'config' in field_config['dependencies']:
+        if "dependencies" in field_config and "config" in field_config["dependencies"]:
             # Base fields tend to lack the dependencies key.
             vocabularies = [
                 x.replace("taxonomy.vocabulary.", "")
@@ -1316,16 +1327,14 @@ def parse_field_definition(config: dict, fields: dict, entity_type: str, bundle_
 
         # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
         if "handler" in field_config["settings"]:
-            field_definition["handler"] = field_config["settings"][
-                "handler"
-            ]
+            field_definition["handler"] = field_config["settings"]["handler"]
         else:
             field_definition["handler"] = None
 
         if "handler_settings" in field_config["settings"]:
-            field_definition["handler_settings"] = field_config[
-                "settings"
-            ]["handler_settings"]
+            field_definition["handler_settings"] = field_config["settings"][
+                "handler_settings"
+            ]
         else:
             field_definition["handler_settings"] = None
 
@@ -1347,12 +1356,10 @@ def parse_field_definition(config: dict, fields: dict, entity_type: str, bundle_
             field_definition["target_type"] = None
 
         if (
-                field_storage_config["type"] == "typed_relation"
-                and "rel_types" in field_config["settings"]
+            field_storage_config["type"] == "typed_relation"
+            and "rel_types" in field_config["settings"]
         ):
-            field_definition["typed_relations"] = field_config[
-                "settings"
-            ]["rel_types"]
+            field_definition["typed_relations"] = field_config["settings"]["rel_types"]
 
         if "authority_sources" in field_config["settings"]:
             field_definition["authority_sources"] = list(
@@ -1375,6 +1382,7 @@ def parse_field_definition(config: dict, fields: dict, entity_type: str, bundle_
         field_definitions[fieldname] = field_definition
 
     return field_definitions
+
 
 def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> dict:
     """Get all the fields configured on a bundle.
@@ -1433,7 +1441,9 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> dict:
         else:
             fieldname_prefix = "field.field." + entity_type + "." + bundle_type + "."
             fields = {
-                field_dependency.replace(fieldname_prefix, ""): field_dependency.replace(fieldname_prefix, "")
+                field_dependency.replace(
+                    fieldname_prefix, ""
+                ): field_dependency.replace(fieldname_prefix, "")
                 for field_dependency in node_config_raw["dependencies"]["config"]
                 if field_dependency.startswith(fieldname_prefix)
             }
@@ -1454,6 +1464,7 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> dict:
         sys.exit("Error: " + message + " See the log for more information.")
 
     return fields
+
 
 def get_required_bundle_fields(
     config: dict, entity_type: str, bundle_type: str
