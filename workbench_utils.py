@@ -798,7 +798,7 @@ def ping_content_type(config: dict) -> int:
         The HTTP response code.
     """
     url = (
-        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{config['content_type']}"
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_field_bundle/node/{config['content_type']}"
         if config["use_workbench_permissions"]
         else f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
     )
@@ -1181,7 +1181,6 @@ def get_node_title_from_nid(config: dict, node_id: str) -> Union[str, bool]:
     else:
         return False
 
-
 def get_field_definitions(
     config: dict, entity_type: str, bundle_type: str = None
 ) -> dict:
@@ -1209,76 +1208,7 @@ def get_field_definitions(
     if entity_type == "node":
         bundle_type = config["content_type"]
         fields = get_entity_fields(config, entity_type, bundle_type)
-        for fieldname in fields:
-            field_definitions[fieldname] = {}
-            raw_field_config = get_entity_field_config(
-                config, fieldname, entity_type, bundle_type
-            )
-            field_config = json.loads(raw_field_config)
-
-            field_definitions[fieldname]["entity_type"] = field_config["entity_type"]
-            field_definitions[fieldname]["required"] = field_config["required"]
-            field_definitions[fieldname]["label"] = field_config["label"]
-            vocabularies = [
-                x.replace("taxonomy.vocabulary.", "")
-                for x in field_config["dependencies"]["config"]
-                if x.startswith("taxonomy.vocabulary.")
-            ]
-            if len(vocabularies) > 0:
-                field_definitions[fieldname]["vocabularies"] = vocabularies
-            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
-            if "handler" in field_config["settings"]:
-                field_definitions[fieldname]["handler"] = field_config["settings"][
-                    "handler"
-                ]
-            else:
-                field_definitions[fieldname]["handler"] = None
-            if "handler_settings" in field_config["settings"]:
-                field_definitions[fieldname]["handler_settings"] = field_config[
-                    "settings"
-                ]["handler_settings"]
-            else:
-                field_definitions[fieldname]["handler_settings"] = None
-
-            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
-            field_storage = json.loads(raw_field_storage)
-            field_definitions[fieldname]["field_type"] = field_storage["type"]
-            field_definitions[fieldname]["cardinality"] = field_storage["cardinality"]
-            if "max_length" in field_storage["settings"]:
-                field_definitions[fieldname]["max_length"] = field_storage["settings"][
-                    "max_length"
-                ]
-            else:
-                field_definitions[fieldname]["max_length"] = None
-            if "target_type" in field_storage["settings"]:
-                field_definitions[fieldname]["target_type"] = field_storage["settings"][
-                    "target_type"
-                ]
-            else:
-                field_definitions[fieldname]["target_type"] = None
-            if (
-                field_storage["type"] == "typed_relation"
-                and "rel_types" in field_config["settings"]
-            ):
-                field_definitions[fieldname]["typed_relations"] = field_config[
-                    "settings"
-                ]["rel_types"]
-            if "authority_sources" in field_config["settings"]:
-                field_definitions[fieldname]["authority_sources"] = list(
-                    field_config["settings"]["authority_sources"].keys()
-                )
-            else:
-                field_definitions[fieldname]["authority_sources"] = None
-            if "allowed_values" in field_storage["settings"]:
-                field_definitions[fieldname]["allowed_values"] = list(
-                    field_storage["settings"]["allowed_values"].keys()
-                )
-            else:
-                field_definitions[fieldname]["allowed_values"] = None
-            if field_config["field_type"].startswith("text"):
-                field_definitions[fieldname]["formatted_text"] = True
-            else:
-                field_definitions[fieldname]["formatted_text"] = False
+        field_definitions = parse_field_definition(config, fields, entity_type, bundle_type)
 
         # title's configuration is not returned by Drupal so we construct it here. Note: if you add a new key to
         # 'field_definitions', also add it to title's entry here. Also add it for 'title' in the other entity types, below.
@@ -1296,78 +1226,7 @@ def get_field_definitions(
 
     elif entity_type == "taxonomy_term":
         fields = get_entity_fields(config, "taxonomy_term", bundle_type)
-        for fieldname in fields:
-            field_definitions[fieldname] = {}
-            raw_field_config = get_entity_field_config(
-                config, fieldname, entity_type, bundle_type
-            )
-            field_config = json.loads(raw_field_config)
-            field_definitions[fieldname]["entity_type"] = field_config["entity_type"]
-            field_definitions[fieldname]["required"] = field_config["required"]
-            field_definitions[fieldname]["label"] = field_config["label"]
-            raw_vocabularies = [
-                x
-                for x in field_config["dependencies"]["config"]
-                if re.match("^taxonomy.vocabulary.", x)
-            ]
-            if len(raw_vocabularies) > 0:
-                vocabularies = [
-                    x.replace("taxonomy.vocabulary.", "") for x in raw_vocabularies
-                ]
-                field_definitions[fieldname]["vocabularies"] = vocabularies
-            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
-            if "handler" in field_config["settings"]:
-                field_definitions[fieldname]["handler"] = field_config["settings"][
-                    "handler"
-                ]
-            else:
-                field_definitions[fieldname]["handler"] = None
-            if "handler_settings" in field_config["settings"]:
-                field_definitions[fieldname]["handler_settings"] = field_config[
-                    "settings"
-                ]["handler_settings"]
-            else:
-                field_definitions[fieldname]["handler_settings"] = None
-
-            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
-            field_storage = json.loads(raw_field_storage)
-            field_definitions[fieldname]["field_type"] = field_storage["type"]
-            field_definitions[fieldname]["cardinality"] = field_storage["cardinality"]
-            if "max_length" in field_storage["settings"]:
-                field_definitions[fieldname]["max_length"] = field_storage["settings"][
-                    "max_length"
-                ]
-            else:
-                field_definitions[fieldname]["max_length"] = None
-            if "target_type" in field_storage["settings"]:
-                field_definitions[fieldname]["target_type"] = field_storage["settings"][
-                    "target_type"
-                ]
-            else:
-                field_definitions[fieldname]["target_type"] = None
-            if "authority_sources" in field_config["settings"]:
-                field_definitions[fieldname]["authority_sources"] = list(
-                    field_config["settings"]["authority_sources"].keys()
-                )
-            else:
-                field_definitions[fieldname]["authority_sources"] = None
-            if (
-                field_storage["type"] == "typed_relation"
-                and "rel_types" in field_config["settings"]
-            ):
-                field_definitions[fieldname]["typed_relations"] = field_config[
-                    "settings"
-                ]["rel_types"]
-            if "allowed_values" in field_storage["settings"]:
-                field_definitions[fieldname]["allowed_values"] = list(
-                    field_storage["settings"]["allowed_values"].keys()
-                )
-            else:
-                field_definitions[fieldname]["allowed_values"] = None
-            if field_config["field_type"].startswith("text"):
-                field_definitions[fieldname]["formatted_text"] = True
-            else:
-                field_definitions[fieldname]["formatted_text"] = False
+        field_definitions = parse_field_definition(config, fields, "taxonomy_term", bundle_type)
 
         field_definitions["term_name"] = {
             "entity_type": "taxonomy_term",
@@ -1383,83 +1242,7 @@ def get_field_definitions(
 
     elif entity_type == "media":
         fields = get_entity_fields(config, entity_type, bundle_type)
-        for fieldname in fields:
-            field_definitions[fieldname] = {}
-            raw_field_config = get_entity_field_config(
-                config, fieldname, entity_type, bundle_type
-            )
-            field_config = json.loads(raw_field_config)
-            field_definitions[fieldname]["media_type"] = bundle_type
-            field_definitions[fieldname]["field_type"] = field_config["field_type"]
-            field_definitions[fieldname]["required"] = field_config["required"]
-            field_definitions[fieldname]["label"] = field_config["label"]
-            raw_vocabularies = [
-                x
-                for x in field_config["dependencies"]["config"]
-                if re.match("^taxonomy.vocabulary.", x)
-            ]
-            if len(raw_vocabularies) > 0:
-                vocabularies = [
-                    x.replace("taxonomy.vocabulary.", "") for x in raw_vocabularies
-                ]
-                field_definitions[fieldname]["vocabularies"] = vocabularies
-            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
-            if "handler" in field_config["settings"]:
-                field_definitions[fieldname]["handler"] = field_config["settings"][
-                    "handler"
-                ]
-            else:
-                field_definitions[fieldname]["handler"] = None
-            if "handler_settings" in field_config["settings"]:
-                field_definitions[fieldname]["handler_settings"] = field_config[
-                    "settings"
-                ]["handler_settings"]
-            else:
-                field_definitions[fieldname]["handler_settings"] = None
-            if "file_extensions" in field_config["settings"]:
-                field_definitions[fieldname]["file_extensions"] = field_config[
-                    "settings"
-                ]["file_extensions"]
-
-            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
-            field_storage = json.loads(raw_field_storage)
-            field_definitions[fieldname]["field_type"] = field_storage["type"]
-            field_definitions[fieldname]["cardinality"] = field_storage["cardinality"]
-            if "max_length" in field_storage["settings"]:
-                field_definitions[fieldname]["max_length"] = field_storage["settings"][
-                    "max_length"
-                ]
-            else:
-                field_definitions[fieldname]["max_length"] = None
-            if "target_type" in field_storage["settings"]:
-                field_definitions[fieldname]["target_type"] = field_storage["settings"][
-                    "target_type"
-                ]
-            else:
-                field_definitions[fieldname]["target_type"] = None
-            if (
-                field_storage["type"] == "typed_relation"
-                and "rel_types" in field_config["settings"]
-            ):
-                field_definitions[fieldname]["typed_relations"] = field_config[
-                    "settings"
-                ]["rel_types"]
-            if "authority_sources" in field_config["settings"]:
-                field_definitions[fieldname]["authority_sources"] = list(
-                    field_config["settings"]["authority_sources"].keys()
-                )
-            else:
-                field_definitions[fieldname]["authority_sources"] = None
-            if "allowed_values" in field_storage["settings"]:
-                field_definitions[fieldname]["allowed_values"] = list(
-                    field_storage["settings"]["allowed_values"].keys()
-                )
-            else:
-                field_definitions[fieldname]["allowed_values"] = None
-            if field_config["field_type"].startswith("text"):
-                field_definitions[fieldname]["formatted_text"] = True
-            else:
-                field_definitions[fieldname]["formatted_text"] = False
+        field_definitions = parse_field_definition(config, fields, entity_type, bundle_type)
 
         field_definitions["name"] = {
             "entity_type": "media",
@@ -1475,85 +1258,115 @@ def get_field_definitions(
 
     elif entity_type == "paragraph":
         fields = get_entity_fields(config, entity_type, bundle_type)
-        for fieldname in fields:
-            # NOTE, WIP on #292. Code below copied from 'node' section above, may need modification.
-            field_definitions[fieldname] = {}
-            raw_field_config = get_entity_field_config(
-                config, fieldname, entity_type, bundle_type
-            )
-            field_config = json.loads(raw_field_config)
-
-            field_definitions[fieldname]["entity_type"] = field_config["entity_type"]
-            field_definitions[fieldname]["required"] = field_config["required"]
-            field_definitions[fieldname]["label"] = field_config["label"]
-            raw_vocabularies = [
-                x
-                for x in field_config["dependencies"]["config"]
-                if re.match("^taxonomy.vocabulary.", x)
-            ]
-            if len(raw_vocabularies) > 0:
-                vocabularies = [
-                    x.replace("taxonomy.vocabulary.", "") for x in raw_vocabularies
-                ]
-                field_definitions[fieldname]["vocabularies"] = vocabularies
-            # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
-            if "handler" in field_config["settings"]:
-                field_definitions[fieldname]["handler"] = field_config["settings"][
-                    "handler"
-                ]
-            else:
-                field_definitions[fieldname]["handler"] = None
-            if "handler_settings" in field_config["settings"]:
-                field_definitions[fieldname]["handler_settings"] = field_config[
-                    "settings"
-                ]["handler_settings"]
-            else:
-                field_definitions[fieldname]["handler_settings"] = None
-
-            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
-            field_storage = json.loads(raw_field_storage)
-            field_definitions[fieldname]["field_type"] = field_storage["type"]
-            field_definitions[fieldname]["cardinality"] = field_storage["cardinality"]
-            if "max_length" in field_storage["settings"]:
-                field_definitions[fieldname]["max_length"] = field_storage["settings"][
-                    "max_length"
-                ]
-            else:
-                field_definitions[fieldname]["max_length"] = None
-            if "target_type" in field_storage["settings"]:
-                field_definitions[fieldname]["target_type"] = field_storage["settings"][
-                    "target_type"
-                ]
-            else:
-                field_definitions[fieldname]["target_type"] = None
-            if (
-                field_storage["type"] == "typed_relation"
-                and "rel_types" in field_config["settings"]
-            ):
-                field_definitions[fieldname]["typed_relations"] = field_config[
-                    "settings"
-                ]["rel_types"]
-            if "authority_sources" in field_config["settings"]:
-                field_definitions[fieldname]["authority_sources"] = list(
-                    field_config["settings"]["authority_sources"].keys()
-                )
-            else:
-                field_definitions[fieldname]["authority_sources"] = None
-            if "allowed_values" in field_storage["settings"]:
-                field_definitions[fieldname]["allowed_values"] = list(
-                    field_storage["settings"]["allowed_values"].keys()
-                )
-            else:
-                field_definitions[fieldname]["allowed_values"] = None
-            if field_config["field_type"].startswith("text"):
-                field_definitions[fieldname]["formatted_text"] = True
-            else:
-                field_definitions[fieldname]["formatted_text"] = False
+        # NOTE, WIP on #292. Code below copied from 'node' section above, may need modification.
+        field_definitions = parse_field_definition(config, fields, entity_type, bundle_type)
 
     return field_definitions
 
 
-def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> list:
+def parse_field_definition(config: dict, fields: dict, entity_type: str, bundle_type: str) -> dict:
+    """Parse a single field's definition into a more digestible format.
+    Parameters
+    :param config: dict - The configuration settings defined by workbench_config.get_config().
+    :param fields: dict - The field names and information or just names. From get_entity_fields().
+    :param entity_type: string - One of 'node', 'media', 'taxonomy_term', or 'paragraph'.
+    :param bundle_type: string - The bundle type of the entity.
+    :return: dict - A dictionary with the field's properties in a more digestible format.
+    """
+    field_definitions = {}
+    for fieldname, field_info in fields.items():
+        field_definitions[fieldname] = {}
+        if config['use_workbench_permissions']:
+            field_config = field_info['config']
+            field_storage_config = field_info['storage_config']
+        else:
+            raw_field_config = get_entity_field_config(
+                config, fieldname, entity_type, bundle_type
+            )
+            field_config = json.loads(raw_field_config)
+            raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
+            field_storage_config = json.loads(raw_field_storage)
+        field_definition = {"entity_type": field_config["entity_type"]}
+
+        if field_config['entity_type'] == 'media':
+            field_definition['media_type'] = field_config['bundle']
+
+        field_definition["required"] = field_config["required"]
+        field_definition["label"] = field_config["label"]
+
+        if 'dependencies' in field_config and 'config' in field_config['dependencies']:
+            # Base fields tend to lack the dependencies key.
+            vocabularies = [
+                x.replace("taxonomy.vocabulary.", "")
+                for x in field_config["dependencies"]["config"]
+                if x.startswith("taxonomy.vocabulary.")
+            ]
+            if len(vocabularies) > 0:
+                field_definition["vocabularies"] = vocabularies
+
+        # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
+        if "handler" in field_config["settings"]:
+            field_definition["handler"] = field_config["settings"][
+                "handler"
+            ]
+        else:
+            field_definition["handler"] = None
+
+        if "handler_settings" in field_config["settings"]:
+            field_definition["handler_settings"] = field_config[
+                "settings"
+            ]["handler_settings"]
+        else:
+            field_definition["handler_settings"] = None
+
+        field_definition["field_type"] = field_storage_config["type"]
+        field_definition["cardinality"] = field_storage_config["cardinality"]
+
+        if "max_length" in field_storage_config["settings"]:
+            field_definition["max_length"] = field_storage_config["settings"][
+                "max_length"
+            ]
+        else:
+            field_definition["max_length"] = None
+
+        if "target_type" in field_storage_config["settings"]:
+            field_definition["target_type"] = field_storage_config["settings"][
+                "target_type"
+            ]
+        else:
+            field_definition["target_type"] = None
+
+        if (
+                field_storage_config["type"] == "typed_relation"
+                and "rel_types" in field_config["settings"]
+        ):
+            field_definition["typed_relations"] = field_config[
+                "settings"
+            ]["rel_types"]
+
+        if "authority_sources" in field_config["settings"]:
+            field_definition["authority_sources"] = list(
+                field_config["settings"]["authority_sources"].keys()
+            )
+        else:
+            field_definition["authority_sources"] = None
+
+        if "allowed_values" in field_storage_config["settings"]:
+            field_definition["allowed_values"] = list(
+                field_storage_config["settings"]["allowed_values"].keys()
+            )
+        else:
+            field_definition["allowed_values"] = None
+
+        if field_config["field_type"].startswith("text"):
+            field_definition["formatted_text"] = True
+        else:
+            field_definition["formatted_text"] = False
+        field_definitions[fieldname] = field_definition
+
+    return field_definitions
+
+def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> dict:
     """Get all the fields configured on a bundle.
 
     Parameters
@@ -1567,8 +1380,9 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> list:
 
     Returns
     -------
-    list
-        A list with field names, e.g. ['field_name1', 'field_name2'].
+    dict
+        If use_workbench_permissions is True, returns a dictionary with field names as keys, second level has keys 'config' and 'storage_config' with the Drupal data.
+        Otherwise returns a dict with field names as keys and field names as values, e.g. {'field_name1': 'field_name1', 'field_name2': 'field_name2'}.
 
     """
     if ping_content_type(config) == 404:
@@ -1581,7 +1395,7 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> list:
         logging.error(message)
         sys.exit("Error: " + message)
     fields_endpoint = (
-        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/{entity_type}/{bundle_type}"
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_field_bundle/{entity_type}/{bundle_type}"
         if config["use_workbench_permissions"]
         else f"{config['host']}/entity/entity_form_display/{entity_type}.{bundle_type}.default?_format=json"
     )
@@ -1599,17 +1413,20 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> list:
         # If this request confirms the vocabulary exists, its OK to make some assumptions
         # about what fields it has.
         if fallback_bundle_type_response.status_code == 200:
-            return []
+            return {}
 
-    fields = []
+    fields = {}
     if bundle_type_response.status_code == 200:
         node_config_raw = bundle_type_response.json()
-        fieldname_prefix = "field.field." + entity_type + "." + bundle_type + "."
-        fields = [
-            field_dependency.replace(fieldname_prefix, "")
-            for field_dependency in node_config_raw["dependencies"]["config"]
-            if field_dependency.startswith(fieldname_prefix)
-        ]
+        if config["use_workbench_permissions"]:
+            fields = node_config_raw
+        else:
+            fieldname_prefix = "field.field." + entity_type + "." + bundle_type + "."
+            fields = {
+                field_dependency.replace(fieldname_prefix, ""): field_dependency.replace(fieldname_prefix, "")
+                for field_dependency in node_config_raw["dependencies"]["config"]
+                if field_dependency.startswith(fieldname_prefix)
+            }
     else:
         message = "Workbench cannot retrieve field definitions from Drupal."
         message_detail = ""
@@ -1627,7 +1444,6 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> list:
         sys.exit("Error: " + message + " See the log for more information.")
 
     return fields
-
 
 def get_required_bundle_fields(
     config: dict, entity_type: str, bundle_type: str
