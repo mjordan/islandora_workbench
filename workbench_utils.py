@@ -1298,8 +1298,8 @@ def parse_field_definition(
             field_storage_config = json.loads(raw_field_storage)
         # Currently skip all base fields as they screw up required field checks.
         if (
-                "is_base_field" in field_config.keys()
-                and field_config["is_base_field"] is True
+            "is_base_field" in field_config.keys()
+            and field_config["is_base_field"] is True
         ):
             continue
         field_definitions[fieldname] = {}
