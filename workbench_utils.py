@@ -1286,7 +1286,6 @@ def parse_field_definition(
     """
     field_definitions = {}
     for fieldname, field_info in fields.items():
-        field_definitions[fieldname] = {}
         if config["use_workbench_permissions"]:
             field_config = field_info["config"]
             field_storage_config = field_info["storage_config"]
@@ -1297,6 +1296,13 @@ def parse_field_definition(
             field_config = json.loads(raw_field_config)
             raw_field_storage = get_entity_field_storage(config, fieldname, entity_type)
             field_storage_config = json.loads(raw_field_storage)
+        # Currently skip all base fields as they screw up required field checks.
+        if (
+                "is_base_field" in field_config.keys()
+                and field_config["is_base_field"] is True
+        ):
+            continue
+        field_definitions[fieldname] = {}
         field_definition = {"entity_type": field_config["entity_type"]}
 
         if field_config["entity_type"] == "media":
