@@ -4029,16 +4029,23 @@ def check_input(config: dict, args: Namespace) -> None:
     preprocessor_scripts_present = False
     if "preprocessors" in config and len(config["preprocessors"]) > 0:
         preprocessor_scripts_present = True
-        # for preprocessor_script in config['preprocessors']:
-        for field, script_path in config["preprocessors"].items():
-            if not os.path.exists(script_path):
-                message = f'Preprocessor script "{script_path}" for field "{field}" not found.'
-                logging.error(message)
-                sys.exit("Error: " + message)
-            if os.access(script_path, os.X_OK) is False:
-                message = f'Preprocessor script "{script_path}" for field "{field}" is not executable.'
-                logging.error(message)
-                sys.exit("Error: " + message)
+        for preprocessor_script in config["preprocessors"]:
+            for pkey, pvalue in preprocessor_script.items():
+                field = pkey.strip()
+                script_path = pvalue.strip()
+                # Since in some cases script paths need to include the interpreter (e.g. "python /path/to/script"),
+                # we only check for the existence of the second part of the path name.
+                if " " in script_path:
+                    script_path_parts = script_path.split(" ")
+                    script_path = script_path_parts[-1]
+                if not os.path.exists(script_path):
+                    message = f'Preprocessor script "{script_path}" for field "{field}" not found.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                if os.access(script_path, os.X_OK) is False:
+                    message = f'Preprocessor script "{script_path}" for field "{field}" is not executable.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
         if preprocessor_scripts_present is True:
             message = f"OK, registered preprocessor scripts found and executable."
             logging.info(message)
@@ -12777,7 +12784,9 @@ def get_term_field_values(config: dict, term_id: str):
     return term_fields
 
 
-def preprocess_csv(config: dict, row: OrderedDict, field: str) -> str:
+def preprocess_csv(
+    config: dict, row: OrderedDict, field: str, path_to_script: str
+) -> str:
     """Execute field preprocessor scripts, if any are configured. Note that these scripts
     are applied to the entire value from the CSV field and not split field values,
     e.g., if a field is multivalued, the preprocesor must split it and then reassemble
@@ -12788,31 +12797,25 @@ def preprocess_csv(config: dict, row: OrderedDict, field: str) -> str:
     :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
     :param row: OrderedDict - The CSV row being processed.
     :param field: string - The field in the CSV row being preprocessed.
+    :param path_to_script: string - The absolute path to the preprocessor script.
     :return: string - The preprocessed field data or the original field data if the preprocessor failed.
     """
-    if "preprocessors" in config and field in config["preprocessors"]:
-        command = config["preprocessors"][field]
-        output, return_code = preprocess_field_data(
-            config["subdelimiter"], row[field], command
+    output, return_code = preprocess_field_data(
+        config["subdelimiter"], row[field], path_to_script
+    )
+    if return_code == 0:
+        preprocessor_input = copy.deepcopy(row[field])
+        logging.info(
+            'Preprocess command %s executed, taking "%s" as input and returning "%s".',
+            path_to_script,
+            preprocessor_input,
+            output.strip(),
         )
-        if return_code == 0:
-            preprocessor_input = copy.deepcopy(row[field])
-            logging.info(
-                'Preprocess command %s executed, taking "%s" as input and returning "%s".',
-                command,
-                preprocessor_input,
-                output.decode().strip(),
-            )
-            return output.decode().strip()
-        else:
-            message = (
-                "Preprocess command "
-                + command
-                + " failed with return code "
-                + str(return_code)
-            )
-            logging.error(message)
-            return row[field]
+        return output.strip()
+    else:
+        message = f"Preprocess command {path_to_script} failed with return code {return_code}."
+        logging.error(message)
+        return row[field]
 
 
 def get_node_media_summary(config: dict, nid: str) -> str:
