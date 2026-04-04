@@ -1,5 +1,0 @@
-task: create
-host: https://islandora.dev
-username: admin
-password: password
-secure_ssl_only: false

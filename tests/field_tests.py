@@ -803,7 +803,7 @@ class TestSimpleField(unittest.TestCase):
             csv_record = collections.OrderedDict()
             csv_record["node_id"] = 10
             csv_record["field_foo"] = (
-                "First node 10 value|First node 10 value|Second node 10 value|Third node 10 value"
+                "Field foo original value 1|First node 10 value|Second node 10 value|Third node 10 value"
             )
             node = field.update(
                 self.config,

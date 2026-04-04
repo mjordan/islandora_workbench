@@ -3,8 +3,13 @@
 import os
 import sys
 import json
+from argparse import Namespace
+from csv import DictReader
+from functools import lru_cache
 from json.decoder import JSONDecodeError
 import csv
+from typing import OrderedDict, Union, Optional
+
 import openpyxl
 import time
 import string
@@ -58,7 +63,9 @@ file_fields = [
 commented_out_input_csv_rows_present = False
 
 
-def set_media_type(config, filepath, file_fieldname, csv_row):
+def set_media_type(
+    config: dict, filepath: str, file_fieldname: str, csv_row: OrderedDict
+) -> str:
     """Using either the 'media_type' or 'media_types_override' configuration
     setting, determine which media bundle type to use.
 
@@ -70,7 +77,8 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
         The value of the CSV 'file' column.
     file_fieldname: string
          The name of the CSV column containing the filename (usually 'file'). None if the file
-         isn't in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+         isn't in a CSV field (e.g., when config['paged_content_from_directories'] or
+         config['paged_content_from_directories_parents_exist'] is True).
     csv_row : OrderedDict
          The CSV row for the current item.
     Returns
@@ -89,7 +97,7 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
                     if key == media_url:
                         return value
 
-    # Determine if the incomtimg filepath matches a registered eEmbed media type.
+    # Determine if the incoming filepath matches a registered eEmbed media type.
     oembed_media_type = get_oembed_url_media_type(config, filepath)
     if oembed_media_type is not None:
         return oembed_media_type
@@ -108,20 +116,20 @@ def set_media_type(config, filepath, file_fieldname, csv_row):
     normalized_extension = extension.lower()
     media_type = "file"
     for types in config["media_types"]:
-        for type, extensions in types.items():
+        for typ, extensions in types.items():
             if normalized_extension in extensions:
-                media_type = type
+                media_type = typ
     if "media_types_override" in config:
         for override in config["media_types_override"]:
-            for type, extensions in override.items():
+            for typ, extensions in override.items():
                 if normalized_extension in extensions:
-                    media_type = type
+                    media_type = typ
 
     # If extension isn't in one of the lists, default to 'file' bundle.
     return media_type
 
 
-def get_oembed_url_media_type(config, filepath):
+def get_oembed_url_media_type(config: dict, filepath: str) -> Union[str, None]:
     """Since oEmbed remote media (e.g. remove video) don't have extensions, which we
     use to detect the media type of local files, we use remote URL patterns to
     detect if the value of the 'file' columns is an oEmbed media.
@@ -147,7 +155,7 @@ def get_oembed_url_media_type(config, filepath):
     return None
 
 
-def get_oembed_media_types(config):
+def get_oembed_media_types(config: dict) -> list:
     """Get a list of the registered oEmbed media types from config.
 
     Parameters
@@ -168,7 +176,7 @@ def get_oembed_media_types(config):
     return media_types
 
 
-def set_model_from_extension(file_name, config):
+def set_model_from_extension(file_name: str, config: dict) -> Union[None, str, dict]:
     """Using configuration options, determine which Islandora Model value
     to assign to nodes created from files. Options are either a single model
     or a set of mappings from file extension to Islandora Model term ID.
@@ -190,6 +198,7 @@ def set_model_from_extension(file_name, config):
 
         dict is returned if 'models' config value is set, a dict with a mapping of URIs or Islandora Model term ID(s)
         to file extension(s) is returned.
+        TODO: There is a possibility in "models" we miss the two return statements. There should be a default.
     """
     if config["task"] != "create_from_files":
         return None
@@ -212,7 +221,15 @@ def set_model_from_extension(file_name, config):
                 return tid
 
 
-def issue_request(config, method, path, headers=None, json="", data="", query=None):
+def issue_request(
+    config: dict,
+    method: str,
+    path: str,
+    headers: dict = None,
+    json_data: dict = None,
+    data: str = None,
+    query: dict = None,
+) -> requests.Response:
     """Issue the HTTP request to Drupal. Note: calls to non-Drupal URLs
     do not use this function.
 
@@ -226,7 +243,7 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
         Path to the API endpoint that will be used for request.
     headers : dict, optional
         HTTP header information to be sent with request encoded as a dict.
-    json : dict, optional
+    json_data : dict, optional
         Data to be sent with request body as JSON format, but encoded as a dict.
     data : str, optional
         Data to be sent in request body.
@@ -288,82 +305,22 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
             if config["log_request_url"] is True:
                 logging.info(method + " " + url)
 
-            if method == "GET":
-                if config["log_headers"] is True:
-                    logging.info(headers)
-                response = session.get(
-                    url,
-                    allow_redirects=config["allow_redirects"],
-                    verify=config["secure_ssl_only"],
-                    auth=(config["username"], config["password"]),
-                    params=query,
-                    headers=headers,
-                )
-            if method == "HEAD":
-                if config["log_headers"] is True:
-                    logging.info(headers)
-                response = session.head(
-                    url,
-                    allow_redirects=config["allow_redirects"],
-                    verify=config["secure_ssl_only"],
-                    auth=(config["username"], config["password"]),
-                    headers=headers,
-                )
-            if method == "POST":
-                if config["log_headers"] is True:
-                    logging.info(headers)
-                if config["log_json"] is True:
-                    log_json(json)
-                response = session.post(
-                    url,
-                    allow_redirects=config["allow_redirects"],
-                    stream=True,
-                    verify=config["secure_ssl_only"],
-                    auth=(config["username"], config["password"]),
-                    headers=headers,
-                    json=json,
-                    data=data,
-                )
-            if method == "PUT":
-                if config["log_headers"] is True:
-                    logging.info(headers)
-                if config["log_json"] is True:
-                    log_json(json)
-                response = session.put(
-                    url,
-                    allow_redirects=config["allow_redirects"],
-                    stream=True,
-                    verify=config["secure_ssl_only"],
-                    auth=(config["username"], config["password"]),
-                    headers=headers,
-                    json=json,
-                    data=data,
-                )
-            if method == "PATCH":
-                if config["log_headers"] is True:
-                    logging.info(headers)
-                if config["log_json"] is True:
-                    log_json(json)
-                response = session.patch(
-                    url,
-                    allow_redirects=config["allow_redirects"],
-                    stream=True,
-                    verify=config["secure_ssl_only"],
-                    auth=(config["username"], config["password"]),
-                    headers=headers,
-                    json=json,
-                    data=data,
-                )
-            if method == "DELETE":
-                if config["log_headers"] is True:
-                    logging.info(headers)
-                response = session.delete(
-                    url,
-                    allow_redirects=config["allow_redirects"],
-                    verify=config["secure_ssl_only"],
-                    auth=(config["username"], config["password"]),
-                    headers=headers,
-                )
+            if config["log_headers"] is True:
+                logging.info(headers)
+            if json_data is not None and config["log_json"] is True:
+                log_json(json_data)
+            response = session.request(
+                method,
+                url,
+                allow_redirects=config["allow_redirects"],
+                verify=config["secure_ssl_only"],
+                auth=(config["username"], config["password"]),
+                headers=headers,
+                json=json_data,
+                data=data,
+                params=query,
+                stream=True if method in ["PUT", "POST", "PATCH"] else False,
+            )
 
             if config["log_response_status_code"] is True:
                 logging.info(response.status_code)
@@ -419,24 +376,27 @@ def issue_request(config, method, path, headers=None, json="", data="", query=No
                 # Set this config option back to what it was before we updated in above.
                 config["log_response_time"] = log_response_time_value
             return response
-        except requests.exceptions.Timeout as err_timeout:
-            message = f'Workbench timed out while requesting "{url}".'
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.RequestException,
+        ) as error:
+            verb = (
+                "timed out"
+                if isinstance(error, requests.exceptions.Timeout)
+                else (
+                    f'could not connect to {config["host"]}'
+                    if isinstance(error, requests.exceptions.ConnectionError)
+                    else "encountered an exception"
+                )
+            )
+            message = f'Workbench {verb} while requesting "{url}".'
             logging.error(message)
-            logging.error(err_timeout)
-            sys.exit("Error: " + message)
-        except requests.exceptions.ConnectionError as error_connection:
-            message = f'Workbench could not connect to {config["host"]} while requesting "{url}".'
-            logging.error(message)
-            logging.error(error_connection)
-            sys.exit("Error: " + message)
-        except requests.exceptions.RequestException as request_error:
-            message = f'Workbench encountered an exception while requesting "{url}".'
-            logging.error(message)
-            logging.error(request_error)
+            logging.error(error)
             sys.exit("Error: " + message)
 
 
-def convert_semver_to_number(version_string):
+def convert_semver_to_number(version_string: str) -> tuple:
     """Convert a Semantic Version number (e.g. Drupal's) string to a tuple. We only need the
     major and minor numbers (e.g. 9.2).
 
@@ -456,7 +416,7 @@ def convert_semver_to_number(version_string):
     return version_tuple
 
 
-def get_drupal_core_version(config):
+def get_drupal_core_version(config: dict) -> Union[str, bool]:
     """Get Drupal's version number.
 
     Parameters
@@ -481,7 +441,7 @@ def get_drupal_core_version(config):
         return False
 
 
-def check_drupal_core_version(config):
+def check_drupal_core_version(config: dict) -> None:
     """Used during --check to verify if the minimum required Drupal version for workbench is being used.
 
     Parameters
@@ -508,7 +468,7 @@ def check_drupal_core_version(config):
         print(message)
 
 
-def check_integration_module_version(config, log_success=True):
+def check_integration_module_version(config: dict, log_success: bool = True) -> None:
     """Verifies if the minimum required version of the workbench integration module is being used.
 
     Parameters
@@ -527,19 +487,16 @@ def check_integration_module_version(config, log_success=True):
     integration_module_min_version = "1.0"
     log_message = f'Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
 
-    """
-    # Logic that maps a feature to a miniumum Integration module version, and produces a specific log message.
-    if config["use_workbench_integration_permissions"] is True:
+    #####################################################################################################################
+    # Add logic here that maps a feature to a miniumum Integration module version, and produces a specific log message. #
+    #####################################################################################################################
+    if config["use_workbench_permissions"] is True:
         integration_module_min_version = "1.2"
-        log_message = f'In order to use the "use_workbench_integration_permissions" config setting, Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
-    """
+        log_message = f'In order to use the "use_workbench_permissions" config setting, Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module ({config["host"]} is running version {version}).'
+    #####################################################################################################################
 
     if version is False:
-        message = (
-            "Workbench cannot determine the Islandora Workbench Integration module's version number. It must be version "
-            + str(integration_module_min_version)
-            + " or higher."
-        )
+        message = f"Workbench cannot determine the Islandora Workbench Integration module's version number. It must be version {integration_module_min_version} or higher."
         logging.error(message)
         sys.exit("Error: " + message)
     else:
@@ -548,28 +505,17 @@ def check_integration_module_version(config, log_success=True):
             integration_module_min_version
         )
         if version_number < minimum_version_number:
-            console_message = (
-                "The Islandora Workbench Integration module installed on "
-                + config["host"]
-                + " must be"
-                + " upgraded to version "
-                + str(integration_module_min_version)
-                + ". See your Workbench log for more information."
-            )
+            console_message = f'The Islandora Workbench Integration module installed on {config["host"]} must be upgraded to version {integration_module_min_version}. See your Workbench log for more information.'
             logging.error(log_message)
             sys.exit("Error: " + console_message)
         else:
             if log_success is True:
                 logging.info(
-                    "OK, Islandora Workbench Integration module installed on "
-                    + config["host"]
-                    + " is at version "
-                    + str(version)
-                    + "."
+                    f'OK, Islandora Workbench Integration module installed on {config["host"]} is at version {version}.'
                 )
 
 
-def get_integration_module_version(config):
+def get_integration_module_version(config: dict) -> Union[str, bool]:
     """Get the Islandora Workbench Integration module's version number.
 
     Parameters
@@ -585,7 +531,7 @@ def get_integration_module_version(config):
     url = config["host"] + "/islandora_workbench_integration/version"
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
-        version_body = json.loads(response.text)
+        version_body = response.json()
         return version_body["integration_module_version"]
     else:
         logging.warning(
@@ -595,7 +541,13 @@ def get_integration_module_version(config):
         return False
 
 
-def ping_node(config, nid_to_ping, method="HEAD", return_json=False, warn=True):
+def ping_node(
+    config: dict,
+    nid_to_ping: str,
+    method: str = "HEAD",
+    return_json: bool = False,
+    warn: bool = True,
+) -> Union[bool, str]:
     """Ping the node to see if it exists.
 
     Note that HEAD requests do not return a response body.
@@ -649,7 +601,7 @@ def ping_node(config, nid_to_ping, method="HEAD", return_json=False, warn=True):
         return False
 
 
-def verify_node_exists_by_key(config, csv_row):
+def verify_node_exists_by_key(config: dict, csv_row: dict) -> Union[str, bool]:
     """Query a View using a value from CSV (the "key") to see if the node exists.
 
     Parameters
@@ -683,7 +635,7 @@ def verify_node_exists_by_key(config, csv_row):
     headers = {"Content-Type": "application/json"}
     response = issue_request(config, "GET", view_url, headers)
     if response.status_code == 200:
-        body = json.loads(response.text)
+        body = response.json()
         if len(body) == 1:
             return body[0]["nid"]
         elif len(body) > 1:
@@ -699,7 +651,7 @@ def verify_node_exists_by_key(config, csv_row):
         return False
 
 
-def ping_url_alias(config, url_alias):
+def ping_url_alias(config: dict, url_alias: str) -> int:
     """Ping the URL alias to see if it exists. Return the status code.
 
     Parameters
@@ -718,7 +670,7 @@ def ping_url_alias(config, url_alias):
     return response.status_code
 
 
-def ping_vocabulary(config, vocab_id):
+def ping_vocabulary(config: dict, vocab_id: str) -> bool:
     """Ping the node to see if it exists.
 
     Parameters
@@ -750,7 +702,7 @@ def ping_vocabulary(config, vocab_id):
         return False
 
 
-def ping_term(config, term_id):
+def ping_term(config: dict, term_id: str) -> bool:
     """Ping the term to see if it exists.
 
     Parameters
@@ -778,7 +730,7 @@ def ping_term(config, term_id):
         return False
 
 
-def ping_islandora(config, print_message=True):
+def ping_islandora(config: dict, print_message: bool = True) -> None:
     """Connect to Islandora in prep for subsequent HTTP requests.
 
     Parameters
@@ -796,25 +748,17 @@ def ping_islandora(config, print_message=True):
     url = config["host"] + "/islandora_workbench_integration/version"
     try:
         host_response = issue_request(config, "GET", url)
-    except requests.exceptions.Timeout as err_timeout:
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as error:
         message = (
-            "Workbench timed out trying to reach "
+            "Workbench " + "timed out trying to reach "
+            if isinstance(error, requests.exceptions.Timeout)
+            else "cannot connect to "
             + config["host"]
             + '. Please verify the "host" setting in your configuration '
             + "and check your network connection."
         )
         logging.error(message)
-        logging.error(err_timeout)
-        sys.exit("Error: " + message)
-    except requests.exceptions.ConnectionError as error_connection:
-        message = (
-            "Workbench cannot connect to "
-            + config["host"]
-            + '. Please verify the "host" setting in your configuration '
-            + "and check your network connection."
-        )
-        logging.error(message)
-        logging.error(error_connection)
+        logging.error(error)
         sys.exit("Error: " + message)
 
     not_authorized = [401, 403]
@@ -842,7 +786,7 @@ def ping_islandora(config, print_message=True):
         print(message)
 
 
-def ping_content_type(config):
+def ping_content_type(config: dict) -> int:
     """Ping the content_type set in the configuration to see if it exists.
     Parameters
     ----------
@@ -853,12 +797,16 @@ def ping_content_type(config):
     int
         The HTTP response code.
     """
+    url = (
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{config['content_type']}"
+        if config["use_workbench_permissions"]
+        else f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
+    )
 
-    url = f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
     return issue_request(config, "GET", url).status_code
 
 
-def ping_view_endpoint(config, view_url):
+def ping_view_endpoint(config: dict, view_url: str) -> int:
     """Verifies that the View REST endpoint is accessible.
 
     Parameters
@@ -875,7 +823,9 @@ def ping_view_endpoint(config, view_url):
     return issue_request(config, "HEAD", view_url).status_code
 
 
-def ping_entity_reference_view_endpoint(config, fieldname, handler_settings):
+def ping_entity_reference_view_endpoint(
+    config: dict, fieldname: str, handler_settings: dict
+) -> bool:
     """Verifies that the REST endpoint of the View is accessible. The path to this endpoint
     is defined in the configuration file's 'entity_reference_view_endpoints' option.
 
@@ -890,7 +840,7 @@ def ping_entity_reference_view_endpoint(config, fieldname, handler_settings):
         The configuration settings defined by workbench_config.get_config().
     fieldname : string
         The name of the Drupal field.
-    handler_settings : dict
+    handler_settings : dict (NOT USED)
         The handler_settings values from the field's configuration.
         # handler_settings': {'view': {'view_name': 'mj_entity_reference_test', 'display_name': 'entity_reference_1', 'arguments': []}}
     Returns
@@ -926,7 +876,7 @@ def ping_entity_reference_view_endpoint(config, fieldname, handler_settings):
         return False
 
 
-def ping_media_bundle(config, bundle_name):
+def ping_media_bundle(config: dict, bundle_name: str) -> int:
     """Ping the Media bundle/type to see if it exists. Return the status code,
     a 200 if it exists or a 404 if it doesn't exist or the Media Type REST resource
     is not enabled on the target Drupal.
@@ -947,7 +897,13 @@ def ping_media_bundle(config, bundle_name):
     return response.status_code
 
 
-def ping_media(config, mid, method="HEAD", return_json=False, warn=True):
+def ping_media(
+    config: dict,
+    mid: Union[int, str],
+    method: str = "HEAD",
+    return_json: bool = False,
+    warn: bool = True,
+) -> Union[bool, str]:
     """Ping the media to see if it exists.
 
     Note that HEAD requests do not return a response body.
@@ -995,7 +951,7 @@ def ping_media(config, mid, method="HEAD", return_json=False, warn=True):
         return False
 
 
-def extract_media_id(config: dict, media_csv_row: dict):
+def extract_media_id(config: dict, media_csv_row: dict) -> Union[str, None]:
     """Extract the media entity's ID from the CSV row.
 
     Parameters
@@ -1041,7 +997,7 @@ def extract_media_id(config: dict, media_csv_row: dict):
             return media_csv_row["media_id"]
 
 
-def ping_remote_file(config, url):
+def ping_remote_file(config: dict, url: str) -> int:
     """Ping remote file, but logging, exiting, etc. happens in caller, except on requests error.
     Parameters
     ----------
@@ -1051,7 +1007,7 @@ def ping_remote_file(config, url):
         URL of remote file to be pinged.
     Returns
     -------
-    int|None
+    int: Status code of the remote URL
     """
     headers = {"User-Agent": config["user_agent"]}
     cookies = {config["remote_file_cookie_name"]: config["remote_file_cookie_value"]}
@@ -1066,31 +1022,22 @@ def ping_remote_file(config, url):
             cookies=cookies,
         )
         return response.status_code
-    except requests.exceptions.Timeout as err_timeout:
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as error:
         message = (
-            "Workbench timed out trying to reach "
+            "Workbench " + "timed out trying to reach "
+            if isinstance(error, requests.exceptions.Timeout)
+            else "cannot connect to "
             + sections.netloc
             + " while connecting to "
             + url
             + ". Please verify that URL and check your network connection."
         )
         logging.error(message)
-        logging.error(err_timeout)
-        sys.exit("Error: " + message)
-    except requests.exceptions.ConnectionError as error_connection:
-        message = (
-            "Workbench cannot connect to "
-            + sections.netloc
-            + " while connecting to "
-            + url
-            + ". Please verify that URL and check your network connection."
-        )
-        logging.error(message)
-        logging.error(error_connection)
+        logging.error(error)
         sys.exit("Error: " + message)
 
 
-def get_nid_from_url_alias(config, url_alias_to_query):
+def get_nid_from_url_alias(config: dict, url_alias_to_query: str) -> Union[int, bool]:
     """Gets a node ID from a URL alias. This function also works on canonical
     URLs, e.g. https://localhost:8000/node/1648 and URL aliases without a hostname,
     e.g., /i_am_an_alias.
@@ -1132,7 +1079,7 @@ def get_nid_from_url_alias(config, url_alias_to_query):
         return alias_query_node["nid"][0]["value"]
 
 
-def get_mid_from_media_url_alias(config, url_alias):
+def get_mid_from_media_url_alias(config: dict, url_alias: str) -> Union[int, bool]:
     """Gets a media ID from a media URL alias. This function also works
     with canonical URLs, e.g. http://localhost:8000/media/1234.
 
@@ -1161,7 +1108,7 @@ def get_mid_from_media_url_alias(config, url_alias):
         return media["mid"][0]["value"]
 
 
-def get_tid_from_term_url_alias(config, url_alias):
+def get_tid_from_term_url_alias(config: dict, url_alias: str) -> Union[int, bool]:
     """Gets a term ID from a term URL alias. This function also works
     with canonical URLs, e.g. http://localhost:8000/taxonomy/term/1234.
 
@@ -1190,7 +1137,7 @@ def get_tid_from_term_url_alias(config, url_alias):
         return term["tid"][0]["value"]
 
 
-def get_nid_from_url_without_config(url):
+def get_nid_from_url_without_config(url: str) -> Union[int, bool]:
     """Gets a node ID from a raw Drupal URL, with no accompanying config data. Useful
        within integration tests where the config is not directly accessible.
 
@@ -1212,7 +1159,7 @@ def get_nid_from_url_without_config(url):
         return media["nid"][0]["value"]
 
 
-def get_node_title_from_nid(config, node_id):
+def get_node_title_from_nid(config: dict, node_id: str) -> Union[str, bool]:
     """Get node title from Drupal.
 
     Parameters
@@ -1235,7 +1182,9 @@ def get_node_title_from_nid(config, node_id):
         return False
 
 
-def get_field_definitions(config, entity_type, bundle_type=None):
+def get_field_definitions(
+    config: dict, entity_type: str, bundle_type: str = None
+) -> dict:
     """Get field definitions from Drupal.
 
     Parameters
@@ -1270,15 +1219,12 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             field_definitions[fieldname]["entity_type"] = field_config["entity_type"]
             field_definitions[fieldname]["required"] = field_config["required"]
             field_definitions[fieldname]["label"] = field_config["label"]
-            raw_vocabularies = [
-                x
+            vocabularies = [
+                x.replace("taxonomy.vocabulary.", "")
                 for x in field_config["dependencies"]["config"]
-                if re.match("^taxonomy.vocabulary.", x)
+                if x.startswith("taxonomy.vocabulary.")
             ]
-            if len(raw_vocabularies) > 0:
-                vocabularies = [
-                    x.replace("taxonomy.vocabulary.", "") for x in raw_vocabularies
-                ]
+            if len(vocabularies) > 0:
                 field_definitions[fieldname]["vocabularies"] = vocabularies
             # Reference 'handler' could be nothing, 'default:taxonomy_term' (or some other entity type), or 'views'.
             if "handler" in field_config["settings"]:
@@ -1348,7 +1294,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             "handler_settings": None,
         }
 
-    if entity_type == "taxonomy_term":
+    elif entity_type == "taxonomy_term":
         fields = get_entity_fields(config, "taxonomy_term", bundle_type)
         for fieldname in fields:
             field_definitions[fieldname] = {}
@@ -1435,7 +1381,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             "handler_settings": None,
         }
 
-    if entity_type == "media":
+    elif entity_type == "media":
         fields = get_entity_fields(config, entity_type, bundle_type)
         for fieldname in fields:
             field_definitions[fieldname] = {}
@@ -1527,7 +1473,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
             "handler_settings": None,
         }
 
-    if entity_type == "paragraph":
+    elif entity_type == "paragraph":
         fields = get_entity_fields(config, entity_type, bundle_type)
         for fieldname in fields:
             # NOTE, WIP on #292. Code below copied from 'node' section above, may need modification.
@@ -1607,7 +1553,7 @@ def get_field_definitions(config, entity_type, bundle_type=None):
     return field_definitions
 
 
-def get_entity_fields(config, entity_type, bundle_type):
+def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> list:
     """Get all the fields configured on a bundle.
 
     Parameters
@@ -1626,16 +1572,18 @@ def get_entity_fields(config, entity_type, bundle_type):
 
     """
     if ping_content_type(config) == 404:
-        message = f"Content type '{config['content_type']}' does not exist on {config['host']}."
+        if config["use_workbench_permissions"] is True:
+            # Could be because the Workbench Integration Module is not compatible with "use_workbench_permissions"
+            # or because the specified content type doesn't exist.
+            message = f"Workbench cannot determine if content type '{config['content_type']}' exists on {config['host']}."
+        else:
+            message = f"Content type '{config['content_type']}' does not exist on {config['host']}."
         logging.error(message)
         sys.exit("Error: " + message)
     fields_endpoint = (
-        config["host"]
-        + "/entity/entity_form_display/"
-        + entity_type
-        + "."
-        + bundle_type
-        + ".default?_format=json"
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/{entity_type}/{bundle_type}"
+        if config["use_workbench_permissions"]
+        else f"{config['host']}/entity/entity_form_display/{entity_type}.{bundle_type}.default?_format=json"
     )
     bundle_type_response = issue_request(config, "GET", fields_endpoint)
     # If a vocabulary has no custom fields (like the default "Tags" vocab), this query will
@@ -1655,22 +1603,19 @@ def get_entity_fields(config, entity_type, bundle_type):
 
     fields = []
     if bundle_type_response.status_code == 200:
-        node_config_raw = json.loads(bundle_type_response.text)
+        node_config_raw = bundle_type_response.json()
         fieldname_prefix = "field.field." + entity_type + "." + bundle_type + "."
-        fieldnames = [
+        fields = [
             field_dependency.replace(fieldname_prefix, "")
             for field_dependency in node_config_raw["dependencies"]["config"]
+            if field_dependency.startswith(fieldname_prefix)
         ]
-        for fieldname in node_config_raw["dependencies"]["config"]:
-            fieldname_prefix = "field.field." + entity_type + "." + bundle_type + "."
-            if re.match(fieldname_prefix, fieldname):
-                fieldname = fieldname.replace(fieldname_prefix, "")
-                fields.append(fieldname)
     else:
         message = "Workbench cannot retrieve field definitions from Drupal."
+        message_detail = ""
         if config["task"] == "create_terms" or config["task"] == "update_terms":
             message_detail = f" Check that the vocabulary name identified in your vocab_id config setting is spelled correctly."
-        if config["task"] == "create" or config["task"] == "create_from_files":
+        elif config["task"] == "create" or config["task"] == "create_from_files":
             message_detail = f" Check that the content type named in your content_type config setting is spelled correctly."
         logging.error(
             message
@@ -1684,7 +1629,9 @@ def get_entity_fields(config, entity_type, bundle_type):
     return fields
 
 
-def get_required_bundle_fields(config, entity_type, bundle_type):
+def get_required_bundle_fields(
+    config: dict, entity_type: str, bundle_type: str
+) -> list:
     """Gets a list of required fields for the given bundle type.
 
     Parameters
@@ -1718,20 +1665,30 @@ def get_required_bundle_fields(config, entity_type, bundle_type):
     return required_drupal_fields
 
 
-def get_entity_field_config(config, fieldname, entity_type, bundle_type):
-    """Get a specific fields's configuration.
+def get_entity_field_config(
+    config: dict, fieldname: str, entity_type: str, bundle_type: str
+) -> str:
+    """Get a specific field's configuration.
 
-    Example query for taxo terms: /entity/field_config/taxonomy_term.islandora_media_use.field_external_uri?_format=json
+    Example query for taxonomy terms: /entity/field_config/taxonomy_term.islandora_media_use.field_external_uri?_format=json
+    Parameters
+    ----------
+    :param config : dict
+        The configuration settings defined by workbench_config.get_config().
+    :param fieldname : string
+        The machine name of the field whose configuration is being fetched.
+    :param entity_type : string
+        The Drupal entity type (i.e. 'node', 'media', or 'taxonomy_term').
+    :param bundle_type : string
+        The node content type, the vocabulary name, or the media type
+    ----------
+    :return: str
+        The field configuration as a JSON string.
     """
     field_config_endpoint = (
-        config["host"]
-        + "/entity/field_config/"
-        + entity_type
-        + "."
-        + bundle_type
-        + "."
-        + fieldname
-        + "?_format=json"
+        f"{config['host']}/islandora_workbench_integration/node_actions/field_config/{entity_type}/{bundle_type}/{fieldname}"
+        if config["use_workbench_permissions"]
+        else f"{config['host']}/entity/field_config/{entity_type}.{bundle_type}.{fieldname}?_format=json"
     )
     field_config_response = issue_request(config, "GET", field_config_endpoint)
     if field_config_response.status_code == 200:
@@ -1742,18 +1699,26 @@ def get_entity_field_config(config, fieldname, entity_type, bundle_type):
         sys.exit("Error: " + message)
 
 
-def get_entity_field_storage(config, fieldname, entity_type):
-    """Get a specific fields's storage configuration.
+def get_entity_field_storage(config: dict, fieldname: str, entity_type: str) -> str:
+    """Get a specific field's storage configuration.
 
-    Example query for taxo terms: /entity/field_storage_config/taxonomy_term.field_external_uri?_format=json
+    Example query for taxonomy terms: /entity/field_storage_config/taxonomy_term.field_external_uri?_format=json
+    Parameters
+    ----------
+    :param config : dict
+        The configuration settings defined by workbench_config.get_config().
+    :param fieldname : string
+        The machine name of the field whose configuration is being fetched.
+    :param entity_type : string
+        The Drupal entity type (i.e. 'node', 'media', or 'taxonomy_term').
+    ----------
+    :return: str
+        The field configuration as a JSON string.
     """
     field_storage_endpoint = (
-        config["host"]
-        + "/entity/field_storage_config/"
-        + entity_type
-        + "."
-        + fieldname
-        + "?_format=json"
+        f"{config['host']}/islandora_workbench_integration/node_actions/field_storage_config/{entity_type}/{fieldname}"
+        if config["use_workbench_permissions"]
+        else f"{config['host']}/entity/field_storage_config/{entity_type}.{fieldname}?_format=json"
     )
     field_storage_response = issue_request(config, "GET", field_storage_endpoint)
     if field_storage_response.status_code == 200:
@@ -1764,7 +1729,10 @@ def get_entity_field_storage(config, fieldname, entity_type):
         sys.exit("Error: " + message)
 
 
-def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
+# TODO: perhaps functools.lru_cache could be used instead managing cachec files?
+def get_fieldname_map(
+    config: dict, entity_type: str, bundle_type: str, keys: str, die: bool = True
+) -> Union[dict, bool]:
     """Get a mapping of field machine names to labels, or labels to machine names.
 
     Note: does not account for multilingual configurations.
@@ -1833,7 +1801,7 @@ def get_fieldname_map(config, entity_type, bundle_type, keys, die=True):
     return map
 
 
-def replace_field_labels_with_names(config, csv_headers):
+def replace_field_labels_with_names(config: dict, csv_headers: list) -> list:
     """Replace field labels in a list of CSV column headers with their machine name equivalents.
 
     Note: we can't use this feature for add_media or update_media tasks since the fieldnames
@@ -1864,7 +1832,23 @@ def replace_field_labels_with_names(config, csv_headers):
     return csv_headers
 
 
-def check_input(config, args):
+def check_for_required_config_keys(config: list, required_keys: list):
+    """Check that the config file has all required keys.
+    Parameters:
+        config: (list) The configuration settings defined by workbench_config.get_config().
+        required_keys: (list) A list of required keys that must be present in the config.
+    Returns:
+        None
+    """
+    missing_keys = [k for k in required_keys if k not in config]
+    if len(missing_keys) > 0:
+        message = f"Please check your config file for required values: {', '.join(required_keys)}."
+        logging.error(message)
+        sys.exit("Error: " + message)
+
+
+# TODO: This function is very important and also over 2400 lines long. Can it be refactored into smaller pieces?
+def check_input(config: dict, args: Namespace) -> None:
     """Validate the config file and input data.
 
     Parameters
@@ -1878,9 +1862,14 @@ def check_input(config, args):
     None
         Exits if an error is encountered.
     """
+    if config["task"] == "update":
+        update_mode_string = f' ({config["update_mode"]})'
+    else:
+        update_mode_string = ""
+
     logging.info(
-        'Starting configuration check for "%s" task using config file %s.',
-        config["task"],
+        f'Starting configuration check for "%s" task using config file %s.',
+        config["task"] + update_mode_string,
         args.config,
     )
 
@@ -2049,27 +2038,13 @@ def check_input(config, args):
             message = '"nodes_only" option in effect. Media files will not be checked/validated.'
             print(message)
             logging.info(message)
-        create_required_options = ["task", "host", "username", "password"]
-        for create_required_option in create_required_options:
-            if create_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(create_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "update":
-        update_required_options = ["task", "host", "username", "password"]
-        for update_required_option in update_required_options:
-            if update_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(update_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
+    elif config["task"] == "update":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
         update_mode_options = ["replace", "append", "delete"]
         if config["update_mode"] not in update_mode_options:
             message = (
@@ -2079,52 +2054,19 @@ def check_input(config, args):
             )
             logging.error(message)
             sys.exit("Error: " + message)
-    if config["task"] == "delete":
-        delete_required_options = ["task", "host", "username", "password"]
-        for delete_required_option in delete_required_options:
-            if delete_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(delete_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "add_media":
-        add_media_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "media_type",
-        ]
-        for add_media_required_option in add_media_required_options:
-            if add_media_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(add_media_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] in ["update_media", "update_media_by_node"]:
-        update_media_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "input_csv",
-            "media_type",
-        ]
-        for update_media_required_option in update_media_required_options:
-            if update_media_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(update_media_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
+    elif config["task"] == "delete":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
+    elif config["task"] == "add_media":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password", "media_type"]
+        )
+    elif config["task"] in ["update_media", "update_media_by_node"]:
+        check_for_required_config_keys(
+            config_keys,
+            ["task", "host", "username", "password", "input_csv", "media_type"],
+        )
         update_mode_options = ["replace", "append", "delete"]
         if config["update_mode"] not in update_mode_options:
             message = (
@@ -2134,98 +2076,33 @@ def check_input(config, args):
             )
             logging.error(message)
             sys.exit("Error: " + message)
-    if config["task"] == "delete_media":
-        delete_media_required_options = ["task", "host", "username", "password"]
-        for delete_media_required_option in delete_media_required_options:
-            if delete_media_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(delete_media_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "delete_media_by_node":
-        delete_media_by_node_required_options = ["task", "host", "username", "password"]
-        for (
-            delete_media_by_node_required_option
-        ) in delete_media_by_node_required_options:
-            if delete_media_by_node_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(delete_media_by_node_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "export_csv":
-        export_csv_required_options = ["task", "host", "username", "password"]
-        for export_csv_required_option in export_csv_required_options:
-            if export_csv_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(export_csv_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
+    elif config["task"] == "delete_media":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
+    elif config["task"] == "delete_media_by_node":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
+    elif config["task"] == "export_csv":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password"]
+        )
         if config["export_csv_term_mode"] == "name":
             message = 'The "export_csv_term_mode" configuration option is set to "name", which will slow down the export.'
             print(message)
-    if config["task"] == "create_terms":
-        create_terms_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "vocab_id",
-        ]
-        for create_terms_required_option in create_terms_required_options:
-            if create_terms_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(create_terms_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if (
-        config["task"] == "get_data_from_view"
-        or config["task"] == "get_media_report_from_view"
-    ):
-        get_data_from_view_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "view_path",
-        ]
-        for get_data_from_view_required_option in get_data_from_view_required_options:
-            if get_data_from_view_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(get_data_from_view_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
-    if config["task"] == "update_terms":
-        update_terms_required_options = [
-            "task",
-            "host",
-            "username",
-            "password",
-            "vocab_id",
-        ]
-        for update_terms_required_option in update_terms_required_options:
-            if update_terms_required_option not in config_keys:
-                message = (
-                    "Please check your config file for required values: "
-                    + joiner.join(update_terms_required_options)
-                    + "."
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
+    elif config["task"] == "create_terms":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password", "vocab_id"]
+        )
+    elif config["task"] in ["get_data_from_view", "get_media_report_from_view"]:
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password", "view_path"]
+        )
+    elif config["task"] == "update_terms":
+        check_for_required_config_keys(
+            config_keys, ["task", "host", "username", "password", "vocab_id"]
+        )
 
     message = "OK, configuration file has all required values (did not check for optional values)."
     print(message)
@@ -2494,7 +2371,10 @@ def check_input(config, args):
         if (
             config["nodes_only"] is False
             and "file" not in csv_column_headers
-            and config["paged_content_from_directories"] is False
+            and (
+                config["paged_content_from_directories"] is False
+                or config["paged_content_from_directories_parents_exist"] is False
+            )
         ):
             message = 'For "create" tasks, your CSV file must contain a "file" column.'
             logging.error(message)
@@ -3539,9 +3419,9 @@ def check_input(config, args):
         or config["task"] == "update_media_by_node"
         and "file" in csv_column_headers
     ):
-        if (
-            config["nodes_only"] is False
-            and config["paged_content_from_directories"] is False
+        if config["nodes_only"] is False and (
+            config["paged_content_from_directories"] is False
+            or config["paged_content_from_directories_parents_exist"] is False
         ):
             # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
             if config["task"] == "add_media":
@@ -3740,7 +3620,10 @@ def check_input(config, args):
     if (
         (config["task"] == "create" or config["task"] == "add_media")
         and config["nodes_only"] is False
-        and config["paged_content_from_directories"] is False
+        and (
+            config["paged_content_from_directories"] is False
+            or config["paged_content_from_directories_parents_exist"] is False
+        )
     ):
         if "additional_files" in config and len(config["additional_files"]) > 0:
             additional_files_entries = get_additional_files_config(config)
@@ -3948,13 +3831,22 @@ def check_input(config, args):
                                     sys.exit("Error: " + message)
 
     # @todo Add warning to accommodate #639
-    if config["task"] == "create" and config["paged_content_from_directories"] is True:
+    if config["task"] == "create" and (
+        config["paged_content_from_directories"] is True
+        or config["paged_content_from_directories_parents_exist"] is True
+    ):
         if "paged_content_page_model_tid" not in config:
             message = 'If you are creating paged content, you must include "paged_content_page_model_tid" in your configuration.'
             logging.error(
                 'Configuration requires "paged_content_page_model_tid" setting when creating paged content.'
             )
             sys.exit("Error: " + message)
+
+        if config["paged_content_from_directories_parents_exist"] is True:
+            if "field_member_of" not in csv_column_headers:
+                message = '"field_member_of" is a required column in your input CSV when using the "paged_content_from_directories_parents_exist: true" configuration setting.'
+                logging.error(message)
+                sys.exit("Error: " + message)
 
         if "paged_content_additional_page_media" in config:
             disable_action_message = (
@@ -4036,7 +3928,10 @@ def check_input(config, args):
 
             # Check additional page media files (e.g. OCR andhOCR files) for utf8 encoding.
             additional_page_media_no_utf8_warnings = list()
-            if config["paged_content_from_directories"] is True:
+            if (
+                config["paged_content_from_directories"] is True
+                or config["paged_content_from_directories_parents_exist"] is True
+            ):
                 if "paged_content_additional_page_media" in config:
                     for extension_mapping in config[
                         "paged_content_additional_page_media"
@@ -4220,44 +4115,6 @@ def check_input(config, args):
             logging.error(message)
             sys.exit("Error: " + message)
 
-    if (
-        len(rows_with_missing_files) > 0
-        and config["allow_missing_files"] is False
-        and config["perform_soft_checks"] is False
-    ):
-        logging.error(
-            'Missing or empty CSV "file" column values detected. See log entries above.'
-        )
-        sys.exit(
-            'Error: Missing or empty CSV "file" column values detected. See the log for more information.'
-        )
-
-    if len(rows_with_missing_files) > 0 and config["perform_soft_checks"] is True:
-        message = '"perform_soft_checks" configuration setting is set to "true" and some values in the "file" column were not found.'
-        logging.warning(message + " See log entries above.")
-        print("Warning: " + message + " See the log for more information.")
-
-    if (
-        "additional_files" in config
-        and len(config["additional_files"]) > 0
-        and config["nodes_only"] is False
-    ):
-        if missing_additional_files is True:
-            if config["allow_missing_files"] is False:
-                message = '"allow_missing_files" configuration setting is set to "false", and some files in fields configured as "additional_file" fields cannot be found.'
-                logging.error(message + " See log entries above.")
-                print(message + " See the log for more information.")
-                if config["perform_soft_checks"] is True:
-                    message = 'The "perform_soft_checks" configuration setting is set to "true", so Workbench did not exit after finding the first missing file.'
-                    logging.warning(message)
-                    print(message + " See the log for more information.")
-                else:
-                    sys.exit("Error: " + message)
-        else:
-            message = 'OK, files in fields configured as "additional_file" fields are all present.'
-            logging.info(message)
-            print(message)
-
     # Checks for "run_scripts" task.
     if config["task"] == "run_scripts":
         run_scripts_check_csv_data = get_csv_data(config)
@@ -4418,7 +4275,10 @@ def check_input(config, args):
         sys.exit(0)
 
 
-def check_rollback_file_path_directories(config):
+def check_rollback_file_path_directories(config: dict) -> None:
+    """Check that the directories for rollback and CSV file paths exist and are writable.
+    :param config: dict - The configuration settings defined by workbench_config.get_config().
+    """
     rollback_config_file_path = get_rollback_config_filepath(config)
     rollback_config_file_path_head, rollback_config_file_path_tail = os.path.split(
         rollback_config_file_path
@@ -4446,7 +4306,9 @@ def check_rollback_file_path_directories(config):
         logging.info(f"Rollback CSV file will be written to {rollback_csv_file_path}.")
 
 
-def get_registered_media_extensions(config, media_bundle, field_name_filter=None):
+def get_registered_media_extensions(
+    config: dict, media_bundle: str, field_name_filter: Union[str, None] = None
+) -> Union[dict, bool]:
     """For the given media bundle, gets a list of file extensions registered in Drupal's
     "Allowed file extensions" configuration for each field that has this setting.
     """
@@ -4489,8 +4351,11 @@ def get_registered_media_extensions(config, media_bundle, field_name_filter=None
         return registered_extensions
 
 
-def check_input_for_create_from_files(config, args):
-    """Validate the config file and input data if task is 'create_from_files'."""
+def check_input_for_create_from_files(config: dict, args: Namespace) -> None:
+    """Validate the config file and input data if task is 'create_from_files'.
+    :param config: dict - The configuration settings defined by workbench_config.get_config().
+    :param args: Namespace - The argparse Namespace object created in workbench.py.
+    """
     if config["task"] != "create_from_files":
         message = 'Your task must be "create_from_files".'
         logging.error(message)
@@ -4511,6 +4376,7 @@ def check_input_for_create_from_files(config, args):
         "subdelimiter",
         "allow_missing_files",
         "paged_content_from_directories",
+        "paged_content_from_directories_parents_exist",
         "delete_media_with_nodes",
         "allow_adding_terms",
     ]
@@ -4584,11 +4450,16 @@ def check_input_for_create_from_files(config, args):
     sys.exit(0)
 
 
-def log_field_cardinality_violation(field_name, record_id, cardinality):
+def log_field_cardinality_violation(
+    field_name: str, record_id: str, cardinality: str
+) -> None:
     """Writes an entry to the log during create/update tasks if any field values
     are sliced off. Workbench does this if the number of values in a field
     exceeds the field's cardinality. record_id could be a value from the
     configured id_field or a node ID.
+    :param field_name: str - The machine name of the field.
+    :param record_id: str - The record identifier.
+    :param cardinality: str - The field's cardinality.
     """
     logging.warning(
         "Adding all values in CSV field %s for record %s would exceed maximum number of allowed values (%s). Skipping adding extra values.",
@@ -4598,7 +4469,11 @@ def log_field_cardinality_violation(field_name, record_id, cardinality):
     )
 
 
-def validate_language_code(langcode):
+def validate_language_code(langcode: str) -> bool:
+    """Validates that 'langcode' is one of Drupal's supported language codes.
+    :param langcode: str - The language code to validate.
+    :return: bool - True if 'langcode' is valid, False if not.
+    """
     # Drupal's language codes.
     codes = [
         "af",
@@ -4703,11 +4578,10 @@ def validate_language_code(langcode):
         return False
 
 
-def clean_csv_values(config, row):
-    """Performs basic string cleanup on CSV values. Applies to entier value,
+def clean_csv_values(config: dict, row: OrderedDict) -> OrderedDict:
+    """Performs basic string cleanup on CSV values. Applies to entire value,
     not each subdivided value.
-    """
-    """Parameters
+        Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -4716,7 +4590,7 @@ def clean_csv_values(config, row):
         Returns
         -------
         preprocessed_csv_reader
-            The CSV DictReader object.
+            The CSV OrderedDict object.
     """
     for field in row:
         if "smart_quotes" not in config["clean_csv_values_skip"]:
@@ -4742,7 +4616,7 @@ def clean_csv_values(config, row):
     return row
 
 
-def truncate_csv_value(field_name, record_id, field_config, value):
+def truncate_csv_value(field_name: str, record_id: str, field_config: dict, value: str):
     """Drupal will not accept text field values that have a length that
     exceeds the configured maximum length for that field. 'value'
     here is a field subvalue.
@@ -4762,15 +4636,14 @@ def truncate_csv_value(field_name, record_id, field_config, value):
     return value
 
 
-def deduplicate_field_values(values):
+def deduplicate_field_values(values: list) -> list:
     """Removes duplicate entries from 'values' while retaining
     the order of the unique members.
-    """
-    """Parameters
+    Parameters
         ----------
         values : list
             List containing value(s) to dedupe. Members could be strings
-            from CSV or dictionairies.
+            from CSV or dictionaries.
         Returns
         -------
         list
@@ -4784,17 +4657,17 @@ def deduplicate_field_values(values):
     return deduped_list
 
 
-def get_node_field_values(config, nid):
+def get_node_field_values(config: dict, nid: Union[int, str]) -> dict:
     """Get a node's field data so we can use it during PATCH updates, which replace a field's values."""
     if value_is_numeric(nid) is False:
         nid = get_nid_from_url_alias(config, nid)
     node_url = config["host"] + "/node/" + str(nid) + "?_format=json"
     response = issue_request(config, "GET", node_url)
-    node_fields = json.loads(response.text)
+    node_fields = response.json()
     return node_fields
 
 
-def get_media_field_values(config, media_id):
+def get_media_field_values(config: dict, media_id: Union[int, str]) -> dict:
     """Get a media's field data so we can use it during PATCH updates, which replace a field's values."""
     if config["standalone_media_url"] is True:
         media_url = config["host"] + "/media/" + media_id + "?_format=json"
@@ -4802,10 +4675,11 @@ def get_media_field_values(config, media_id):
         media_url = config["host"] + "/media/" + media_id + "/edit?_format=json"
 
     get_media_response = issue_request(config, "GET", media_url)
-    media_fields = json.loads(get_media_response.text)
+    media_fields = get_media_response.json()
     return media_fields
 
 
+# TODO: This does not seem to be called anywhere. Is it needed?
 def get_target_ids(node_field_values):
     """Get the target IDs of all entities in a field."""
     target_ids = []
@@ -4814,7 +4688,7 @@ def get_target_ids(node_field_values):
     return target_ids
 
 
-def get_additional_files_config(config):
+def get_additional_files_config(config: dict) -> dict:
     """Converts values in 'additional_files' config setting to a simple
     dictionary for easy access.
     """
@@ -4831,7 +4705,9 @@ def get_additional_files_config(config):
     return additional_files_entries
 
 
-def split_typed_relation_string(config, typed_relation_string, target_type):
+def split_typed_relation_string(
+    config: dict, typed_relation_string: str, target_type: str
+) -> list:
     """Fields of type 'typed_relation' are represented in the CSV file
     using a structured string, specifically namespace:property:id,
     e.g., 'relators:pht:5'. 'id' is either a term ID or a node ID. This
@@ -4846,6 +4722,10 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
     However, since we split the typed relation strings only on the first
     two :, the entire third segment is considered, for the purposes of
     splitting the value, to be the term.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param typed_relation_string: str - The typed relation string from the CSV.
+    :param target_type: str - The target type, currently only "taxonomy_term"
+    :return: list - A list of dictionaries representing the typed relations with keys target_id, rel_type, and target_type.
     """
     typed_relation_string = typed_relation_string.strip()
 
@@ -4870,13 +4750,16 @@ def split_typed_relation_string(config, typed_relation_string, target_type):
     return return_list
 
 
-def split_geolocation_string(config, geolocation_string):
+def split_geolocation_string(config: dict, geolocation_string: str) -> list:
     """Fields of type 'geolocation' are represented in the CSV file using a
     structured string, specifically lat,lng, e.g. "49.16667, -123.93333"
     or "+49.16667, -123.93333". This function takes one of those strings
     (optionally with a multivalue subdelimiter) and returns a list of
     dictionaries with 'lat' and 'lng' keys required by the 'geolocation'
     field type.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param geolocation_string: str - The geolocation string from the CSV.
+    :return: list - A list of dictionaries representing the geolocations with keys lat and lng.
     """
     geolocation_string = geolocation_string.strip()
 
@@ -4897,12 +4780,15 @@ def split_geolocation_string(config, geolocation_string):
     return return_list
 
 
-def split_link_string(config, link_string):
+def split_link_string(config: dict, link_string: str) -> list:
     """Fields of type 'link' are represented in the CSV file using a structured string,
     specifically uri%%title, e.g. "https://www.lib.sfu.ca%%SFU Library Website".
     This function takes one of those strings (optionally with a multivalue subdelimiter)
     and returns a list of dictionaries with 'uri' and 'title' keys required by the
     'link' field type.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param link_string: str - The link string from the CSV.
+    :return: list - A list of dictionaries representing the links with keys uri and title.
     """
     link_string = link_string.strip()
 
@@ -4924,12 +4810,15 @@ def split_link_string(config, link_string):
     return return_list
 
 
-def split_authority_link_string(config, authority_link_string):
+def split_authority_link_string(config: dict, authority_link_string: str) -> list:
     """Fields of type 'authority_link' are represented in the CSV file using a structured string,
     specifically source%%uri%%title, e.g. "viaf%%http://viaf.org/viaf/153525475%%Rush (Musical group)".
     This function takes one of those strings (optionally with a multivalue subdelimiter)
     and returns a list of dictionaries with 'source', 'uri' and 'title' keys required by the
     'authority_link' field type.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param authority_link_string: str - The authority link string from the CSV.
+    :return: list - A list of dictionaries representing the authority links with keys source, uri and title.
     """
     authority_link_string = authority_link_string.strip()
 
@@ -4960,12 +4849,15 @@ def split_authority_link_string(config, authority_link_string):
     return return_list
 
 
-def split_media_track_string(config, media_track_string):
+def split_media_track_string(config: dict, media_track_string: str) -> list:
     """Fields of type 'media_track' are represented in the CSV file using a structured string,
     specifically 'label:kind:srclang:path_to_vtt_file', e.g. "en:subtitles:en:path/to/the/vtt/file.vtt".
     This function takes one of those strings (optionally with a multivalue subdelimiter) and returns
     a list of dictionaries with 'label', 'kind', 'srclang', 'file_path' keys required by the
     'media_track' field type.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_track_string: str - The media track string from the CSV.
+    :return: list - A list of dictionaries representing the media tracks with keys label, kind, srclang, and file_path.
     """
     media_track_string = media_track_string.strip()
 
@@ -4988,10 +4880,13 @@ def split_media_track_string(config, media_track_string):
 
 
 def validate_media_use_tid_in_additional_files_setting(
-    config, media_use_tid_value, additional_field_name
-):
+    config: dict, media_use_tid_value: Union[int, str], additional_field_name: str
+) -> None:
     """Validate whether the term ID registered in the "additional_files" config setting
     is in the Islandora Media Use vocabulary.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_use_tid_value: int or str - The term ID, term name, or term URI to validate.
+    :param additional_field_name: str - The name of the field in the "additional_files" config setting.
     """
     media_use_tids = []
     if config["subdelimiter"] in str(media_use_tid_value):
@@ -5031,7 +4926,7 @@ def validate_media_use_tid_in_additional_files_setting(
             logging.error(message)
             sys.exit("Error: " + message)
         if response.status_code == 200:
-            response_body = json.loads(response.text)
+            response_body = response.json()
             if "vid" in response_body:
                 if response_body["vid"][0]["target_id"] != "islandora_media_use":
                     message = (
@@ -5050,6 +4945,7 @@ def validate_media_use_tid_in_additional_files_setting(
                     and response_body["field_external_uri"][0]["uri"]
                     != "http://pcdm.org/use#OriginalFile"
                 ):
+                    # TODO: This message is never output?
                     message = (
                         'Warning: Term ID "'
                         + str(media_use_tid)
@@ -5072,14 +4968,24 @@ def validate_media_use_tid_in_additional_files_setting(
                     logging.warning(message)
 
 
-def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id=None):
+def validate_media_use_tid(
+    config: dict,
+    media_use_tid_value_from_csv: Union[int, str] = None,
+    csv_row_id: Union[int, str] = None,
+) -> None:
     """Validate whether the term ID, term name, or terms URI provided in the
     config value for media_use_tid is in the Islandora Media Use vocabulary.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_use_tid_value_from_csv: int or str - The term ID, term name, or term URI to validate.
+    :param csv_row_id: int or str - The CSV row ID, if applicable.
     """
-    if media_use_tid_value_from_csv is not None and csv_row_id is not None:
-        if len(str(media_use_tid_value_from_csv)) > 0:
-            media_use_tid_value = media_use_tid_value_from_csv
-            message_wording = ' in the CSV "media_use_tid" column '
+    if (
+        media_use_tid_value_from_csv is not None
+        and csv_row_id is not None
+        and len(str(media_use_tid_value_from_csv)) > 0
+    ):
+        media_use_tid_value = media_use_tid_value_from_csv
+        message_wording = ' in the CSV "media_use_tid" column '
     else:
         media_use_tid_value = config["media_use_tid"]
         message_wording = ' in configuration option "media_use_tid" '
@@ -5101,10 +5007,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     )
                     logging.error(message)
                     sys.exit("Error: " + message)
-                if (
-                    media_use_tid is not False
-                    and media_use_term.strip() != "http://pcdm.org/use#OriginalFile"
-                ):
+                elif media_use_term.strip() != "http://pcdm.org/use#OriginalFile":
                     message = (
                         'Warning: URI "'
                         + media_use_term
@@ -5126,10 +5029,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     )
                     logging.error(message)
                     sys.exit("Error: " + message)
-                if (
-                    media_use_tid is not False
-                    and media_use_term.strip() != "http://pcdm.org/use#OriginalFile"
-                ):
+                elif media_use_term.strip() != "http://pcdm.org/use#OriginalFile":
                     message = (
                         'Warning: URI "'
                         + media_use_term
@@ -5140,10 +5040,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     )
                     logging.warning(message)
 
-        elif (
-            value_is_numeric(media_use_term) is not True
-            and media_use_term.strip().startswith("http") is not True
-        ):
+        elif not value_is_numeric(media_use_term):
             media_use_tid = find_term_in_vocab(
                 config, "islandora_media_use", media_use_term.strip()
             )
@@ -5175,7 +5072,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                 + str(media_use_term.strip())
                 + "?_format=json"
             )
-            headers = {"Content-Type": "application/json"}
+            headers = {"Accept": "application/json"}
             response = issue_request(config, "GET", term_endpoint, headers)
             if response.status_code == 404:
                 if csv_row_id is None:
@@ -5196,7 +5093,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                     )
                     logging.error(message)
                     sys.exit("Error: " + message)
-            if response.status_code == 200:
+            elif response.status_code == 200:
                 response_body = json.loads(response.text)
                 if csv_row_id is None:
                     if "vid" in response_body:
@@ -5211,7 +5108,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                             )
                             logging.error(message)
                             sys.exit("Error: " + message)
-                    if "field_external_uri" in response_body:
+                    elif "field_external_uri" in response_body:
                         if (
                             response_body["field_external_uri"][0]["uri"]
                             != "http://pcdm.org/use#OriginalFile"
@@ -5240,7 +5137,7 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                             )
                             logging.error(message)
                             sys.exit("Error: " + message)
-                    if "field_external_uri" in response_body:
+                    elif "field_external_uri" in response_body:
                         if (
                             response_body["field_external_uri"][0]["uri"]
                             != "http://pcdm.org/use#OriginalFile"
@@ -5257,8 +5154,11 @@ def validate_media_use_tid(config, media_use_tid_value_from_csv=None, csv_row_id
                             logging.warning(message)
 
 
-def validate_media_use_tids_in_csv(config, csv_data):
-    """Validate 'media_use_tid' values in CSV if they exist."""
+def validate_media_use_tids_in_csv(config: dict, csv_data: OrderedDict) -> None:
+    """Validate 'media_use_tid' values in CSV if they exist.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param csv_data: OrderedDict - The CSV data.
+    """
     if config["task"] == "add_media":
         csv_id_field = "node_id"
     else:
@@ -5272,10 +5172,18 @@ def validate_media_use_tids_in_csv(config, csv_data):
                     validate_media_use_tid(config, field_value, row[csv_id_field])
 
 
-def preprocess_field_data(subdelimiter, field_value, path_to_script):
+# TODO: this function and execute_bootstrap_script(), execute_shutdown_script(), execute_entity_post_task_script() are very similar.
+# Could they be combined and accept *args which they pass along to the called script?
+def preprocess_field_data(
+    subdelimiter: str, field_value: str, path_to_script: str
+) -> tuple:
     """Executes a field preprocessor script and returns its output and exit status code. The script
     is passed the field subdelimiter as defined in the config YAML and the field's value, and
     prints a modified vesion of the value (result) back to this function.
+    :param subdelimiter: str - The subdelimiter defined in the config YAML.
+    :param field_value: str - The field value to preprocess.
+    :param path_to_script: str - The absolute path to the preprocessor script.
+    :return: tuple - The output of the script (stdout) and the script's return code.
     """
     if " " in path_to_script:
         interpeter, script = path_to_script.split(" ")
@@ -5292,8 +5200,12 @@ def preprocess_field_data(subdelimiter, field_value, path_to_script):
     return result, cmd.returncode
 
 
-def execute_bootstrap_script(path_to_script, path_to_config_file):
-    """Executes a bootstrap script and returns its output and exit status code."""
+def execute_bootstrap_script(path_to_script: str, path_to_config_file: str) -> tuple:
+    """Executes a bootstrap script and returns its output and exit status code.
+    :param path_to_script: str - The absolute path to the bootstrap script.
+    :param path_to_config_file: str - The absolute path to the Workbench config file.
+    :return: tuple - The output of the script (stdout) and the script's return code.
+    """
     if " " in path_to_script:
         interpeter, script = path_to_script.split(" ")
         cmd = subprocess.Popen(
@@ -5309,8 +5221,12 @@ def execute_bootstrap_script(path_to_script, path_to_config_file):
     return result, cmd.returncode
 
 
-def execute_shutdown_script(path_to_script, path_to_config_file):
-    """Executes a shutdown script and returns its output and exit status code."""
+def execute_shutdown_script(path_to_script: str, path_to_config_file: str) -> tuple:
+    """Executes a shutdown script and returns its output and exit status code.
+    :param path_to_script: str - The absolute path to the shutdown script.
+    :param path_to_config_file: str - The absolute path to the Workbench config file
+    :return: tuple - The output of the script (stdout) and the script's return code.
+    """
     if " " in path_to_script:
         interpeter, script = path_to_script.split(" ")
         cmd = subprocess.Popen(
@@ -5328,7 +5244,10 @@ def execute_shutdown_script(path_to_script, path_to_config_file):
 
 
 def execute_entity_post_task_script(
-    path_to_script, path_to_config_file, http_response_code, entity_json=""
+    path_to_script: str,
+    path_to_config_file: str,
+    http_response_code: int,
+    entity_json: str = "",
 ):
     """Executes a entity-level post-task script and returns its output and exit status code."""
     if " " in path_to_script:
@@ -5355,7 +5274,9 @@ def execute_entity_post_task_script(
     return result, cmd.returncode
 
 
-def execute_script_to_run(config, path_to_script, entity_type, entity_id):
+def execute_script_to_run(
+    config: dict, path_to_script: str, entity_type: str, entity_id: str
+) -> Union[tuple, None]:
     """Executes a entity-level script and returns its output and exit status code.
     Parameters
     ----------
@@ -5367,7 +5288,8 @@ def execute_script_to_run(config, path_to_script, entity_type, entity_id):
         One of "node", "media", or "term".
     entity_id: str
          The name of the CSV column containing the filename. None if the file isn't
-         in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+         in a CSV field (e.g., when config['paged_content_from_directories'] is True or
+         config["paged_content_from_directories_parents_exist"] is True).
     Returns
     -------
     str, str|None
@@ -5410,7 +5332,13 @@ def execute_script_to_run(config, path_to_script, entity_type, entity_id):
         return None
 
 
-def create_file(config, filename, file_fieldname, node_csv_row, node_id):
+def create_file(
+    config: dict,
+    filename: str,
+    file_fieldname: str,
+    node_csv_row: OrderedDict,
+    node_id: str,
+) -> Union[int, bool, None]:
     """Creates a file in Drupal, which is then referenced by the accompanying media.
     Parameters
     ----------
@@ -5420,7 +5348,8 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
          The full path to the file (either from the 'file' CSV column or downloaded from somewhere).
      file_fieldname: string
          The name of the CSV column containing the filename. None if the file isn't
-         in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+         in a CSV field (e.g., when config['paged_content_from_directories'] is True or
+         config["paged_content_from_directories_parents_exist"] is True).
      node_csv_row: OrderedDict
          E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
      node_id: string
@@ -5495,9 +5424,11 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     # equivalents (at least the unidecode() equivalents). Also, while Requests requires filenames to be encoded
     # in latin-1, Drupal passes filenames through its validateUtf8() function. So ASCII is a low common denominator
     # of both requirements.
+    # TODO: Requests supports RFC 5587 which allows for ISO-8859-1 (latin-1) and UTF-8 filenames in Content-Disposition headers.
+    #   see: https://www.rfc-editor.org/rfc/rfc5987#section-3.2.2
+    original_filename = copy.copy(filename)
     ascii_only = string_is_ascii(filename)
     if ascii_only is False:
-        original_filename = copy.copy(filename)
         filename = unidecode(filename)
         logging.warning(
             "Filename '"
@@ -5510,9 +5441,16 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
     file_endpoint_path = (
         "/file/upload/media/" + media_type + "/" + media_file_field + "?_format=json"
     )
+    if config["keep_filename_parent_directory"] is True:
+        remote_filename = filename
+    else:
+        remote_filename = os.path.basename(filename)
     file_headers = {
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": 'file; filename="' + filename + '"',
+        "Content-Disposition": 'file; filename="'
+        + remote_filename
+        + "\"; filename*=utf-8''"
+        + urllib.parse.quote_plus(original_filename),
     }
 
     binary_data = open(file_path, "rb")
@@ -5605,8 +5543,13 @@ def create_file(config, filename, file_fieldname, node_csv_row, node_id):
 
 
 def create_media(
-    config, filename, file_fieldname, node_id, csv_row, media_use_tid=None
-):
+    config: dict,
+    filename: str,
+    file_fieldname: Union[str, None],
+    node_id: str,
+    csv_row: OrderedDict,
+    media_use_tid: Union[int, str, None] = None,
+) -> Union[int, bool, None]:
     """Creates a media in Drupal.
 
     Parameters
@@ -5615,11 +5558,12 @@ def create_media(
          The configuration settings defined by workbench_config.get_config().
      filename : string
          The value of the CSV 'file' field for the current node.
-     file_fieldname: string
+     file_fieldname: string|None
          The name of the CSV column containing the filename. None if the file isn't
-         in a CSV field (e.g., when config['paged_content_from_directories'] is True).
+         in a CSV field (e.g., when config['paged_content_from_directories'] is True
+         or config["paged_content_from_directories_parents_exist"] is True).
      node_id: string
-         The ID of the node to attach the media to. This is False if file creation failed.
+         The ID or URL alias of the node to attach the media to. This is False if file creation failed.
      csv_row: OrderedDict
          E.g., OrderedDict([('file', 'IMG_5083.JPG'), ('id', '05'), ('title', 'Alcatraz Island').
          Could be either a CSV row describing nodes (e.g. during 'create' tasks) or describing
@@ -5628,7 +5572,7 @@ def create_media(
          A valid term ID (or a subdelimited list of IDs) from the Islandora Media Use vocabulary.
      Returns
      -------
-     int|False
+     int|False|None
           The HTTP status code from the attempt to create the media, False if
           it doesn't have sufficient information to create the media, or None
           if config['nodes_only'] is True.
@@ -5638,6 +5582,7 @@ def create_media(
 
     if len(filename.strip()) == 0:
         if file_fieldname is None:
+            # TODO: file_fieldname is None but we are using it in the message below.
             message = (
                 'Media not created because field "'
                 + file_fieldname
@@ -6086,15 +6031,20 @@ def create_media(
             logging.error(e)
             return False
 
-    if file_result is False:
-        return file_result
-
-    if file_result is None:
+    elif file_result is False or file_result is None:
         return file_result
 
 
-def patch_media_fields(config, media_id, media_type, node_csv_row):
-    """Patch the media entity with base fields from the parent node."""
+def patch_media_fields(
+    config: dict, media_id: Union[int, str], media_type: str, node_csv_row: OrderedDict
+) -> None:
+    """Patch the media entity with base fields from the parent node.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_id: int|str - The media ID to patch.
+    :param media_type: str - The media type (bundle) of the media to patch.
+    :param node_csv_row: OrderedDict - The CSV row of the parent node.
+    """
     media_json = {"bundle": [{"target_id": media_type}]}
 
     for field_name, field_value in node_csv_row.items():
@@ -6118,8 +6068,16 @@ def patch_media_fields(config, media_id, media_type, node_csv_row):
             )
 
 
-def patch_media_use_terms(config, media_id, media_type, media_use_tids):
-    """Patch the media entity's field_media_use."""
+def patch_media_use_terms(
+    config: dict, media_id: Union[int, str], media_type: str, media_use_tids: list
+) -> None:
+    """Patch the media entity's field_media_use.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_id: int|str - The media ID to patch.
+    :param media_type: str - The media type (bundle) of the media to patch.
+    :param media_use_tids: list - A list of term IDs to set on field_media_use.
+    """
     media_json = {"bundle": [{"target_id": media_type}]}
 
     media_use_tids_json = []
@@ -6141,15 +6099,22 @@ def patch_media_use_terms(config, media_id, media_type, media_use_tids):
         logging.warning("Media %s Islandora Media Use terms not updated.", endpoint)
 
 
-def clean_image_alt_text(input_string):
+def clean_image_alt_text(input_string: str) -> str:
     """Strip out HTML markup to guard against CSRF in alt text."""
     cleaned_string = re.sub("<[^<]+?>", "", input_string)
     return cleaned_string
 
 
-def patch_image_alt_text(config, media_id, csv_row):
+def patch_image_alt_text(
+    config: dict, media_id: Union[int, str], csv_row: OrderedDict
+) -> Union[int, bool]:
     """Patch the alt text value for an image media. Use the parent node's title
     unless the CSV record contains an image_alt_text field with something in it.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_id: int|str - The media ID to patch.
+    :param csv_row: OrderedDict - The CSV row of the parent node.
+    :return: int|bool - The HTTP status code from the PATCH request, or False on failure.
     """
     if config["standalone_media_url"] is True:
         get_media_endpoint = (
@@ -6178,10 +6143,11 @@ def patch_image_alt_text(config, media_id, csv_row):
         if field_name == "title":
             alt_text = clean_image_alt_text(field_value)
         # "image_alt_text" can be in "create", "add_alt_text", or "update_alt_text" input CSV.
-        if field_name == "image_alt_text":
+        elif field_name == "image_alt_text":
             alt_text = clean_image_alt_text(field_value)
 
     max_image_alt_text_length = config["max_image_alt_text_length"]
+    # TODO: alt_text may be undefined here if neither 'title' nor 'image_alt_text' is in csv_row.
     if len(alt_text) > max_image_alt_text_length:
         logging.warning(
             f'Alt text "{alt_text}" is longer than the configured maximum length ({max_image_alt_text_length}), skipping adding it to image.'
@@ -6214,8 +6180,13 @@ def patch_image_alt_text(config, media_id, csv_row):
     return patch_media_response.status_code
 
 
-def remove_media_and_file(config, media_id):
-    """Delete a media and the file associated with it."""
+def remove_media_and_file(config: dict, media_id: Union[int, str]) -> Union[int, bool]:
+    """Delete a media and the file associated with it.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_id: int|str - The media ID to patch.
+    :return: int|bool - The HTTP status code from the DELETE request for the media, or False on failure.
+    """
     # First get the media JSON.
     if config["standalone_media_url"] is True:
         get_media_url = config["host"] + "/media/" + str(media_id) + "?_format=json"
@@ -6257,6 +6228,7 @@ def remove_media_and_file(config, media_id):
             break
 
     # Delete the file first.
+    # TODO: file_id might be undefined here if none of the file_fields are in get_media_response_body.
     if file_id is not None:
         file_endpoint = (
             config["host"] + "/entity/file/" + str(file_id) + "?_format=json"
@@ -6306,6 +6278,7 @@ def remove_media_and_file(config, media_id):
                     )
 
     # Then the media.
+    # TODO: file_response might be undefined if file_id above is undefined because of the reasons for that.
     if file_id is None or file_response.status_code == 204:
         if config["standalone_media_url"] is True:
             media_endpoint = (
@@ -6330,14 +6303,21 @@ def remove_media_and_file(config, media_id):
     return False
 
 
-def get_preprocessed_input_csv_file_path(config):
+def get_preprocessed_input_csv_file_path(config: dict) -> str:
+    """Get the path to the preprocessed input CSV file.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :return: str - The path to the preprocessed input CSV file.
+    """
     return (
         os.path.join(config["temp_dir"], os.path.basename(config["input_csv"]))
         + ".preprocessed"
     )
 
 
-def get_csv_data(config, csv_file_target="node_fields", file_path=None):
+def get_csv_data(
+    config: dict, csv_file_target: str = "node_fields", file_path: str = None
+) -> DictReader:
     """Read the input CSV data and prepare it for use in all tasks that use an input CSV file.
 
     This function reads the source CSV file (or the CSV dump from Google Sheets or Excel),
@@ -6347,8 +6327,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
     a version of the CSV data to a file that appends .preprocessed to the input
     CSV file name. It is this .preprocessed file that is used in create, update, etc.
     tasks.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -6432,6 +6411,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
 
     # Even though we check for the task's expected ID column in the incoming CSV in check_input(),
     # we need to check it here as well since check_input() reads the CSV prior to those checks.
+    # TODO: Why can't these checks exist in check_input() only?
     id_columns = {
         "create": config["id_field"],
         "update": "node_id",
@@ -6519,15 +6499,17 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
         if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
             row_filters_is = dict()
             row_filters_isnot = dict()
-            # First defne the field/operator pairs.
+            # First define the field/operator pairs.
             for filter_config in config["csv_row_filters"]:
                 filter_group = filter_config.split(":", 2)
                 if filter_group[1] == "is":
                     filter_group_field = filter_group[0]
+                    # TODO: delete below unused variable or add it to row_filters_is[filter_group_field]?
                     filter_group_value = filter_group[2]
                     row_filters_is[filter_group_field] = []
                 if filter_group[1] == "isnot":
                     filter_group_field = filter_group[0]
+                    # TODO: delete below unused variable or add it to row_filters_isnot[filter_group_field]?
                     filter_group_value = filter_group[2]
                     row_filters_isnot[filter_group_field] = []
 
@@ -6610,7 +6592,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                 if row[config["id_field"]] not in config["csv_rows_to_process"]:
                     continue
 
-            # Apply the "is" and "isnot" csv_row_filters defined defined above. If the field/value
+            # Apply the "is" and "isnot" csv_row_filters defined above. If the field/value
             # combo is in the 'isnot' list, skip this row.
             filter_out_this_csv_row = False
             if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
@@ -6660,6 +6642,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                             row[field_name] = field_value
 
             # Skip CSV records whose first column begins with #.
+            # TODO: list() is redundant here, row.values() returns a list of values.
             if str(list(row.values())[0]).strip().startswith("#") is False:
                 # Skip row if the entity is not found.
                 if row[config["id_field"]] is False:
@@ -6768,6 +6751,7 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
                         del row[column_to_ignore]
 
             # Skip CSV records whose first column begins with #.
+            # TODO: list() is redundant here, row.values() returns a list of values.
             if str(list(row.values())[0]).strip().startswith("#") is False:
 
                 if "node_id" in row and value_is_numeric(row["node_id"]) is False:
@@ -6832,20 +6816,19 @@ def get_csv_data(config, csv_file_target="node_fields", file_path=None):
     return preprocessed_csv_reader
 
 
-def find_term_in_vocab(config, vocab_id, term_name_to_find):
+def find_term_in_vocab(
+    config: dict, vocab_id: str, term_name_to_find: str
+) -> Union[int, bool]:
     """Query the Term from term name View using the vocab_id to see if term_name_to_find is
     is found in that vocabulary. If so, returns the term ID; if not returns False. If
     more than one term found, returns the term ID of the first one. Also populates global
     lists of terms (checked_terms and newly_created_terms) to reduce queries to Drupal.
-    """
-    """Parameters
+    Parameters
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
     vocab_id: string
         The vocabulary ID to use in the query to find the term.
-    field_name: string
-        The field's machine name.
     term_name_to_find: string
         The term name from CSV.
     Returns
@@ -6914,10 +6897,11 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
     )
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
-        term_data = json.loads(response.text)
+        term_data = response.json()
         # Term name is not found.
         if len(term_data) == 0:
             if "check" in config.keys() and config["check"] is True:
+                # TODO: term_name_for_check_matching is defined above only if config['check'] is True; should this be part of that 'if' block?
                 checked_term_to_add = {
                     "tid": None,
                     "vocab_id": vocab_id,
@@ -6939,6 +6923,7 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
                 term_data[0]["tid"][0]["value"],
             )
             if "check" in config.keys() and config["check"] is True:
+                # TODO: term_name_for_check_matching is defined above only if config['check'] is True; should this be part of that 'if' block?
                 checked_term_to_add = {
                     "tid": term_data[0]["tid"][0]["value"],
                     "vocab_id": vocab_id,
@@ -6951,6 +6936,7 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
         # Term name is found.
         else:
             if "check" in config.keys() and config["check"] is True:
+                # TODO: term_name_for_check_matching is defined above only if config['check'] is True; should this be part of that 'if' block?
                 checked_term_to_add = {
                     "tid": term_data[0]["tid"][0]["value"],
                     "vocab_id": vocab_id,
@@ -6970,14 +6956,18 @@ def find_term_in_vocab(config, vocab_id, term_name_to_find):
         return False
 
 
-def get_term_vocab(config, term_id):
+def get_term_vocab(config: dict, term_id: Union[int, str]) -> Union[str, bool]:
     """Get the term's parent vocabulary ID and return it. If the term doesn't
     exist, return False.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param term_id: int|string - The term ID.
+    :return: str|bool - The vocabulary ID, or False if the term doesn't exist.
     """
     url = config["host"] + "/taxonomy/term/" + str(term_id).strip() + "?_format=json"
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
-        term_data = json.loads(response.text)
+        term_data = response.json()
         return term_data["vid"][0]["target_id"]
     else:
         logging.warning(
@@ -6988,12 +6978,17 @@ def get_term_vocab(config, term_id):
         return False
 
 
-def get_term_name(config, term_id):
-    """Get the term's name and return it. If the term doesn't exist, return False."""
+def get_term_name(config: dict, term_id: Union[int, str]) -> Union[str, bool]:
+    """Get the term's name and return it. If the term doesn't exist, return False.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param term_id: int|string - The term ID.
+    :return: str|bool - The term name, or False if the term doesn't exist.
+    """
     url = config["host"] + "/taxonomy/term/" + str(term_id).strip() + "?_format=json"
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
-        term_data = json.loads(response.text)
+        term_data = response.json()
         return term_data["name"][0]["value"]
     else:
         logging.warning(
@@ -7004,14 +6999,18 @@ def get_term_name(config, term_id):
         return False
 
 
-def get_term_uri(config, term_id):
+def get_term_uri(config: dict, term_id: Union[int, str]) -> Union[str, None, bool]:
     """Get the term's URI and return it. If the term or URI doesn't exist, return False.
     If the term has no URI, return None.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param term_id: int|string - The term ID.
+    :return: str|bool|None - The term URI, or None if there isn't one or False if the term doesn't exist.
     """
     url = config["host"] + "/taxonomy/term/" + str(term_id).strip() + "?_format=json"
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
-        term_data = json.loads(response.text)
+        term_data = response.json()
         if "field_external_uri" in term_data:
             uri = term_data["field_external_uri"][0]["uri"]
             return uri
@@ -7033,11 +7032,15 @@ def get_term_uri(config, term_id):
         return False
 
 
-def get_term_id_from_uri(config, uri):
+def get_term_id_from_uri(config: dict, uri: str) -> Union[int, bool]:
     """For a given URI, query the Term from URI View created by the Islandora
     Workbench Integration module. Because we don't know which field each
     taxonomy uses to store URIs (it's either field_external_uri or field_authority_link),
     we need to check both options in the "Term from URI" View.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param uri: string - The term URI.
+    :return: int|bool - The term ID, or False if the term doesn't exist.
     """
     # Some vocabularies use this View.
     terms_with_uri = []
@@ -7046,12 +7049,11 @@ def get_term_id_from_uri(config, uri):
     )
     term_from_uri_response = issue_request(config, "GET", term_from_uri_url)
     if term_from_uri_response.status_code == 200:
-        term_from_uri_response_body_json = term_from_uri_response.text
-        term_from_uri_response_body = json.loads(term_from_uri_response_body_json)
+        term_from_uri_response_body = term_from_uri_response.json()
         if len(term_from_uri_response_body) == 1:
             tid = term_from_uri_response_body[0]["tid"][0]["value"]
             return tid
-        if len(term_from_uri_response_body) > 1:
+        elif len(term_from_uri_response_body) > 1:
             for term in term_from_uri_response_body:
                 terms_with_uri.append(
                     {term["tid"][0]["value"]: term["vid"][0]["target_id"]}
@@ -7077,11 +7079,8 @@ def get_term_id_from_uri(config, uri):
         config, "GET", term_from_authority_link_url
     )
     if term_from_authority_link_response.status_code == 200:
-        term_from_authority_link_response_body_json = (
-            term_from_authority_link_response.text
-        )
-        term_from_authority_link_response_body = json.loads(
-            term_from_authority_link_response_body_json
+        term_from_authority_link_response_body = (
+            term_from_authority_link_response.json()
         )
         if len(term_from_authority_link_response_body) == 1:
             tid = term_from_authority_link_response_body[0]["tid"][0]["value"]
@@ -7110,8 +7109,12 @@ def get_term_id_from_uri(config, uri):
 
 
 def get_all_representations_of_term(
-    config, vocab_id=None, name=None, term_id=None, uri=None
-):
+    config: dict,
+    vocab_id: str = None,
+    name: str = None,
+    term_id: int = None,
+    uri: str = None,
+) -> Union[dict, bool]:
     """Parameters
     ----------
     config : dict
@@ -7145,11 +7148,12 @@ def get_all_representations_of_term(
     return {"term_id": term_id, "name": name, "uri": uri}
 
 
-def create_term(config, vocab_id, term_name, term_csv_row=None):
+def create_term(
+    config: dict, vocab_id: str, term_name: str, term_csv_row: OrderedDict = None
+) -> Union[str, bool]:
     """Adds a term to the target vocabulary. Returns the new term's ID
     if successful (or if the term already exists) or False if not.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -7232,7 +7236,7 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
     headers = {"Content-Type": "application/json"}
     response = issue_request(config, "POST", term_endpoint, headers, term, None)
     if response.status_code == 201:
-        term_response_body = json.loads(response.text)
+        term_response_body = response.json()
         tid = term_response_body["tid"][0]["value"]
         if (config["task"] == "create" or config["task"] == "update") and config[
             "log_term_creation"
@@ -7270,20 +7274,21 @@ def create_term(config, vocab_id, term_name, term_csv_row=None):
         return False
 
 
-def get_term_field_data(config, vocab_id, term_name, term_csv_row):
+def get_term_field_data(
+    config: dict, vocab_id: str, term_name: str, term_csv_row: OrderedDict
+) -> Union[dict, bool]:
     """Assemble the dict that will be added to the 'term' dict in create_term(). status, description,
     weight, parent, default_langcode, path fields are added here, even for simple term_name-only
     terms. Check the vocabulary CSV file to see if there is a corresponding row. If the vocabulary
     has any required fields, and any of them are absent, return False.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
         vocab_id: string
             The vocabulary ID.
         term_name: string
-            The term name from CSV.
+            The term name from CSV. (Not used in this function)
         term_csv_row: OrderedDict
             ECSV row containing term field data.
         Returns
@@ -7410,17 +7415,28 @@ def get_term_field_data(config, vocab_id, term_name, term_csv_row):
         return term_field_data
 
 
-def get_term_uuid(config, term_id):
-    """Given a term ID, get the term's UUID."""
+def get_term_uuid(config: dict, term_id: Union[int, str]) -> str:
+    """Given a term ID, get the term's UUID.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param term_id: int|string - The term ID.
+    :return: str - The term UUID.
+    """
     term_url = config["host"] + "/taxonomy/term/" + str(term_id) + "?_format=json"
     response = issue_request(config, "GET", term_url)
-    term = json.loads(response.text)
+    term = response.json()
     uuid = term["uuid"][0]["value"]
 
     return uuid
 
 
-def create_url_alias(config, node_id, url_alias):
+def create_url_alias(config: dict, node_id: Union[int, str], url_alias: str) -> None:
+    """Creates a URL alias for the given node ID.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param node_id: int|string - The node ID.
+    :param url_alias: string - The desired URL alias.
+    """
     json = {
         "path": [{"value": "/node/" + str(node_id)}],
         "alias": [{"value": url_alias}],
@@ -7444,13 +7460,14 @@ def create_url_alias(config, node_id, url_alias):
         )
 
 
-def prepare_term_id(config, vocab_ids, field_name, term):
+def prepare_term_id(
+    config: dict, vocab_ids: Union[list, bool], field_name: str, term: str
+) -> Union[str, None]:
     """Checks to see if 'term' is numeric (i.e., a term ID) and if it is, returns it as
     is. If it's not (i.e., it's a string term name) it looks for the term name in the
     referenced vocabulary and returns its term ID if the term exists, and if it doesn't
     exist, creates the term and returns the new term ID.
-    """
-    """Parameters
+    Parameters
     ----------
     config : dict
         The configuration settings defined by workbench_config.get_config().
@@ -7467,7 +7484,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
         associated with the field identified in field_name (which is the case with
         "Filter by an entity reference view" reference type fields)or if the vocab
         ID is otherwise unknown.
-"""
+    """
     term = str(term)
     term = term.strip()
     if value_is_numeric(term) and field_name not in config["columns_with_term_names"]:
@@ -7497,7 +7514,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
                     headers,
                 )
                 if response.status_code == 200:
-                    term_response_body = json.loads(response.text)
+                    term_response_body = response.json()
                     if term_response_body:
                         return term_response_body[0]["tid"][0]["value"]
                     tid = create_term(config, tentative_vocab_id, term_name)
@@ -7514,7 +7531,7 @@ def prepare_term_id(config, vocab_ids, field_name, term):
                     config, "GET", endpoint + "?name=" + term, headers
                 )
                 if response.status_code == 200:
-                    term_response_body = json.loads(response.text)
+                    term_response_body = response.json()
                     if term_response_body:
                         return term_response_body[0]["tid"][0]["value"]
                     logging.warning(
@@ -7575,13 +7592,21 @@ def prepare_term_id(config, vocab_ids, field_name, term):
                 logging.error(message)
                 sys.exit("Error: " + message)
 
-        # Explicitly return None if hasn't returned from one of the conditions above, e.g. if
-        # the term name contains a colon and it wasn't namespaced with a valid vocabulary ID.
-        return None
+    # Explicitly return None if hasn't returned from one of the conditions above, e.g. if
+    # the term name contains a colon and it wasn't namespaced with a valid vocabulary ID.
+    return None
 
 
-def get_field_vocabularies(config, field_definitions, field_name):
-    """Gets IDs of vocabularies linked from the current field (could be more than one)."""
+def get_field_vocabularies(
+    config: dict, field_definitions: dict, field_name: str
+) -> Union[list, bool]:
+    """Gets IDs of vocabularies linked from the current field (could be more than one).
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The field definitions.
+    :param field_name: string - The field machine name.
+    :return: list|bool - The list of vocabulary IDs, or False if there are none.
+    """
     if "vocabularies" in field_definitions[field_name]:
         vocabularies = field_definitions[field_name]["vocabularies"]
         return vocabularies
@@ -7589,10 +7614,9 @@ def get_field_vocabularies(config, field_definitions, field_name):
         return False
 
 
-def value_is_numeric(value, allow_decimals=False):
-    """Tests to see if value  is numeric."""
-
-    """Parameters
+def value_is_numeric(value, allow_decimals: bool = False) -> bool:
+    """Tests to see if value  is numeric.
+    Parameters
     ----------
     value : varies
         The value to check. By design, we don't know what data type it is.
@@ -7614,10 +7638,14 @@ def value_is_numeric(value, allow_decimals=False):
         return False
 
 
-def compare_strings(known, unknown):
+def compare_strings(known: str, unknown: str) -> bool:
     """Normalizes the unknown string and the known one, and compares
     them. If they match, returns True, if not, False. We could
     use FuzzyWuzzy or something but this is probably sufficient.
+    Parameters
+    :param known: string - The known string.
+    :param unknown: string - The unknown string.
+    :return: bool - True if they match, False if not.
     """
     # Strips leading and trailing whitespace.
     known = known.strip()
@@ -7639,9 +7667,12 @@ def compare_strings(known, unknown):
         return False
 
 
-def get_csv_record_hash(row):
+def get_csv_record_hash(row: OrderedDict) -> str:
     """Concatenate values in the CSV record and get an MD5 hash on the
     resulting string.
+    Parameters
+    :param row: OrderedDict - The CSV row.
+    :return: str - The MD5 hash of the CSV row.
     """
     serialized_row = ""
     for field in row:
@@ -7657,7 +7688,12 @@ def get_csv_record_hash(row):
     return hash_object.hexdigest()
 
 
-def validate_input_dir(config):
+def validate_input_dir(config: dict) -> None:
+    """Check that the input directory specified in the configuration exists. If not,
+    log an error and exit.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    """
     # Check existence input directory.
     if os.path.isabs(config["input_dir"]):
         input_dir_path = config["input_dir"]
@@ -7673,8 +7709,15 @@ def validate_input_dir(config):
         sys.exit("Error: " + message)
 
 
-def validate_required_fields_have_values(config, required_drupal_fields, csv_data):
-    """Loop through all fields in CSV to ensure that required field have a value in the CSV."""
+def validate_required_fields_have_values(
+    config: dict, required_drupal_fields: dict, csv_data: DictReader
+) -> None:
+    """Loop through all fields in CSV to ensure that required field have a value in the CSV.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param required_drupal_fields: dict - The dictionary of required Drupal fields.
+    :param csv_data: DictReader - The CSV data.
+    """
     rows_with_missing_required_values = []
     for row in csv_data:
         for required_field in required_drupal_fields:
@@ -7690,10 +7733,16 @@ def validate_required_fields_have_values(config, required_drupal_fields, csv_dat
         )
 
 
-def validate_csv_field_cardinality(config, field_definitions, csv_data):
+def validate_csv_field_cardinality(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> None:
     """Compare values in the CSV data with the fields' cardinality. Log CSV
     fields that have more values than allowed, and warn user if
     these fields exist in their CSV data.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
     """
     field_cardinalities = dict()
     csv_headers = csv_data.fieldnames
@@ -7715,6 +7764,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                     field_cardinalities[field_name] == 1
                     and len(delimited_field_values) > 1
                 ):
+                    message = ""
                     if config["task"] == "create":
                         message = (
                             'CSV field "'
@@ -7723,7 +7773,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                             + row[config["id_field"]]
                             + " contains more values than the number "
                         )
-                    if config["task"] == "update":
+                    elif config["task"] == "update":
                         message = (
                             'CSV field "'
                             + field_name
@@ -7742,6 +7792,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                     int(field_cardinalities[field_name]) > 1
                     and len(delimited_field_values) > field_cardinalities[field_name]
                 ):
+                    message = ""
                     if config["task"] == "create":
                         message = (
                             'CSV field "'
@@ -7750,7 +7801,7 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                             + row[config["id_field"]]
                             + " contains more values than the number "
                         )
-                    if config["task"] == "update":
+                    elif config["task"] == "update":
                         message = (
                             'CSV field "'
                             + field_name
@@ -7769,9 +7820,15 @@ def validate_csv_field_cardinality(config, field_definitions, csv_data):
                     logging.warning(message + message_2)
 
 
-def validate_text_list_fields(config, field_definitions, csv_data):
+def validate_text_list_fields(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> None:
     """For fields that are of "list_string" field type, check that values
     in CSV are in the field's "allowed_values" config setting.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
     """
     list_field_allowed_values = dict()
     csv_headers = csv_data.fieldnames
@@ -7816,10 +7873,16 @@ def validate_text_list_fields(config, field_definitions, csv_data):
                         logging.warning(message)
 
 
-def validate_csv_field_length(config, field_definitions, csv_data):
+def validate_csv_field_length(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> None:
     """Compare values in the CSV data with the fields' max_length. Log CSV
     fields that exceed their max_length, and warn user if
     these fields exist in their CSV data.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
     """
     field_max_lengths = dict()
     csv_headers = csv_data.fieldnames
@@ -7836,10 +7899,10 @@ def validate_csv_field_length(config, field_definitions, csv_data):
             if field_name in row:
                 delimited_field_values = row[field_name].split(config["subdelimiter"])
                 for field_value in delimited_field_values:
-                    field_value_length = len(field_value)
                     if field_name in field_max_lengths and len(field_value) > int(
                         field_max_lengths[field_name]
                     ):
+                        message = ""
                         if config["task"] == "create":
                             message = (
                                 'CSV field "'
@@ -7850,7 +7913,7 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                                 + str(len(field_value))
                                 + " characters)"
                             )
-                        if config["task"] == "update":
+                        elif config["task"] == "update":
                             message = (
                                 'CSV field "'
                                 + field_name
@@ -7869,8 +7932,15 @@ def validate_csv_field_length(config, field_definitions, csv_data):
                         logging.warning(message + message_2)
 
 
-def validate_numeric_fields(config, field_definitions, csv_data):
-    """Validate integer, decimal, and float fields."""
+def validate_numeric_fields(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> None:
+    """Validate integer, decimal, and float fields.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
+    """
     numeric_fields_present = False
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
@@ -7925,8 +7995,15 @@ def validate_numeric_fields(config, field_definitions, csv_data):
         logging.info(message)
 
 
-def validate_geolocation_fields(config, field_definitions, csv_data):
-    """Validate lat,long values in fields that are of type 'geolocation'."""
+def validate_geolocation_fields(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> None:
+    """Validate lat,long values in fields that are of type 'geolocation'.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
+    """
     geolocation_fields_present = False
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
@@ -7957,8 +8034,15 @@ def validate_geolocation_fields(config, field_definitions, csv_data):
         logging.info(message)
 
 
-def validate_link_fields(config, field_definitions, csv_data):
-    """Validate values in fields that are of type 'link'."""
+def validate_link_fields(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> None:
+    """Validate values in fields that are of type 'link'.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
+    """
     link_fields_present = False
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
@@ -7989,8 +8073,15 @@ def validate_link_fields(config, field_definitions, csv_data):
         logging.info(message)
 
 
-def validate_authority_link_fields(config, field_definitions, csv_data):
-    """Validate values in fields that are of type 'authority_link'."""
+def validate_authority_link_fields(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> None:
+    """Validate values in fields that are of type 'authority_link'.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
+    """
     if config["task"] == "create_terms":
         config["id_field"] = "term_name"
 
@@ -8027,8 +8118,12 @@ def validate_authority_link_fields(config, field_definitions, csv_data):
         logging.info(message)
 
 
-def validate_media_track_fields(config, csv_data):
-    """Validate values in fields that are of type 'media_track'."""
+def validate_media_track_fields(config: dict, csv_data: DictReader) -> None:
+    """Validate values in fields that are of type 'media_track'.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param csv_data: DictReader - The CSV data.
+    """
     media_track_fields_present = False
     # Must accommodate multiple media track fields in the same CSV (e.g. audio and video media in the
     # same CSV, each with its own track column). Therefore, we'll need to get the field definitions
@@ -8122,62 +8217,15 @@ def validate_media_track_fields(config, csv_data):
                                     logging.error(message)
                                     sys.exit("Error: " + message)
 
-                                    if config["nodes_only"] is False:
-                                        if len(field_value.strip()):
-                                            media_track_field_value_parts = (
-                                                field_value.split(":")
-                                            )
-                                            media_track_file_path_in_csv = (
-                                                media_track_field_value_parts[3]
-                                            )
-                                            if os.path.isabs(
-                                                media_track_file_path_in_csv
-                                            ):
-                                                media_track_file_path = (
-                                                    media_track_file_path_in_csv
-                                                )
-                                            else:
-                                                media_track_file_path = os.path.join(
-                                                    config["input_dir"],
-                                                    media_track_file_path_in_csv,
-                                                )
-                                            if not os.path.exists(
-                                                media_track_file_path
-                                            ) or not os.path.isfile(
-                                                media_track_file_path
-                                            ):
-                                                message = (
-                                                    'Media track file "'
-                                                    + media_track_file_path_in_csv
-                                                    + '" in row with ID "'
-                                                    + row[config["id_field"]]
-                                                    + '" not found.'
-                                                )
-                                                logging.error(message)
-                                                sys.exit("Error: " + message)
-
-                                            if (
-                                                file_is_utf8(media_track_file_path)
-                                                is False
-                                            ):
-                                                message = (
-                                                    'Media track file "'
-                                                    + media_track_file_path_in_csv
-                                                    + '" in row with ID "'
-                                                    + row[config["id_field"]]
-                                                    + '" is not encoded as UTF-8 and will not be ingested.'
-                                                )
-                                                logging.warning(message)
-
     if media_track_fields_present is True:
         message = "OK, media track field values in the CSV file validate."
         print(message)
         logging.info(message)
 
 
-def validate_media_track_value(media_track_value):
-    """Validates that the string in "media_track_value" has valid values in its subparts."""
-    """Parameters
+def validate_media_track_value(media_track_value: str) -> bool:
+    """Validates that the string in "media_track_value" has valid values in its subparts.
+    Parameters
         ----------
         media_track_value : string
             The CSV value to validate.
@@ -8203,7 +8251,12 @@ def validate_media_track_value(media_track_value):
         return False
 
 
-def validate_latlong_value(latlong):
+def validate_latlong_value(latlong: str) -> bool:
+    """Validate that the value in 'latlong' is a valid latitude,longitude pair.
+    Parameters
+    :param latlong: string - The lat,long string.
+    :return: boolean - True if it is valid, False if not.
+    """
     # Remove leading \ that may be present if input CSV is from a spreadsheet.
     latlong = latlong.lstrip("\\")
     if re.match(
@@ -8215,11 +8268,10 @@ def validate_latlong_value(latlong):
         return False
 
 
-def validate_link_value(link_value):
+def validate_link_value(link_value: str) -> bool:
     """Validates that the value in 'link_value' starts with either 'http://' or 'https://'
     and optionally contains the url/label delimiter '%%'.
-    """
-    """Parameters
+    Parameters
         ----------
         link_value : string
             The URL.
@@ -8235,11 +8287,12 @@ def validate_link_value(link_value):
         return False
 
 
-def validate_authority_link_value(authority_link_value, authority_sources):
+def validate_authority_link_value(
+    authority_link_value: str, authority_sources: list
+) -> bool:
     """Validates that the value in 'authority_link_value' has a 'source' and that the URI
     component starts with either 'http://' or 'https://'.
-    """
-    """Parameters
+    Parameters
         ----------
         authority_link_value : string
             The authority link string, with a sourcea, URI, and optionally a title.
@@ -8259,9 +8312,15 @@ def validate_authority_link_value(authority_link_value, authority_sources):
         return False
 
 
-def validate_term_name_length(term_name, row_id, column_name):
+def validate_term_name_length(
+    term_name: str, row_id: Union[int, str], column_name: str
+) -> None:
     """Checks that the length of a term name does not exceed
     Drupal's 255 character length.
+    Parameters
+    :param term_name: str - The taxonomy term name.
+    :param row_id: Union[int, str] - The ID of the CSV row.
+    :param column_name: str - The name of the CSV column.
     """
     term_name = term_name.strip()
     if len(term_name) > 255:
@@ -8280,9 +8339,12 @@ def validate_term_name_length(term_name, row_id, column_name):
         sys.exit("Error: " + message + " See the Workbench log for more information.")
 
 
-def validate_node_created_date(config, csv_data):
+def validate_node_created_date(config: dict, csv_data: DictReader) -> None:
     """Checks that date_string is in the format used by Drupal's 'created' node property,
     e.g., 2020-11-15T23:49:22+00:00. Also check to see if the date is in the future.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param csv_data: DictReader - The CSV data.
     """
     for count, row in enumerate(csv_data, start=1):
         for field_name, field_value in row.items():
@@ -8321,14 +8383,25 @@ def validate_node_created_date(config, csv_data):
     logging.info(message)
 
 
-def validate_node_created_date_string(created_date_string):
+def validate_node_created_date_string(created_date_string: str) -> bool:
+    """Checks that date_string is in the format used by Drupal's 'created' node property,
+    e.g., 2020-11-15T23:49:22+00:00.
+    Parameters
+    :param created_date_string: str - The date string.
+    :return: bool - True if it is valid, False if not.
+    """
     if re.match(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$", created_date_string):
         return True
     else:
         return False
 
 
-def validate_weight_value(weight_value):
+def validate_weight_value(weight_value: str) -> bool:
+    """Validates that the value in 'weight_value' is a numeric value.
+    Parameters
+    :param weight_value: string - The weight value.
+    :return: boolean - True if it is valid, False if not
+    """
     weight = weight_value.lstrip("0")
     if re.match(r"^\d+$", weight) and int(weight) > 0:
         return True
@@ -8336,8 +8409,15 @@ def validate_weight_value(weight_value):
         return False
 
 
-def validate_edtf_fields(config, field_definitions, csv_data):
-    """Validate values in fields that are of type 'edtf'."""
+def validate_edtf_fields(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> None:
+    """Validate values in fields that are of type 'edtf'.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
+    """
     edtf_fields_present = False
     for count, row in enumerate(csv_data, start=1):
         for field_name in field_definitions.keys():
@@ -8370,14 +8450,19 @@ def validate_edtf_fields(config, field_definitions, csv_data):
         logging.info(message)
 
 
-def validate_edtf_date(date):
+def validate_edtf_date(date: str) -> bool:
+    """Validates that the value in 'date' is a valid EDTF date.
+    Parameters
+    :param date: string - The EDTF date.
+    :return: boolean - True if it is valid, False if not.
+    """
     date = date.strip()
     # 195X-01~
     # nnnX-nn~
     if re.match(r"^[1-2]\d\dX\-\d\d\~", date):
         return True
     # nnnX?
-    if re.match(r"^[1-2]\d\dX\?", date):
+    elif re.match(r"^[1-2]\d\dX\?", date):
         return True
     # nnXX?
     elif re.match(r"^[1-2]\dXX\?", date):
@@ -8418,8 +8503,12 @@ def validate_edtf_date(date):
         return False
 
 
-def validate_url_aliases(config, csv_data):
-    """Checks that URL aliases don't already exist."""
+def validate_url_aliases(config: dict, csv_data: DictReader) -> None:
+    """Checks that URL aliases don't already exist.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param csv_data: DictReader - The CSV data.
+    """
     for count, row in enumerate(csv_data, start=1):
         for field_name, field_value in row.items():
             if field_name == "url_alias" and len(field_value) > 0:
@@ -8452,9 +8541,12 @@ def validate_url_aliases(config, csv_data):
     logging.info(message)
 
 
-def validate_node_uid(config, csv_data):
+def validate_node_uid(config: dict, csv_data: DictReader) -> None:
     """Checks that the user identified in the 'uid' field exists in Drupal. Note that
     this does not validate any permissions the user may have.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param csv_data: DictReader - The CSV data.
     """
     for count, row in enumerate(csv_data, start=1):
         for field_name, field_value in row.items():
@@ -8479,11 +8571,17 @@ def validate_node_uid(config, csv_data):
     logging.info(message)
 
 
-def validate_parent_ids_precede_children(config, csv_data):
+def validate_parent_ids_precede_children(
+    config: dict, csv_data: DictReader
+) -> Union[bool, None]:
     """In the page/child-level metadata method of creating compound content,
     CSV rows for parent items must come before their children in the CSV file.
     This function checks for that. Note that this check only applies to one
     level of parent/child hierarchy (i.e., parents and their immediate children).
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param csv_data: DictReader - The CSV data.
+    :return: Union[bool, None] - Returns False if there is no "parent_id" field in the CSV; otherwise returns nothing
     """
     positions = dict()
     id_field = config["id_field"]
@@ -8514,9 +8612,12 @@ def validate_parent_ids_precede_children(config, csv_data):
                     sys.exit("Error: " + message)
 
 
-def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
+def validate_parent_ids_in_csv_id_to_node_id_map(config: dict, csv_data: DictReader):
     """Query the CSV ID to node ID map to check for non-unique parent IDs.
     If they exist, report out but do not exit.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param csv_data: DictReader - The CSV data.
     """
     if (
         len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0
@@ -8587,15 +8688,23 @@ def validate_parent_ids_in_csv_id_to_node_id_map(config, csv_data):
             print("Warning: " + parents_from_id_map_warnings[-1])
 
 
-def validate_taxonomy_field_values(config, field_definitions, csv_data):
+def validate_taxonomy_field_values(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> Union[bool, None]:
     """Loop through all fields in field_definitions, and if a field
     is a taxonomy reference field, validate all values in the CSV
     data in that field against term IDs in the taxonomies referenced
     by the field. Does not validate Typed Relation fields
     (see validate_typed_relation_field_values()).
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
+    :return: Union[bool, None] - Returns None if no taxonomy fields are present; otherwise returns False.
     """
     # Define a list to store names of CSV fields that reference vocabularies.
     fields_with_vocabularies = list()
+    # TODO: vocab_validation_issues is set here and then used at the bottom but never changed, could just return False
     vocab_validation_issues = False
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
     for column_name in csv_data.fieldnames:
@@ -8624,9 +8733,9 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
-        return
+        return None
 
-    # Iterate through the CSV and validate each taxonomy fields's values.
+    # Iterate through the CSV and validate each taxonomy field's values.
     new_term_names_in_csv_results = []
     for count, row in enumerate(csv_data, start=1):
         for column_name in fields_with_vocabularies:
@@ -8678,12 +8787,13 @@ def validate_taxonomy_field_values(config, field_definitions, csv_data):
     return vocab_validation_issues
 
 
-def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path):
+def validate_vocabulary_fields_in_csv(
+    config: dict, vocabulary_id: str, vocab_csv_file_path: str
+) -> None:
     """Loop through all fields in CSV to ensure that all present fields match field
     from the vocab's field definitions, and that any required fields are present.
     Also checks that each row has the same number of columns as there are headers.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -8752,40 +8862,40 @@ def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path
     field_definitions = get_field_definitions(
         config, "taxonomy_term", vocabulary_id.strip()
     )
-    for column_name in csv_column_headers:
-        # Check that 'term_name' and 'parent' are in the CSV.
-        if "term_name" not in csv_column_headers:
+
+    # Check that 'term_name' and 'parent' are in the CSV.
+    if "term_name" not in csv_column_headers:
+        message = (
+            'Required column "term_name" not found in vocabulary CSV file "'
+            + vocab_csv_file_path
+            + '".'
+        )
+        logging.error(message)
+        sys.exit("Error: " + message)
+    if "parent" not in csv_column_headers:
+        message = (
+            'Required column "parent" not found in vocabulary CSV file "'
+            + vocab_csv_file_path
+            + '".'
+        )
+        logging.error(message)
+        sys.exit("Error: " + message)
+    # Then vocabulary fields that are defined as required.
+    field_definition_fieldnames = field_definitions.keys()
+    for field in field_definition_fieldnames:
+        if (
+            field_definitions[field]["required"] is True
+            and field not in csv_data.fieldnames
+        ):
             message = (
-                'Required column "term_name" not found in vocabulary CSV file "'
+                'Required column "'
+                + field
+                + '" not found in vocabulary CSV file "'
                 + vocab_csv_file_path
                 + '".'
             )
             logging.error(message)
             sys.exit("Error: " + message)
-        if "parent" not in csv_column_headers:
-            message = (
-                'Required column "parent" not found in vocabulary CSV file "'
-                + vocab_csv_file_path
-                + '".'
-            )
-            logging.error(message)
-            sys.exit("Error: " + message)
-        # Then vocabulary fields that are defined as required.
-        field_definition_fieldnames = field_definitions.keys()
-        for field in field_definition_fieldnames:
-            if (
-                field_definitions[field]["required"] is True
-                and field not in csv_data.fieldnames
-            ):
-                message = (
-                    'Required column "'
-                    + field
-                    + '" not found in vocabulary CSV file "'
-                    + vocab_csv_file_path
-                    + '".'
-                )
-                logging.error(message)
-                sys.exit("Error: " + message)
 
     # Check whether remaining fields in the vocabulary CSV are fields defined in the current vocabulary.
     if "field_name" in csv_column_headers:
@@ -8807,15 +8917,23 @@ def validate_vocabulary_fields_in_csv(config, vocabulary_id, vocab_csv_file_path
             sys.exit("Error: " + message)
 
 
-def validate_typed_relation_field_values(config, field_definitions, csv_data):
+def validate_typed_relation_field_values(
+    config: dict, field_definitions: dict, csv_data: DictReader
+) -> Union[bool, None]:
     """Validate values in fields that are of type 'typed_relation'. Each CSV
     value must have this pattern: "string:string:int" or "string:string:string".
     If the last segment is a string, it must be term name, a namespaced term name,
     or an http URI.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_data: DictReader - The CSV data.
+    :return: Union[bool, None] - Returns None if no typed relation fields are present; otherwise returns False.
     """
     # Define a list to store CSV field names that contain vocabularies.
     fields_with_vocabularies = list()
     # Get all the term IDs for vocabularies referenced in all fields in the CSV.
+    # TODO: vocab_validation_issues is set here and then used at the bottom but never changed, could just return False
     vocab_validation_issues = False
     for column_name in csv_data.fieldnames:
         if column_name in field_definitions:
@@ -8841,7 +8959,7 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
 
     # If none of the CSV fields are taxonomy reference fields, return.
     if len(fields_with_vocabularies) == 0:
-        return
+        return None
 
     typed_relation_fields_present = False
     new_term_names_in_csv_results = []
@@ -8957,8 +9075,23 @@ def validate_typed_relation_field_values(config, field_definitions, csv_data):
 
 
 def validate_taxonomy_reference_value(
-    config, field_definitions, csv_field_name, csv_field_value, row_id
-):
+    config: dict,
+    field_definitions: dict,
+    csv_field_name: str,
+    csv_field_value: str,
+    row_id: Union[int, str],
+) -> Union[bool, None]:
+    """Validate that the value(s) in 'csv_field_value' exist in the vocabularies
+    referenced by the field 'csv_field_name'.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_definitions: dict - The dictionary of field definitions.
+    :param csv_field_name: str - The name of the CSV field to validate.
+    :param csv_field_value: str - The value from the CSV field to validate.
+    :param row_id: Union[int, str] - The ID of the current row.
+    :return: Union[bool, None] - Returns None if no taxonomy reference fields, True if new term names are present; otherwise False.
+    """
+
     this_fields_vocabularies = get_field_vocabularies(
         config, field_definitions, csv_field_name
     )
@@ -9269,16 +9402,17 @@ def validate_taxonomy_reference_value(
     return new_term_names_in_csv
 
 
-def write_to_output_csv(config, id, node_json, input_csv_row=None):
+def write_to_output_csv(
+    config: dict, row_id: str, node_json: str, input_csv_row: dict = None
+):
     """Appends a row to the CSV file located at config['output_csv'].
     If config['output_csv_include_input_csv'] is true, includes values
     from the input CSV.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
-        id : str
+        row_id : str
             The value of the CSV row's ID field.
         node_json : str
             The JSON representation of the node just created, provided by Drupal.
@@ -9357,6 +9491,8 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     writer = csv.DictWriter(csvfile, fieldnames=node_field_names, lineterminator="\n")
 
     # Check for presence of header row, don't add it if it's already there.
+    # TODO: This is not a multithreaded application, so if the file doesn't exist yet there is no header. Could we just
+    #   just check existence before opening it and use that to determine printing the header?
     with open(config["output_csv"]) as f:
         first_line = f.readline()
     if not first_line.startswith(config["id_field"]):
@@ -9364,7 +9500,7 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
 
     # Assemble the CSV record to write.
     row = dict()
-    row[config["id_field"]] = id
+    row[config["id_field"]] = row_id
     row["node_id"] = node_dict["nid"][0]["value"]
     row["uuid"] = node_dict["uuid"][0]["value"]
     row["title"] = node_dict["title"][0]["value"]
@@ -9396,9 +9532,9 @@ def write_to_output_csv(config, id, node_json, input_csv_row=None):
     csvfile.close()
 
 
-def get_sequence_indicator_from_filename(config, file_name):
-    """Extracts the last segment of a page filename like some-ID-003.jpg."""
-    """Parameters
+def get_sequence_indicator_from_filename(config: dict, file_name: str) -> str:
+    """Extracts the last segment of a page filename like some-ID-003.jpg.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -9417,7 +9553,9 @@ def get_sequence_indicator_from_filename(config, file_name):
     return str(weight)
 
 
-def create_children_from_directory(config, parent_csv_record, parent_node_id):
+def create_children_from_directory(
+    config: dict, parent_csv_record: dict, parent_node_id: str
+):
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     prepare_csv_id_to_node_id_map(config)
 
@@ -9540,13 +9678,17 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
         )
         if "field_model" in entity_fields:
             if not value_is_numeric(
-                config["paged_content_page_model_tid"].strip()
-            ) and config["paged_content_page_model_tid"].strip().startswith("http"):
+                str(config["paged_content_page_model_tid"]).strip()
+            ) and str(config["paged_content_page_model_tid"]).strip().startswith(
+                "http"
+            ):
                 paged_content_model_tid = get_term_id_from_uri(
-                    config, config["paged_content_page_model_tid"].strip()
+                    config, str(config["paged_content_page_model_tid"]).strip()
                 )
             else:
-                paged_content_model_tid = config["paged_content_page_model_tid"].strip()
+                paged_content_model_tid = str(
+                    config["paged_content_page_model_tid"]
+                ).strip()
             node_json["field_model"] = [
                 {"target_id": paged_content_model_tid, "target_type": "taxonomy_term"}
             ]
@@ -9566,8 +9708,6 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                 page_viewer_override_tid = page_viewer_override_tid_info["term_id"]
             elif (
                 value_is_numeric(config["paged_content_page_viewer_override"]) is False
-                and config["paged_content_page_viewer_override"].startswith("http")
-                is False
             ):
                 page_viewer_override_tid_info = get_all_representations_of_term(
                     config,
@@ -9589,17 +9729,14 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                     "target_type": "taxonomy_term",
                 }
             ]
-        if (
-            viewer_override_fieldname in parent_csv_record
-            and "paged_content_page_viewer_override" not in config
-        ):
+        elif viewer_override_fieldname in parent_csv_record:
             node_json[viewer_override_fieldname] = [
                 {
                     "target_id": parent_csv_record["field_viewer_override"],
                     "target_type": "taxonomy_term",
                 }
             ]
-        if (
+        elif (
             viewer_override_fieldname not in parent_csv_record
             and "paged_content_page_viewer_override" in config
         ):
@@ -9684,7 +9821,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
             fake_csv_record["file"] = page_file_path
             fake_csv_record[config["id_field"]] = parent_csv_record[config["id_field"]]
             media_response_status_code = create_media(
-                config, page_file_path, "file", node_nid, fake_csv_record
+                config, page_file_path, "file", str(node_nid), fake_csv_record
             )
             allowed_media_response_codes = [201, 204]
             if media_response_status_code in allowed_media_response_codes:
@@ -9702,7 +9839,10 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                     logging.info("Media for %s created.", page_file_path)
                     print(f"+ Media for {page_file_path} created.")
 
-            if config["paged_content_from_directories"] is True:
+            if (
+                config["paged_content_from_directories"] is True
+                or config["paged_content_from_directories_parents_exist"] is True
+            ):
                 if "paged_content_additional_page_media" in config:
                     for extension_mapping in config[
                         "paged_content_additional_page_media"
@@ -9732,7 +9872,7 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                                     config,
                                     additional_page_media_file_path,
                                     None,
-                                    node_nid,
+                                    str(node_nid),
                                     fake_csv_record,
                                     media_use_tid=additional_page_media_use_tid,
                                 )
@@ -9806,7 +9946,12 @@ def create_children_from_directory(config, parent_csv_record, parent_node_id):
                     )
 
 
-def get_rollback_csv_filepath(config):
+def get_rollback_csv_filepath(config: dict) -> str:
+    """Get the path to the rollback CSV file based on config settings.
+    Parameters
+    :param config: dict - The configuration settings defined by workbench_config.get_config().
+    :return: str - The absolute path to the rollback CSV file.
+    """
     if "rollback_csv_filename_template" in config:
         config_filename, task_config_ext = os.path.splitext(config["config_file"])
         input_csv_filename, input_csv_ext = os.path.splitext(config["input_csv"])
@@ -9895,7 +10040,12 @@ def get_rollback_csv_filepath(config):
         )
 
 
-def get_rollback_config_filepath(config):
+def get_rollback_config_filepath(config: dict) -> str:
+    """Get the path to the rollback configuration file based on config settings.
+    Parameters
+    :param config: dict - The configuration settings defined by workbench_config.get_config().
+    :return: str - The absolute path to the rollback configuration file.
+    """
     if "rollback_config_filename_template" in config:
         config_filename, task_config_ext = os.path.splitext(config["config_file"])
         input_csv_filename, input_csv_ext = os.path.splitext(config["input_csv"])
@@ -9992,7 +10142,12 @@ def get_rollback_config_filepath(config):
     return rollback_config_filepath
 
 
-def write_rollback_config(config, path_to_rollback_csv_file):
+def write_rollback_config(config: dict, path_to_rollback_csv_file: str):
+    """Writes a rollback configuration file to disk.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param path_to_rollback_csv_file: str - The path to the rollback CSV file.
+    """
     rollback_config_filename = get_rollback_config_filepath(config)
 
     logging.info(f"Writing rollback configuration file to {rollback_config_filename}.")
@@ -10011,6 +10166,7 @@ def write_rollback_config(config, path_to_rollback_csv_file):
             "host": config["host"],
             "username": config["username"],
             "password": password,
+            "use_workbench_permissions": config["use_workbench_permissions"],
             "input_dir": config["input_dir"],
             "standalone_media_url": config["standalone_media_url"],
             "secure_ssl_only": config["secure_ssl_only"],
@@ -10020,21 +10176,25 @@ def write_rollback_config(config, path_to_rollback_csv_file):
     )
 
 
-def prep_rollback_csv(config, path_to_rollback_csv_file):
+def prep_rollback_csv(config: dict, path_to_rollback_csv_file: str):
+    """Prepares the rollback CSV file by creating it and writing the header row.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param path_to_rollback_csv_file: str - The path to the rollback CSV file.
+    """
     try:
         if os.path.exists(path_to_rollback_csv_file):
             os.remove(path_to_rollback_csv_file)
-        rollback_csv_file = open(path_to_rollback_csv_file, "a+")
-        if config["rollback_file_include_node_info"] is False:
-            rollback_csv_file.write("node_id" + "\n")
-        else:
-            rollback_csv_file.write(
-                f"node_id,{config['id_field']},title,field_member_of,file" + "\n"
-            )
-        rollback_csv_comments = get_rollback_config_comments(config)
-        rollback_csv_file.write(rollback_csv_comments)
-        rollback_csv_file.close()
-    except Exception as e:
+        with open(path_to_rollback_csv_file, "a+") as rollback_csv_file:
+            if config["rollback_file_include_node_info"] is False:
+                rollback_csv_file.write("node_id" + "\n")
+            else:
+                rollback_csv_file.write(
+                    f"node_id,{config['id_field']},title,field_member_of,file" + "\n"
+                )
+            rollback_csv_comments = get_rollback_config_comments(config)
+            rollback_csv_file.write(rollback_csv_comments)
+    except Exception:
         message = (
             "Workbench was unable save rollback CSV to "
             + path_to_rollback_csv_file
@@ -10045,16 +10205,16 @@ def prep_rollback_csv(config, path_to_rollback_csv_file):
 
 
 def write_rollback_node_id(
-    config,
-    node_id,
-    id,
-    node_title,
-    node_file_path,
-    member_of,
-    path_to_rollback_csv_file,
+    config: dict,
+    node_id: str,
+    id: str,
+    node_title: str,
+    node_file_path: str,
+    member_of: str,
+    path_to_rollback_csv_file: str,
 ):
-    """Appends a row to the CSV file located at path_to_rollback_csv_file."""
-    """Parameters
+    """Appends a row to the CSV file located at path_to_rollback_csv_file.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10076,38 +10236,42 @@ def write_rollback_node_id(
         -------
         None
     """
+    # TODO: In prep_rollback_csv_file() and even here you have an argument for the path, but you override it here?
     path_to_rollback_csv_file = get_rollback_csv_filepath(config)
     if config["rollback_file_include_node_info"] is False:
-        rollback_csv_file = open(path_to_rollback_csv_file, "a+")
-        rollback_csv_file.write(str(node_id) + "\n")
+        with open(path_to_rollback_csv_file, "a+") as rollback_csv_file:
+            rollback_csv_file.write(str(node_id) + "\n")
     else:
-        rollback_csv_file = open(
+        with open(
             path_to_rollback_csv_file, "a+", newline="", encoding="utf-8"
-        )
-        rollback_csv_writer = csv.DictWriter(
-            rollback_csv_file,
-            fieldnames=[
-                "node_id",
-                config["id_field"],
-                "title",
-                "field_member_of",
-                "file",
-            ],
-        )
-        rollback_csv_writer.writerow(
-            {
-                "node_id": node_id,
-                config["id_field"]: id,
-                "title": node_title,
-                "field_member_of": member_of,
-                "file": node_file_path,
-            }
-        )
-
-    rollback_csv_file.close()
+        ) as rollback_csv_file:
+            rollback_csv_writer = csv.DictWriter(
+                rollback_csv_file,
+                fieldnames=[
+                    "node_id",
+                    config["id_field"],
+                    "title",
+                    "field_member_of",
+                    "file",
+                ],
+            )
+            rollback_csv_writer.writerow(
+                {
+                    "node_id": node_id,
+                    config["id_field"]: id,
+                    "title": node_title,
+                    "field_member_of": member_of,
+                    "file": node_file_path,
+                }
+            )
 
 
-def get_rollback_config_comments(config):
+def get_rollback_config_comments(config: dict) -> str:
+    """Generates comments to add to the top of the rollback configuration file.
+    Parameters
+    :param config: dict - The configuration settings as defined by WorkbenchConfig.get_config().
+    :return: str - The comments to add to the top of the rollback configuration file.
+    """
     comments = list()
     task = config["task"]
     config_file = config["config_file"]
@@ -10126,7 +10290,11 @@ def get_rollback_config_comments(config):
     return "\n# ".join(comments) + "\n"
 
 
-def get_csv_from_google_sheet(config):
+def get_csv_from_google_sheet(config: dict) -> None:
+    """Read the input Google Sheet as a Google Sheet URL and write it out as CSV.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    """
     url_parts = config["input_csv"].split("/")
     url_parts[6] = "export?gid=" + str(config["google_sheets_gid"]) + "&format=csv"
     csv_url = "/".join(url_parts)
@@ -10153,7 +10321,6 @@ def get_csv_from_google_sheet(config):
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        config_file_id = get_config_file_identifier(config)
         if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
             config_file_id = get_config_file_identifier(config)
             exported_csv_path = os.path.join(
@@ -10172,8 +10339,11 @@ def get_csv_from_google_sheet(config):
     open(exported_csv_path, "wb+").write(response.content)
 
 
-def get_csv_from_excel(config):
-    """Read the input Excel 2010 (or later) file and write it out as CSV."""
+def get_csv_from_excel(config: dict) -> None:
+    """Read the input Excel 2010 (or later) file and write it out as CSV.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    """
     if os.path.isabs(config["input_csv"]):
         input_excel_path = config["input_csv"]
     else:
@@ -10184,7 +10354,6 @@ def get_csv_from_excel(config):
         logging.error(message)
         sys.exit(message)
 
-    excel_file_path = config["input_csv"]
     wb = openpyxl.load_workbook(filename=input_excel_path)
     ws = wb[config["excel_worksheet"]]
 
@@ -10204,7 +10373,6 @@ def get_csv_from_excel(config):
 
     if os.environ.get("ISLANDORA_WORKBENCH_SECONDARY_TASKS") is not None:
         secondary_tasks = json.loads(os.environ["ISLANDORA_WORKBENCH_SECONDARY_TASKS"])
-        config_file_id = get_config_file_identifier(config)
         if os.path.abspath(config["current_config_file_path"]) in secondary_tasks:
             config_file_id = get_config_file_identifier(config)
             exported_csv_path = os.path.join(
@@ -10219,22 +10387,22 @@ def get_csv_from_excel(config):
             config["temp_dir"], config["excel_csv_filename"]
         )
 
-    csv_writer_file_handle = open(exported_csv_path, "w+", newline="", encoding="utf-8")
-    csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
-    csv_writer.writeheader()
-    for record in records:
-        if (config["id_field"] in record or "node_id" in record) and record[
-            config["id_field"]
-        ] is not None:
-            csv_writer.writerow(record)
-    csv_writer_file_handle.close()
+    with open(
+        exported_csv_path, "w+", newline="", encoding="utf-8"
+    ) as csv_writer_file_handle:
+        csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=headers)
+        csv_writer.writeheader()
+        for record in records:
+            if (config["id_field"] in record or "node_id" in record) and record[
+                config["id_field"]
+            ] is not None:
+                csv_writer.writerow(record)
 
 
-def get_extracted_csv_file_path(config):
+def get_extracted_csv_file_path(config: dict) -> Union[bool, str]:
     """For secondary tasks were input is either a Google Sheet or an Excel file,
     get the path to the extracted CSV.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10260,13 +10428,12 @@ def get_extracted_csv_file_path(config):
     return os.path.join(config["temp_dir"], exported_csv_filename)
 
 
-def get_extension_from_mimetype(config, mimetype):
+def get_extension_from_mimetype(config: dict, mimetype: str) -> Union[bool, str]:
     """For a given MIME type, return the corresponding file extension. mimetypes.add_type()
     is not working, e.g. mimetypes.add_type('image/jpeg', '.jpg'). Maybe related to
      https://bugs.python.org/issue4963? In the meantime, provide our own MIMETYPE to extension
      mapping for common types, then let mimetypes guess at others.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10298,12 +10465,12 @@ def get_extension_from_mimetype(config, mimetype):
     else:
         return mimetypes.guess_extension(mimetype)
 
-    return None
 
-
-def get_mimetype_from_extension(config, file_path, lazy=False):
-    """For a given file path, return the corresponding MIME type."""
-    """Parameters
+def get_mimetype_from_extension(
+    config: dict, file_path: str, lazy: bool = False
+) -> Union[str, None]:
+    """For a given file path, return the corresponding MIME type.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10335,7 +10502,7 @@ def get_mimetype_from_extension(config, file_path, lazy=False):
         return None
 
     # A MIME type used in Islandora but not recognized by Python's mimetypes library.
-    map = {"hocr": "text/vnd.hocr+html"}
+    mime_map = {"hocr": "text/vnd.hocr+html"}
 
     # Modify the map as per config.
     if (
@@ -10344,24 +10511,21 @@ def get_mimetype_from_extension(config, file_path, lazy=False):
     ):
         for extension, mtype in config["extensions_to_mimetypes"].items():
             extension = extension.lstrip(".").lower()
-            map[extension] = mtype
+            mime_map[extension] = mtype
 
-    if ext in map:
-        return map[ext]
+    if ext in mime_map:
+        return mime_map[ext]
     else:
         if lazy is False:
             return mimetypes.guess_type(filepath)[0]
         else:
             return "application/octet-stream"
 
-    return None
 
-
-def get_deduped_file_path(path):
+def get_deduped_file_path(path: str) -> str:
     """Given a file path, return a version of it that contains a version of
     the same name with an incremented integer inserted before the extension.
-    """
-    """Parameters
+    Parameters
         ----------
         path : string
             The file path we want to dedupe.
@@ -10385,13 +10549,12 @@ def get_deduped_file_path(path):
     return incremented_path
 
 
-def check_file_exists(config, filename):
-    """Cconfirms file exists and is a file (not a directory).
+def check_file_exists(config: dict, filename: str) -> bool:
+    """Confirms file exists and is a file (not a directory).
     For remote/downloaded files, checks for a 200 response from a HEAD request.
 
     Does not check whether filename value is blank.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10421,24 +10584,19 @@ def check_file_exists(config, filename):
                 return True
             else:
                 return False
-        except requests.exceptions.Timeout as err_timeout:
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+        ) as error:
             message = (
-                "Workbench timed out trying to reach "
-                + filename
-                + ". Details in next log entry."
+                "Workbench " + "timed out trying to reach "
+                if isinstance(error, requests.exceptions.Timeout)
+                else "cannot connect to " + filename + ". Details in next log entry."
             )
             logging.error(message)
-            logging.error(err_timeout)
+            logging.error(error)
             return False
-        except requests.exceptions.ConnectionError as error_connection:
-            message = (
-                "Workbench cannot connect to "
-                + filename
-                + ". Details in next log entry."
-            )
-            logging.error(message)
-            logging.error(error_connection)
-            return False
+
     # It's a local file.
     else:
         if os.path.isabs(filename):
@@ -10451,21 +10609,18 @@ def check_file_exists(config, filename):
         else:
             return False
 
-    # Fall back to False if existence of file can't be determined.
-    logging.warning(
-        f'Cannot determine if file "{filename}" exists, assuming it does not.'
-    )
-    return False
-
 
 def get_preprocessed_file_path(
-    config, file_fieldname, node_csv_row, node_id=None, make_dir=True
-):
+    config: dict,
+    file_fieldname: str,
+    node_csv_row: OrderedDict,
+    node_id: str = None,
+    make_dir: bool = True,
+) -> str:
     """For remote/downloaded files (other than from providers defined in config['oembed_providers]),
     generates the path to the local temporary copy and returns that path. For local files or oEmbed URLs,
     just returns the value of node_csv_row['file'].
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10500,7 +10655,6 @@ def get_preprocessed_file_path(
                 config["temp_dir"],
                 re.sub("[^A-Za-z0-9]+", "_", str(node_csv_row["node_id"])),
             )
-        # elif config["task"] == "update_media":
         elif config["task"] in ["update_media", "update_media_by_node"]:
             subdir = os.path.join(
                 config["temp_dir"],
@@ -10519,7 +10673,6 @@ def get_preprocessed_file_path(
                 os.rmdir(subdir)
             except Exception as e:
                 # This can happen if subdirectories from previous runs of Workbench exist.
-                message = f'Subdirectory "{subdir}" could not be deleted. See log for more info.'
                 logging.warning(f'Subdirectory "{subdir}" could not be deleted: {e}.')
 
         remote_extension_with_dot = get_remote_file_extension(
@@ -10597,9 +10750,11 @@ def get_preprocessed_file_path(
         return file_path
 
 
-def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
-    """Gets a list of media IDs for a node."""
-    """Parameters
+def get_node_media_ids(
+    config: dict, node_id: str, media_use_tids: list = None, media_type: str = None
+) -> Union[bool, list]:
+    """Gets a list of media IDs for a node.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10649,7 +10804,7 @@ def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
     url = f"{config['host']}/node/{node_id}/media?_format=json"
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
-        body = json.loads(response.text)
+        body = response.json()
         for media in body:
             if media_type is not None:
                 if media_type != media["bundle"][0]["target_id"]:
@@ -10668,7 +10823,9 @@ def get_node_media_ids(config, node_id, media_use_tids=None, media_type=None):
         return False
 
 
-def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
+def download_remote_file(
+    config: dict, url: str, file_fieldname: str, node_csv_row: OrderedDict, node_id: str
+):
     headers = {"User-Agent": config["user_agent"]}
 
     sections = urllib.parse.urlparse(url)
@@ -10688,28 +10845,21 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
                 headers=headers,
                 cookies=cookies,
             )
-    except requests.exceptions.Timeout as err_timeout:
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as error:
         message = (
-            "Workbench timed out trying to reach "
+            "Workbench "
+            + (
+                "timed out trying to reach "
+                if isinstance(error, requests.exceptions.Timeout)
+                else "cannot connect to "
+            )
             + sections.netloc
             + " while connecting to "
             + url
             + ". Please verify that URL and check your network connection."
         )
         logging.error(message)
-        logging.error(err_timeout)
-        print("Error: " + message)
-        return False
-    except requests.exceptions.ConnectionError as error_connection:
-        message = (
-            "Workbench cannot connect to "
-            + sections.netloc
-            + " while connecting to "
-            + url
-            + ". Please verify that URL and check your network connection."
-        )
-        logging.error(message)
-        logging.error(error_connection)
+        logging.error(error)
         print("Error: " + message)
         return False
 
@@ -10724,9 +10874,13 @@ def download_remote_file(config, url, file_fieldname, node_csv_row, node_id):
     return downloaded_file_path
 
 
-def get_remote_file_extension(config, file_url):
+def get_remote_file_extension(config: dict, file_url: str) -> str:
     """For remote files that have no extension, such as http://acme.com/islandora/object/some:pid/datastream/OBJ/download,
     assign an extension, with a leading dot. If the file has an extension, return it, also with dot.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param file_url: str - The URL of the remote file.
+    :return: str - The file extension, with a leading dot.
     """
     # If the file has an extension, just return it.
     extension = os.path.splitext(file_url)[1]
@@ -10772,13 +10926,12 @@ def get_remote_file_extension(config, file_url):
     return extension_with_dot
 
 
-def get_csv_id_to_node_id_map_allowed_hosts_sql(config):
+def get_csv_id_to_node_id_map_allowed_hosts_sql(config: dict) -> str:
     """Derive a query snippet for SQL SELECT queries from values in the "csv_id_to_node_id_map_allowed_hosts" config
     setting. This snippet is inserted into queries against the CSV ID to node ID map to limit results to rows that
     have the one of the hosts named in "csv_id_to_node_id_map_allowed_hosts" in their "host" column. This snippet is
     intended to be located in the middle of the query, specifically, it ends in "and".
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10792,7 +10945,7 @@ def get_csv_id_to_node_id_map_allowed_hosts_sql(config):
     allowed_hosts = copy.copy(config["csv_id_to_node_id_map_allowed_hosts"])
     if len(config["csv_id_to_node_id_map_allowed_hosts"]) > 0:
         # Since the user needs to add the current host to this list, we need to make sure it doesn't
-        # contain any trailing / or path information. Assums the protocol (e.g. https) is the same.
+        # contain any trailing / or path information. Assumes the protocol (e.g. https) is the same.
         for i in range(len(allowed_hosts)):
             if allowed_hosts[i].startswith(config["host"]):
                 allowed_hosts[i] = config["host"]
@@ -10810,9 +10963,9 @@ def get_csv_id_to_node_id_map_allowed_hosts_sql(config):
     return sql_snippet
 
 
-def get_field_viewer_override_from_condition(config, row):
-    """Derive value for the field_viewer_override CSV column based on conditions defined in configuration."""
-    """Parameters
+def get_field_viewer_override_from_condition(config: dict, row: OrderedDict) -> str:
+    """Derive value for the field_viewer_override CSV column based on conditions defined in configuration.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -10821,7 +10974,7 @@ def get_field_viewer_override_from_condition(config, row):
             is a version of the parent's row so we can get $csv_value values for non-required fields.
         Returns
         -------
-        The term ID, term name, or ther URI for the term from the Islandora Display vocabulary (whatever was
+        The term ID, term name, or the URI for the term from the Islandora Display vocabulary (whatever was
         used in the configuration setting).
     """
     # If the field_viewer_override column is populated, don't change it.
@@ -10869,8 +11022,16 @@ def get_field_viewer_override_from_condition(config, row):
     return return_value
 
 
-def get_media_list(config, node_id, media_list=None):
-    """Retrieve media list for a node if not provided."""
+def get_media_list(
+    config: dict, node_id: str, media_list: list = None
+) -> Union[None, list]:
+    """Retrieve media list for a node if not provided.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param node_id: str - The node ID to get media for.
+    :param media_list: list|None - An optional pre-fetched media list.
+    :return: list|None - The media list, or None on failure.
+    """
     if media_list is not None:
         return media_list
     media_list_url = f"{config['host']}/node/{node_id}/media?_format=json"
@@ -10881,14 +11042,22 @@ def get_media_list(config, node_id, media_list=None):
         )
         return None
     try:
-        return json.loads(response.text)
-    except json.decoder.JSONDecodeError as e:
+        return response.json()
+    except requests.exceptions.JSONDecodeError as e:
         logging.error(f"Media query for node {node_id} failed: {e}")
         return None
 
 
-def resolve_media_use_term_id(config, media_use_term_id, node_id):
-    """Resolve media use term ID from URI or configuration."""
+def resolve_media_use_term_id(
+    config: dict, media_use_term_id: Union[str, None], node_id: str
+) -> Union[None, str]:
+    """Resolve media use term ID from URI or configuration.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_use_term_id: str|None - The media use term ID or URI.
+    :param node_id: str - The node ID for logging purposes.
+    :return: str|None - The resolved term ID, or None on failure.
+    """
     if media_use_term_id is None:
         media_use_term_id = config.get("export_file_media_use_term_id")
         if media_use_term_id is None:
@@ -10898,7 +11067,7 @@ def resolve_media_use_term_id(config, media_use_term_id, node_id):
             return None
     if isinstance(media_use_term_id, str) and media_use_term_id.startswith("http"):
         term_id = get_term_id_from_uri(config, media_use_term_id)
-        if term_id is None:
+        if term_id is False:
             logging.error(
                 f"Failed to convert URI {media_use_term_id} to term ID for node {node_id}."
             )
@@ -10907,8 +11076,17 @@ def resolve_media_use_term_id(config, media_use_term_id, node_id):
     return media_use_term_id
 
 
-def find_file_url_in_media(config, media_list, media_use_term_id, node_id):
-    """Find the file URL in media entries matching the use term."""
+def find_file_url_in_media(
+    config: dict, media_list: list, media_use_term_id: str, node_id: str
+) -> Union[None, str]:
+    """Find the file URL in media entries matching the use term.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param media_list: list - The list of media entries.
+    :param media_use_term_id: str - The media use term ID to match.
+    :param node_id: str - The node ID for logging purposes.
+    :return: str|None - The file URL, or None if not found.
+    """
     for media in media_list:
         for file_field in file_fields:
             if file_field in media:
@@ -10926,8 +11104,20 @@ def find_file_url_in_media(config, media_list, media_use_term_id, node_id):
     return None
 
 
-def get_media_file_url(config, node_id, media_use_term_id=None, media_list=None):
-    """Retrieve and validate the URL of a media file from Drupal."""
+def get_media_file_url(
+    config: dict,
+    node_id: str,
+    media_use_term_id: Optional[str] = None,
+    media_list: Optional[list] = None,
+) -> Union[bool, str]:
+    """Retrieve and validate the URL of a media file from Drupal.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param node_id: str - The node ID to get the media file URL for.
+    :param media_use_term_id: str|None - The media use term ID or URI
+    :param media_list: list|None - An optional pre-fetched media list.
+    :return: str|bool - The validated file URL, or False on failure.
+    """
     media_list = get_media_list(config, node_id, media_list)
     if media_list is None:
         return False
@@ -10960,8 +11150,20 @@ def get_media_file_url(config, node_id, media_use_term_id=None, media_list=None)
     return file_url
 
 
-def download_file_from_drupal(config, node_id, media_use_term_id=None, media_list=None):
-    """Download a media file from Drupal."""
+def download_file_from_drupal(
+    config: dict,
+    node_id: str,
+    media_use_term_id: Optional[str] = None,
+    media_list: Optional[list] = None,
+) -> Union[bool, str]:
+    """Download a media file from Drupal.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param node_id: str - The node ID to download the media file for.
+    :param media_use_term_id: str|None - The media use term ID or URI
+    :param media_list: list|None - An optional pre-fetched media list.
+    :return: str|bool - The path to the downloaded file, or False on failure
+    """
     if config.get("export_file_directory") is None:
         logging.error("export_file_directory is not configured")
         return False
@@ -11003,6 +11205,7 @@ def download_file_from_drupal(config, node_id, media_use_term_id=None, media_lis
                 verify=config["secure_ssl_only"],
             )
             if file_download_response.status_code == 200:
+                # TODO: Stream the download to avoid loading the entire file into memory.
                 f.write(file_download_response.content)
                 filename_for_logging = os.path.basename(downloaded_file_path)
                 logging.info(
@@ -11023,11 +11226,12 @@ def download_file_from_drupal(config, node_id, media_use_term_id=None, media_lis
         return False
 
 
-def get_file_hash_from_drupal(config, file_uuid, algorithm):
+def get_file_hash_from_drupal(
+    config: dict, file_uuid: str, algorithm: str
+) -> Union[bool, str]:
     """Query the Integration module's hash controller at '/islandora_workbench_integration/file_hash'
     to get the hash of the file identified by file_uuid.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11037,8 +11241,8 @@ def get_file_hash_from_drupal(config, file_uuid, algorithm):
             One of 'md5', 'sha1', or 'sha256'
         Returns
         -------
-        string
-            The requested hash.
+        string|bool
+            The requested hash or False on failure.
     """
     url = (
         config["host"]
@@ -11049,8 +11253,11 @@ def get_file_hash_from_drupal(config, file_uuid, algorithm):
     )
     response = issue_request(config, "GET", url)
     if response.status_code == 200:
-        response_body = json.loads(response.text)
-        return response_body[0]["checksum"]
+        try:
+            response_body = response.json()
+            return response_body[0]["checksum"]
+        except requests.exceptions.JSONDecodeError as e:
+            logging.warning("Unable to decode JSON response: %s", e)
     else:
         logging.warning(
             "Request to get %s hash for file %s returned a %s status code",
@@ -11061,9 +11268,11 @@ def get_file_hash_from_drupal(config, file_uuid, algorithm):
         return False
 
 
-def get_file_hash_from_local(config, file_path, algorithm):
-    """Get the file's hash/checksum."""
-    """Parameters
+def get_file_hash_from_local(
+    config: dict, file_path: str, algorithm: str
+) -> Union[bool, str]:
+    """Get the file's hash/checksum.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11097,7 +11306,11 @@ def get_file_hash_from_local(config, file_path, algorithm):
         return False
 
 
-def create_temp_dir(config):
+def create_temp_dir(config: dict):
+    """Creates the temporary directory if it doesn't already exist.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    """
     if os.path.exists(config["temp_dir"]):
         temp_dir_exists_message = "already exists"
         make_temp_dir = False
@@ -11118,20 +11331,21 @@ def create_temp_dir(config):
         Path(config["temp_dir"]).mkdir(exist_ok=True)
 
 
-def check_csv_file_exists(config, csv_file_target, file_path=None):
-    """Confirms a CSV file exists."""
-    """Parameters
-        ----------
-        config : dict
-            The configuration settings defined by workbench_config.get_config().
-        csv_file_target: string
-            Either 'node_fields' or 'taxonomy_fields'.
-        file_path: string
-            The path to the file to check (applies only to vocabulary CSVs).
-        Returns
-        -------
-        string
-            The absolute file path to the CSV file.
+def check_csv_file_exists(
+    config: dict, csv_file_target: str, file_path: str = None
+) -> str:
+    """Confirms a CSV file exists.Parameters
+    ----------
+    config : dict
+        The configuration settings defined by workbench_config.get_config().
+    csv_file_target: string
+        Either 'node_fields' or 'taxonomy_fields'.
+    file_path: string
+        The path to the file to check (applies only to vocabulary CSVs).
+    Returns
+    -------
+    string
+        The absolute file path to the CSV file.
     """
     if csv_file_target == "node_fields":
         if os.path.isabs(config["input_csv"]):
@@ -11173,7 +11387,7 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             message = "CSV file " + input_csv + " not found."
             logging.error(message)
             sys.exit("Error: " + message)
-    if csv_file_target == "taxonomy_fields":
+    elif csv_file_target == "taxonomy_fields":
         # For Google Sheets and Excel, the "extraction" is fired in workbench.
         if os.path.isabs(file_path):
             input_csv = file_path
@@ -11191,7 +11405,12 @@ def check_csv_file_exists(config, csv_file_target, file_path=None):
             sys.exit("Error: " + message)
 
 
-def get_csv_template(config, args):
+def get_csv_template(config: dict, args: Namespace):
+    """Generates a CSV file template for node import based on field definitions.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param args: Namespace - The command-line arguments passed to Workbench.
+    """
     field_definitions = get_field_definitions(config, "node")
 
     field_labels = collections.OrderedDict()
@@ -11316,9 +11535,9 @@ def get_csv_template(config, args):
     sys.exit()
 
 
-def get_page_title_from_template(config, parent_title, weight):
-    """Generates a page title from a simple template."""
-    """Parameters
+def get_page_title_from_template(config: dict, parent_title: str, weight: str) -> str:
+    """Generates a page title from a simple template.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11338,12 +11557,13 @@ def get_page_title_from_template(config, parent_title, weight):
     return page_title
 
 
-def apply_csv_value_templates(config, template_config_setting, row):
+def apply_csv_value_templates(
+    config: dict, template_config_setting: str, row: OrderedDict
+) -> OrderedDict:
     """Applies templates to values in a CSV row. Template variables available are: $csv_value, $file,
     $filename_without_extension, $weight, $random_alphanumeric_string, $random_number_string, and
     $uuid_string.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11463,9 +11683,11 @@ def apply_csv_value_templates(config, template_config_setting, row):
     return row
 
 
-def serialize_field_json(config, field_definitions, field_name, field_data):
-    """Serializes JSON from a Drupal field into a string consistent with Workbench's CSV-field input format."""
-    """Parameters
+def serialize_field_json(
+    config: dict, field_definitions: dict, field_name: str, field_data: str
+) -> str:
+    """Serializes JSON from a Drupal field into a string consistent with Workbench's CSV-field input format.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11497,9 +11719,12 @@ def serialize_field_json(config, field_definitions, field_name, field_data):
     return csv_field_data
 
 
-def csv_subset_warning(config):
+def csv_subset_warning(config: dict) -> None:
     """Create a message indicating that a subset of the input CSV data will be used,
-    specific to the current configuration settings."""
+    specific to the current configuration settings.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    """
 
     preprocessed_input_csv_file_path = get_preprocessed_input_csv_file_path(config)
     review_message = f'You should review "{preprocessed_input_csv_file_path}" to ensure the correct rows will be processed.'
@@ -11507,7 +11732,7 @@ def csv_subset_warning(config):
     if "csv_row_filters" in config and len(config["csv_row_filters"]) > 0:
         message = f'Using a subset of input CSV defined in your "csv_row_filters" setting. {review_message}'
         logging.info(message)
-        return
+        return None
 
     if "csv_rows_to_process" in config:
         if len(config["csv_rows_to_process"]) > 0 and isinstance(
@@ -11523,7 +11748,7 @@ def csv_subset_warning(config):
                 )
                 print(message)
                 logging.info(message)
-                return
+                return None
             else:
                 message = f'File identified in the "csv_rows_to_process" config setting ({path_to_ids_file}) cannot be found.'
                 logging.error(message)
@@ -11535,7 +11760,7 @@ def csv_subset_warning(config):
             message = f'Using a subset of input CSV defined in your "csv_rows_to_process" setting. {review_message}'
             print(message)
             logging.info(message)
-            return
+            return None
 
     if config["csv_start_row"] != 0 or config["csv_stop_row"] is not None:
         csv_data = list(get_csv_data(config))
@@ -11549,12 +11774,12 @@ def csv_subset_warning(config):
             message = f"Using a subset of the input CSV (will stop at row {config['csv_stop_row']} / row ID {stop_row_id})."
         print(message)
         logging.info(message)
-        return
+    return None
 
 
-def get_entity_reference_view_endpoints(config):
-    """Gets entity reference View endpoints from config."""
-    """Parameters
+def get_entity_reference_view_endpoints(config: dict) -> dict:
+    """Gets entity reference View endpoints from config.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11574,9 +11799,9 @@ def get_entity_reference_view_endpoints(config):
     return endpoint_mappings
 
 
-def get_node_exists_verification_view_endpoint(config):
-    """Gets from conifig the View endpoints and CSV field to match to determine if a matching node already exists."""
-    """Parameters
+def get_node_exists_verification_view_endpoint(config: dict) -> Union[tuple, bool]:
+    """Gets from config the View endpoints and CSV field to match to determine if a matching node already exists.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11597,13 +11822,19 @@ def get_node_exists_verification_view_endpoint(config):
         return False
 
 
-def get_percentage(part, whole):
+def get_percentage(part: Union[int, str, float], whole: Union[int, str, float]):
+    """Calculates percentage of 'part' out of 'whole'.
+    Parameters
+    :param part: int|str|float - The part value.
+    :param whole: int|str|float - The whole value.
+    :return: float - The percentage value.
+    """
     return 100 * float(part) / float(whole)
 
 
-def get_config_file_identifier(config):
-    """Gets a unique identifier of the current config file. Used in names of temp files, etc."""
-    """Parameters
+def get_config_file_identifier(config: dict) -> str:
+    """Gets a unique identifier of the current config file. Used in names of temp files, etc.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11621,7 +11852,7 @@ def get_config_file_identifier(config):
     return config_file_id
 
 
-def calculate_response_time_trend(config, response_time):
+def calculate_response_time_trend(config: dict, response_time: int) -> Optional[float]:
     """Gets the average response time from the most recent 20 HTTP requests."""
     """Parameters
         ----------
@@ -11631,7 +11862,7 @@ def calculate_response_time_trend(config, response_time):
             The string to test.
         Returns
         -------
-        int|None
+        float|None
             The average response time of the most recent 20 requests.
     """
     http_response_times.append(response_time)
@@ -11644,13 +11875,14 @@ def calculate_response_time_trend(config, response_time):
     if len(sample) > 0:
         average = sum(sample) / len(sample)
         return average
+    return None
 
 
-def string_is_ascii(input):
-    """Check if a string contains only ASCII characters."""
-    """Parameters
+def string_is_ascii(input_string: str) -> bool:
+    """Check if a string contains only ASCII characters.
+    Parameters
         ----------
-        input : str
+        input_string : str
             The string to test.
         Returns
         -------
@@ -11658,12 +11890,12 @@ def string_is_ascii(input):
             True if all characters are within the ASCII character set,
             False otherwise.
     """
-    return all(ord(c) < 128 for c in input)
+    return all(ord(c) < 128 for c in input_string)
 
 
-def file_is_utf8(file_path):
-    """Check if a file is encoded as UTF-8, or backward-compatible encodings such as ASCII. BOM is ignored."""
-    """Parameters
+def file_is_utf8(file_path: str) -> bool:
+    """Check if a file is encoded as UTF-8, or backward-compatible encodings such as ASCII. BOM is ignored.
+    Parameters
         ----------
         file_path : str
             The absolute or relative path to the file.
@@ -11687,7 +11919,12 @@ def file_is_utf8(file_path):
         return False
 
 
-def quick_delete_node(config, args):
+def quick_delete_node(config: dict, args: Namespace):
+    """Delete a node quickly by its node ID or URL alias.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param args: Namespace - The command-line arguments passed to Workbench.
+    """
     logging.info("--quick_delete_node task started for " + args.quick_delete_node)
 
     if value_is_numeric(args.quick_delete_node) is True:
@@ -11716,60 +11953,71 @@ def quick_delete_node(config, args):
                     message + f" (HTTP response code was {response.status_code}.)"
                 )
                 sys.exit("Error: " + message)
-
-    entity = json.loads(response.text)
-    if "type" in entity:
-        if entity["type"][0]["target_type"] == "node_type":
-            # Delete the node's media first.
-            if config["delete_media_with_nodes"] is True:
-                media_endpoint = (
-                    config["host"] + "/node/" + str(node_id) + "/media?_format=json"
-                )
-                media_response = issue_request(config, "GET", media_endpoint)
-                media_response_body = json.loads(media_response.text)
-                media_messages = []
-                for media in media_response_body:
-                    if "mid" in media:
-                        media_id = media["mid"][0]["value"]
-                        media_delete_status_code = remove_media_and_file(
-                            config, media_id
-                        )
-                        if media_delete_status_code == 204:
-                            media_messages.append(
-                                "+ Media "
-                                + config["host"]
-                                + "/media/"
-                                + str(media_id)
-                                + " deleted."
+    try:
+        entity = response.json()
+        if "type" in entity:
+            if entity["type"][0]["target_type"] == "node_type":
+                # Delete the node's media first.
+                if config["delete_media_with_nodes"] is True:
+                    media_endpoint = (
+                        config["host"] + "/node/" + str(node_id) + "/media?_format=json"
+                    )
+                    media_response = issue_request(config, "GET", media_endpoint)
+                    media_response_body = json.loads(media_response.text)
+                    media_messages = []
+                    for media in media_response_body:
+                        if "mid" in media:
+                            media_id = media["mid"][0]["value"]
+                            media_delete_status_code = remove_media_and_file(
+                                config, media_id
                             )
+                            if media_delete_status_code == 204:
+                                media_messages.append(
+                                    "+ Media "
+                                    + config["host"]
+                                    + "/media/"
+                                    + str(media_id)
+                                    + " deleted."
+                                )
 
-            # Then the node.
-            node_endpoint = config["host"] + "/node/" + str(node_id) + "?_format=json"
-            node_response = issue_request(config, "DELETE", node_endpoint)
-            if node_response.status_code == 204:
-                if config["progress_bar"] is False:
-                    print("Node " + args.quick_delete_node + " deleted.")
-                logging.info("Node %s deleted.", args.quick_delete_node)
-            if (
-                config["delete_media_with_nodes"] is True
-                and config["progress_bar"] is False
-            ):
-                if len(media_messages):
-                    for media_message in media_messages:
-                        print(media_message)
+                # Then the node.
+                node_endpoint = (
+                    config["host"] + "/node/" + str(node_id) + "?_format=json"
+                )
+                node_response = issue_request(config, "DELETE", node_endpoint)
+                if node_response.status_code == 204:
+                    if config["progress_bar"] is False:
+                        print("Node " + args.quick_delete_node + " deleted.")
+                    logging.info("Node %s deleted.", args.quick_delete_node)
+                if (
+                    config["delete_media_with_nodes"] is True
+                    and config["progress_bar"] is False
+                ):
+                    if len(media_messages):
+                        for media_message in media_messages:
+                            print(media_message)
+            else:
+                message = f"{args.quick_delete_node} does not apear to be a node."
+                logging.error(message)
+                sys.exit("Error: " + message)
         else:
             message = f"{args.quick_delete_node} does not apear to be a node."
             logging.error(message)
             sys.exit("Error: " + message)
-    else:
-        message = f"{args.quick_delete_node} does not apear to be a node."
+    except requests.exceptions.JSONDecodeError:
+        message = f"Could not decode JSON response from {args.quick_delete_node}."
         logging.error(message)
         sys.exit("Error: " + message)
 
     sys.exit()
 
 
-def quick_delete_media(config, args):
+def quick_delete_media(config: dict, args: Namespace):
+    """Delete a media entity quickly by its media ID or URL alias.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param args: Namespace - The command-line arguments passed to Workbench.
+    """
     logging.info("--quick_delete_mediatask started for " + args.quick_delete_media)
 
     if config["standalone_media_url"] is False and not args.quick_delete_media.endswith(
@@ -11794,9 +12042,14 @@ def quick_delete_media(config, args):
         logging.error(message + f"HTTP response code was {ping_response.status_code}.")
         sys.exit("Error: " + message)
 
-    entity = json.loads(ping_response.text)
-    if "mid" not in entity:
-        message = f"{args.quick_delete_media} does not apear to be a media."
+    try:
+        entity = ping_response.json()
+        if "mid" not in entity:
+            message = f"{args.quick_delete_media} does not apear to be a media."
+            logging.error(message)
+            sys.exit("Error: " + message)
+    except requests.exceptions.JSONDecodeError:
+        message = f"Could not decode JSON response from {args.quick_delete_media}."
         logging.error(message)
         sys.exit("Error: " + message)
 
@@ -11814,11 +12067,10 @@ def quick_delete_media(config, args):
     sys.exit()
 
 
-def create_contact_sheet_thumbnail(config, source_filename):
+def create_contact_sheet_thumbnail(config: dict, source_filename: str) -> str:
     """Determines the thumbnail image to use for a given filename, and copies
     the image to the output directory.
-    """
-    """Parameters
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
@@ -11855,11 +12107,23 @@ def create_contact_sheet_thumbnail(config, source_filename):
             )
         return compound_icon_filename
 
-    # todo: get these from config['media_types']
     pdf_extensions = [".pdf"]
-    video_extensions = [".mp4", ".mov", ".avi"]
-    audio_extensions = [".mp3", ".wav", ".aac"]
-    image_extensions = [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".jp2"]
+    media_types = config.get("media_types", {})
+    video_extensions = (
+        [f".{x}" for x in media_types["video"]]
+        if "video" in media_types
+        else [".mp4", ".mov", ".avi"]
+    )
+    audio_extensions = (
+        [f".{x}" for x in media_types["audio"]]
+        if "audio" in media_types
+        else [".mp3", ".wav", ".aac"]
+    )
+    image_extensions = (
+        [f".{x}" for x in media_types["image"]]
+        if "image" in media_types
+        else [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".jp2"]
+    )
 
     source_file_name, source_file_extension = os.path.splitext(source_filename)
     if source_file_extension.lower() in image_extensions:
@@ -11928,17 +12192,15 @@ def create_contact_sheet_thumbnail(config, source_filename):
     return tn_filepath
 
 
-def generate_contact_sheet_from_csv(config):
-    """Generates a contact sheet from CSV data."""
-    """Parameters
+def generate_contact_sheet_from_csv(config: dict) -> None:
+    """Generates a contact sheet from CSV data.
+    Parameters
         ----------
         config : dict
             The configuration settings defined by workbench_config.get_config().
     """
     css_file_path = config["contact_sheet_css_path"]
     css_file_name = os.path.basename(css_file_path)
-
-    generic_icons_dir = os.path.join("assets", "contact_sheet", "generic_icons")
 
     if not os.path.exists(config["contact_sheet_output_dir"]):
         try:
@@ -11956,7 +12218,10 @@ def generate_contact_sheet_from_csv(config):
 
     compound_items = list()
     csv_data_to_get_children = get_csv_data(config)
-    if config["paged_content_from_directories"]:
+    if (
+        config["paged_content_from_directories"] is True
+        or config["paged_content_from_directories_parents_exist"] is True
+    ):
         # Collect the IDs of top-level items for use in the "Using subdirectories" method
         # of creating compound/paged content.
         for get_children_row in csv_data_to_get_children:
@@ -12025,12 +12290,15 @@ def generate_contact_sheet_from_csv(config):
         )
 
     for row in csv_data:
-        if config["paged_content_from_directories"]:
+        if (
+            config["paged_content_from_directories"] is True
+            or config["paged_content_from_directories_parents_exist"] is True
+        ):
             # Note: parent items (i.e. items with rows in the CSV) are processed below.
             if row[config["id_field"]] in compound_items:
                 # Get all the page files for this parent and create a new contact sheet containing them.
                 page_files_dir_path = os.path.join(
-                    config["input_dir"], row[config["id_field"]]
+                    config["input_dir"], row[config["page_files_source_dir_field"]]
                 )
                 page_files = os.listdir(page_files_dir_path)
 
@@ -12111,16 +12379,20 @@ def generate_contact_sheet_from_csv(config):
                 output_file = "main_contact_sheet"
                 tn_filename = create_contact_sheet_thumbnail(config, row["file"])
 
-        # During 'paged_content_from_directories' parent items (i.e. items with rows in the CSV)
-        # are processed from this point on.
+        # During 'paged_content_from_directories' or 'paged_content_from_directories_parents_exist',
+        # parent items (i.e. items with rows in the CSV) are processed from this point on.
         csv_id = row[config["id_field"]]
         title = row["title"]
 
         # Ensure that parent items get the compound icon.
-        if config["paged_content_from_directories"]:
+        if (
+            config["paged_content_from_directories"] is True
+            or config["paged_content_from_directories_parents_exist"] is True
+        ):
             output_file = "main_contact_sheet"
             tn_filename = create_contact_sheet_thumbnail(config, "compound")
 
+        # TODO: output_file and tn_filename are declared in the above 'if', should this be indented inside the same block?
         # start .card
         contact_sheet_output_files[output_file]["markup"] = '\n<div class="card">\n'
         contact_sheet_output_files[output_file][
@@ -12137,7 +12409,10 @@ def generate_contact_sheet_from_csv(config):
         contact_sheet_output_files[output_file][
             "markup"
         ] += f'\n<div class="field system"><span class="field-label">{config["id_field"]}</span>: {csv_id}</div>'
-        if config["paged_content_from_directories"] is False and len(row["file"]) > 0:
+        if (
+            config["paged_content_from_directories"] is False
+            or config["paged_content_from_directories_parents_exist"] is False
+        ) and len(row["file"]) > 0:
             contact_sheet_output_files[output_file][
                 "markup"
             ] += f'\n<div class="field system"><span class="field-label">file</span>: {row["file"]}</div>'
@@ -12207,16 +12482,15 @@ def generate_contact_sheet_from_csv(config):
 
 
 def sqlite_manager(
-    config,
-    operation="select",
-    table_name=None,
-    query=None,
-    values=(),
-    db_file_path=None,
-    warn_table_exists=False,
-):
-    """Perform operations on an SQLite database."""
-    """
+    config: dict,
+    operation: str = "select",
+    table_name: str = None,
+    query: str = None,
+    values: tuple = (),
+    db_file_path: str = None,
+    warn_table_exists: bool = False,
+) -> Union[bool, list, sqlite3.Cursor]:
+    """Perform operations on an SQLite database.
     Params
         config: dict
             The configuration settings defined by workbench_config.get_config().
@@ -12331,8 +12605,11 @@ def sqlite_manager(
             sys.exit(message)
 
 
-def prepare_csv_id_to_node_id_map(config):
-    """Creates the SQLite database used to map CSV row IDs to newly create node IDs."""
+def prepare_csv_id_to_node_id_map(config: dict):
+    """Creates the SQLite database used to map CSV row IDs to newly create node IDs.
+    Parameters
+    :param config: dict - The configuration settings defined by workbench_config.get_config().
+    """
     if config["csv_id_to_node_id_map_path"] is False:
         return None
 
@@ -12371,9 +12648,20 @@ def prepare_csv_id_to_node_id_map(config):
 
 
 def populate_csv_id_to_node_id_map(
-    config, parent_csv_row_id, parent_node_id, csv_row_id, node_id
+    config: dict,
+    parent_csv_row_id: str,
+    parent_node_id: str,
+    csv_row_id: str,
+    node_id: str,
 ):
-    """Inserts a row into the SQLite database used to map CSV row IDs to newly create node IDs."""
+    """Inserts a row into the SQLite database used to map CSV row IDs to newly create node IDs.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param parent_csv_row_id: string - The CSV ID of the parent item.
+    :param parent_node_id: string - The node ID of the parent item.
+    :param csv_row_id: string - The CSV ID of the item.
+    :param node_id: string - The node ID of the item.
+    """
     if config["csv_id_to_node_id_map_path"] is False:
         return None
 
@@ -12394,7 +12682,9 @@ def populate_csv_id_to_node_id_map(
     )
 
 
-def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None):
+def recovery_mode_id_in_csv_id_to_node_id_map(
+    config: dict, csv_id: str, parent_csv_id: str = None
+):
     """Query the CSV ID to node ID map to check for a CSV ID, or in the case of pages/children
        in directories, for the filename. Used only during recovery mode.
 
@@ -12474,23 +12764,31 @@ def recovery_mode_id_in_csv_id_to_node_id_map(config, csv_id, parent_csv_id=None
         return False
 
 
-def get_term_field_values(config, term_id):
+def get_term_field_values(config: dict, term_id: str):
     """Get a term's field data so we can use it during PATCH updates,
     which replace a field's values.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param term_id: string - The term ID whose field data is being requested.
     """
     url = config["host"] + "/taxonomy/term/" + term_id + "?_format=json"
     response = issue_request(config, "GET", url)
-    term_fields = json.loads(response.text)
+    term_fields = response.json()
     return term_fields
 
 
-def preprocess_csv(config, row, field):
+def preprocess_csv(config: dict, row: OrderedDict, field: str) -> str:
     """Execute field preprocessor scripts, if any are configured. Note that these scripts
     are applied to the entire value from the CSV field and not split field values,
     e.g., if a field is multivalued, the preprocesor must split it and then reassemble
     it back into a string before returning it. Note that preprocessor scripts work only
     on string data and not on binary data like images, etc. and only on custom fields
     (so not title).
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param row: OrderedDict - The CSV row being processed.
+    :param field: string - The field in the CSV row being preprocessed.
+    :return: string - The preprocessed field data or the original field data if the preprocessor failed.
     """
     if "preprocessors" in config and field in config["preprocessors"]:
         command = config["preprocessors"][field]
@@ -12517,7 +12815,7 @@ def preprocess_csv(config, row, field):
             return row[field]
 
 
-def get_node_media_summary(config, nid):
+def get_node_media_summary(config: dict, nid: str) -> str:
     """Generates a formatted summary of what media a node has.
 
     Params
@@ -12531,11 +12829,11 @@ def get_node_media_summary(config, nid):
         str
             The summary.
     """
+    url = f"/node/{nid}/media?_format=json"
     try:
         media_use_terms = []
-        url = f"/node/{nid}/media?_format=json"
         response = issue_request(config, "GET", url)
-        media_list = json.loads(response.text)
+        media_list = response.json()
         for media in media_list:
             for media_use_term in media["field_media_use"]:
                 term_name = get_term_name(config, media_use_term["target_id"])
@@ -12548,9 +12846,16 @@ def get_node_media_summary(config, nid):
         logging.error(f"{message} Detail: {e}")
 
 
-def service_file_present(config, input):
+def service_file_present(config: dict, input_str: str) -> bool:
+    """Checks whether the input string contains the ServiceFile use term,
+    or its ID or URI.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param input_str: string - The input string to check.
+    :return: bool - True if the ServiceFile use term is present, False if not.
+    """
     service_uri = "http://pcdm.org/use#ServiceFile"
-    candidates = input.split("|")
+    candidates = input_str.split("|")
     for candidate in candidates:
         candidate = candidate.strip()
         if candidate == service_uri:
@@ -12566,7 +12871,13 @@ def service_file_present(config, input):
     return False
 
 
-def download_remote_archive_file(config, remote_archive_url):
+def download_remote_archive_file(config: dict, remote_archive_url: str):
+    """Downloads a remote Zip archive to the temp directory.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param remote_archive_url: string - The URL of the remote Zip archive.
+    :return: string|bool - The path to the downloaded Zip archive, or False on error.
+    """
     message = f'Downloading Zip archive "{remote_archive_url}"...'
     print(message)
     logging.info(message)
@@ -12585,28 +12896,18 @@ def download_remote_archive_file(config, remote_archive_url):
                 stream=True,
                 verify=config["secure_ssl_only"],
             )
-    except requests.exceptions.Timeout as err_timeout:
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as error:
         message = (
-            "Workbench timed out trying to reach "
+            "Workbench " + "timed out trying to reach "
+            if isinstance(error, requests.exceptions.Timeout)
+            else "cannot connect to "
             + sections.netloc
             + " while connecting to "
             + remote_archive_url
             + ". Please verify that URL and check your network connection."
         )
         logging.error(message)
-        logging.error(err_timeout)
-        print("Error: " + message)
-        return False
-    except requests.exceptions.ConnectionError as error_connection:
-        message = (
-            "Workbench cannot connect to "
-            + sections.netloc
-            + " while connecting to "
-            + remote_archive_url
-            + ". Please verify that URL and check your network connection."
-        )
-        logging.error(message)
-        logging.error(error_connection)
+        logging.error(error)
         print("Error: " + message)
         return False
 
@@ -12619,7 +12920,12 @@ def download_remote_archive_file(config, remote_archive_url):
     return downloaded_file_path
 
 
-def unzip_archive(config, archive_file_path):
+def unzip_archive(config: dict, archive_file_path: Union[str, bool]) -> None:
+    """Unzips a Zip archive to the input directory.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param archive_file_path: string|bool - The path to the Zip archive to unzip, or False if the download failed.
+    """
     if archive_file_path is False:
         return None
 
@@ -12653,7 +12959,11 @@ def unzip_archive(config, archive_file_path):
         sys.exit("Error: " + message)
 
 
-def prompt_user(config):
+def prompt_user(config: dict):
+    """Supply user prompts from the config file and exit if the user answer anything but Y or y.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    """
     for user_prompt in config["user_prompts"]:
         response = input(user_prompt)
         if response.lower() != "y":
@@ -12684,7 +12994,11 @@ def log_json(source_data):
         )
 
 
-def check_for_workbench_updates(config):
+def check_for_workbench_updates(config: dict) -> None:
+    """Checks to see if the local copy of Workbench is up to date with the main branch in Github.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    """
     if config["check_for_workbench_updates"] is False:
         return
 
@@ -12765,10 +13079,11 @@ def check_for_workbench_updates(config):
             message = "Looks like your copy of Workbench is up to date."
             logging.info(message)
     else:
-        message = 'Looks like your copy of Workbench is at least 30 commits behind the "main" branch in Github. Your copy appears to have been last updated {latest_local_commit_date}.'
+        message = f'Looks like your copy of Workbench is at least 30 commits behind the "main" branch in Github. Your copy appears to have been last updated {latest_local_commit_date}.'
+        logging.info(message)
 
 
-def paged_content_ignore_file(config, filename_to_check):
+def paged_content_ignore_file(config: dict, filename_to_check: str) -> bool:
     """Checks to see if a given page filename matches an entry in the
     paged_content_ignore_files config setting.
     Params
@@ -12786,8 +13101,7 @@ def paged_content_ignore_file(config, filename_to_check):
     filename_to_check_normalized = filename_to_check.lower().strip()
     filters = copy.copy(config["paged_content_ignore_files"])
     for i in range(len(filters)):
-        filters[i] = filters[i].lower()
-        filters[i] = filters[i].strip()
+        filters[i] = filters[i].lower().strip()
 
     # * wildcard is the filename (e.g., ["*.db", "*.xml"]), so we can match on the extension with the wildcard filename.
     # First, get a list of the *. patterns from configuration.
@@ -12822,7 +13136,7 @@ def paged_content_ignore_file(config, filename_to_check):
     return False
 
 
-def is_running_in_docker():
+def is_running_in_docker() -> bool:
     """Assumes Dockerfile sets an environment variable ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER.
     If that environment variable is not present, return False.
     """

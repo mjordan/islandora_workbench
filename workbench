@@ -163,6 +163,7 @@ def create():
 
         if (
             "node_exists_verification_view_endpoint" in config
+            and config["paged_content_from_directories_parents_exist"] is False
             and get_node_exists_verification_view_endpoint(config) is not False
         ):
             candidate_node_id = verify_node_exists_by_key(config, copy.copy(row))
@@ -179,6 +180,16 @@ def create():
         # Create a copy of the current item's row to pass to create_media().
         row_for_media = copy.deepcopy(row)
         if config["paged_content_from_directories"] is True:
+            # Create a copy of the current item's row to pass to the
+            # create_children_from_directory function.
+            row_as_parent = copy.deepcopy(row)
+
+        if config["paged_content_from_directories_parents_exist"] is True:
+            if "field_member_of" not in csv_column_headers:
+                message = '"field_member_of" is a required column in your input CSV when using the "paged_content_from_directories_parents_exist: true" configuration setting.'
+                logging.error(message)
+                sys.exit("Error: " + message)
+
             # Create a copy of the current item's row to pass to the
             # create_children_from_directory function.
             row_as_parent = copy.deepcopy(row)
@@ -393,6 +404,20 @@ def create():
                         }
                     ]
 
+        if config["paged_content_from_directories_parents_exist"] is True:
+            if ping_node(config, row["field_member_of"], warn=False) is True:
+                # Console output and logging are done in the create_children_from_directory() function.
+                create_children_from_directory(
+                    config, row_as_parent, row["field_member_of"]
+                )
+            else:
+                message = f'Node {row["field_member_of"]} identified in the "field_member_of" column in your input CSV doesn\'t exist, skipping adding children.'
+                logging.warning(message)
+                print("Warning: " + message)
+
+            # We don't want to create the parent node, it already exists.
+            continue
+
         node_headers = {"Content-Type": "application/json"}
         node_endpoint = "/node?_format=json"
         node_response = issue_request(
@@ -593,10 +618,12 @@ def create():
                                     f'Media for "additional_files" CSV column "{additional_file_field}" in row with ID "{row[config["id_field"]]}" '
                                     + f'(node URL "{node_uri}") not created'
                                 )
-                                print(
-                                    "- " + message + ". See log for more information."
+                            if config["allow_missing_files"] is False:
+                                logging.error(message + " because CSV field is empty.")
+                            else:
+                                logging.warning(
+                                    message + " because CSV field is empty."
                                 )
-                            logging.error(message + " because CSV field is empty.")
                             continue
                         filename = row[additional_file_field].strip()
                         file_exists = check_file_exists(config, filename)
@@ -3372,6 +3399,20 @@ if len(config["input_data_zip_archives"]) > 0 and config["nodes_only"] is not Tr
             unzip_archive(config, downloaded_zip_file_path)
         else:
             unzip_archive(config, input_data_zip_archive)
+
+if (
+    config["task"] == "create"
+    or config["task"] == "add_media"
+    or config["task"] == "update_media"
+    or config["task"] == "update_media_by_node"
+):
+    if (
+        config["nodes_only"] is False
+        and config["keep_filename_parent_directory"] is False
+    ):
+        logging.info(
+            "Parent directory names for files will not be used when creating Drupal media, but the directory names will appear in Worbench messages and log entries."
+        )
 
 if "check" in config.keys():
     tasks_to_skip = ["create_from_files", "get_data_from_view"]
