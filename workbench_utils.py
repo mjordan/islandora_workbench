@@ -5181,25 +5181,27 @@ def validate_media_use_tids_in_csv(config: dict, csv_data: OrderedDict) -> None:
 
 # TODO: this function and execute_bootstrap_script(), execute_shutdown_script(), execute_entity_post_task_script() are very similar.
 # Could they be combined and accept *args which they pass along to the called script?
-def preprocess_field_data(
-    subdelimiter: str, field_value: str, path_to_script: str
-) -> tuple:
+def preprocess_field_data(config, field_value: str, path_to_script: str) -> tuple:
     """Executes a field preprocessor script and returns its output and exit status code. The script
     is passed the field subdelimiter as defined in the config YAML and the field's value, and
     prints a modified vesion of the value (result) back to this function.
-    :param subdelimiter: str - The subdelimiter defined in the config YAML.
-    :param field_value: str - The field value to preprocess.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_value: str - The field value to preprocess. Can be ''.
     :param path_to_script: str - The absolute path to the preprocessor script.
     :return: tuple - The output of the script (stdout) and the script's return code.
     """
+    subdelimiter = config["subdelimiter"]
+    config_file_path = config["config_file_path"]
     if " " in path_to_script:
         interpeter, script = path_to_script.split(" ")
         cmd = subprocess.Popen(
-            [interpeter, script, subdelimiter, field_value], stdout=subprocess.PIPE
+            [interpeter, script, subdelimiter, field_value, config_file_path],
+            stdout=subprocess.PIPE,
         )
     else:
         cmd = subprocess.Popen(
-            [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
+            [path_to_script, subdelimiter, field_value, config_file_path],
+            stdout=subprocess.PIPE,
         )
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
@@ -12800,9 +12802,7 @@ def preprocess_csv(
     :param path_to_script: string - The absolute path to the preprocessor script.
     :return: string - The preprocessed field data or the original field data if the preprocessor failed.
     """
-    output, return_code = preprocess_field_data(
-        config["subdelimiter"], row[field], path_to_script
-    )
+    output, return_code = preprocess_field_data(config, row[field], path_to_script)
     if return_code == 0:
         preprocessor_input = copy.deepcopy(row[field])
         logging.info(
