@@ -1,10 +1,10 @@
 task: create
-host: https://islandora.dev
+host: http://islandora.traefik.me
 username: admin
 password: password
 input_dir: "tests/assets/secondary_task_test"
 nodes_only: true
-secondary_tasks: ['tests/assets/secondary_task_test/secondary_create.yml']
+secondary_tasks: ["tests/assets/secondary_task_test/secondary_create.yml"]
 csv_field_templates:
- - field_model: https://schema.org/DigitalDocument
+  - field_model: https://schema.org/DigitalDocument
 secure_ssl_only: false

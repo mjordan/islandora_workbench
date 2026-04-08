@@ -14,20 +14,17 @@ FROM python:3.10.6
 #   Rename example.yml to your YML file. 
 
 # Create a non-root user and set up the environment
-ARG USER_ID
-ARG GROUP_ID
+ARG USER_ID=1000
+ARG GROUP_ID=1001
 
 # Create a group with the specified GID
 RUN groupadd -g $GROUP_ID dockeruser || true
 
 # Create a user with the specified UID and GID
-RUN useradd -m -u $USER_ID -g $GROUP_ID -s /bin/bash dockeruser
+RUN useradd -l -m -u $USER_ID -g $GROUP_ID -s /bin/bash dockeruser
 
 # Set the working directory
 WORKDIR /workbench
-
-# Copy the current directory contents into the container at /workbench
-COPY . /workbench/
 
 # Set ownership and permissions for the non-root user
 RUN chown -R $USER_ID:$GROUP_ID /workbench
@@ -41,8 +38,12 @@ ENV ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER=True
 # Switch to the non-root user
 USER dockeruser
 
+COPY setup.py .
 # Install dependencies and setup the environment
-RUN python -m pip install --user --upgrade pip setuptools build && \
-    python -m pip install --user --no-cache-dir "urllib3>=1.21.1" libmagic && \
+RUN python -m pip install --no-cache-dir --user --upgrade pip setuptools build && \
+    python -m pip install --no-cache-dir --user --no-cache-dir "urllib3>=1.21.1" libmagic && \
     python -m build && \
-    python -m pip install --user dist/*.whl
+    python -m pip install --no-cache-dir --user dist/*.whl
+
+# Copy the current directory contents into the container at /workbench
+COPY . /workbench/

@@ -1,5 +1,5 @@
 task: create
-host: https://islandora.dev
+host: http://islandora.traefik.me
 username: admin
 password: password
 input_dir: tests/assets/recovery_mode_test
@@ -9,4 +9,4 @@ rollback_config_file_path: tests/assets/recovery_mode_test/rollback_full.yml
 rollback_csv_file_path: tests/assets/recovery_mode_test/rollback_full.csv
 include_password_in_rollback_config_file: true
 secure_ssl_only: false
-nodes_only: true 
+nodes_only: true

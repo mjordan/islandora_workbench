@@ -1,11 +1,11 @@
 task: create
-host: https://islandora.dev
+host: http://islandora.traefik.me
 username: admin
 password: password
 input_csv: create.csv
 input_dir: "tests/assets/additional_files_test"
 additional_files:
- - preservation: "http://pcdm.org/use#PreservationMasterFile"
- - transcript: "http://pcdm.org/use#Transcript"
+  - preservation: "http://pcdm.org/use#PreservationMasterFile"
+  - transcript: "http://pcdm.org/use#Transcript"
 standalone_media_url: true
 secure_ssl_only: false

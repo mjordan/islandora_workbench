@@ -3,7 +3,7 @@ paged_content_page_model_tid: http://id.loc.gov/ontologies/bibframe/part
 paged_content_sequence_separator: _
 paged_content_image_file_extension: gif
 task: create
-host: https://islandora.dev
+host: http://islandora.traefik.me
 username: admin
 password: password
 input_dir: tests/assets/recovery_mode_test/pages_from_directories_part
