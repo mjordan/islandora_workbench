@@ -346,14 +346,13 @@ def create():
             # empty CSV values.
             if "preprocessors" in config and len(config["preprocessors"]) > 0:
                 for preprocessor_script in config["preprocessors"]:
-                    for (
-                        processor_field_name,
-                        processor_script_path,
-                    ) in preprocessor_script.items():
-                        if custom_field == processor_field_name:
-                            row[custom_field] = preprocess_csv(
-                                config, row, custom_field, processor_script_path
-                            )
+                    processor_field_name, processor_script_path = (
+                        preprocessor_script.split(":")
+                    )
+                    if custom_field == processor_field_name:
+                        row[custom_field] = preprocess_csv(
+                            config, row, custom_field, processor_script_path
+                        )
 
             if len(str(row[custom_field]).strip()) == 0:
                 continue

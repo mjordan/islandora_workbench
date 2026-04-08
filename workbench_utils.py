@@ -4012,6 +4012,8 @@ def check_input(config: dict, args: Namespace) -> None:
     if "shutdown" in config and len(config["shutdown"]) > 0:
         shutdown_scripts_present = True
         for shutdown_script in config["shutdown"]:
+            if " " in shutdown_script:
+                interpeter, shutdown_script = shutdown_script.split(" ")
             if not os.path.exists(shutdown_script):
                 message = "shutdown script " + shutdown_script + " not found."
                 logging.error(message)
@@ -4030,6 +4032,8 @@ def check_input(config: dict, args: Namespace) -> None:
     if "preprocessors" in config and len(config["preprocessors"]) > 0:
         preprocessor_scripts_present = True
         for preprocessor_script in config["preprocessors"]:
+            if " " in preprocessor_script:
+                preprocessor_script = preprocessor_script.split(" ")[-1]
             for pkey, pvalue in preprocessor_script.items():
                 field = pkey.strip()
                 script_path = pvalue.strip()
@@ -5193,7 +5197,8 @@ def preprocess_field_data(config, field_value: str, path_to_script: str) -> tupl
     subdelimiter = config["subdelimiter"]
     config_file_path = config["config_file_path"]
     if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
+        script = path_to_script.split(" ")[-1]
+        interpeter = path_to_script.split(" ")[-2]
         cmd = subprocess.Popen(
             [interpeter, script, subdelimiter, field_value, config_file_path],
             stdout=subprocess.PIPE,
