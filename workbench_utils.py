@@ -4074,6 +4074,8 @@ def check_input(config: dict, args: Namespace) -> None:
             ):
                 post_action_scripts_present = True
                 for post_action_script in config[post_action_script_config]:
+                    if " " in post_action_script:
+                        post_action_script = post_action_script.split(" ")[-1]
                     if not os.path.exists(post_action_script):
                         message = (
                             "Post-action script " + post_action_script + " not found."
