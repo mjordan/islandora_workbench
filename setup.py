@@ -9,10 +9,10 @@ setup(
     url="https://github.com/mjordan/islandora_workbench",
     license="MIT",
     install_requires=[
-        "requests>=2.22,<3",
-        "requests_cache>=1.1",
-        "ruamel.yaml<=0.17.21",
-        "ruamel.yaml.clib<=0.2.12",
+        "requests>=2.30,<3",
+        "requests-cache>=1.3",
+        "ruamel.yaml<=0.19.1",
+        "ruamel.yaml.clib<=0.2.15",
         "pyparsing<3.2",
         "pytest",
         "progress_bar",
@@ -22,6 +22,6 @@ setup(
         "typing-extensions>=4.14.0",
         "rich",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.11",
     py_modules=[],
 )

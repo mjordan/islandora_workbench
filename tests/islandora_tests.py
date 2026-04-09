@@ -29,6 +29,7 @@ from workbench_test_class import (
     WorkbenchTest,
     collect_nids_from_create_output,
     cleanup_paths,
+    WB_INTEGRATION_TEST_HOST,
 )
 
 
@@ -37,7 +38,7 @@ class TestCreate(WorkbenchTest):
     def test_create(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/create_test",
             "media_type": "image",
             "allow_missing_files": True,
@@ -60,7 +61,7 @@ class TestCreate(WorkbenchTest):
                     "--config",
                     create_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    f"{configuration['host']}/node/{nid}",
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -81,7 +82,7 @@ class TestCreateFromFiles(WorkbenchTest):
     def test_create_from_files(self, workbench_user):
         configuration = {
             "task": "create_from_files",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/create_from_files_test/files",
             "models": [
                 {"http://purl.org/coar/resource_type/c_1843": ["zip", "tar", ""]},
@@ -124,7 +125,7 @@ class TestCreateFromFiles(WorkbenchTest):
                     "--config",
                     create_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    f"{configuration['host']}/node/{nid}",
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -145,7 +146,7 @@ class TestCreateWithMaxNodeTitleLength(WorkbenchTest):
     def test_create(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/max_node_title_length_test",
             "input_csv": "create_max_node_title_length.csv",
             "nodes_only": True,
@@ -181,7 +182,7 @@ class TestCreateWithMaxNodeTitleLength(WorkbenchTest):
                     "--config",
                     create_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    f"{configuration['host']}/node/{nid}",
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -207,7 +208,7 @@ class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
 
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/max_node_title_length_test",
             "input_csv": "create_max_node_title_length.csv",
             "nodes_only": True,
@@ -255,7 +256,7 @@ class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
                 "--config",
                 create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.dev/node/" + nid,
+                f"{configuration['host']}/node/{nid}",
             ]
             subprocess.check_output(quick_delete_cmd)
 
@@ -276,7 +277,7 @@ class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
     def test_update(self, setup_nodes):
         configuration = {
             "task": "update",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/max_node_title_length_test",
             "input_csv": setup_nodes["update_csv_file_path"],
             "max_node_title_length": 30,
@@ -292,9 +293,12 @@ class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
         try:
             for nid_to_update in setup_nodes["nids"]:
                 node_url = (
-                    "https://islandora.dev/node/" + str(nid_to_update) + "?_format=json"
+                    f"{WB_INTEGRATION_TEST_HOST}/node/"
+                    + str(nid_to_update)
+                    + "?_format=json"
                 )
                 node_response = requests.get(node_url, verify=False)
+                assert node_response.status_code == 200
                 node = json.loads(node_response.text)
                 updated_title = str(node["title"][0]["value"])
                 assert (
@@ -315,7 +319,7 @@ class TestCreateWithNewTypedRelation(WorkbenchTest):
     def test_create_with_new_typed_relation(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/typed_relation_test/input_data",
             "input_csv": "create_with_new_typed_relation.csv",
             "nodes_only": True,
@@ -378,7 +382,7 @@ class TestDelete(WorkbenchTest):
     def setup_nodes(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/delete_test",
             "allow_missing_files": True,
             "nodes_only": True,
@@ -417,7 +421,7 @@ class TestDelete(WorkbenchTest):
     def test_delete(self, setup_nodes):
         configuration = {
             "task": "delete",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/delete_test",
             "input_csv": setup_nodes["nids_to_delete_file_path"],
             "secure_ssl_only": False,
@@ -433,7 +437,7 @@ class TestDelete(WorkbenchTest):
             assert len(delete_lines) == 5
 
             for nid in setup_nodes["nids"]:
-                node_url = "https://islandora.dev/node/" + str(nid) + "?_format=json"
+                node_url = configuration["host"] + "/node/" + str(nid) + "?_format=json"
                 response = requests.get(node_url, verify=False)
                 assert response.status_code == 404, f"Node {nid} was not deleted."
         finally:
@@ -446,7 +450,7 @@ class TestUpdate(WorkbenchTest):
     def setup_nodes(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/update_test",
             "input_csv": "create.csv",
             "allow_missing_files": True,
@@ -485,7 +489,7 @@ class TestUpdate(WorkbenchTest):
 
         configuration = {
             "task": "delete",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/update_test",
             "input_csv": nid_file_path,
             "secure_ssl_only": False,
@@ -517,7 +521,7 @@ class TestUpdate(WorkbenchTest):
         time.sleep(5)  # ??
         configuration = {
             "task": "update",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/update_test",
             "input_csv": setup_nodes["update_metadata_file_path"],
             "validate_title_length": False,
@@ -552,7 +556,7 @@ class TestImageAltText(WorkbenchTest):
     def setup_nodes(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/alt_text_test",
             "input_csv": "alt_text_test_create.csv",
             "secure_ssl_only": False,
@@ -611,7 +615,7 @@ class TestImageAltText(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "update_alt_text",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/alt_text_test",
             "input_csv": setup_nodes["update_csv_path"],
             "secure_ssl_only": False,
@@ -648,7 +652,7 @@ class TestCreateWithNonLatinText(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/non_latin_text_test",
             "allow_missing_files": True,
             "nodes_only": True,
@@ -694,7 +698,7 @@ class TestCreateWithNonLatinText(WorkbenchTest):
         finally:
             configuration = {
                 "task": "delete",
-                "host": "https://islandora.dev",
+                "host": WB_INTEGRATION_TEST_HOST,
                 "input_dir": "tests/assets/non_latin_text_test",
                 "input_csv": nid_file,
                 "secure_ssl_only": False,
@@ -731,7 +735,7 @@ class TestSecondaryTask(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/secondary_task_test",
             "nodes_only": True,
             "csv_field_templates": [
@@ -744,7 +748,7 @@ class TestSecondaryTask(WorkbenchTest):
         secondary_config_file_path = self.write_config_and_get_path(configuration)
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/secondary_task_test",
             "nodes_only": True,
             "secondary_tasks": [secondary_config_file_path],
@@ -849,7 +853,7 @@ class TestSecondaryTaskWithGoogleSheets(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "nodes_only": True,
             "csv_field_templates": [
                 {"field_model": "https://schema.org/DigitalDocument"}
@@ -863,7 +867,7 @@ class TestSecondaryTaskWithGoogleSheets(WorkbenchTest):
         secondary_config_file_path = self.write_config_and_get_path(configuration)
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "nodes_only": True,
             "secondary_tasks": [secondary_config_file_path],
             "csv_field_templates": [
@@ -943,7 +947,7 @@ class TestSecondaryTaskWithExcel(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "nodes_only": True,
             "csv_field_templates": [
                 {"field_model": "https://schema.org/DigitalDocument"}
@@ -958,7 +962,7 @@ class TestSecondaryTaskWithExcel(WorkbenchTest):
         secondary_config_file_path = self.write_config_and_get_path(configuration)
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "nodes_only": True,
             "secondary_tasks": [secondary_config_file_path],
             "csv_field_templates": [
@@ -1041,7 +1045,7 @@ class TestAdditionalFilesCreate(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_csv": "create.csv",
             "input_dir": "tests/assets/additional_files_test",
             "additional_files": [
@@ -1099,7 +1103,7 @@ class TestAdditionalFilesCreate(WorkbenchTest):
 
         configuration = {
             "task": "delete",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/additional_files_test",
             "input_csv": "rollback.csv",
             "standalone_media_url": True,
@@ -1166,7 +1170,7 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(WorkbenchTest):
     def test_create(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "metadata_additional_files_check.csv",
             "standalone_media_url": True,
@@ -1237,7 +1241,7 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(WorkbenchTest):
     def test_create(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "metadata_additional_files_check.csv",
             "standalone_media_url": True,
@@ -1313,7 +1317,7 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
     def setup_nodes(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "add_media_create_nodes.csv",
             "standalone_media_url": True,
@@ -1400,7 +1404,7 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
 
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": setup_nodes["add_media_csv_file_path"],
             "standalone_media_url": True,
@@ -1475,7 +1479,7 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
 
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": setup_nodes["add_media_csv_file_path"],
             "standalone_media_url": True,
@@ -1547,7 +1551,7 @@ class TestExportCSVWithAdditionalFiles(WorkbenchTest):
         # Create nodes using the existing additional files test infrastructure
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/additional_files_test",
             "input_csv": "create.csv",
             "standalone_media_url": True,
@@ -1587,7 +1591,7 @@ class TestExportCSVWithAdditionalFiles(WorkbenchTest):
                 "--config",
                 create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.dev/node/" + nid,
+                configuration["host"] + "/node/" + nid,
             ]
             subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -1606,7 +1610,7 @@ class TestExportCSVWithAdditionalFiles(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "export_csv",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/additional_files_test",
             "input_csv": "rollback.csv",
             "export_csv_field_list": ["field_model"],
@@ -1659,7 +1663,7 @@ class TestExportCSVWithAdditionalFiles(WorkbenchTest):
         """Test exporting additional files as downloaded files."""
         configuration = {
             "task": "export_csv",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/additional_files_test",
             "input_csv": "rollback.csv",
             "export_csv_file_path": "tests/assets/additional_files_test/exported_files/export_files.csv",

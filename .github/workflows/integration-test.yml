@@ -13,7 +13,7 @@ jobs:
     steps:
 
       - name: Set TERM environment variable
-        run: echo "TERM=xterm" >> $GITHUB_ENV
+        run: echo "TERM=xterm-256color" >> $GITHUB_ENV
 
       - name: Set git email
         run: git config --global user.email "mjordan@sfu.ca"
@@ -42,12 +42,43 @@ jobs:
           sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
 
       - name: Start islandora-starter-site
+        shell: 'bash'
         working-directory: isle-site-template
-        run: ./tests/init-template-starter.sh
         env:
           ISLANDORA_TAG: main
           ISLANDORA_STARTER_REF: "heads/main"
           ISLANDORA_STARTER_OWNER: "Islandora-Devops"
+          GITHUB_ACTIONS: "true"
+          TERM: "xterm-256color"
+        run: |
+          make overwrite-starter-site init up \
+            ISLANDORA_TAG="main" \
+            ISLANDORA_STARTER_REF="heads/main" \
+            ISLANDORA_STARTER_OWNER="Islandora-Devops" \
+            GITHUB_ACTIONS="true" \
+            TERM="xterm-256color"
+
+      - name: Test switching frontend to TLS
+        working-directory: isle-site-template
+        run: ./scripts/traefik-https-mkcert.sh
+
+      - name: Restart Traefik to apply TLS changes
+        working-directory: isle-site-template
+        run: docker compose down traefik && docker compose up -d traefik
+
+      - name: make sure traefik is serving traffic
+        shell: 'bash'
+        working-directory: isle-site-template
+        run: ./scripts/ping.sh
+        env:
+          TERM: xterm-256color
+
+      - name: Debug
+        run: |
+          echo "=== Docker container logs ==="
+          docker ps -a
+          echo -e "\n=== Drupal container logs ==="
+          docker logs isle-site-template-drupal-1 || echo "Could not get Drupal logs"
 
       - name: Install dependencies  
         run: |  
@@ -55,64 +86,47 @@ jobs:
           python setup.py install
 
           # disable media standalone URL
-          docker exec isle-site-template-drupal-dev-1 drush config:set media.settings standalone_url FALSE -y
-          docker exec isle-site-template-drupal-dev-1 drush cr
+          docker exec isle-site-template-drupal-1 drush config:set media.settings standalone_url FALSE -y
+          docker exec isle-site-template-drupal-1 drush cr
 
       - name: Install migrations
-        run: docker exec isle-site-template-drupal-dev-1 drush migrate:import --userid=1 --tag=islandora -y
+        run: docker exec isle-site-template-drupal-1 drush migrate:import --userid=1 --tag=islandora -y
 
       - name: Update file media type to allow jpg extension
         run: |
-          EXTS=$(docker exec isle-site-template-drupal-dev-1 drush config:get field.field.media.file.field_media_file settings.file_extensions | sed -E "s/.*: '(.*)'/\1/") 
+          EXTS=$(docker exec isle-site-template-drupal-1 drush config:get field.field.media.file.field_media_file settings.file_extensions | sed -E "s/.*: '(.*)'/\1/") 
           if echo "$EXTS" | grep -qw "jpg"; then
             echo "jpg already present"
           else
             NEW_EXTS="$EXTS jpg"
             echo "Updating extensions to: $NEW_EXTS"
-            docker exec isle-site-template-drupal-dev-1 drush config:set field.field.media.file.field_media_file settings.file_extensions "$NEW_EXTS" -y
+            docker exec isle-site-template-drupal-1 drush config:set field.field.media.file.field_media_file settings.file_extensions "$NEW_EXTS" -y
           fi
 
+      - name: Reinstall islandora_workbench_integration views
+        run: | 
+          docker exec isle-site-template-drupal-1 drush config:import --partial --source=/var/www/drupal/web/modules/contrib/islandora_workbench_integration/config/optional -y
+          docker exec isle-site-template-drupal-1 drush cr
+
       - name: Explicitly state the admin password
-        run: docker exec isle-site-template-drupal-dev-1 drush user:password admin 'admin'
-
-      # START --- Required for tests while permissions branch is not merged
-      # - name: Uninstall islandora_workbench_integration
-      #  run: |
-      #    docker exec isle-site-template-drupal-dev-1 drush pm:uninstall islandora_workbench_integration -y || true
-      #    docker exec isle-site-template-drupal-dev-1 drush cr
-
-      # - name: Checkout islandora_workbench_integration from Git and switch to permissions branch for testing
-      #  run: |
-      #    docker exec isle-site-template-drupal-dev-1 rm -rf /var/www/drupal/web/modules/contrib/islandora_workbench_integration
-      #    docker exec isle-site-template-drupal-dev-1 git clone https://github.com/whikloj/islandora_workbench_integration.git /var/www/drupal/web/modules/contrib/islandora_workbench_integration --branch main
-
-      # - name: Reinstall islandora_workbench_integration
-      #  run: |
-      #    docker exec isle-site-template-drupal-dev-1 drush pm:install islandora_workbench_integration -y
-      #    docker exec isle-site-template-drupal-dev-1 drush cr
-
-      # - name: Reinstall islandora_workbench_integration views
-      #  run: | 
-      #    docker exec isle-site-template-drupal-dev-1 drush config:import --partial --source=/var/www/drupal/web/modules/contrib/islandora_workbench_integration/config/optional -y
-      #    docker exec isle-site-template-drupal-dev-1 drush cr
-      # END --- Required for tests while permissions branch is not merged
+        run: docker exec isle-site-template-drupal-1 drush user:password admin 'admin'
 
       - name: Create workbench_user role
         run: |
-          docker exec isle-site-template-drupal-dev-1 drush role:create workbench_user
-          docker exec isle-site-template-drupal-dev-1 drush role:perm:add workbench_user "$(cat tests/assets/user-role-permissions.txt | sed '/^$/d' | tr '\n' ',')"
+          docker exec isle-site-template-drupal-1 drush role:create workbench_user
+          docker exec isle-site-template-drupal-1 drush role:perm:add workbench_user "$(cat tests/assets/user-role-permissions.txt | sed '/^$/d' | tr '\n' ',')"
 
       - name: Create test user with workbench_user role
         run: |
-          docker exec isle-site-template-drupal-dev-1 drush user:create test-user --mail='test@noreply.com' --password='testPassword'
-          docker exec isle-site-template-drupal-dev-1 drush user:role:add workbench_user test-user
+          docker exec isle-site-template-drupal-1 drush user:create test-user --mail='test@noreply.com' --password='testPassword'
+          docker exec isle-site-template-drupal-1 drush user:role:add workbench_user test-user
 
       - name: Run islandora_tests_check
         run: pytest -v --no-header tests/islandora_tests_check.py
         env:
-          REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
+         REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
           
-      - name: Run islandora_tests_paged_content  
+      - name: Run islandora_tests_paged_content
         run: pytest -v --no-header tests/islandora_tests_paged_content.py
         env:
           REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
@@ -137,11 +151,14 @@ jobs:
           echo "=== Docker container logs ===" > debug-artifacts/docker-info.log
           docker ps -a >> debug-artifacts/docker-info.log
           echo -e "\n=== Drupal container logs ===" >> debug-artifacts/docker-info.log
-          docker logs isle-site-template-drupal-dev-1 >> debug-artifacts/drupal.log 2>&1 || echo "Could not get Drupal logs"
+          docker logs isle-site-template-drupal-1 >> debug-artifacts/drupal.log 2>&1 || echo "Could not get Drupal logs"
 
           # Drupal status and configuration
-          docker exec isle-site-template-drupal-dev-1 drush status > debug-artifacts/drupal-status.txt 2>&1 || echo "Could not get Drupal status"
-          docker exec isle-site-template-drupal-dev-1 drush config:get system.site > debug-artifacts/site-config.txt 2>&1 || echo "Could not get site config"
+          docker exec isle-site-template-drupal-1 drush status > debug-artifacts/drupal-status.txt 2>&1 || echo "Could not get Drupal status"
+          docker exec isle-site-template-drupal-1 drush config:get system.site > debug-artifacts/site-config.txt 2>&1 || echo "Could not get site config"
+          
+          # Workbench logs
+          cat workbench.log > debug-artifacts/workbench.log 2>&1 || echo "Could not get workbench logs"
 
           # Environment variables and Python info
           env | grep -E "(PYTHON|PATH|PWD)" > debug-artifacts/environment.txt

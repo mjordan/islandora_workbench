@@ -14,6 +14,7 @@ from workbench_test_class import (
     WorkbenchTest,
     collect_nids_from_create_output,
     cleanup_paths,
+    WB_INTEGRATION_TEST_HOST,
 )
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -67,7 +68,7 @@ class TestExecutePostActionEntityScript(WorkbenchTest):
     def test_post_task_entity_script(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/execute_post_action_entity_script_test",
             "nodes_only": True,
             "node_post_create": [
