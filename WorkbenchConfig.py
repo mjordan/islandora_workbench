@@ -397,6 +397,8 @@ class WorkbenchConfig:
             "viewer_override_fieldname": "field_viewer_override",
             "check_for_workbench_updates": True,
             "use_workbench_permissions": False,
+            "show_shutdown_script_output": False,
+            "show_bootstrap_script_output": False,
         }
 
     # Tests validity and existence of configuration file path.

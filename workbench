@@ -348,7 +348,6 @@ def create():
                 for preprocessor in config["preprocessors"]:
                     # The following two patterns are valid: /fieldname: interpreter script_path/, and /fieldname: script_path/.
                     # Also, on Windows, both interpreter and script_path can contain colons.
-                    # print("DEBUG preprocessor", preprocessor)
                     for (
                         processor_field_name,
                         processor_script_path,
@@ -737,7 +736,6 @@ def update():
     for row in csv_data:
         row_count += 1
         row_position_message = ""
-        # WIP on #785: print("DEBUG from within update()", row)
         # Delete expired items from request_cache before processing a row.
         if config["enable_http_cache"] is True:
             requests_cache.delete(expired=True)
@@ -3456,7 +3454,7 @@ if "check" in config.keys():
 if config["check"] is False and "bootstrap" in config and len(config["bootstrap"]) > 0:
     for command in config["bootstrap"]:
         print("Executing bootstrap script " + command)
-        output, return_code = execute_bootstrap_script(command, args.config)
+        output, return_code = execute_bootstrap_script(config, command, args.config)
         if return_code == 0:
             logging.info(f"Bootstrap script {command} executed successfully.")
         else:
@@ -3645,7 +3643,7 @@ try:
     ):
         for command in config["shutdown"]:
             print("Executing shutdown script " + command)
-            output, return_code = execute_shutdown_script(command, args.config)
+            output, return_code = execute_shutdown_script(config, command, args.config)
             if return_code == 0:
                 logging.info(f"Shutdown script {command} executed successfully.")
             else:

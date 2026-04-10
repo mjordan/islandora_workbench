@@ -3994,6 +3994,8 @@ def check_input(config: dict, args: Namespace) -> None:
     if "bootstrap" in config and len(config["bootstrap"]) > 0:
         bootsrap_scripts_present = True
         for bootstrap_script in config["bootstrap"]:
+            if " " in bootstrap_script:
+                interpeter, bootstrap_script = bootstrap_script.split(" ")
             if not os.path.exists(bootstrap_script):
                 message = "Bootstrap script " + bootstrap_script + " not found."
                 logging.error(message)
@@ -5216,8 +5218,11 @@ def preprocess_field_data(config, field_value: str, path_to_script: str) -> tupl
     return result, cmd.returncode
 
 
-def execute_bootstrap_script(path_to_script: str, path_to_config_file: str) -> tuple:
+def execute_bootstrap_script(
+    config, path_to_script: str, path_to_config_file: str
+) -> tuple:
     """Executes a bootstrap script and returns its output and exit status code.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
     :param path_to_script: str - The absolute path to the bootstrap script.
     :param path_to_config_file: str - The absolute path to the Workbench config file.
     :return: tuple - The output of the script (stdout) and the script's return code.
@@ -5234,11 +5239,17 @@ def execute_bootstrap_script(path_to_script: str, path_to_config_file: str) -> t
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
+    if config["show_bootstrap_script_output"] is True:
+        print(result)
+
     return result, cmd.returncode
 
 
-def execute_shutdown_script(path_to_script: str, path_to_config_file: str) -> tuple:
+def execute_shutdown_script(
+    config, path_to_script: str, path_to_config_file: str
+) -> tuple:
     """Executes a shutdown script and returns its output and exit status code.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
     :param path_to_script: str - The absolute path to the shutdown script.
     :param path_to_config_file: str - The absolute path to the Workbench config file
     :return: tuple - The output of the script (stdout) and the script's return code.
@@ -5256,6 +5267,8 @@ def execute_shutdown_script(path_to_script: str, path_to_config_file: str) -> tu
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
+    if config["show_shutdown_script_output"] is True:
+        print(result)
     return result, cmd.returncode
 
 
