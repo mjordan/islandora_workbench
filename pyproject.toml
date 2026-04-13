@@ -2,11 +2,15 @@
 requires = ["setuptools>=82.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["workbench", "workbench_*.py", "WorkbenchConfig.py"]
+exclude = ["assets*", "input_data*"]
+
 [project]
-name = "Islandora Workbench"
+name = "Islandora-Workbench"
 version = "0.1.dev0"
 authors = [
-    { name = "Mark Jordan", email = "mjordan@sfu" }
+    { name = "Mark Jordan" }
 ]
 description = "A command-line tool that allows creation, updating, and deletion of Islandora content."
 license = "MIT"
