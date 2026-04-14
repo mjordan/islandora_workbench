@@ -33,7 +33,7 @@ readme = "README.md"
 
 [project.urls]
 Homepage = "https://github.com/mjordan/islandora_workbench"
-Documentation = "https://mjordan.github.io/islandora_workbench/"
+Documentation = "https://mjordan.github.io/islandora_workbench_docs/"
 
 [tool.black]
 line-length = 88
