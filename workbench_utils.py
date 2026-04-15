@@ -4015,7 +4015,7 @@ def check_input(config: dict, args: Namespace) -> None:
         shutdown_scripts_present = True
         for shutdown_script in config["shutdown"]:
             if " " in shutdown_script:
-                interpeter, shutdown_script = shutdown_script.split(" ")
+                shutdown_script = shutdown_script.split(" ")[-1]
             if not os.path.exists(shutdown_script):
                 message = "shutdown script " + shutdown_script + " not found."
                 logging.error(message)
