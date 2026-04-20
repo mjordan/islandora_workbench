@@ -11105,6 +11105,29 @@ def resolve_media_use_term_id(
     return media_use_term_id
 
 
+def find_file_url_in_file(config: dict, file_info: list) -> Union[None, str]:
+    """Given a media target_id, lookup the File object and return the URL.
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param file_info: list - The file info list from the media entity.
+    :return: str|None - The file URL, or None on failure.
+    """
+    target_id = file_info[0].get("target_id")
+    file_metadata_url = f"{config['host']}/entity/file/{str(target_id)}?_format=json"
+    response = issue_request(config, "GET", file_metadata_url)
+    if response.status_code != 200:
+        logging.error(
+            f"File metadata entity request failed for file {target_id}: {response.status_code}"
+        )
+        return None
+    try:
+        file_metadata = json.loads(response.text)
+        return f"{config['host']}{file_metadata['uri'][0].get('url')}"
+    except json.decoder.JSONDecodeError as e:
+        logging.error(f"File metadata request for file {target_id} failed: {e}")
+        return None
+
+
 def find_file_url_in_media(
     config: dict, media_list: list, media_use_term_id: str, node_id: str
 ) -> Union[None, str]:
@@ -11127,6 +11150,8 @@ def find_file_url_in_media(
                         file_url = file_info[0].get("url")
                         if file_url:
                             return file_url
+                        else:
+                            return find_file_url_in_file(config, file_info)
     logging.warning(
         f"No valid media found for node {node_id} with use term {media_use_term_id}"
     )

@@ -25,6 +25,7 @@ class WorkbenchExportBase:
         ]
         self.seen_nids = set()
         self.pbar = InitBar() if config.get("progress_bar") else None
+        self.validate_export_config(config)
 
     @staticmethod
     def deduplicate_list(input_list):
@@ -166,6 +167,30 @@ class WorkbenchExportBase:
             message = "Skipping node with missing/invalid NID"
             self.log_progress(message, level=logging.WARNING)
             return None
+
+    def validate_export_config(self, config):
+        """Validate export related config"""
+        if config.get("export_file_directory") is None:
+            message = (
+                f'Configuration property "export_file_directory" is not configured.'
+            )
+            logging.error(message)
+            sys.exit("Error: " + message + " See log for more detail.")
+
+        if not os.path.exists(config["export_file_directory"]):
+            try:
+                os.mkdir(config["export_file_directory"])
+                logging.info(
+                    f'Path "export_file_directory" ("{config["export_file_directory"]}") created.'
+                )
+            except Exception as e:
+                message = f'Path "export_file_directory" ("{config["export_file_directory"]}") is not writable: {str(e)}'
+                logging.error(message)
+                sys.exit("Error: " + message + " See log for more detail.")
+        else:
+            logging.info(
+                f'Path "export_file_directory" ("{config["export_file_directory"]}") already exists.'
+            )
 
     def validate_content_type(self, node, nid):
         """Verify node matches configured content type."""
