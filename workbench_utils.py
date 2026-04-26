@@ -5277,6 +5277,7 @@ def execute_entity_post_task_script(
     path_to_config_file: str,
     http_response_code: int,
     entity_json: str = "",
+    filename: str = "",
 ):
     """Executes a entity-level post-task script and returns its output and exit status code."""
     if " " in path_to_script:
@@ -5288,6 +5289,7 @@ def execute_entity_post_task_script(
                 path_to_config_file,
                 str(http_response_code),
                 entity_json,
+                filename,
             ],
             stdout=subprocess.PIPE,
         )
@@ -6042,6 +6044,7 @@ def create_media(
                             config["config_file_path"],
                             media_response.status_code,
                             media_response.text,
+                            os.path.abspath(filename),
                         )
                     )
                     if post_task_return_code == 0:
