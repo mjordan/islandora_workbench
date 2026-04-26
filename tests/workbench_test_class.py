@@ -9,6 +9,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from workbench_utils import get_nid_from_url_without_config, value_is_numeric
 
+""" The full hostname and scheme of the Drupal installation for the integration tests. """
+WB_INTEGRATION_TEST_HOST = "https://islandora.traefik.me"
+
 
 def get_workbench_dir(starting_path: str):
     """Get the path to the directory containing the workbench executable.

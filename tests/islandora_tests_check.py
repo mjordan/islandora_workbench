@@ -1,5 +1,6 @@
-"""unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
-credentials, etc. are in a configuration file referenced in the test.
+"""unittest tests that require a live Drupal at the hostname defined in workbench_test_class.py
+ WB_INTEGRATION_TEST_HOST. In most cases, the host URL, credentials, etc. are in a
+ configuration file referenced in the test.
 
 This test file contains tests for --check. Files islandora_tests.py, islandora_tests_paged_content.py,
 and islandora_tests_hooks.py also contain tests that interact with an Islandora instance.
@@ -22,6 +23,7 @@ from workbench_test_class import (
     AdminUser,
     collect_nids_from_create_output,
     cleanup_paths,
+    WB_INTEGRATION_TEST_HOST,
 )
 
 
@@ -56,7 +58,7 @@ class TestCreateCheck(WorkbenchTest):
     def test_create_check(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "secure_ssl_only": False,
         }
         configuration = workbench_user.alter_configuration(configuration)
@@ -80,7 +82,7 @@ class TestCheckFromGoogleSpreadsheetCheck(WorkbenchTest):
 
     default_config = {
         "task": "create",
-        "host": "https://islandora.dev",
+        "host": WB_INTEGRATION_TEST_HOST,
         "input_csv": "https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0",
         "nodes_only": True,
         "secure_ssl_only": False,
@@ -164,7 +166,7 @@ class TestUpdateCheck(WorkbenchTest):
     def test_update_check(self, workbench_user):
         configuration = {
             "task": "update",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "secure_ssl_only": False,
             "input_csv": "update.csv",
         }
@@ -188,7 +190,7 @@ class TestDeleteCheck(WorkbenchTest):
     def test_delete_check(self, workbench_user):
         configuration = {
             "task": "delete",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "secure_ssl_only": False,
             "input_csv": "delete.csv",
         }
@@ -212,7 +214,7 @@ class TestAddMediaCheck(WorkbenchTest):
     def test_add_media_check(self, workbench_user):
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "secure_ssl_only": False,
             "input_csv": "add_media.csv",
             "media_type": "file",
@@ -237,7 +239,7 @@ class TestCreateMaxNodeTitleLengthCheck(WorkbenchTest):
     def test_for_too_long_titles(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/max_node_title_length_test",
             "input_csv": "create_max_node_title_length.csv",
             "nodes_only": True,
@@ -280,7 +282,7 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
         # reusing the CSV data used by the TestCreateWithMaxNodeTitleLength test class.
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/max_node_title_length_test",
             "input_csv": "create_max_node_title_length.csv",
             "nodes_only": True,
@@ -340,7 +342,7 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
                 "--config",
                 create_config_file_path,
                 "--quick_delete_node",
-                "https://islandora.dev/node/" + nid,
+                configuration["host"] + "/node/" + nid,
             ]
             subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -363,7 +365,7 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
     def test_for_too_long_titles(self, setup_nodes, workbench_user):
         configuration = {
             "task": "update",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/max_node_title_length_test",
             "input_csv": setup_nodes["update_csv_file_path"],
             "max_node_title_length": 30,
@@ -384,16 +386,16 @@ class TestUpdateWithMaxNodeTitleLengthCheck(WorkbenchTest):
         cleanup_paths(config_file_path)
 
         assert re.search(
-            "contains a value that is longer \(37 characters\)", check_output
+            r"contains a value that is longer \(37 characters\)", check_output
         )
         assert re.search(
-            "contains a value that is longer \(39 characters\)", check_output
+            r"contains a value that is longer \(39 characters\)", check_output
         )
         assert re.search(
-            "contains a value that is longer \(42 characters\)", check_output
+            r"contains a value that is longer \(42 characters\)", check_output
         )
         assert re.search(
-            "contains a value that is longer \(44 characters\)", check_output
+            r"contains a value that is longer \(44 characters\)", check_output
         )
 
 
@@ -403,7 +405,7 @@ class TestTypedRelationBadRelatorCheck(WorkbenchTest):
     def test_bad_relator_check_fail(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/typed_relation_test/input_data",
             "input_csv": "bad_typed_relation_fail.csv",
             "nodes_only": True,
@@ -440,7 +442,7 @@ class TestTypedRelationBadUriCheck(WorkbenchTest):
     def test_bad_uri_check_fail(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/typed_relation_test/input_data",
             "input_csv": "bad_uri_fail.csv",
             "nodes_only": True,
@@ -475,7 +477,7 @@ class TestTypedRelationNewTypedRelationCheck(WorkbenchTest):
     def test_new_typed_relation_check(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/typed_relation_test/input_data",
             "input_csv": "new_typed_relation.csv",
             "nodes_only": True,
@@ -509,7 +511,7 @@ class TestTypedRelationNoNamespaceCheck(WorkbenchTest):
     def test_no_namespace_check_fail(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/typed_relation_test/input_data",
             "input_csv": "no_namespace.csv",
             "nodes_only": True,
@@ -545,7 +547,7 @@ class TestDelimiterCheck(WorkbenchTest):
     def test_delimiter_check(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/delimiter_test",
             "media_type": "image",
             "input_csv": "metadata.tsv",
@@ -574,7 +576,7 @@ class TestGeolocationCheck(WorkbenchTest):
     def test_geolocation_check(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/geolocation_test/input_data",
             "input_csv": "bad_geocoorindates_fail.csv",
             "nodes_only": True,
@@ -602,7 +604,7 @@ class TestHeaderColumnMismatchCheck(WorkbenchTest):
     def test_header_column_mismatch_fail(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/header_column_mismatch_test",
             "nodes_only": True,
             "secure_ssl_only": False,
@@ -635,7 +637,7 @@ class TestCreateWithFieldTemplatesCheck(WorkbenchTest):
     def test_create_with_field_templates_check(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/create_with_field_templates_test",
             "nodes_only": True,
             "csv_field_templates": [
@@ -669,7 +671,7 @@ class TestTaxonomies(WorkbenchTest):
     def taxonomy_setup(self):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "allow_adding_terms": True,
             "allow_missing_files": True,
             "input_dir": "tests/assets/taxonomies_test",
@@ -755,7 +757,7 @@ class TestTaxonomies(WorkbenchTest):
     def test_validate_term_names_exist(self, taxonomy_setup, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "allow_adding_terms": True,
             "allow_missing_files": True,
             "input_dir": "tests/assets/taxonomies_test",
@@ -783,7 +785,7 @@ class TestTaxonomies(WorkbenchTest):
     def test_validate_term_name_does_not_exist(self, taxonomy_setup, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "allow_adding_terms": False,
             "allow_missing_files": True,
             "input_dir": "tests/assets/taxonomies_test",
@@ -813,7 +815,7 @@ class TestTaxonomies(WorkbenchTest):
     def test_validate_term_id_does_not_exist(self, taxonomy_setup, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "allow_adding_terms": False,
             "allow_missing_files": True,
             "input_dir": "tests/assets/taxonomies_test",
@@ -847,7 +849,7 @@ class TestParentsPrecedeChildren(WorkbenchTest):
     def test_good_csv(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/parents_precede_children_test",
             "input_csv": "good.csv",
             "nodes_only": True,
@@ -868,7 +870,7 @@ class TestParentsPrecedeChildren(WorkbenchTest):
     def test_bad_csv(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/parents_precede_children_test",
             "input_csv": "bad.csv",
             "nodes_only": True,
@@ -899,7 +901,7 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
     def test_false(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "metadata_check.csv",
             "standalone_media_url": True,
@@ -941,7 +943,7 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
     def test_true(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "metadata_check.csv",
             "standalone_media_url": True,
@@ -982,7 +984,7 @@ class TestCreateAllowMissingFiles(WorkbenchTest):
     def test_false_with_soft_checks(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "metadata_check.csv",
             "standalone_media_url": True,
@@ -1033,7 +1035,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
     def test_false(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "metadata_additional_files_check.csv",
             "standalone_media_url": True,
@@ -1086,7 +1088,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
     def test_true(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "metadata_additional_files_check.csv",
             "standalone_media_url": True,
@@ -1136,7 +1138,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
     def test_false_with_soft_checks(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "metadata_additional_files_check.csv",
             "standalone_media_url": True,
@@ -1191,7 +1193,7 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
     def setup_nodes(self):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "add_media_create_nodes.csv",
             "standalone_media_url": True,
@@ -1276,7 +1278,7 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
     def test_false(self, setup_nodes, workbench_user):
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": setup_nodes["add_media_csv_file_path"],
             "standalone_media_url": True,
@@ -1327,7 +1329,7 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
     def test_true(self, setup_nodes, workbench_user):
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": setup_nodes["add_media_csv_file_path"],
             "standalone_media_url": True,
@@ -1370,7 +1372,7 @@ class TestAddMediaAllowMissingFiles(WorkbenchTest):
     def test_false_with_soft_checks(self, setup_nodes, workbench_user):
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": setup_nodes["add_media_csv_file_path"],
             "standalone_media_url": True,
@@ -1429,7 +1431,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
         # Create nodes to use in add_media task.
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": "add_media_create_nodes.csv",
             "standalone_media_url": True,
@@ -1519,7 +1521,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
     def test_false(self, setup_nodes, workbench_user):
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": setup_nodes["add_media_additional_files_csv_path"],
             "standalone_media_url": True,
@@ -1577,7 +1579,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
     def test_true(self, setup_nodes, workbench_user):
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": setup_nodes["add_media_additional_files_csv_path"],
             "standalone_media_url": True,
@@ -1627,7 +1629,7 @@ class TestAddMediaAllowMissingWithAdditionalFiles(WorkbenchTest):
     def test_false_with_soft_checks(self, setup_nodes, workbench_user):
         configuration = {
             "task": "add_media",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/allow_missing_files_test",
             "input_csv": setup_nodes["add_media_additional_files_csv_path"],
             "standalone_media_url": True,
@@ -1695,7 +1697,7 @@ class TestCommentedCsvs(WorkbenchTest):
     def test_commented_csv(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/commented_csvs_test",
             "nodes_only": True,
             "secure_ssl_only": False,
@@ -1758,7 +1760,7 @@ class TestCsvRowFilters(WorkbenchTest):
     def test_update_check(self, workbench_user):
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_csv": "csv_row_filters_test.csv",
             "nodes_only": True,
             "input_dir": "tests/assets/csv_row_filters_test",
