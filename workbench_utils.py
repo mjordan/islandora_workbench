@@ -9692,6 +9692,27 @@ def create_children_from_directory(
                 csv_row_to_apply_to_paged_children,
             )
 
+        # If a field is registered in the config to have a preprocessor applied to it
+        # (including empty fields), apply the processor.
+        if "preprocessors" in config and len(config["preprocessors"]) > 0:
+            for (
+                csv_field_to_apply_to_children
+            ) in csv_row_to_apply_to_paged_children.keys():
+                for preprocessor_script in config["preprocessors"]:
+                    for (
+                        processor_fieldname,
+                        processor_script_path,
+                    ) in preprocessor_script.items():
+                        if csv_field_to_apply_to_children == processor_fieldname:
+                            csv_row_to_apply_to_paged_children[
+                                csv_field_to_apply_to_children
+                            ] = preprocess_csv(
+                                config,
+                                csv_row_to_apply_to_paged_children,
+                                csv_field_to_apply_to_children,
+                                processor_script_path,
+                            )
+
         node_json = {
             "type": [
                 {
