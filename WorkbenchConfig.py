@@ -355,6 +355,7 @@ class WorkbenchConfig:
             "check": self.args.check,
             "get_csv_template": self.args.get_csv_template,
             "paged_content_sequence_separator": "-",
+            "paged_content_page_weight_multiplier": "1",
             "media_type_file_fields": self.get_media_fields(),
             "media_track_file_fields": self.get_media_track_file_fields(),
             "media_fields": self.get_media_fields(),

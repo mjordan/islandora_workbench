@@ -9663,7 +9663,11 @@ def create_children_from_directory(
                 )
                 weight = ""
 
-        csv_row_to_apply_to_paged_children["field_weight"] = weight
+        # The page's field_weight is assigned below, but we also include the assigned value
+        # in the temporary CSV record in case any CSV value templates are applied.
+        csv_row_to_apply_to_paged_children["field_weight"] = int(weight) * int(
+            config["paged_content_page_weight_multiplier"]
+        )
 
         # Add any fields to the page's row that are defined in config["csv_value_templates_for_paged_content"].
         if (
@@ -9722,7 +9726,12 @@ def create_children_from_directory(
             ],
             "title": [{"value": page_title}],
             "field_member_of": [{"target_id": parent_node_id, "target_type": "node"}],
-            "field_weight": [{"value": weight}],
+            "field_weight": [
+                {
+                    "value": int(weight)
+                    * int(config["paged_content_page_weight_multiplier"])
+                }
+            ],
         }
 
         # Add field_model if that field exists in the child's content type.
