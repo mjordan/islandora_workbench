@@ -70,17 +70,19 @@ class WorkbenchConfig:
                     logging.error(message)
                     sys.exit(message)
                 else:
+                    # We open the file to determine how many lines it contains.
                     with open(password_cfg["credentials_file_path"], "r") as stream:
                         tmp_credentials_content_file = stream.read()
                         tmp_credentials_content = (
                             tmp_credentials_content_file.splitlines()
-                        )
+                        ).strip()
                         if len(tmp_credentials_content) == 1:
-                            # It's likely encrypted, since if it isn't, we're expecting two lines.
+                            # It's likely encrypted if it contains only a single line, since if it isn't, we're expecting two lines.
                             encrypted = True
                         else:
                             encrypted = False
 
+                    # We open the file here to read its YAML.
                     credentials_yaml = YAML()
                     with open(password_cfg["credentials_file_path"], "r") as stream:
                         try:
@@ -128,9 +130,12 @@ class WorkbenchConfig:
         from cryptography.fernet import Fernet
 
         try:
-            encryption_key = getpass(
-                "Enter the encryptionn key for your credentials file: "
-            )
+            if "ISLANDORA_WORKBENCH_ENCRYPTION_KEY" in os.environ:
+                encryption_key = os.environ["ISLANDORA_WORKBENCH_ENCRYPTION_KEY"]
+            else:
+                encryption_key = getpass(
+                    "Enter the encryptionn key for your credentials file: "
+                )
             fernet = Fernet(encryption_key)
             with open(path_to_credentials_file, "rb") as f:
                 encrypted_credentials = f.read()
