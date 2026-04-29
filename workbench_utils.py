@@ -10222,20 +10222,35 @@ def write_rollback_config(config: dict, path_to_rollback_csv_file: str):
     else:
         password = None
 
-    yaml.dump(
-        {
-            "task": "delete",
-            "host": config["host"],
-            "username": config["username"],
-            "password": password,
-            "use_workbench_permissions": config["use_workbench_permissions"],
-            "input_dir": config["input_dir"],
-            "standalone_media_url": config["standalone_media_url"],
-            "secure_ssl_only": config["secure_ssl_only"],
-            "input_csv": path_to_rollback_csv_file,
-        },
-        rollback_config_file,
-    )
+    if "credentials_file_path" in config:
+        yaml.dump(
+            {
+                "task": "delete",
+                "host": config["host"],
+                "credentials_file_path": config["credentials_file_path"],
+                "use_workbench_permissions": config["use_workbench_permissions"],
+                "input_dir": config["input_dir"],
+                "standalone_media_url": config["standalone_media_url"],
+                "secure_ssl_only": config["secure_ssl_only"],
+                "input_csv": path_to_rollback_csv_file,
+            },
+            rollback_config_file,
+        )
+    else:
+        yaml.dump(
+            {
+                "task": "delete",
+                "host": config["host"],
+                "username": config["username"],
+                "password": password,
+                "use_workbench_permissions": config["use_workbench_permissions"],
+                "input_dir": config["input_dir"],
+                "standalone_media_url": config["standalone_media_url"],
+                "secure_ssl_only": config["secure_ssl_only"],
+                "input_csv": path_to_rollback_csv_file,
+            },
+            rollback_config_file,
+        )
 
 
 def prep_rollback_csv(config: dict, path_to_rollback_csv_file: str):
