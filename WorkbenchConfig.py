@@ -75,9 +75,10 @@ class WorkbenchConfig:
                         tmp_credentials_content_file = stream.read()
                         tmp_credentials_content = (
                             tmp_credentials_content_file.splitlines()
-                        ).strip()
+                        )
                         if len(tmp_credentials_content) == 1:
-                            # It's likely encrypted if it contains only a single line, since if it isn't, we're expecting two lines.
+                            # It's likely encrypted if it contains only a single line,
+                            # since if it isn't, we're expecting two lines.
                             encrypted = True
                         else:
                             encrypted = False
