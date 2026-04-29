@@ -70,11 +70,40 @@ class WorkbenchConfig:
                     logging.error(message)
                     sys.exit(message)
                 else:
+                    # We open the file to determine how many lines it contains.
+                    with open(password_cfg["credentials_file_path"], "r") as stream:
+                        tmp_credentials_content_file = stream.read()
+                        tmp_credentials_content = (
+                            tmp_credentials_content_file.splitlines()
+                        )
+                        if len(tmp_credentials_content) == 1:
+                            # It's likely encrypted if it contains only a single line,
+                            # since if it isn't, we're expecting two lines.
+                            encrypted = True
+                        else:
+                            encrypted = False
+
+                    # We open the file here to read its YAML.
                     credentials_yaml = YAML()
                     with open(password_cfg["credentials_file_path"], "r") as stream:
                         try:
-                            credentials = credentials_yaml.load(stream)
-                            return (credentials["username"], credentials["password"])
+                            if encrypted is True:
+                                decrypted_credentials = self.decrypt_credentials_file(
+                                    password_cfg["credentials_file_path"]
+                                )
+                                credentials = credentials_yaml.load(
+                                    decrypted_credentials
+                                )
+                                return (
+                                    credentials["username"],
+                                    credentials["password"],
+                                )
+                            else:
+                                credentials = credentials_yaml.load(stream)
+                                return (
+                                    credentials["username"],
+                                    credentials["password"],
+                                )
                         except YAMLError as exc:
                             print(
                                 f'There appears to be a YAML syntax error in your credentials file, {password_cfg["credentials_file_path"]}. See workbench.log for details.'
@@ -92,6 +121,35 @@ class WorkbenchConfig:
                     f"Password for Drupal user {password_cfg['username']}:"
                 )
                 return password
+
+    def decrypt_credentials_file(self, path_to_credentials_file):
+        """Decrypt the credentials file.
+        Parameters
+        :param path_to_credentials_file: string - The path to the credentials file.
+        :return: str - The decrypted file's contents.
+        """
+        from cryptography.fernet import Fernet
+
+        try:
+            if "ISLANDORA_WORKBENCH_ENCRYPTION_KEY" in os.environ:
+                encryption_key = os.environ["ISLANDORA_WORKBENCH_ENCRYPTION_KEY"]
+            else:
+                encryption_key = getpass(
+                    "Enter the encryptionn key for your credentials file: "
+                )
+            fernet = Fernet(encryption_key)
+            with open(path_to_credentials_file, "rb") as f:
+                encrypted_credentials = f.read()
+            decrypted_credentials = (
+                fernet.decrypt(encrypted_credentials).decode().strip()
+            )
+            return decrypted_credentials
+        except Exception as e:
+            message = (
+                f"Provided encryption key cannot decrypt the credentials file: {e}"
+            )
+            logging.error(message)
+            sys.exit(message)
 
     # Get fully constructed config dictionary.
     def get_config(self):
