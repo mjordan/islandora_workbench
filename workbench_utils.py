@@ -2334,6 +2334,10 @@ def check_input(config: dict, args: Namespace) -> None:
         row_filter_settings.append("csv_row_filters")
     if commented_out_input_csv_rows_present is True:
         row_filter_settings.append(True)
+    if "csv_start_row_skip" in config:
+        row_filter_settings.append(True)
+    if "csv_stop_row_skip" in config:
+        row_filter_settings.append(True)
     if len(row_filter_settings) > 1:
         preprocessed_input_csv_file_path = get_preprocessed_input_csv_file_path(config)
         message = f'Your configuration contains more than one input CSV row filter setting, and/or your input CSV has some commented-out rows. Please check "{preprocessed_input_csv_file_path}" to confirm the rows you want are present.'
@@ -6564,13 +6568,6 @@ def get_csv_data(
                         filter_group_value.strip()
                     )
 
-        # We subtract 1 from config['csv_start_row'] so user's expectation of the actual
-        # start row match up with Python's 0-based counting.
-        if config["csv_start_row"] > 0:
-            csv_start_row = config["csv_start_row"] - 1
-        else:
-            csv_start_row = config["csv_start_row"]
-
         if config["task"] == "run_scripts":
             if config["run_scripts_entity_type"] == "node":
                 config["id_field"] = "node_id"
@@ -6579,8 +6576,26 @@ def get_csv_data(
             if config["run_scripts_entity_type"] == "term":
                 config["id_field"] = "term_id"
 
+        # We subtract 1 from config['csv_start_row'] so user's expectation of the actual
+        # start row match up with Python's 0-based counting.
+        if config["csv_start_row"] > 0:
+            csv_start_row = config["csv_start_row"] - 1
+        else:
+            csv_start_row = config["csv_start_row"]
+
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
+
+            if (
+                "csv_start_row_skip" in config
+                and "csv_stop_row_skip" in config
+                and (
+                    int(config["csv_start_row_skip"])
+                    <= int(row_num)
+                    <= int(config["csv_stop_row_skip"])
+                )
+            ):
+                continue
 
             if "node_id" in row and value_is_numeric(row["node_id"]) is False:
                 row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
@@ -6775,6 +6790,17 @@ def get_csv_data(
             csv_start_row = config["csv_start_row"]
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
+
+            if (
+                "csv_start_row_skip" in config
+                and "csv_stop_row_skip" in config
+                and (
+                    int(config["csv_start_row_skip"])
+                    <= int(row_num)
+                    <= int(config["csv_stop_row_skip"])
+                )
+            ):
+                continue
 
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config["ignore_csv_columns"]) > 0:
@@ -11851,6 +11877,12 @@ def csv_subset_warning(config: dict) -> None:
             message = f"Using a subset of the input CSV (will stop at row {config['csv_stop_row']} / row ID {stop_row_id})."
         print(message)
         logging.info(message)
+
+    if "csv_start_row_skip" in config and "csv_stop_row_skip" in config:
+        message = f"Using a subset of the input CSV (will skip rows {config['csv_start_row_skip']} to {config['csv_stop_row_skip']})."
+        print(message)
+        logging.info(message)
+
     return None
 
 
