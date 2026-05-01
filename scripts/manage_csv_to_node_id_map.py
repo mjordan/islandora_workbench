@@ -3,13 +3,13 @@
 """Utility script to dump the CSV ID to Node ID map from its SQLite database, or to remove
 entries from the database with specificed config files names or prior to/before a provided timestamp.
 
-Usage: python dump_id_map.py --db_path csv_id_to_node_id_map.db --csv_path /tmp/test.csv
-       python dump_id_map.py --db_path csv_id_to_node_id_map.db --csv_path /tmp/test.csv --nonunique csv_id
+Usage: python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --csv_path /tmp/test.csv
+       python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --csv_path /tmp/test.csv --nonunique csv_id
 
-       python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_before "2023-05-29 19:17"
-       python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_after "2023-05-22"
-       python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_with_config_files create.yml,test_dir/create_testing.yml
-       python dump_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_for_deleted_nodes https://islandora.traefik.me
+       python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_before "2023-05-29 19:17"
+       python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_after "2023-05-22"
+       python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_with_config_files create.yml,test_dir/create_testing.yml
+       python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_for_deleted_nodes https://islandora.traefik.me
 """
 
 import os
@@ -116,6 +116,7 @@ if args.csv_path is not None:
         "Parent node ID",
         "CSV ID",
         "Node ID",
+        "Host",
     ]
     csv_writer = csv.DictWriter(csv_writer_file_handle, fieldnames=csv_headers)
     csv_writer.writeheader()
@@ -128,6 +129,7 @@ if args.csv_path is not None:
         csv_row["Parent node ID"] = row[3]
         csv_row["CSV ID"] = row[4]
         csv_row["Node ID"] = row[5]
+        csv_row["Host"] = row[6]
         csv_writer.writerow(csv_row)
 
     print(f"Dumped {len(res)} rows into CSV file {csv_path}.")
