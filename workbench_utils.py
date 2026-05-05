@@ -530,15 +530,23 @@ def get_integration_module_version(config: dict) -> Union[str, bool]:
     """
     url = config["host"] + "/islandora_workbench_integration/version"
     response = issue_request(config, "GET", url)
-    if response.status_code == 200:
-        version_body = response.json()
-        return version_body["integration_module_version"]
-    else:
-        logging.warning(
-            "Attempt to get the Islandora Workbench Integration module's version number returned a %s status code",
-            response.status_code,
-        )
-        return False
+    try:
+        if response.status_code == 200:
+            version_body = response.json()
+            return version_body["integration_module_version"]
+        else:
+            logging.warning(
+                "Attempt to get the Islandora Workbench Integration module's version number returned a %s status code",
+                response.status_code,
+            )
+            return False
+    except (requests.JSONDecodeError, TypeError) as e:
+        if isinstance(e, requests.JSONDecodeError):
+            message = f"Unable to parse Islandora Workbench Integration module version response as JSON. Response text was: {response.text}"
+        else:
+            message = f"Unexpected error when trying to get Islandora Workbench Integration module version. Response text was: {response.text}"
+        logging.warning(message)
+        raise ValueError(message, e)
 
 
 def ping_node(
