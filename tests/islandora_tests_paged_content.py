@@ -14,6 +14,7 @@ from workbench_test_class import (
     WorkbenchTest,
     collect_nids_from_create_output,
     cleanup_paths,
+    WB_INTEGRATION_TEST_HOST,
 )
 
 
@@ -23,7 +24,7 @@ class TestCreatePagedContent(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/create_paged_content_test",
             "nodes_only": True,
             "id_field": "field_local_identifier",
@@ -93,7 +94,7 @@ class TestCreatePagedContentFromDirectories(WorkbenchTest):
             "paged_content_from_directories": True,
             "paged_content_page_model_tid": "http://id.loc.gov/ontologies/bibframe/part",
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/create_paged_content_from_directories_test/samplebooks",
             "standalone_media_url": True,
             "secure_ssl_only": False,
@@ -175,7 +176,7 @@ class TestCreatePagedContentFromDirectoriesPageFilesSourceDirField(WorkbenchTest
             "paged_content_from_directories": True,
             "paged_content_page_model_tid": "http://id.loc.gov/ontologies/bibframe/part",
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/create_paged_content_from_directories_test/samplebooks",
             "input_csv": "metadata_page_files_source_dir_field.csv",
             "standalone_media_url": True,

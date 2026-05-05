@@ -1993,15 +1993,10 @@ class TestGeneralTests(unittest.TestCase):
         """Sets up a WorkbenchConfig object with a temporary config file for testing and a patch to
         handle calls to verify the 'host' URL."""
         cls.get_patcher = mock.patch(
-            "WorkbenchConfig.requests.sessions.Session.get",
+            "WorkbenchConfig.requests.sessions.Session.request",
             side_effect=mocked_requests_get,
         )
         cls.get_patcher.start()
-        cls.head_patcher = mock.patch(
-            "WorkbenchConfig.requests.sessions.Session.head",
-            side_effect=mocked_requests_get,
-        )
-        cls.head_patcher.start()
 
         with tempfile.NamedTemporaryFile(
             mode="w+", delete=False, suffix=".yml"
@@ -2021,7 +2016,6 @@ class TestGeneralTests(unittest.TestCase):
     def tearDownClass(cls):
         """Stops the patcher and removes the temporary config file."""
         cls.get_patcher.stop()
-        cls.head_patcher.stop()
         if os.path.exists(cls.config_file_name):
             os.remove(cls.config_file_name)
 
