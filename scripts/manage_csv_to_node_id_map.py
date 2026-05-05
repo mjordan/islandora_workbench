@@ -10,7 +10,7 @@ Usage: python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --
        python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_after "2023-05-22"
        python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_with_config_files create.yml,test_dir/create_testing.yml
        python manage_csv_to_node_id_map.py --db_path csv_id_to_node_id_map.db --remove_entries_for_deleted_nodes https://islandora.traefik.me
-       ython manage_csv_to_node_id_map.py --target_db_path csv_id_to_node_id_map_1.db --source_db_path csv_id_to_node_id_map_2.db
+       python manage_csv_to_node_id_map.py --target_db_path csv_id_to_node_id_map_1.db --source_db_path csv_id_to_node_id_map_2.db
 """
 
 import os
