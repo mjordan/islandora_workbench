@@ -185,6 +185,18 @@ class WorkbenchConfig:
         # @todo: These two overrides aren't working. For now, they are set within workbench.update_terms().
         elif config["task"] == "update_terms":
             config["id_field"] = "term_id"
+        if "paged_content_page_content_type" not in user_mods:
+            config["paged_content_page_content_type"] = config["content_type"]
+        # Add preprocessor, if specified.
+        if "preprocessors" in user_mods:
+            config["preprocessors"] = {}
+            for preprocessor in user_mods["preprocessors"]:
+                for key, value in preprocessor.items():
+                    # Expand user home directory in preprocessor script paths
+                    if isinstance(value, str):
+                        config["preprocessors"][key] = os.path.expanduser(value)
+                    else:
+                        config["preprocessors"][key] = value
 
         config["host"] = config["host"].rstrip("/")
         if "csv_id_to_node_id_map_allowed_hosts" not in config:
@@ -250,6 +262,10 @@ class WorkbenchConfig:
             loaded["config_file_path"] = self.args.config
         else:
             loaded["config_file_path"] = os.path.join(os.getcwd(), self.args.config)
+
+        # Expand user paths for any path-related config keys
+        loaded = self.expand_path_configs(loaded)
+
         return loaded
 
     # Returns standard media fields.
@@ -462,6 +478,8 @@ class WorkbenchConfig:
 
     # Tests validity and existence of configuration file path.
     def path_check(self):
+        # Update the path with user home path if it exists
+        self.args.config = os.path.expanduser(self.args.config)
         # Check existence of configuration file.
         if not os.path.exists(self.args.config):
             # Since the main logger gets its log file location from this file, we
@@ -485,3 +503,54 @@ class WorkbenchConfig:
             table.add_row(key, str(value))
         console = Console()
         console.print(table)
+
+    # Utility function to expand user paths for relevant config keys
+    @staticmethod
+    def expand_path_configs(config):
+        """Expand user home directory (~) in path configuration values.
+
+        Args:
+            config (dict): Configuration dictionary containing path values
+
+        Returns:
+            dict: Configuration dictionary with expanded paths
+        """
+        path_keys = [
+            "input_dir",
+            "log_file_path",
+            "rollback_dir",
+            "export_file_directory",
+            "csv_id_to_node_id_map_dir",
+            "csv_id_to_node_id_map_path",
+            "path_to_python",
+            "credentials_file_path",
+        ]
+        for key in path_keys:
+            if key in config and isinstance(config[key], str):
+                config[key] = os.path.expanduser(config[key])
+
+        # Handle hook configurations that contain lists of script paths
+        hook_keys = [
+            "bootstrap",
+            "shutdown",
+            "node_post_create",
+            "node_post_update",
+            "media_post_create",
+            "node_post_export",
+            "run_scripts",
+        ]
+        for key in hook_keys:
+            if key in config and isinstance(config[key], list):
+                config[key] = [os.path.expanduser(path) for path in config[key]]
+
+        # Handle preprocessors configuration which is a dict mapping field names to script paths
+        if "preprocessors" in config and isinstance(config["preprocessors"], list):
+            for i, preprocessor_dict in enumerate(config["preprocessors"]):
+                if isinstance(preprocessor_dict, dict):
+                    for field_name, script_path in preprocessor_dict.items():
+                        if isinstance(script_path, str):
+                            config["preprocessors"][i][field_name] = os.path.expanduser(
+                                script_path
+                            )
+
+        return config
