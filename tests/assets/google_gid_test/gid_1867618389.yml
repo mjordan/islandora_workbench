@@ -1,8 +1,8 @@
 task: create
-host: https://islandora.dev
+host: http://islandora.traefik.me
 username: admin
 password: password
-input_csv: 'https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0'
+input_csv: "https://docs.google.com/spreadsheets/d/13Mw7gtBy1A3ZhYEAlBzmkswIdaZvX18xoRBxfbgxqWc/edit#gid=0"
 nodes_only: true
 google_sheets_gid: 1867618389
 secure_ssl_only: false

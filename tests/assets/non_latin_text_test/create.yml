@@ -1,5 +1,5 @@
 task: create
-host: https://islandora.dev
+host: http://islandora.traefik.me
 username: admin
 password: password
 input_dir: "tests/assets/non_latin_text_test"
