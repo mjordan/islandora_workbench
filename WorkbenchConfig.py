@@ -126,10 +126,14 @@ class WorkbenchConfig:
                             logging.error(yaml_error)
                             sys.exit()
             else:
-                password = getpass(
-                    f"Password for Drupal user {password_cfg['username']}:"
-                )
-                return password
+                try:
+                    password = getpass(
+                        f"Password for Drupal user {password_cfg['username']} (ctrl-c to exit):"
+                    )
+                    return password
+                except KeyboardInterrupt:
+                    print("\nExiting.")
+                    sys.exit(0)
 
     def decrypt_credentials_file(
         self, path_to_credentials_file, path_to_credentials_key_file_path
@@ -162,7 +166,7 @@ class WorkbenchConfig:
             else:
                 try:
                     encryption_key = getpass(
-                        "Enter the encryptionn key for your credentials file: "
+                        "Enter the encryptionn key for your credentials file (ctrl-c to exit): "
                     )
                 except KeyboardInterrupt:
                     print("\nExiting.")
