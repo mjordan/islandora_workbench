@@ -88,8 +88,17 @@ class WorkbenchConfig:
                     with open(password_cfg["credentials_file_path"], "r") as stream:
                         try:
                             if encrypted is True:
+                                if "credentials_key_file_path" in password_cfg:
+                                    credentials_key_file_path = os.path.abspath(
+                                        password_cfg["credentials_key_file_path"]
+                                    )
+                                else:
+                                    credentials_key_file_path = None
                                 decrypted_credentials = self.decrypt_credentials_file(
-                                    password_cfg["credentials_file_path"]
+                                    os.path.abspath(
+                                        password_cfg["credentials_file_path"]
+                                    ),
+                                    credentials_key_file_path,
                                 )
                                 credentials = credentials_yaml.load(
                                     decrypted_credentials
@@ -117,26 +126,51 @@ class WorkbenchConfig:
                             logging.error(yaml_error)
                             sys.exit()
             else:
-                password = getpass(
-                    f"Password for Drupal user {password_cfg['username']}:"
-                )
-                return password
+                try:
+                    password = getpass(
+                        f"Password for Drupal user {password_cfg['username']} (ctrl-c to exit):"
+                    )
+                    return password
+                except KeyboardInterrupt:
+                    print("\nExiting.")
+                    sys.exit(0)
 
-    def decrypt_credentials_file(self, path_to_credentials_file):
+    def decrypt_credentials_file(
+        self, path_to_credentials_file, path_to_credentials_key_file_path
+    ):
         """Decrypt the credentials file.
         Parameters
-        :param path_to_credentials_file: string - The path to the credentials file.
+        :param path_to_credentials_file: string - The absolute ath to the credentials file.
+        :param path_to_credentials_key_file_path: string - The absolute path to the credentials key file, or None if the path is not defined in the Workbench configuration.
         :return: str - The decrypted file's contents.
         """
         from cryptography.fernet import Fernet
 
         try:
-            if "ISLANDORA_WORKBENCH_ENCRYPTION_KEY" in os.environ:
+            if path_to_credentials_key_file_path is not None:
+                # Check that key file path exists and is readable.
+                if os.path.exists(path_to_credentials_key_file_path) is False:
+                    message = (
+                        'Error: Credentials file "'
+                        + path_to_credentials_key_file_path
+                        + '" not found.'
+                    )
+                    logging.error(message)
+                    sys.exit(message)
+
+                # Get the value in the key file.
+                with open(path_to_credentials_key_file_path, "rb") as f:
+                    encryption_key = f.read().strip()
+            elif "ISLANDORA_WORKBENCH_ENCRYPTION_KEY" in os.environ:
                 encryption_key = os.environ["ISLANDORA_WORKBENCH_ENCRYPTION_KEY"]
             else:
-                encryption_key = getpass(
-                    "Enter the encryptionn key for your credentials file: "
-                )
+                try:
+                    encryption_key = getpass(
+                        "Enter the encryptionn key for your credentials file (ctrl-c to exit): "
+                    )
+                except KeyboardInterrupt:
+                    print("\nExiting.")
+                    sys.exit(0)
             fernet = Fernet(encryption_key)
             with open(path_to_credentials_file, "rb") as f:
                 encrypted_credentials = f.read()
