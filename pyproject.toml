@@ -25,6 +25,7 @@ dependencies = [
     "progress_bar",
     "openpyxl",
     "unidecode",
+    "cryptography",
     "edtf_validate",
     "typing-extensions>=4.14.0",
     "rich",

@@ -144,8 +144,6 @@ class WorkbenchConfig:
         :param path_to_credentials_key_file_path: string - The absolute path to the credentials key file, or None if the path is not defined in the Workbench configuration.
         :return: str - The decrypted file's contents.
         """
-        from cryptography.fernet import Fernet
-
         try:
             if path_to_credentials_key_file_path is not None:
                 # Check that key file path exists and is readable.
