@@ -17,6 +17,7 @@ from workbench_test_class import (
     WorkbenchTest,
     collect_nids_from_create_output,
     cleanup_paths,
+    WB_INTEGRATION_TEST_HOST,
 )
 
 
@@ -47,7 +48,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
         # that will be duplicates of ones created in the next block.
         part_configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/recovery_mode_test",
             "input_csv": "recovery_mode_single_part.csv",
             "csv_id_to_node_id_map_path": setup_test["test_db_path"],
@@ -101,7 +102,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
             # Then create 12 more nodes in recovery mode from the same input CSV.
             full_configuration = {
                 "task": "create",
-                "host": "https://islandora.dev",
+                "host": WB_INTEGRATION_TEST_HOST,
                 "input_dir": "tests/assets/recovery_mode_test",
                 "input_csv": "recovery_mode_single_full.csv",
                 "csv_id_to_node_id_map_path": setup_test["test_db_path"],
@@ -140,7 +141,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
                     "--config",
                     create_stale_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    WB_INTEGRATION_TEST_HOST + "/node/" + nid,
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -150,7 +151,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
                     "--config",
                     create_stale_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    WB_INTEGRATION_TEST_HOST + "/node/" + nid,
                 ]
                 subprocess.check_output(quick_delete_cmd)
 
@@ -160,7 +161,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
                     "--config",
                     create_full_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    WB_INTEGRATION_TEST_HOST + "/node/" + nid,
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -189,7 +190,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
         requests.packages.urllib3.disable_warnings()
         configuration = {
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/recovery_mode_test",
             "input_csv": "recovery_mode_single_part_with_parent_id.csv",
             "csv_id_to_node_id_map_path": setup_test["test_db_path"],
@@ -242,7 +243,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
             # Then create 12 more nodes in recovery mode from the same input CSV.
             full_configuration = {
                 "task": "create",
-                "host": "https://islandora.dev",
+                "host": WB_INTEGRATION_TEST_HOST,
                 "input_dir": "tests/assets/recovery_mode_test",
                 "input_csv": "recovery_mode_single_full_with_parent_id.csv",
                 "csv_id_to_node_id_map_path": setup_test["test_db_path"],
@@ -278,7 +279,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
             node_with_children_nid = None
             for node_id in part_nids:
                 node_url = (
-                    "https://islandora.dev/node/" + str(node_id) + "?_format=json"
+                    WB_INTEGRATION_TEST_HOST + "/node/" + str(node_id) + "?_format=json"
                 )
                 node_response = requests.get(node_url, verify=False)
                 node = json.loads(node_response.text)
@@ -287,7 +288,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
 
             for node_id in full_nids:
                 node_url = (
-                    "https://islandora.dev/node/" + str(node_id) + "?_format=json"
+                    WB_INTEGRATION_TEST_HOST + "/node/" + str(node_id) + "?_format=json"
                 )
                 node_response = requests.get(node_url, verify=False)
                 node = json.loads(node_response.text)
@@ -309,7 +310,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
                     "--config",
                     create_stale_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    WB_INTEGRATION_TEST_HOST + "/node/" + nid,
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -319,7 +320,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
                     "--config",
                     create_stale_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    WB_INTEGRATION_TEST_HOST + "/node/" + nid,
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -329,7 +330,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
                     "--config",
                     create_full_config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    WB_INTEGRATION_TEST_HOST + "/node/" + nid,
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 
@@ -363,7 +364,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
             "paged_content_sequence_separator": "_",
             "paged_content_image_file_extension": "gif",
             "task": "create",
-            "host": "https://islandora.dev",
+            "host": WB_INTEGRATION_TEST_HOST,
             "input_dir": "tests/assets/recovery_mode_test/pages_from_directories_full",
             "csv_id_to_node_id_map_path": setup_test["test_db_path"],
             "rollback_config_file_path": "tests/assets/recovery_mode_test/rollback_paged_full.yml",
@@ -416,7 +417,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
                 "paged_content_sequence_separator": "_",
                 "paged_content_image_file_extension": "gif",
                 "task": "create",
-                "host": "https://islandora.dev",
+                "host": WB_INTEGRATION_TEST_HOST,
                 "input_dir": "tests/assets/recovery_mode_test/pages_from_directories_part",
                 "csv_id_to_node_id_map_path": setup_test["test_db_path"],
                 "rollback_config_file_path": "tests/assets/recovery_mode_test/rollback_paged_part.yml",
@@ -462,7 +463,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
                 "paged_content_sequence_separator": "_",
                 "paged_content_image_file_extension": "gif",
                 "task": "create",
-                "host": "https://islandora.dev",
+                "host": WB_INTEGRATION_TEST_HOST,
                 "input_dir": "tests/assets/recovery_mode_test/pages_from_directories_full",
                 "csv_id_to_node_id_map_path": setup_test["test_db_path"],
                 "rollback_config_file_path": "tests/assets/recovery_mode_test/rollback_paged_full.yml",
@@ -521,7 +522,8 @@ class TestCreateRecoveryMode(WorkbenchTest):
             # Get the two book nodes' node IDs.
             for node_id in all_node_ids:
                 node_url = (
-                    "https://islandora.dev/node/"
+                    WB_INTEGRATION_TEST_HOST
+                    + "/node/"
                     + str(node_id).strip()
                     + "?_format=json"
                 )
@@ -544,7 +546,8 @@ class TestCreateRecoveryMode(WorkbenchTest):
 
             for node_id in all_node_ids:
                 node_url = (
-                    "https://islandora.dev/node/"
+                    WB_INTEGRATION_TEST_HOST
+                    + "/node/"
                     + str(node_id).strip()
                     + "?_format=json"
                 )
