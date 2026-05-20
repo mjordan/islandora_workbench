@@ -9,6 +9,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      WB_INTEGRATION_TEST_HOST: ${{ vars.WB_INTEGRATION_TEST_HOST || 'https://islandora.io' }}
 
     steps:
 
