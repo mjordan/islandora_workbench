@@ -3264,7 +3264,11 @@ parser.add_argument(
     "--recovery_mode_starting_from_node_id",
     help="Overrides the 'recovery_mode_starting_from_node_id' configuration setting.",
 )
-
+parser.add_argument(
+    "--enable_profiler",
+    help="Sets the 'enable_profiler' configuration setting to true.",
+    action="store_true",
+)
 
 parser.add_argument("--version", action="version", version="Islandora Workbench 0.0.0")
 args = parser.parse_args()
@@ -3316,6 +3320,8 @@ if args.recovery_mode_starting_from_node_id is not None:
     config["recovery_mode_starting_from_node_id"] = (
         args.recovery_mode_starting_from_node_id
     )
+if args.enable_profiler is not None and args.enable_profiler is True:
+    config["enable_profiler"] = True
 
 if args.check is True:
     check_for_workbench_updates(config)

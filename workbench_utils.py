@@ -63,11 +63,42 @@ file_fields = [
 ]
 commented_out_input_csv_rows_present = False
 
+def get_profiling_timer(config, label, start_time=None) -> Union[float, None]:
+    """Writes log entries documenting time, in seconds, between the start and
+    end of a block of source code. This function is called at the start of a block
+    with no start_time parameter, and then at the end of the block with the start_time
+    returned by the starting call.
+
+    Parameters
+    ----------
+    config : dict
+       The configuration settings defined by workbench_config.get_config().
+    label: string
+       A descriptive string identifying the start and end of the profiler block.
+    start_time: float
+       The time, in seconds, returned by the starting call to this function.
+    Returns
+    -------
+    mtype : float|None
+       The output of time.perf_counter() if start_time is None,
+       or None if config["enable_profiler"] is False.
+    """
+    if config["enable_profiler"] is False:
+        return
+    if start_time is None:
+        logging.info(f'Profiler,start,"{label}"')
+        return time.perf_counter()
+    else:
+        end_time = time.perf_counter()
+        seconds = end_time - start_time
+        logging.info(f'Profiler,end,"{label}",{seconds:.1f}')
+
 
 def set_media_type(
     config: dict, filepath: str, file_fieldname: str, csv_row: OrderedDict
 ) -> str:
-    """Using either the 'media_type' or 'media_types_override' configuration
+    """Using either the 'media_type' or 'media_types_o
+    verride' configuration
     setting, determine which media bundle type to use.
 
     Parameters

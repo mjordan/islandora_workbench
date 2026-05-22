@@ -490,6 +490,7 @@ class WorkbenchConfig:
             "use_workbench_permissions": False,
             "show_shutdown_script_output": False,
             "show_bootstrap_script_output": False,
+            "enable_profiler": False,
         }
 
     # Tests validity and existence of configuration file path.
