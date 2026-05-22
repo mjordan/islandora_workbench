@@ -63,6 +63,7 @@ file_fields = [
 ]
 commented_out_input_csv_rows_present = False
 
+
 def get_profiling_timer(config, label, start_time=None) -> Union[float, None]:
     """Writes log entries documenting time, in seconds, between the start and
     end of a block of source code. This function is called at the start of a block
