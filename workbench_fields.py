@@ -1089,6 +1089,9 @@ class EntityReferenceField(WorkbenchField):
 
         subvalues = list()
         for subvalue in field_data:
+            if "target_type" not in subvalue:
+                # No target_type means the target item may have been deleted, so skip it.
+                continue
             if (
                 config["export_csv_term_mode"] == "name"
                 and subvalue["target_type"] == "taxonomy_term"

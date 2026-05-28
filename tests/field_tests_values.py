@@ -8,6 +8,8 @@ import sys
 import os
 import unittest
 
+from unittest import mock
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_fields
 
@@ -90,6 +92,114 @@ class TestAuthorityLinkField(unittest.TestCase):
             self.assertRegex(
                 str(message.output), r"xxx.*not a valid Authority Link field value"
             )
+
+
+def mocked_request_ping_taxonomy_term(*args, **kwargs):
+    """Don't actually do the ping, just assume they exist."""
+    return True
+
+
+class TestEntityReferenceField(unittest.TestCase):
+
+    @mock.patch(
+        "workbench_fields.ping_term", side_effect=mocked_request_ping_taxonomy_term
+    )
+    def test_entity_reference_field_validate_single(self, mocked_request):
+        input = [
+            {
+                "target_id": 105,
+                "target_type": "taxonomy_term",
+                "target_uuid": "8dfca720-06ba-4e3b-96dd-9930fec91480",
+                "url": "\/taxonomy\/term\/105",
+            }
+        ]
+        field_definitions = {
+            "field_subject": {
+                "entity_type": "node",
+                "field_type": "entity_reference",
+                "target_type": "taxonomy_term",
+            }
+        }
+        config = {
+            "task": "create",
+            "host": "http://example.host",
+            "export_csv_term_mode": "tid",
+            "subdelimiter": "|",
+        }
+        field = workbench_fields.EntityReferenceField()
+        output = field.serialize(config, field_definitions, "field_subject", input)
+        self.assertEqual("105", output)
+
+    @mock.patch(
+        "workbench_fields.ping_term", side_effect=mocked_request_ping_taxonomy_term
+    )
+    def test_entity_reference_field_validate_two(self, mocked_request):
+        input = [
+            {
+                "target_id": 105,
+                "target_type": "taxonomy_term",
+                "target_uuid": "8dfca720-06ba-4e3b-96dd-9930fec91480",
+                "url": "\/taxonomy\/term\/105",
+            },
+            {
+                "target_id": 251,
+                "target_type": "taxonomy_term",
+                "target_uuid": "22cbdcf1-a895-4414-848c-47831af77663",
+                "url": "\/taxonomy\/term\/251",
+            },
+        ]
+        field_definitions = {
+            "field_subject": {
+                "entity_type": "node",
+                "field_type": "entity_reference",
+                "target_type": "taxonomy_term",
+            }
+        }
+        config = {
+            "task": "create",
+            "host": "http://example.host",
+            "export_csv_term_mode": "tid",
+            "subdelimiter": "|",
+        }
+        field = workbench_fields.EntityReferenceField()
+        output = field.serialize(config, field_definitions, "field_subject", input)
+        self.assertEqual("105|251", output)
+
+    @mock.patch(
+        "workbench_fields.ping_term", side_effect=mocked_request_ping_taxonomy_term
+    )
+    def test_entity_reference_field_validate_not_exist(self, mocked_request):
+        input = [
+            {
+                "target_id": 105,
+                "target_type": "taxonomy_term",
+                "target_uuid": "8dfca720-06ba-4e3b-96dd-9930fec91480",
+                "url": "\/taxonomy\/term\/105",
+            },
+            {
+                "target_id": 251,
+                "target_type": "taxonomy_term",
+                "target_uuid": "22cbdcf1-a895-4414-848c-47831af77663",
+                "url": "\/taxonomy\/term\/251",
+            },
+            {"target_id": 120},
+        ]
+        field_definitions = {
+            "field_subject": {
+                "entity_type": "node",
+                "field_type": "entity_reference",
+                "target_type": "taxonomy_term",
+            }
+        }
+        config = {
+            "task": "create",
+            "host": "http://example.host",
+            "export_csv_term_mode": "tid",
+            "subdelimiter": "|",
+        }
+        field = workbench_fields.EntityReferenceField()
+        output = field.serialize(config, field_definitions, "field_subject", input)
+        self.assertEqual("105|251", output)
 
 
 if __name__ == "__main__":

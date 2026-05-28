@@ -70,11 +70,49 @@ class WorkbenchConfig:
                     logging.error(message)
                     sys.exit(message)
                 else:
+                    # We open the file to determine how many lines it contains.
+                    with open(password_cfg["credentials_file_path"], "r") as stream:
+                        tmp_credentials_content_file = stream.read()
+                        tmp_credentials_content = (
+                            tmp_credentials_content_file.splitlines()
+                        )
+                        if len(tmp_credentials_content) == 1:
+                            # It's likely encrypted if it contains only a single line,
+                            # since if it isn't, we're expecting two lines.
+                            encrypted = True
+                        else:
+                            encrypted = False
+
+                    # We open the file here to read its YAML.
                     credentials_yaml = YAML()
                     with open(password_cfg["credentials_file_path"], "r") as stream:
                         try:
-                            credentials = credentials_yaml.load(stream)
-                            return (credentials["username"], credentials["password"])
+                            if encrypted is True:
+                                if "credentials_key_file_path" in password_cfg:
+                                    credentials_key_file_path = os.path.abspath(
+                                        password_cfg["credentials_key_file_path"]
+                                    )
+                                else:
+                                    credentials_key_file_path = None
+                                decrypted_credentials = self.decrypt_credentials_file(
+                                    os.path.abspath(
+                                        password_cfg["credentials_file_path"]
+                                    ),
+                                    credentials_key_file_path,
+                                )
+                                credentials = credentials_yaml.load(
+                                    decrypted_credentials
+                                )
+                                return (
+                                    credentials["username"],
+                                    credentials["password"],
+                                )
+                            else:
+                                credentials = credentials_yaml.load(stream)
+                                return (
+                                    credentials["username"],
+                                    credentials["password"],
+                                )
                         except YAMLError as exc:
                             print(
                                 f'There appears to be a YAML syntax error in your credentials file, {password_cfg["credentials_file_path"]}. See workbench.log for details.'
@@ -88,10 +126,62 @@ class WorkbenchConfig:
                             logging.error(yaml_error)
                             sys.exit()
             else:
-                password = getpass(
-                    f"Password for Drupal user {password_cfg['username']}:"
-                )
-                return password
+                try:
+                    password = getpass(
+                        f"Password for Drupal user {password_cfg['username']} (ctrl-c to exit):"
+                    )
+                    return password
+                except KeyboardInterrupt:
+                    print("\nExiting.")
+                    sys.exit(0)
+
+    def decrypt_credentials_file(
+        self, path_to_credentials_file, path_to_credentials_key_file_path
+    ):
+        """Decrypt the credentials file.
+        Parameters
+        :param path_to_credentials_file: string - The absolute ath to the credentials file.
+        :param path_to_credentials_key_file_path: string - The absolute path to the credentials key file, or None if the path is not defined in the Workbench configuration.
+        :return: str - The decrypted file's contents.
+        """
+        try:
+            if path_to_credentials_key_file_path is not None:
+                # Check that key file path exists and is readable.
+                if os.path.exists(path_to_credentials_key_file_path) is False:
+                    message = (
+                        'Error: Credentials file "'
+                        + path_to_credentials_key_file_path
+                        + '" not found.'
+                    )
+                    logging.error(message)
+                    sys.exit(message)
+
+                # Get the value in the key file.
+                with open(path_to_credentials_key_file_path, "rb") as f:
+                    encryption_key = f.read().strip()
+            elif "ISLANDORA_WORKBENCH_ENCRYPTION_KEY" in os.environ:
+                encryption_key = os.environ["ISLANDORA_WORKBENCH_ENCRYPTION_KEY"]
+            else:
+                try:
+                    encryption_key = getpass(
+                        "Enter the encryptionn key for your credentials file (ctrl-c to exit): "
+                    )
+                except KeyboardInterrupt:
+                    print("\nExiting.")
+                    sys.exit(0)
+            fernet = Fernet(encryption_key)
+            with open(path_to_credentials_file, "rb") as f:
+                encrypted_credentials = f.read()
+            decrypted_credentials = (
+                fernet.decrypt(encrypted_credentials).decode().strip()
+            )
+            return decrypted_credentials
+        except Exception as e:
+            message = (
+                f"Provided encryption key cannot decrypt the credentials file: {e}"
+            )
+            logging.error(message)
+            sys.exit(message)
 
     # Get fully constructed config dictionary.
     def get_config(self):
@@ -371,6 +461,7 @@ class WorkbenchConfig:
             "check": self.args.check,
             "get_csv_template": self.args.get_csv_template,
             "paged_content_sequence_separator": "-",
+            "paged_content_page_weight_multiplier": "1",
             "media_type_file_fields": self.get_media_fields(),
             "media_track_file_fields": self.get_media_track_file_fields(),
             "media_fields": self.get_media_fields(),
@@ -413,6 +504,8 @@ class WorkbenchConfig:
             "viewer_override_fieldname": "field_viewer_override",
             "check_for_workbench_updates": True,
             "use_workbench_permissions": False,
+            "show_shutdown_script_output": False,
+            "show_bootstrap_script_output": False,
         }
 
     # Tests validity and existence of configuration file path.

@@ -47,9 +47,10 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(["--config", test_file_name])
 
-        with self.assertRaises(SystemExit) as exit_return, patch(
-            "WorkbenchConfig.logging"
-        ) as mocked_logging:
+        with (
+            self.assertRaises(SystemExit) as exit_return,
+            patch("WorkbenchConfig.logging") as mocked_logging,
+        ):
 
             mocked_logging.return_value = None
 
@@ -65,9 +66,11 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(["--config", test_file_name])
 
-        with patch("sys.exit", side_effect=lambda x: None) as mock_exit, patch(
-            "WorkbenchConfig.WorkbenchConfig.validate"
-        ) as mocked_validate, patch("WorkbenchConfig.logging") as mocked_logging:
+        with (
+            patch("sys.exit", side_effect=lambda x: None) as mock_exit,
+            patch("WorkbenchConfig.WorkbenchConfig.validate") as mocked_validate,
+            patch("WorkbenchConfig.logging") as mocked_logging,
+        ):
 
             mocked_validate.return_value = None
             mocked_logging.return_value = None
@@ -85,9 +88,10 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(["--config", test_file_name])
 
-        with patch(
-            "WorkbenchConfig.WorkbenchConfig.validate"
-        ) as mocked_validate, patch("WorkbenchConfig.logging") as mocked_logging:
+        with (
+            patch("WorkbenchConfig.WorkbenchConfig.validate") as mocked_validate,
+            patch("WorkbenchConfig.logging") as mocked_logging,
+        ):
 
             mocked_validate.return_value = None
             mocked_logging.return_value = None
@@ -113,9 +117,10 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(["--config", test_file_name])
 
-        with patch("WorkbenchConfig.issue_request") as mocked_issue_request, patch(
-            "WorkbenchConfig.logging"
-        ) as mocked_logging:
+        with (
+            patch("WorkbenchConfig.issue_request") as mocked_issue_request,
+            patch("WorkbenchConfig.logging") as mocked_logging,
+        ):
 
             mocked_logging.return_value = None
 
@@ -138,9 +143,11 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(["--config", test_file_name])
 
-        with patch("WorkbenchConfig.issue_request") as mocked_issue_request, patch(
-            "WorkbenchConfig.logging"
-        ) as mocked_logging, self.assertRaises(SystemExit) as exit_return:
+        with (
+            patch("WorkbenchConfig.issue_request") as mocked_issue_request,
+            patch("WorkbenchConfig.logging") as mocked_logging,
+            self.assertRaises(SystemExit) as exit_return,
+        ):
 
             mocked_logging.return_value = None
 
@@ -169,9 +176,10 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(["--config", test_file_name])
 
-        with patch("WorkbenchConfig.issue_request") as mocked_issue_request, patch(
-            "WorkbenchConfig.logging"
-        ) as mocked_logging:
+        with (
+            patch("WorkbenchConfig.issue_request") as mocked_issue_request,
+            patch("WorkbenchConfig.logging") as mocked_logging,
+        ):
 
             mocked_logging.return_value = None
 
@@ -196,9 +204,10 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(["--config", test_file_name])
 
-        with patch("WorkbenchConfig.issue_request") as mocked_issue_request, patch(
-            "WorkbenchConfig.logging"
-        ) as mocked_logging:
+        with (
+            patch("WorkbenchConfig.issue_request") as mocked_issue_request,
+            patch("WorkbenchConfig.logging") as mocked_logging,
+        ):
 
             mocked_logging.return_value = None
 

@@ -1993,15 +1993,10 @@ class TestGeneralTests(unittest.TestCase):
         """Sets up a WorkbenchConfig object with a temporary config file for testing and a patch to
         handle calls to verify the 'host' URL."""
         cls.get_patcher = mock.patch(
-            "WorkbenchConfig.requests.sessions.Session.get",
+            "WorkbenchConfig.requests.sessions.Session.request",
             side_effect=mocked_requests_get,
         )
         cls.get_patcher.start()
-        cls.head_patcher = mock.patch(
-            "WorkbenchConfig.requests.sessions.Session.head",
-            side_effect=mocked_requests_get,
-        )
-        cls.head_patcher.start()
 
         with tempfile.NamedTemporaryFile(
             mode="w+", delete=False, suffix=".yml"
@@ -2021,7 +2016,6 @@ class TestGeneralTests(unittest.TestCase):
     def tearDownClass(cls):
         """Stops the patcher and removes the temporary config file."""
         cls.get_patcher.stop()
-        cls.head_patcher.stop()
         if os.path.exists(cls.config_file_name):
             os.remove(cls.config_file_name)
 
@@ -2124,9 +2118,9 @@ class TestGeneralTests(unittest.TestCase):
     def test_get_file_hash(self):
         """Tests that get_file_hash_from_local works for various hash types."""
         expected_hashes = {
-            "md5": "fddb67fa7c2b1680dce58526997efea4",
-            "sha1": "c005f2fc4517bedbe536d22020d53f9d1dce75ac",
-            "sha256": "c8f14c1165e04eb472bbd27168234995449d381b092c6f1d95a36df7dcbb0957",
+            "md5": "a63affe75ea11c2a0380b0939201eed8",
+            "sha1": "ccdaf7c53048f7a5f92750df299d72f7441e7b90",
+            "sha256": "754785199b6753d45a212877e065fc648ccfcbdb88117655962c8d2365f2075c",
             "sha512": False,
         }
         test_file_path = os.path.join(

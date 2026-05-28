@@ -31,6 +31,7 @@ from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from unidecode import unidecode
 from progress_bar import InitBar
+from cryptography.fernet import Fernet
 import edtf_validate.valid_edtf
 import shutil
 import itertools
@@ -2334,6 +2335,10 @@ def check_input(config: dict, args: Namespace) -> None:
         row_filter_settings.append("csv_row_filters")
     if commented_out_input_csv_rows_present is True:
         row_filter_settings.append(True)
+    if "csv_start_row_skip" in config:
+        row_filter_settings.append(True)
+    if "csv_stop_row_skip" in config:
+        row_filter_settings.append(True)
     if len(row_filter_settings) > 1:
         preprocessed_input_csv_file_path = get_preprocessed_input_csv_file_path(config)
         message = f'Your configuration contains more than one input CSV row filter setting, and/or your input CSV has some commented-out rows. Please check "{preprocessed_input_csv_file_path}" to confirm the rows you want are present.'
@@ -3994,6 +3999,8 @@ def check_input(config: dict, args: Namespace) -> None:
     if "bootstrap" in config and len(config["bootstrap"]) > 0:
         bootsrap_scripts_present = True
         for bootstrap_script in config["bootstrap"]:
+            if " " in bootstrap_script:
+                interpeter, bootstrap_script = bootstrap_script.split(" ")
             if not os.path.exists(bootstrap_script):
                 message = "Bootstrap script " + bootstrap_script + " not found."
                 logging.error(message)
@@ -4012,6 +4019,8 @@ def check_input(config: dict, args: Namespace) -> None:
     if "shutdown" in config and len(config["shutdown"]) > 0:
         shutdown_scripts_present = True
         for shutdown_script in config["shutdown"]:
+            if " " in shutdown_script:
+                shutdown_script = shutdown_script.split(" ")[-1]
             if not os.path.exists(shutdown_script):
                 message = "shutdown script " + shutdown_script + " not found."
                 logging.error(message)
@@ -4029,16 +4038,25 @@ def check_input(config: dict, args: Namespace) -> None:
     preprocessor_scripts_present = False
     if "preprocessors" in config and len(config["preprocessors"]) > 0:
         preprocessor_scripts_present = True
-        # for preprocessor_script in config['preprocessors']:
-        for field, script_path in config["preprocessors"].items():
-            if not os.path.exists(script_path):
-                message = f'Preprocessor script "{script_path}" for field "{field}" not found.'
-                logging.error(message)
-                sys.exit("Error: " + message)
-            if os.access(script_path, os.X_OK) is False:
-                message = f'Preprocessor script "{script_path}" for field "{field}" is not executable.'
-                logging.error(message)
-                sys.exit("Error: " + message)
+        for preprocessor_script in config["preprocessors"]:
+            if " " in preprocessor_script:
+                preprocessor_script = preprocessor_script.split(" ")[-1]
+            for pkey, pvalue in preprocessor_script.items():
+                field = pkey.strip()
+                script_path = pvalue.strip()
+                # Since in some cases script paths need to include the interpreter (e.g. "python /path/to/script"),
+                # we only check for the existence of the second part of the path name.
+                if " " in script_path:
+                    script_path_parts = script_path.split(" ")
+                    script_path = script_path_parts[-1]
+                if not os.path.exists(script_path):
+                    message = f'Preprocessor script "{script_path}" for field "{field}" not found.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
+                if os.access(script_path, os.X_OK) is False:
+                    message = f'Preprocessor script "{script_path}" for field "{field}" is not executable.'
+                    logging.error(message)
+                    sys.exit("Error: " + message)
         if preprocessor_scripts_present is True:
             message = f"OK, registered preprocessor scripts found and executable."
             logging.info(message)
@@ -4063,6 +4081,8 @@ def check_input(config: dict, args: Namespace) -> None:
             ):
                 post_action_scripts_present = True
                 for post_action_script in config[post_action_script_config]:
+                    if " " in post_action_script:
+                        post_action_script = post_action_script.split(" ")[-1]
                     if not os.path.exists(post_action_script):
                         message = (
                             "Post-action script " + post_action_script + " not found."
@@ -5174,25 +5194,28 @@ def validate_media_use_tids_in_csv(config: dict, csv_data: OrderedDict) -> None:
 
 # TODO: this function and execute_bootstrap_script(), execute_shutdown_script(), execute_entity_post_task_script() are very similar.
 # Could they be combined and accept *args which they pass along to the called script?
-def preprocess_field_data(
-    subdelimiter: str, field_value: str, path_to_script: str
-) -> tuple:
+def preprocess_field_data(config, field_value: str, path_to_script: str) -> tuple:
     """Executes a field preprocessor script and returns its output and exit status code. The script
     is passed the field subdelimiter as defined in the config YAML and the field's value, and
     prints a modified vesion of the value (result) back to this function.
-    :param subdelimiter: str - The subdelimiter defined in the config YAML.
-    :param field_value: str - The field value to preprocess.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param field_value: str - The field value to preprocess. Can be ''.
     :param path_to_script: str - The absolute path to the preprocessor script.
     :return: tuple - The output of the script (stdout) and the script's return code.
     """
+    subdelimiter = config["subdelimiter"]
+    config_file_path = config["config_file_path"]
     if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
+        script = path_to_script.split(" ")[-1]
+        interpeter = path_to_script.split(" ")[-2]
         cmd = subprocess.Popen(
-            [interpeter, script, subdelimiter, field_value], stdout=subprocess.PIPE
+            [interpeter, script, subdelimiter, field_value, config_file_path],
+            stdout=subprocess.PIPE,
         )
     else:
         cmd = subprocess.Popen(
-            [path_to_script, subdelimiter, field_value], stdout=subprocess.PIPE
+            [path_to_script, subdelimiter, field_value, config_file_path],
+            stdout=subprocess.PIPE,
         )
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
@@ -5200,8 +5223,11 @@ def preprocess_field_data(
     return result, cmd.returncode
 
 
-def execute_bootstrap_script(path_to_script: str, path_to_config_file: str) -> tuple:
+def execute_bootstrap_script(
+    config, path_to_script: str, path_to_config_file: str
+) -> tuple:
     """Executes a bootstrap script and returns its output and exit status code.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
     :param path_to_script: str - The absolute path to the bootstrap script.
     :param path_to_config_file: str - The absolute path to the Workbench config file.
     :return: tuple - The output of the script (stdout) and the script's return code.
@@ -5218,11 +5244,17 @@ def execute_bootstrap_script(path_to_script: str, path_to_config_file: str) -> t
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
+    if config["show_bootstrap_script_output"] is True:
+        print(result)
+
     return result, cmd.returncode
 
 
-def execute_shutdown_script(path_to_script: str, path_to_config_file: str) -> tuple:
+def execute_shutdown_script(
+    config, path_to_script: str, path_to_config_file: str
+) -> tuple:
     """Executes a shutdown script and returns its output and exit status code.
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
     :param path_to_script: str - The absolute path to the shutdown script.
     :param path_to_config_file: str - The absolute path to the Workbench config file
     :return: tuple - The output of the script (stdout) and the script's return code.
@@ -5240,6 +5272,8 @@ def execute_shutdown_script(path_to_script: str, path_to_config_file: str) -> tu
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
+    if config["show_shutdown_script_output"] is True:
+        print(result)
     return result, cmd.returncode
 
 
@@ -5248,6 +5282,7 @@ def execute_entity_post_task_script(
     path_to_config_file: str,
     http_response_code: int,
     entity_json: str = "",
+    filename: str = "",
 ):
     """Executes a entity-level post-task script and returns its output and exit status code."""
     if " " in path_to_script:
@@ -5259,6 +5294,7 @@ def execute_entity_post_task_script(
                 path_to_config_file,
                 str(http_response_code),
                 entity_json,
+                filename,
             ],
             stdout=subprocess.PIPE,
         )
@@ -6013,6 +6049,7 @@ def create_media(
                             config["config_file_path"],
                             media_response.status_code,
                             media_response.text,
+                            os.path.abspath(filename),
                         )
                     )
                     if post_task_return_code == 0:
@@ -6532,13 +6569,6 @@ def get_csv_data(
                         filter_group_value.strip()
                     )
 
-        # We subtract 1 from config['csv_start_row'] so user's expectation of the actual
-        # start row match up with Python's 0-based counting.
-        if config["csv_start_row"] > 0:
-            csv_start_row = config["csv_start_row"] - 1
-        else:
-            csv_start_row = config["csv_start_row"]
-
         if config["task"] == "run_scripts":
             if config["run_scripts_entity_type"] == "node":
                 config["id_field"] = "node_id"
@@ -6547,8 +6577,26 @@ def get_csv_data(
             if config["run_scripts_entity_type"] == "term":
                 config["id_field"] = "term_id"
 
+        # We subtract 1 from config['csv_start_row'] so user's expectation of the actual
+        # start row match up with Python's 0-based counting.
+        if config["csv_start_row"] > 0:
+            csv_start_row = config["csv_start_row"] - 1
+        else:
+            csv_start_row = config["csv_start_row"]
+
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
+
+            if (
+                "csv_start_row_skip" in config
+                and "csv_stop_row_skip" in config
+                and (
+                    int(config["csv_start_row_skip"])
+                    <= int(row_num)
+                    <= int(config["csv_stop_row_skip"])
+                )
+            ):
+                continue
 
             if "node_id" in row and value_is_numeric(row["node_id"]) is False:
                 row["node_id"] = get_nid_from_url_alias(config, row["node_id"])
@@ -6743,6 +6791,17 @@ def get_csv_data(
             csv_start_row = config["csv_start_row"]
         for row in itertools.islice(csv_reader, csv_start_row, config["csv_stop_row"]):
             row_num += 1
+
+            if (
+                "csv_start_row_skip" in config
+                and "csv_stop_row_skip" in config
+                and (
+                    int(config["csv_start_row_skip"])
+                    <= int(row_num)
+                    <= int(config["csv_stop_row_skip"])
+                )
+            ):
+                continue
 
             # Remove columns specified in config['ignore_csv_columns'].
             if len(config["ignore_csv_columns"]) > 0:
@@ -9631,7 +9690,11 @@ def create_children_from_directory(
                 )
                 weight = ""
 
-        csv_row_to_apply_to_paged_children["field_weight"] = weight
+        # The page's field_weight is assigned below, but we also include the assigned value
+        # in the temporary CSV record in case any CSV value templates are applied.
+        csv_row_to_apply_to_paged_children["field_weight"] = int(weight) * int(
+            config["paged_content_page_weight_multiplier"]
+        )
 
         # Add any fields to the page's row that are defined in config["csv_value_templates_for_paged_content"].
         if (
@@ -9660,6 +9723,27 @@ def create_children_from_directory(
                 csv_row_to_apply_to_paged_children,
             )
 
+        # If a field is registered in the config to have a preprocessor applied to it
+        # (including empty fields), apply the processor.
+        if "preprocessors" in config and len(config["preprocessors"]) > 0:
+            for (
+                csv_field_to_apply_to_children
+            ) in csv_row_to_apply_to_paged_children.keys():
+                for preprocessor_script in config["preprocessors"]:
+                    for (
+                        processor_fieldname,
+                        processor_script_path,
+                    ) in preprocessor_script.items():
+                        if csv_field_to_apply_to_children == processor_fieldname:
+                            csv_row_to_apply_to_paged_children[
+                                csv_field_to_apply_to_children
+                            ] = preprocess_csv(
+                                config,
+                                csv_row_to_apply_to_paged_children,
+                                csv_field_to_apply_to_children,
+                                processor_script_path,
+                            )
+
         node_json = {
             "type": [
                 {
@@ -9669,7 +9753,12 @@ def create_children_from_directory(
             ],
             "title": [{"value": page_title}],
             "field_member_of": [{"target_id": parent_node_id, "target_type": "node"}],
-            "field_weight": [{"value": weight}],
+            "field_weight": [
+                {
+                    "value": int(weight)
+                    * int(config["paged_content_page_weight_multiplier"])
+                }
+            ],
         }
 
         # Add field_model if that field exists in the child's content type.
@@ -10160,20 +10249,35 @@ def write_rollback_config(config: dict, path_to_rollback_csv_file: str):
     else:
         password = None
 
-    yaml.dump(
-        {
-            "task": "delete",
-            "host": config["host"],
-            "username": config["username"],
-            "password": password,
-            "use_workbench_permissions": config["use_workbench_permissions"],
-            "input_dir": config["input_dir"],
-            "standalone_media_url": config["standalone_media_url"],
-            "secure_ssl_only": config["secure_ssl_only"],
-            "input_csv": path_to_rollback_csv_file,
-        },
-        rollback_config_file,
-    )
+    if "credentials_file_path" in config:
+        yaml.dump(
+            {
+                "task": "delete",
+                "host": config["host"],
+                "credentials_file_path": config["credentials_file_path"],
+                "use_workbench_permissions": config["use_workbench_permissions"],
+                "input_dir": config["input_dir"],
+                "standalone_media_url": config["standalone_media_url"],
+                "secure_ssl_only": config["secure_ssl_only"],
+                "input_csv": path_to_rollback_csv_file,
+            },
+            rollback_config_file,
+        )
+    else:
+        yaml.dump(
+            {
+                "task": "delete",
+                "host": config["host"],
+                "username": config["username"],
+                "password": password,
+                "use_workbench_permissions": config["use_workbench_permissions"],
+                "input_dir": config["input_dir"],
+                "standalone_media_url": config["standalone_media_url"],
+                "secure_ssl_only": config["secure_ssl_only"],
+                "input_csv": path_to_rollback_csv_file,
+            },
+            rollback_config_file,
+        )
 
 
 def prep_rollback_csv(config: dict, path_to_rollback_csv_file: str):
@@ -11774,6 +11878,12 @@ def csv_subset_warning(config: dict) -> None:
             message = f"Using a subset of the input CSV (will stop at row {config['csv_stop_row']} / row ID {stop_row_id})."
         print(message)
         logging.info(message)
+
+    if "csv_start_row_skip" in config and "csv_stop_row_skip" in config:
+        message = f"Using a subset of the input CSV (will skip rows {config['csv_start_row_skip']} to {config['csv_stop_row_skip']})."
+        print(message)
+        logging.info(message)
+
     return None
 
 
@@ -12777,7 +12887,9 @@ def get_term_field_values(config: dict, term_id: str):
     return term_fields
 
 
-def preprocess_csv(config: dict, row: OrderedDict, field: str) -> str:
+def preprocess_csv(
+    config: dict, row: OrderedDict, field: str, path_to_script: str
+) -> str:
     """Execute field preprocessor scripts, if any are configured. Note that these scripts
     are applied to the entire value from the CSV field and not split field values,
     e.g., if a field is multivalued, the preprocesor must split it and then reassemble
@@ -12788,31 +12900,23 @@ def preprocess_csv(config: dict, row: OrderedDict, field: str) -> str:
     :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
     :param row: OrderedDict - The CSV row being processed.
     :param field: string - The field in the CSV row being preprocessed.
+    :param path_to_script: string - The absolute path to the preprocessor script.
     :return: string - The preprocessed field data or the original field data if the preprocessor failed.
     """
-    if "preprocessors" in config and field in config["preprocessors"]:
-        command = config["preprocessors"][field]
-        output, return_code = preprocess_field_data(
-            config["subdelimiter"], row[field], command
+    output, return_code = preprocess_field_data(config, row[field], path_to_script)
+    if return_code == 0:
+        preprocessor_input = copy.deepcopy(row[field])
+        logging.info(
+            'Preprocess command %s executed, taking "%s" as input and returning "%s".',
+            path_to_script,
+            preprocessor_input,
+            output.strip(),
         )
-        if return_code == 0:
-            preprocessor_input = copy.deepcopy(row[field])
-            logging.info(
-                'Preprocess command %s executed, taking "%s" as input and returning "%s".',
-                command,
-                preprocessor_input,
-                output.decode().strip(),
-            )
-            return output.decode().strip()
-        else:
-            message = (
-                "Preprocess command "
-                + command
-                + " failed with return code "
-                + str(return_code)
-            )
-            logging.error(message)
-            return row[field]
+        return output.strip()
+    else:
+        message = f"Preprocess command {path_to_script} failed with return code {return_code}."
+        logging.error(message)
+        return row[field]
 
 
 def get_node_media_summary(config: dict, nid: str) -> str:

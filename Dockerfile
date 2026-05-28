@@ -1,5 +1,5 @@
 # filename: Dockerfile
-FROM python:3.10.6
+FROM python:3.11.0
 
 # Build the image and name it workbench-docker-image-name (or whatever you want)
 # docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t workbench-docker .
