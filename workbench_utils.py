@@ -3453,6 +3453,7 @@ def check_input(config: dict, args: Namespace) -> None:
                     not file_check_row["file"].startswith("http")
                     and len(file_check_row["file"].strip()) > 0
                 ):
+                    file_check_row["file"] = os.path.expanduser(file_check_row["file"])
                     if os.path.isabs(file_check_row["file"]):
                         file_path = file_check_row["file"]
                     else:
@@ -10703,6 +10704,7 @@ def check_file_exists(config: dict, filename: str) -> bool:
 
     # It's a local file.
     else:
+        filename = os.path.expanduser(filename)
         if os.path.isabs(filename):
             file_path = filename
         else:
@@ -10847,6 +10849,7 @@ def get_preprocessed_file_path(
         return downloaded_file_path
     # It's a local file.
     else:
+        file_path_from_csv = os.path.expanduser(file_path_from_csv)
         if os.path.isabs(file_path_from_csv):
             file_path = file_path_from_csv
         else:
