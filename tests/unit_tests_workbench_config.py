@@ -226,5 +226,59 @@ class TestWorkbenchConfig(unittest.TestCase):
                 test_config_obj = WorkbenchConfig(args)
 
 
+    def test_get_config_expanduser_paths(self):
+        test_file_name = (
+            "tests/assets/WorkbenchConfig_test/config_03_expanduser_paths.yml"
+        )
+
+        args = self.parser.parse_args(["--config", test_file_name])
+
+        with patch("WorkbenchConfig.logging") as mocked_logging:
+            mocked_logging.return_value = None
+
+            test_config_obj = WorkbenchConfig(args)
+            config = test_config_obj.get_config()
+
+            for key, tilde_val in [
+                ("input_dir", "~/workbench_input"),
+                ("log_file_path", "~/workbench.log"),
+                ("export_csv_file_path", "~/export.csv"),
+                ("rollback_dir", "~/rollback"),
+            ]:
+                self.assertFalse(config[key].startswith("~"), f"{key} still contains ~")
+                self.assertEqual(
+                    os.path.normpath(config[key]),
+                    os.path.normpath(os.path.expanduser(tilde_val)),
+                )
+
+            # List-based script paths.
+            self.assertEqual(
+                os.path.normpath(config["bootstrap"][0]),
+                os.path.normpath(os.path.expanduser("~/scripts/bootstrap.sh")),
+            )
+            self.assertEqual(
+                config["bootstrap"][1],
+                "python " + os.path.expanduser("~/scripts/bootstrap.py"),
+            )
+            self.assertEqual(
+                os.path.normpath(config["shutdown"][0]),
+                os.path.normpath(os.path.expanduser("~/scripts/shutdown.sh")),
+            )
+            self.assertEqual(
+                os.path.normpath(config["node_post_create"][0]),
+                os.path.normpath(os.path.expanduser("~/scripts/post_create.sh")),
+            )
+
+            # Preprocessor dicts.
+            self.assertEqual(
+                os.path.normpath(config["preprocessors"][0]["field_one"]),
+                os.path.normpath(os.path.expanduser("~/scripts/preprocess.sh")),
+            )
+            self.assertEqual(
+                config["preprocessors"][1]["field_two"],
+                "python " + os.path.expanduser("~/scripts/preprocess.py"),
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

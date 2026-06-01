@@ -1,0 +1,19 @@
+task: create
+host: https://islandora.dev
+username: admin
+password: password
+secure_ssl_only: false
+input_dir: ~/workbench_input
+log_file_path: ~/workbench.log
+export_csv_file_path: ~/export.csv
+rollback_dir: ~/rollback
+bootstrap:
+  - ~/scripts/bootstrap.sh
+  - python ~/scripts/bootstrap.py
+shutdown:
+  - ~/scripts/shutdown.sh
+node_post_create:
+  - ~/scripts/post_create.sh
+preprocessors:
+  - field_one: ~/scripts/preprocess.sh
+  - field_two: python ~/scripts/preprocess.py

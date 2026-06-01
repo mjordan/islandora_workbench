@@ -61,17 +61,20 @@ class WorkbenchConfig:
                 "username" not in password_cfg
                 and "credentials_file_path" in password_cfg
             ):
-                if os.path.exists(password_cfg["credentials_file_path"]) is False:
+                credentials_file_path = os.path.expanduser(
+                    password_cfg["credentials_file_path"]
+                )
+                if os.path.exists(credentials_file_path) is False:
                     message = (
                         'Error: Credentials file "'
-                        + password_cfg["credentials_file_path"]
+                        + credentials_file_path
                         + '" not found.'
                     )
                     logging.error(message)
                     sys.exit(message)
                 else:
                     # We open the file to determine how many lines it contains.
-                    with open(password_cfg["credentials_file_path"], "r") as stream:
+                    with open(credentials_file_path, "r") as stream:
                         tmp_credentials_content_file = stream.read()
                         tmp_credentials_content = (
                             tmp_credentials_content_file.splitlines()
@@ -85,19 +88,19 @@ class WorkbenchConfig:
 
                     # We open the file here to read its YAML.
                     credentials_yaml = YAML()
-                    with open(password_cfg["credentials_file_path"], "r") as stream:
+                    with open(credentials_file_path, "r") as stream:
                         try:
                             if encrypted is True:
                                 if "credentials_key_file_path" in password_cfg:
                                     credentials_key_file_path = os.path.abspath(
-                                        password_cfg["credentials_key_file_path"]
+                                        os.path.expanduser(
+                                            password_cfg["credentials_key_file_path"]
+                                        )
                                     )
                                 else:
                                     credentials_key_file_path = None
                                 decrypted_credentials = self.decrypt_credentials_file(
-                                    os.path.abspath(
-                                        password_cfg["credentials_file_path"]
-                                    ),
+                                    os.path.abspath(credentials_file_path),
                                     credentials_key_file_path,
                                 )
                                 credentials = credentials_yaml.load(
@@ -115,7 +118,7 @@ class WorkbenchConfig:
                                 )
                         except YAMLError as exc:
                             print(
-                                f'There appears to be a YAML syntax error in your credentials file, {password_cfg["credentials_file_path"]}. See workbench.log for details.'
+                                f'There appears to be a YAML syntax error in your credentials file, {credentials_file_path}. See workbench.log for details.'
                             )
                             logging.basicConfig(
                                 filename="workbench.log",
@@ -240,6 +243,57 @@ class WorkbenchConfig:
             config["paged_content_page_content_type"] = config["content_type"]
 
         config["config_file"] = self.args.config
+
+        _path_keys = [
+            "input_dir",
+            "input_csv",
+            "log_file_path",
+            "output_csv",
+            "credentials_file_path",
+            "credentials_key_file_path",
+            "export_csv_file_path",
+            "export_file_directory",
+            "contact_sheet_output_dir",
+            "contact_sheet_css_path",
+            "rollback_dir",
+            "csv_id_to_node_id_map_dir",
+            "csv_id_to_node_id_map_path",
+            "sqlite_db_filename",
+            "path_to_workbench_script",
+            "path_to_python",
+            "check_lock_file_path",
+        ]
+        for _key in _path_keys:
+            if _key in config and isinstance(config[_key], str):
+                config[_key] = os.path.expanduser(config[_key])
+
+        def _expand_script(s):
+            if " " in s:
+                interpreter, path = s.split(" ", 1)
+                return interpreter + " " + os.path.expanduser(path)
+            return os.path.expanduser(s)
+
+        _list_script_keys = [
+            "bootstrap",
+            "shutdown",
+            "node_post_create",
+            "node_post_update",
+            "media_post_create",
+            "run_scripts",
+        ]
+        for _key in _list_script_keys:
+            if _key in config and isinstance(config[_key], list):
+                config[_key] = [
+                    _expand_script(s) if isinstance(s, str) else s
+                    for s in config[_key]
+                ]
+
+        if "preprocessors" in config and isinstance(config["preprocessors"], list):
+            for _entry in config["preprocessors"]:
+                if isinstance(_entry, dict):
+                    for _field, _script in _entry.items():
+                        if isinstance(_script, str):
+                            _entry[_field] = _expand_script(_script)
 
         return config
 
