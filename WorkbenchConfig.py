@@ -10,6 +10,7 @@ from rich.table import Table
 class WorkbenchConfig:
     def __init__(self, args):
         self.args = args
+        self.args.config = os.path.expanduser(self.args.config)
         self.user_mods = self.get_user_config()
         if "password" not in self.user_mods and "username" in self.user_mods:
             self.user_mods["password"] = self.get_credentials()
@@ -262,6 +263,9 @@ class WorkbenchConfig:
             "path_to_workbench_script",
             "path_to_python",
             "check_lock_file_path",
+            "csv_rows_to_process",
+            "rollback_csv_file_path",
+            "rollback_config_file_path",
         ]
         for _key in _path_keys:
             if _key in config and isinstance(config[_key], str):
