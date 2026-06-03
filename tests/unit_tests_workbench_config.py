@@ -225,7 +225,6 @@ class TestWorkbenchConfig(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
                 test_config_obj = WorkbenchConfig(args)
 
-
     def test_get_config_expanduser_paths(self):
         test_file_name = (
             "tests/assets/WorkbenchConfig_test/config_03_expanduser_paths.yml"

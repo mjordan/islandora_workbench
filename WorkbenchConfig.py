@@ -119,7 +119,7 @@ class WorkbenchConfig:
                                 )
                         except YAMLError as exc:
                             print(
-                                f'There appears to be a YAML syntax error in your credentials file, {credentials_file_path}. See workbench.log for details.'
+                                f"There appears to be a YAML syntax error in your credentials file, {credentials_file_path}. See workbench.log for details."
                             )
                             logging.basicConfig(
                                 filename="workbench.log",
@@ -288,8 +288,7 @@ class WorkbenchConfig:
         for _key in _list_script_keys:
             if _key in config and isinstance(config[_key], list):
                 config[_key] = [
-                    _expand_script(s) if isinstance(s, str) else s
-                    for s in config[_key]
+                    _expand_script(s) if isinstance(s, str) else s for s in config[_key]
                 ]
 
         if "preprocessors" in config and isinstance(config["preprocessors"], list):
