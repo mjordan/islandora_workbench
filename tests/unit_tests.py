@@ -2193,5 +2193,16 @@ class TestGeneralTests(unittest.TestCase):
         self.assertEqual("islandora_object", config["paged_content_page_content_type"])
 
 
+class TestExpandUserInUtils(unittest.TestCase):
+    def test_check_file_exists_expands_tilde(self):
+        with mock.patch(
+            "workbench_utils.os.path.isfile", return_value=True
+        ) as mock_isfile:
+            workbench_utils.check_file_exists({}, "~/test_file.txt")
+        called_path = mock_isfile.call_args[0][0]
+        self.assertFalse(called_path.startswith("~"))
+        self.assertEqual(called_path, os.path.expanduser("~/test_file.txt"))
+
+
 if __name__ == "__main__":
     unittest.main()
