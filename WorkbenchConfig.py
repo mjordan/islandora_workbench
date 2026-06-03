@@ -1,5 +1,6 @@
 """Class to encapsulate Workbench configuration definitions."""
 
+import shlex
 import tempfile
 from getpass import getpass
 from workbench_utils import *
@@ -245,7 +246,7 @@ class WorkbenchConfig:
 
         config["config_file"] = self.args.config
 
-        _path_keys = [
+        _expanduser_keys = [
             "input_dir",
             "input_csv",
             "log_file_path",
@@ -263,19 +264,24 @@ class WorkbenchConfig:
             "path_to_workbench_script",
             "path_to_python",
             "check_lock_file_path",
-            "csv_rows_to_process",
             "rollback_csv_file_path",
             "rollback_config_file_path",
         ]
-        for _key in _path_keys:
+        for _key in _expanduser_keys:
             if _key in config and isinstance(config[_key], str):
                 config[_key] = os.path.expanduser(config[_key])
 
         def _expand_script(s):
-            if " " in s:
-                interpreter, path = s.split(" ", 1)
-                return interpreter + " " + os.path.expanduser(path)
-            return os.path.expanduser(s)
+            if "~" not in s:
+                return s
+            try:
+                tokens = shlex.split(s)
+            except ValueError:
+                return s
+            expanded = [
+                os.path.expanduser(t) if t.startswith("~") else t for t in tokens
+            ]
+            return " ".join(expanded)
 
         _list_script_keys = [
             "bootstrap",

@@ -232,9 +232,7 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         args = self.parser.parse_args(["--config", test_file_name])
 
-        with patch("WorkbenchConfig.logging") as mocked_logging:
-            mocked_logging.return_value = None
-
+        with patch("WorkbenchConfig.logging.basicConfig"):
             test_config_obj = WorkbenchConfig(args)
             config = test_config_obj.get_config()
 
