@@ -893,7 +893,12 @@ def ping_media_bundle(config: dict, bundle_name: str) -> int:
     int
         The HTTP response code.
     """
-    url = config["host"] + "/entity/media_type/" + bundle_name + "?_format=json"
+    url = (
+        config["host"]
+        + f"/islandora_workbench_integration/media_actions/entity_type/{bundle_name}"
+        if config["use_workbench_permissions"]
+        else config["host"] + "/entity/media_type/" + bundle_name + "?_format=json"
+    )
     response = issue_request(config, "GET", url)
     return response.status_code
 
