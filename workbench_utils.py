@@ -489,10 +489,10 @@ def check_integration_module_version(config: dict, log_success: bool = True) -> 
     log_message = f'Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
 
     #####################################################################################################################
-    # Add logic here that maps a feature to a miniumum Integration module version, and produces a specific log message. #
+    # Add logic here that maps a feature to a minimum Integration module version, and produces a specific log message. #
     #####################################################################################################################
     if config["use_workbench_permissions"] is True:
-        integration_module_min_version = "1.2"
+        integration_module_min_version = "1.2.2"
         log_message = f'In order to use the "use_workbench_permissions" config setting, Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module ({config["host"]} is running version {version}).'
     #####################################################################################################################
 
