@@ -4001,7 +4001,7 @@ def check_input(config: dict, args: Namespace) -> None:
         bootsrap_scripts_present = True
         for bootstrap_script in config["bootstrap"]:
             if " " in bootstrap_script:
-                interpeter, bootstrap_script = bootstrap_script.split(" ")
+                bootstrap_script = bootstrap_script.split(" ")[-1]
             if not os.path.exists(bootstrap_script):
                 message = "Bootstrap script " + bootstrap_script + " not found."
                 logging.error(message)
@@ -4182,7 +4182,7 @@ def check_input(config: dict, args: Namespace) -> None:
 
         for script_to_run in config["run_scripts"]:
             if " " in script_to_run:
-                interpeter, script_to_run = script_to_run.split(" ", 1)
+                script_to_run = script_to_run.split(" ")[-1]
             if not os.path.exists(script_to_run.strip()):
                 message = "Script " + script_to_run + " not found."
                 logging.error(message)
@@ -5202,18 +5202,11 @@ def preprocess_field_data(config, field_value: str, path_to_script: str) -> tupl
     """
     subdelimiter = config["subdelimiter"]
     config_file_path = config["config_file_path"]
-    if " " in path_to_script:
-        script = path_to_script.split(" ")[-1]
-        interpeter = path_to_script.split(" ")[-2]
-        cmd = subprocess.Popen(
-            [interpeter, script, subdelimiter, field_value, config_file_path],
-            stdout=subprocess.PIPE,
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, subdelimiter, field_value, config_file_path],
-            stdout=subprocess.PIPE,
-        )
+    *interpreter, script = path_to_script.split(" ")
+    cmd = subprocess.Popen(
+        [*interpreter, script, subdelimiter, field_value, config_file_path],
+        stdout=subprocess.PIPE,
+    )
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
@@ -5229,15 +5222,10 @@ def execute_bootstrap_script(
     :param path_to_config_file: str - The absolute path to the Workbench config file.
     :return: tuple - The output of the script (stdout) and the script's return code.
     """
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, path_to_config_file], stdout=subprocess.PIPE
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file], stdout=subprocess.PIPE
-        )
+    *interpreter, script = path_to_script.split(" ")
+    cmd = subprocess.Popen(
+        [*interpreter, script, path_to_config_file], stdout=subprocess.PIPE
+    )
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
@@ -5256,16 +5244,10 @@ def execute_shutdown_script(
     :param path_to_config_file: str - The absolute path to the Workbench config file
     :return: tuple - The output of the script (stdout) and the script's return code.
     """
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [interpeter, script, path_to_config_file], stdout=subprocess.PIPE
-        )
-
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file], stdout=subprocess.PIPE
-        )
+    *interpreter, script = path_to_script.split(" ")
+    cmd = subprocess.Popen(
+        [*interpreter, script, path_to_config_file], stdout=subprocess.PIPE
+    )
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
 
@@ -5282,24 +5264,18 @@ def execute_entity_post_task_script(
     filename: str = "",
 ):
     """Executes a entity-level post-task script and returns its output and exit status code."""
-    if " " in path_to_script:
-        interpeter, script = path_to_script.split(" ")
-        cmd = subprocess.Popen(
-            [
-                interpeter,
-                script,
-                path_to_config_file,
-                str(http_response_code),
-                entity_json,
-                filename,
-            ],
-            stdout=subprocess.PIPE,
-        )
-    else:
-        cmd = subprocess.Popen(
-            [path_to_script, path_to_config_file, str(http_response_code), entity_json],
-            stdout=subprocess.PIPE,
-        )
+    *interpreter, script = path_to_script.split(" ")
+    cmd = subprocess.Popen(
+        [
+            *interpreter,
+            script,
+            path_to_config_file,
+            str(http_response_code),
+            entity_json,
+            filename,
+        ],
+        stdout=subprocess.PIPE,
+    )
 
     result, stderrdata = cmd.communicate()
     result = result.decode().strip()
@@ -5338,22 +5314,16 @@ def execute_script_to_run(
             entity_id = get_tid_from_term_url_alias(config, entity_id)
 
     try:
-        if " " in path_to_script:
-            interpeter, script = path_to_script.split(" ", 1)
-            cmd = subprocess.Popen(
-                [
-                    interpeter.strip(),
-                    script.strip(),
-                    config["config_file_path"],
-                    str(entity_id),
-                ],
-                stdout=subprocess.PIPE,
-            )
-        else:
-            cmd = subprocess.Popen(
-                [path_to_script, config["config_file_path"], str(entity_id)],
-                stdout=subprocess.PIPE,
-            )
+        *interpreter, script = path_to_script.split(" ")
+        cmd = subprocess.Popen(
+            [
+                *interpreter,
+                script,
+                config["config_file_path"],
+                str(entity_id),
+            ],
+            stdout=subprocess.PIPE,
+        )
 
         result, stderrdata = cmd.communicate()
         result = result.decode(errors="replace").strip()
