@@ -4280,17 +4280,13 @@ def check_input(config: dict, args: Namespace) -> None:
                 + secondary_config_file
                 + '"'
             )
-            if os.name == "nt":
-                # Assumes python.exe is in the user's PATH.
-                cmd = [
-                    "python",
-                    "./workbench",
-                    "--config",
-                    secondary_config_file,
-                    "--check",
-                ]
-            else:
-                cmd = ["./workbench", "--config", secondary_config_file, "--check"]
+            cmd = [
+                config["path_to_python"],
+                config["path_to_workbench_script"],
+                "--config",
+                secondary_config_file,
+                "--check",
+            ]
             output = subprocess.run(cmd)
 
         sys.exit(0)
