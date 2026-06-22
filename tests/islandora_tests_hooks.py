@@ -33,8 +33,29 @@ class TestExecuteBootstrapScript:
             dir_path, "assets", "execute_bootstrap_script_test", "config.yml"
         )
 
+        config = {"show_bootstrap_script_output": False}
         output, return_code = workbench_utils.execute_bootstrap_script(
-            script_path, config_file_path
+            config, script_path, config_file_path
+        )
+        assert output.strip() == "Hello"
+
+    def test_execute_python_script_multi_token_interpreter(self):
+        """A script registered with a multi-token interpreter prefix (e.g. "uv run python
+        script.py") must not raise ValueError: too many values to unpack."""
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+
+        script_path = os.path.join(
+            dir_path, "assets", "execute_bootstrap_script_test", "script.py"
+        )
+        config_file_path = os.path.join(
+            dir_path, "assets", "execute_bootstrap_script_test", "config.yml"
+        )
+
+        config = {"show_bootstrap_script_output": False}
+        # 3 tokens: interpreter + flag + script.
+        command = f"{sys.executable} -u {script_path}"
+        output, return_code = workbench_utils.execute_bootstrap_script(
+            config, command, config_file_path
         )
         assert output.strip() == "Hello"
 
@@ -46,8 +67,23 @@ class TestExecutePreprocessorScript:
         script_path = os.path.join(
             dir_path, "assets", "preprocess_field_data", "script.py"
         )
+        config = {"subdelimiter": "|", "config_file_path": ""}
         output, return_code = workbench_utils.preprocess_field_data(
-            "|", "hello", script_path
+            config, "hello", script_path
+        )
+        assert output.strip() == "HELLO"
+
+    def test_preprocessor_script_multi_token_interpreter(self):
+        """A preprocessor registered with a multi-token interpreter prefix must run the
+        script intact rather than dropping the leading tokens."""
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        script_path = os.path.join(
+            dir_path, "assets", "preprocess_field_data", "script.py"
+        )
+        config = {"subdelimiter": "|", "config_file_path": ""}
+        command = f"{sys.executable} -u {script_path}"
+        output, return_code = workbench_utils.preprocess_field_data(
+            config, "hello", command
         )
         assert output.strip() == "HELLO"
 
@@ -56,8 +92,9 @@ class TestExecutePreprocessorScript:
         script_path = os.path.join(
             dir_path, "assets", "preprocess_field_data", "script.py"
         )
+        config = {"subdelimiter": "|", "config_file_path": ""}
         output, return_code = workbench_utils.preprocess_field_data(
-            "|", "hello|there", script_path
+            config, "hello|there", script_path
         )
         assert output.strip() == "HELLO|THERE"
 
