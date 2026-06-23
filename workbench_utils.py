@@ -9513,6 +9513,9 @@ def write_to_output_csv(
         for reserved_field in reserved_fields:
             if reserved_field in input_csv_row:
                 input_csv_row_fieldnames.remove(reserved_field)
+        for field_name in input_csv_row_fieldnames:
+            if field_name not in node_field_names:
+                node_field_names.append(field_name)
 
     writer = csv.DictWriter(csvfile, fieldnames=node_field_names, lineterminator="\n")
 
