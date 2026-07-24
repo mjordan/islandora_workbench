@@ -4118,15 +4118,15 @@ def check_input(config: dict, args: Namespace) -> None:
             sys.exit("Error: " + message)
 
         if config["export_file_directory"] is not None:
-            if not os.path.exists(config["export_csv_file_path"]):
+            if not os.path.exists(config["export_file_directory"]):
                 try:
                     os.mkdir(config["export_file_directory"])
-                    os.rmdir(config["export_file_directory"])
+                    # os.rmdir(config["export_file_directory"])
                 except Exception as e:
                     message = (
                         'Path in configuration option "export_file_directory" ("'
                         + config["export_file_directory"]
-                        + '") is not writable.'
+                        + '") cannot be created.'
                     )
                     logging.error(message + " " + str(e))
                     sys.exit("Error: " + message + " See log for more detail.")
