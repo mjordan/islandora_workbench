@@ -347,16 +347,9 @@ class WorkbenchConfig:
             loaded["config_file_path"] = os.path.join(os.getcwd(), self.args.config)
 
         if (
-                "export_csv_file_path" in loaded
-                and loaded["export_csv_file_path"] is not None
-            ):
-                if os.path.isabs(loaded["export_csv_file_path"]) is False:
-                    loaded["export_csv_file_path"] = os.path.abspath(
-                        loaded["export_csv_file_path"]
-                    )
-                else:
-                    loaded["export_csv_file_path"] = loaded["export_csv_file_path"]
-
+            "export_csv_file_path" in loaded
+            and loaded["export_csv_file_path"] is not None
+        ):
             if (
                 "export_file_directory" in loaded
                 and loaded["export_file_directory"] is not None
