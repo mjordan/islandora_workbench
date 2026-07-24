@@ -2418,13 +2418,13 @@ def export_csv():
         try:
             os.mkdir(config["export_file_directory"])
         except Exception as e:
-                            message = (
-                                'Path in configuration option "export_file_directory" ("'
-                                + config["export_file_directory"]
-                                + '") cannot be created.'
-                            )
-                            logging.error(message + " " + str(e))
-                            sys.exit("Error: " + message + " See log for more detail.")
+            message = (
+                'Path in configuration option "export_file_directory" ("'
+                + config["export_file_directory"]
+                + '") cannot be created.'
+            )
+            logging.error(message + " " + str(e))
+            sys.exit("Error: " + message + " See log for more detail.")
 
     message = '"Export CSV" task started using config file ' + args.config + "."
     if config["export_csv_term_mode"] == "name":
