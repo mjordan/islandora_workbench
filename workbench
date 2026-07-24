@@ -2415,10 +2415,6 @@ def export_csv():
         config["export_file_directory"] is not None
         and os.path.isdir(config["export_file_directory"]) is False
     ):
-        message = f'Path in configuration setting "export_file_directory" ("{config["export_file_directory"]}") does not exist.'
-        logging.error(message)
-        sys.exit("Error: " + message)
-    else:
         try:
             os.mkdir(config["export_file_directory"])
         except Exception as e:
