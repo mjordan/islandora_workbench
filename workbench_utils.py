@@ -4120,8 +4120,10 @@ def check_input(config: dict, args: Namespace) -> None:
         if config["export_file_directory"] is not None:
             if not os.path.exists(config["export_file_directory"]):
                 try:
+                    # During --check, if the directory doesn't exist, we create and and then delete it.
+                    # It will be created for population during non --check.
                     os.mkdir(config["export_file_directory"])
-                    # os.rmdir(config["export_file_directory"])
+                    os.rmdir(config["export_file_directory"])
                 except Exception as e:
                     message = (
                         'Path in configuration option "export_file_directory" ("'
