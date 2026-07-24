@@ -2411,6 +2411,14 @@ def export_csv():
     """
     from workbench_export import CSVExporter
 
+    if (
+        config["export_file_directory"] is not None
+        and os.path.isdir(config["export_file_directory"]) is False
+    ):
+        message = f'Path in configuration setting "export_file_directory" ("{config["export_file_directory"]}") does not exist.'
+        logging.error(message)
+        sys.exit("Error: " + message)
+
     message = '"Export CSV" task started using config file ' + args.config + "."
     if config["export_csv_term_mode"] == "name":
         message = (
