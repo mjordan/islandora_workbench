@@ -1818,7 +1818,7 @@ def update_media() -> None:
                     track_type,
                     track_language,
                     track_filepath,
-                ) = track_file.split(":")
+                ) = track_file.split(":", 3)
                 track_files_info["track_labels"].append(track_label)
                 track_files_info["track_types"].append(track_type)
                 track_files_info["track_languages"].append(track_language)
