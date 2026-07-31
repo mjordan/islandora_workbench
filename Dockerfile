@@ -21,16 +21,11 @@ ARG GROUP_ID
 RUN groupadd -g $GROUP_ID dockeruser || true
 
 # Create a user with the specified UID and GID
-RUN useradd -m -u $USER_ID -g $GROUP_ID -s /bin/bash dockeruser
+RUN useradd -l -m -u $USER_ID -g $GROUP_ID -s /bin/bash dockeruser
 
 # Set the working directory
 WORKDIR /workbench
-
-# Copy the current directory contents into the container at /workbench
-COPY . /workbench/
-
-# Set ownership and permissions for the non-root user
-RUN chown -R $USER_ID:$GROUP_ID /workbench
+RUN chown $USER_ID:$GROUP_ID /workbench
 
 # Set the PATH environment variable to include .local/bin
 ENV PATH=/home/dockeruser/.local/bin:$PATH
@@ -38,11 +33,21 @@ ENV PATH=/home/dockeruser/.local/bin:$PATH
 # Set an environment variable to indicate Workbench is running in a Docker container.
 ENV ISLANDORA_WORKBENCH_IS_RUNNING_IN_DOCKER=True
 
-# Switch to the non-root user
-USER dockeruser
+# Install dependencies from the project metadata before copying the application source.
+# This layer remains cached when only Workbench's source files change.
+COPY --chown=$USER_ID:$GROUP_ID pyproject.toml README.md requirements-docker.txt /workbench/
 
-# Install dependencies and setup the environment
-RUN python -m pip install --user --upgrade pip setuptools build && \
-    python -m pip install --user --no-cache-dir "urllib3>=1.21.1" libmagic && \
-    python -m build && \
-    python -m pip install --user dist/*.whl
+# USER_ID is supplied as a numeric UID by the documented build command.
+# hadolint ignore=DL3066
+USER $USER_ID
+
+# Install build and runtime dependencies.
+RUN python -m pip install --user --no-cache-dir --requirement requirements-docker.txt && \
+    python -m pip install --user --no-cache-dir --only-deps .
+
+# Copy and install the application separately so source changes only invalidate
+# the comparatively inexpensive application build layer.
+COPY --chown=$USER_ID:$GROUP_ID . /workbench/
+
+RUN python -m build --wheel --no-isolation && \
+    python -m pip install --user --no-cache-dir --no-deps dist/*.whl
