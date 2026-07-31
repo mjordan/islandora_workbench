@@ -1,4 +1,8 @@
-"""Utility functions for Islandora Workbench."""
+"""Utility functions for Islandora Workbench.
+
+Note: update_media() in the workbench file contains a number of helper
+functions that are private to update_media().
+"""
 
 import os
 import sys
@@ -2503,7 +2507,7 @@ def check_input(config: dict, args: Namespace) -> None:
 
         # We also validate the structure of the media track column headers.
         for media_track_header in media_track_headers:
-            media_track_header_parts = media_track_header.split(":")
+            media_track_header_parts = media_track_header.split(":", 3)
             if (
                 media_track_header_parts[0] != "media"
                 and len(media_track_header_parts) != 3
@@ -2765,7 +2769,7 @@ def check_input(config: dict, args: Namespace) -> None:
         )
         if len(node_media_ids) == 1:
             logging.info(
-                f'Matching media on node {{row["node_id"]}} (media ID {node_media_ids[0]}) will be updated.'
+                f'Matching media on node {row["node_id"]} (media ID {node_media_ids[0]}) will be updated.'
             )
         elif len(node_media_ids) == 0:
             logging.warning(f'No matching media on node {row["node_id"]} found.')
@@ -5547,7 +5551,7 @@ def create_file(
         return False
 
 
-def create_media_track():
+def create_media_track(
     config: dict,
     filename: str,
     file_fieldname: Union[str, None],
@@ -5594,9 +5598,7 @@ def create_media_track():
         node_csv_field_names = list(csv_row.keys())
         if len(node_csv_field_names):
             media_track_fields = [
-                x
-                for x in node_csv_field_names
-                if x.startswith("media:" + media_type)
+                x for x in node_csv_field_names if x.startswith("media:" + media_type)
             ]
             # Should be just one field per media type.
             if (
@@ -5604,10 +5606,7 @@ def create_media_track():
                 and media_type in config["media_track_file_fields"]
             ):
                 for media_track_field in media_track_fields:
-                    if (
-                        validate_media_track_value(csv_row[media_track_field])
-                        is True
-                    ):
+                    if validate_media_track_value(csv_row[media_track_field]) is True:
                         valid_media_track_fields.append(media_track_field)
 
         # Create the media track file(s) for each entry in valid_potential_media_track_fields (there could be multiple track entries).
@@ -5646,9 +5645,7 @@ def create_media_track():
                         "GET",
                         f"/entity/file/{create_track_file_result}?_format=json",
                     )
-                    logging.info(f"issue 1110 track file response: {track_file_info_response}")
                     track_file_info = json.loads(track_file_info_response.text)
-                    logging.info(f"issue 1110 track file body: {track_file_info}")
                     track_file_url = track_file_info["uri"][0]["url"]
                     logging.info(
                         f"Media track file {config['host'].rstrip('/')}{track_file_url} created from {media_track_entry['file_path']}."
@@ -5671,10 +5668,7 @@ def create_media_track():
                 # Set the "default" attribute of the first media track.
                 if media_track_field_data:
                     media_track_field_data[0]["default"] = True
-                    media_json[media_track_field_name_parts[2]] = (
-                        media_track_field_data
-                    )
-
+                    media_json[media_track_field_name_parts[2]] = media_track_field_data
 
 
 def create_media(
@@ -6016,10 +6010,6 @@ def create_media(
                     node = simple_field.create(config, field_definitions, node, row, custom_field)
         """
 
-        # WIP on #1110
-        #create_media_track()
-
-        """
         # Create media_track files here, since they should exist before we create the parent media.
         # @todo WIP on #572: if there are track file fields in the add_media CSV, create them here, as below for track file field in node CSV.
         media_types_with_track_files = config["media_track_file_fields"].keys()
@@ -6082,9 +6072,7 @@ def create_media(
                             "GET",
                             f"/entity/file/{create_track_file_result}?_format=json",
                         )
-                        logging.info(f"issue 1110 track file response: {track_file_info_response}")
                         track_file_info = json.loads(track_file_info_response.text)
-                        logging.info(f"issue 1110 track file body: {track_file_info}")
                         track_file_url = track_file_info["uri"][0]["url"]
                         logging.info(
                             f"Media track file {config['host'].rstrip('/')}{track_file_url} created from {media_track_entry['file_path']}."
@@ -6110,7 +6098,6 @@ def create_media(
                         media_json[media_track_field_name_parts[2]] = (
                             media_track_field_data
                         )
-        """
 
         media_endpoint_path = (
             "/entity/media?_format=json"
@@ -6540,12 +6527,6 @@ def get_csv_data(
         "create_terms",
         "update_terms",
     ]:
-        """
-        if config['task'] == 'create_terms' or config['task'] == 'update_terms':
-            field_map = get_fieldname_map(config, 'taxonomy_term', config['vocab_id'], 'labels')
-        else:
-            field_map = get_fieldname_map(config, 'node', config['content_type'], 'labels')
-        """
         csv_reader_fieldnames = replace_field_labels_with_names(
             config, csv_reader.fieldnames
         )
@@ -8373,10 +8354,8 @@ def validate_media_track_fields(config: dict, csv_data: DictReader) -> None:
                                         logging.error(message)
                                         sys.exit("Error: " + message)
 
-                                # Confirm that config['media_use_tid'] and row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
-                                service_file_exists = service_file_present(
-                                    config, row["media_use_tid"]
-                                )
+                                # Confirm that config['media_use_tid'] or row-level media_use_term is for Service File (http://pcdm.org/use#ServiceFile).
+                                service_file_exists = service_file_present(config, row)
                                 if service_file_exists is False:
                                     message = f"{row['media_use_tid']} cannot be used as a \"media_use_tid\" value in your CSV when creating media tracks."
                                     logging.error(message)
@@ -13061,16 +13040,22 @@ def get_node_media_summary(config: dict, nid: str) -> str:
         logging.error(f"{message} Detail: {e}")
 
 
-def service_file_present(config: dict, input_str: str) -> bool:
-    """Checks whether the input string contains the ServiceFile use term,
-    or its ID or URI.
+def service_file_present(config: dict, csv_row: OrderedDict) -> bool:
+    """Checks whether the media use term (name, ID, or URI) for "Service file" is defined in either the input CSV row
+       or config. Values in the input CSV row override config settings.
     Parameters
     :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
     :param input_str: string - The input string to check.
     :return: bool - True if the ServiceFile use term is present, False if not.
     """
+
+    # If present, media_use_tid field in the input CSV overrides config["media_use_tid"].
+    if "media_use_tid" in csv_row:
+        candidates = csv_row["media_use_tid"].split(config["subdelimiter"])
+    else:
+        candidates = config["media_use_tid"].split(config["subdelimiter"])
+
     service_uri = "http://pcdm.org/use#ServiceFile"
-    candidates = input_str.split("|")
     for candidate in candidates:
         candidate = candidate.strip()
         if candidate == service_uri:

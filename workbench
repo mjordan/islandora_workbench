@@ -1279,7 +1279,7 @@ def update_media() -> None:
     if the task is "update_media_by_node") in the input CSV."""
     from typing import Optional
 
-    # ========================================================= Helper functions =========================================================
+    # ========================== Private helper functions - not accessible outsite update_media() ===============================
 
     def get_media_type(
         media_id: str, get_media_response: requests.Response
@@ -1525,7 +1525,7 @@ def update_media() -> None:
         track_language_list: str,
         file_id_list: str,
     ) -> dict:
-        """Return the JSON object for a PATCH request required to attach the track files and their information to a media entity.
+        """Return the dict that populates a JSON object used in the PATCH request required to attach the track files and associated data to a media entity.
 
         Parameters:
             - config: The global configuration object.
@@ -1536,9 +1536,9 @@ def update_media() -> None:
             - file_id_list: A list of file IDs.
 
         Returns:
-            The JSON request for a PATCH request required to attach the track files and their information to a media entity.
+            The dict that populates a JSON object for a PATCH request to attach the track files to a media entity.
         """
-        # We use list comprehension to create the JSON object that contains the track files and their information.
+        # Create the dict that will populate the JSON object PATCHed to Drupal.
         return {
             config["media_track_file_fields"][media_type]: [
                 {
@@ -1553,14 +1553,14 @@ def update_media() -> None:
         }
 
     def patch_media_use_terms_update_media(media_use_tids):
-        """Return the JSON object for a PATCH request required to patch the media entity's media use terms.
+        """Create JSON data for a PATCH request required to patch the media entity's media use terms.
            Note: workbench_utils has its own patch_media_use_terms().
 
         Parameters:
             - media_use_tids: A list of taxonomy term IDs to patch to the media entity's field_media_use.
 
         Returns:
-            The JSON request for a PATCH request required to patch the media entity's media use terms.
+            A dict that populates JSON used in the PATCH request to update the media entity's media use terms.
         """
         return {
             "field_media_use": [
@@ -1570,13 +1570,13 @@ def update_media() -> None:
         }
 
     def patch_media_status(status: bool) -> dict:
-        """Return the JSON object for a PATCH request required to patch the media entity's "Published" status.
+        """Return the JSON data for a PATCH request required to patch the media entity's "Published" status.
 
         Parameters:
             - status: True if the media entity should be published, False otherwise.
 
         Returns:
-            The JSON request for a PATCH request required to patch the media entity's "Published" status, or None if the status is not a boolean.
+            The dict that populates JSON used in the PATCH request required to patch the media entity's "Published" status, or None if the status is not a boolean.
         """
         return {"status": [{"value": status}]}
 
@@ -1600,7 +1600,7 @@ def update_media() -> None:
             return False
 
     def patch_media_revision_log_message(revision_log_message) -> dict:
-        """Return the JSON object for a PATCH request required to patch the media entity's revision log message.
+        """Return the dict used to populate the JSON object for a PATCH request to update the media entity's revision log message.
 
         Parameters:
             - revision_log_message: The revision log message.
@@ -1610,7 +1610,7 @@ def update_media() -> None:
         """
         return {"revision_log_message": [{"value": revision_log_message}]}
 
-    # ========================================================= Main Logic =========================================================
+    # ========================================================= Main function Logic =============================================
 
     # TODO: Updating the media file and the name simultaneously does not work. The media takes the name of the new file and not the specified name.
 

@@ -40,5 +40,5 @@ Documentation = "https://mjordan.github.io/islandora_workbench_docs/"
 line-length = 88
 target-version = ["py311", "py312", "py313", "py314"]
 include = '(\.pyi?|\.ipynb|workbench)$'
-check = true
+# check = true
 verbose = true
