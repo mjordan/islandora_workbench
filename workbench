@@ -1275,7 +1275,7 @@ def add_media():
 
 
 def update_media() -> None:
-    """Callback for "update_media" and "update_media_from_node" tasks. Update media from media IDs (or node ID
+    """Callback for "update_media" and "update_media_from_node" tasks. Update media from media IDs (or node IDs
     if the task is "update_media_by_node") in the input CSV."""
     from typing import Optional
 
@@ -1517,7 +1517,7 @@ def update_media() -> None:
             ]
         }
 
-    def attach_track_files_to_media(
+    def get_track_files_to_add_to_media(
         config: dict,
         media_type: str,
         track_label_list: str,
@@ -1525,7 +1525,7 @@ def update_media() -> None:
         track_language_list: str,
         file_id_list: str,
     ) -> dict:
-        """Return the dict that populates a JSON object used in the PATCH request required to attach the track files and associated data to a media entity.
+        """Return the dict that populates a JSON object used in the PATCH request to attach the track files and associated data to a media entity.
 
         Parameters:
             - config: The global configuration object.
@@ -1547,6 +1547,8 @@ def update_media() -> None:
                     "kind": track_type_list[i],
                     "srclang": track_language_list[i],
                     "target_type": "file",
+                    # Logic when creating track files is to make the first in the input CSV the default track. Need to add this logic here.
+                    "default": True,
                 }
                 for i in range(len(file_id_list))
             ]
@@ -1769,7 +1771,7 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
-        # Update track file.
+        # Attach track files to media. Note during WIP on #1110: does not use config["update_mode"], only adds new media track files.
         invalid_track_file = False
         if (
             media_type in config["media_track_file_fields"]
@@ -1792,6 +1794,17 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
+            media_track_entries = split_media_track_string(
+                config, row[config["media_track_file_fields"][media_type]]
+            )
+            for media_track_entry in media_track_entries:
+                media_track_entry["default"] = False
+
+                # @todo #1110: do we need to create the media track file and get its ID? file_id = create_file(config, row["file"], "file", row, node_id)
+
+            print("DEBUG #1110 media_track_entries", media_track_entries)
+
+            '''
             # There may be multiple track files specified, separated by a delimeter. Add the information for each of these to a list.
             track_files = row[config["media_track_file_fields"][media_type]].split(
                 config["subdelimiter"]
@@ -1853,10 +1866,11 @@ def update_media() -> None:
                     pbar(row_position)
                 continue
 
-            # Now we'll get the JSON for the PATCH request to the track_file_field_name to update the track files.
+            # Add the track data to the patch_request_json dict.
+            # print("DEBUG track_files_info", track_files_info)
             try:
                 patch_request_json.update(
-                    attach_track_files_to_media(
+                    get_track_files_to_add_to_media(
                         config,
                         media_type,
                         track_files_info["track_labels"],
@@ -1865,11 +1879,15 @@ def update_media() -> None:
                         track_files_info["track_file_ids"],
                     )
                 )
+            '''
+            try:
+                target_media_track_field = config["media_track_file_fields"][media_type]
+                patch_request_json[target_media_track_field] = media_track_entries
             except KeyError:
                 logging.error(
                     "The media type "
                     + media_type
-                    + " is not set to have a track file field."
+                    + " does have a track file field."
                 )
                 row_count += 1
                 print(
@@ -1883,6 +1901,8 @@ def update_media() -> None:
                     row_position = get_percentage(row_count, num_csv_records)
                     pbar(row_position)
                 continue
+
+            print("DEBUG 1110 updated patch_request_json", patch_request_json)
 
         # Update media use tid.
         invalid_media_use_tid = False
@@ -2101,6 +2121,7 @@ def update_media() -> None:
                 row_position = get_percentage(row_count, num_csv_records)
                 pbar(row_position)
         else:
+            print("DEBUG 1110 response.text", response.text)
             print(
                 "Media at "
                 + config["host"]

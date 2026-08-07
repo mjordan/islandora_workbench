@@ -5551,7 +5551,10 @@ def create_file(
         return False
 
 
-def create_media_track(
+'''
+NOTE: Currently not used.
+
+def _create_media_track(
     config: dict,
     filename: str,
     file_fieldname: Union[str, None],
@@ -5619,7 +5622,7 @@ def create_media_track(
             )
             for media_track_entry in media_track_entries:
                 media_track_field_name_parts = (
-                    fully_qualified_media_track_field_name.split(":")
+                    fully_qualified_media_track_field_name.split(":", 3)
                 )
                 try:
                     create_track_file_result = create_file(
@@ -5669,6 +5672,7 @@ def create_media_track(
                 if media_track_field_data:
                     media_track_field_data[0]["default"] = True
                     media_json[media_track_field_name_parts[2]] = media_track_field_data
+'''
 
 
 def create_media(
@@ -6046,7 +6050,7 @@ def create_media(
                 )
                 for media_track_entry in media_track_entries:
                     media_track_field_name_parts = (
-                        fully_qualified_media_track_field_name.split(":")
+                        fully_qualified_media_track_field_name.split(":", 3)
                     )
                     try:
                         create_track_file_result = create_file(
