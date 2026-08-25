@@ -2644,6 +2644,12 @@ def check_input(config: dict, args: Namespace) -> None:
             config, "node", config["content_type"]
         )
         for required_drupal_field in required_drupal_fields_node:
+            if (
+                required_drupal_field == "field_model"
+                and config["paged_content_from_directories_parents_exist"] is True
+                and "paged_content_page_model_tid" in config
+            ):
+                continue
             if required_drupal_field not in csv_column_headers:
                 logging.error(
                     "Required Drupal field %s is not present in the CSV file.",
@@ -7749,6 +7755,12 @@ def validate_required_fields_have_values(
     rows_with_missing_required_values = []
     for row in csv_data:
         for required_field in required_drupal_fields:
+            if (
+                required_field == "field_model"
+                and config["paged_content_from_directories_parents_exist"] is True
+                and "paged_content_page_model_tid" in config
+            ):
+                continue
             if len(row[required_field].strip()) == 0:
                 rows_with_missing_required_values.append(required_field)
                 message = f"Required Drupal field \"{required_field}\" in row with ID \"{row[config['id_field']]}\" is empty."
