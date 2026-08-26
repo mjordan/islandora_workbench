@@ -116,23 +116,23 @@ jobs:
           docker exec isle-site-template-drupal-1 drush user:create test-user --mail='test@noreply.com' --password='testPassword'
           docker exec isle-site-template-drupal-1 drush user:role:add workbench_user test-user
 
+      - name: Configure mkcert CA
+        run: |
+          echo "REQUESTS_CA_BUNDLE=$(mkcert -CAROOT)/rootCA.pem" >> "$GITHUB_ENV"
+          echo "mkcert CAROOT: $(mkcert -CAROOT)"
+          ls -la "$(mkcert -CAROOT)"
+
       - name: Run islandora_tests_check
         run: pytest -v --no-header tests/islandora_tests_check.py
-        env:
-         REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
           
       - name: Run islandora_tests_paged_content
         run: pytest -v --no-header tests/islandora_tests_paged_content.py
-        env:
-          REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem
 
       - name: Run islandora_tests  
         run: pytest -v --no-header tests/islandora_tests.py
 
       - name: Run islandora_tests_recovery_mode
-        run: pytest -v --no-header tests/islandora_tests_recovery_mode.py
-        env:
-          REQUESTS_CA_BUNDLE: ${{ github.workspace }}/isle-site-template/certs/rootCA.pem        
+        run: pytest -v --no-header tests/islandora_tests_recovery_mode.py 
 
       - name: Run csv_id_to_node_id_map_tests  
         run: python tests/csv_id_to_node_id_map_tests.py
