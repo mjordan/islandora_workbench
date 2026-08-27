@@ -103,7 +103,7 @@ class TestWorkbenchConfig(unittest.TestCase):
             # checking for config variables set in
             # tests/assets/execute_bootstrap_script_test/config.yml
             self.assertEqual(test_config_dict["task"], "create")
-            self.assertEqual(test_config_dict["host"], "https://islandora.dev")
+            self.assertEqual(test_config_dict["host"], "https://islandora.io")
             self.assertEqual(test_config_dict["username"], "admin")
             self.assertEqual(test_config_dict["password"], "password")
             # self.assertEqual(test_config_dict['media_type'], 'document')
@@ -131,7 +131,7 @@ class TestWorkbenchConfig(unittest.TestCase):
             test_config_obj = WorkbenchConfig(args)
 
             content_type = "islandora_object"
-            url = f"https://islandora.dev/entity/entity_form_display/node.{content_type}.default?_format=json"
+            url = f"https://islandora.io/entity/entity_form_display/node.{content_type}.default?_format=json"
             mocked_issue_request.assert_called_with(
                 test_config_obj.get_config(), "GET", url
             )
@@ -158,7 +158,7 @@ class TestWorkbenchConfig(unittest.TestCase):
             test_config_obj = WorkbenchConfig(args)
 
             content_type = "invalid_content_type"
-            host = "https://islandora.dev"
+            host = "https://islandora.io"
             url = f"{host}/entity/entity_form_display/node.{content_type}.default?_format=json"
             mocked_issue_request.assert_called_with(
                 test_config_obj.get_config(), "GET", url

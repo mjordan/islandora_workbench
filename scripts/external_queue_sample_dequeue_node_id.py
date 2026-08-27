@@ -8,7 +8,7 @@ import json
 import requests
 import persistqueue
 
-islandora_host = "https://islandora.dev/"
+islandora_host = "https://islandora.io/"
 # Number of items in queue to process.
 batch_size = 5
 

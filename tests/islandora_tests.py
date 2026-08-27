@@ -1,4 +1,4 @@
-"""unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
+"""unittest tests that require a live Drupal at https://islandora.io. In most cases, the host URL,
 credentials, etc. are in a configuration file referenced in the test.
 
 Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also

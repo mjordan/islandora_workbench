@@ -54,7 +54,7 @@ for filepath in list(glob.iglob(f"{local_tests_dir}/**/*.yml", recursive=True)) 
 ):
     f = open(filepath)
     config = f.read()
-    config = config.replace("https://islandora.dev", args.host)
+    config = config.replace("https://islandora.io", args.host)
     config = config.replace("admin", args.username)
     config = re.sub("password$", args.password, config, 0, re.MULTILINE)
     config = config.replace("tests/assets/", "tests_local/assets/")

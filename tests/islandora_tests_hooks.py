@@ -1,4 +1,4 @@
-"""unittest tests that require a live Drupal at https://islandora.dev. In most cases, the host URL,
+"""unittest tests that require a live Drupal at https://islandora.io. In most cases, the host URL,
 credentials, etc. are in a configuration file referenced in the test.
 
 This test file contains tests for Workbench's hooks. Files islandora_tests.py, islandora_tests_paged_content.py,
@@ -137,7 +137,7 @@ class TestExecutePostActionEntityScript(WorkbenchTest):
                     "--config",
                     config_file_path,
                     "--quick_delete_node",
-                    "https://islandora.dev/node/" + nid,
+                    "https://islandora.io/node/" + nid,
                 ]
                 subprocess.check_output(quick_delete_cmd, cwd=self.workbench_dir)
 

@@ -1,5 +1,5 @@
 task: create
-host: https://islandora.dev
+host: https://islandora.io
 username: admin
 password: password
 input_dir: "tests/assets/update_test"
