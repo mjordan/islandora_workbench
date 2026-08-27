@@ -1204,7 +1204,7 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(WorkbenchTest):
                 log_data,
             )
             assert re.search(
-                'Media for file "https://www.lib.sfu.ca/xxxtttuuu.jpg" named in field "tn" of CSV row with ID "005" not created because file does not exist',
+                'Media for file "https://islandora.io/xxxtttuuu.jpg" named in field "tn" of CSV row with ID "005" not created because file does not exist',
                 log_data,
             )
             assert not re.search("Islandora Workbench successfully completed", log_data)
@@ -1279,7 +1279,7 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(WorkbenchTest):
                 log_data,
             )
             assert re.search(
-                'Media for file "https://www.lib.sfu.ca/xxxtttuuu.jpg" named in field "tn" of CSV row with ID "005" not created because file does not exist',
+                'Media for file "https://islandora.io/xxxtttuuu.jpg" named in field "tn" of CSV row with ID "005" not created because file does not exist',
                 log_data,
             )
             assert re.search("Islandora Workbench successfully completed", log_data)
