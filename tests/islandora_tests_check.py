@@ -1061,7 +1061,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
         )
         try:
             assert re.search(
-                'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found',
+                'Additional file "https://islandora.io/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found',
                 str(stdout),
             )
 
@@ -1072,7 +1072,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
                 log_data_false,
             )
             assert re.search(
-                'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found or not accessible',
+                'Additional file "https://islandora.io/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found or not accessible',
                 log_data_false,
             )
         finally:
@@ -1122,7 +1122,7 @@ class TestCreateAllowMissingFilesWithAdditionalFiles(WorkbenchTest):
                 log_data_true,
             )
             assert re.search(
-                'Additional file "https://www.lib.sfu.ca/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found',
+                'Additional file "https://islandora.io/xxxtttuuu.jpg" in CSV column "tn" in row with ID 005 not found',
                 log_data_true,
             )
         finally:

@@ -1,5 +1,5 @@
 task: add_media
-host: https://islandora.dev
+host: https://islandora.io
 username: admin
 password: password
 input_dir: tests/assets/allow_missing_files_test
