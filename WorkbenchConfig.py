@@ -383,7 +383,7 @@ class WorkbenchConfig:
         return [
             {"image": ["png", "gif", "jpg", "jpeg"]},
             {"document": ["pdf", "doc", "docx", "ppt", "pptx"]},
-            {"file": ["tif", "tiff", "jp2", "zip", "tar"]},
+            {"file": ["tif", "tiff", "jp2", "zip", "tar", "hocr"]},
             {"audio": ["mp3", "wav", "aac"]},
             {
                 "video": [
