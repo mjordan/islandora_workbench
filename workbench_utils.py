@@ -489,10 +489,10 @@ def check_integration_module_version(config: dict, log_success: bool = True) -> 
     log_message = f'Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module. ({config["host"]} is running version {version}).'
 
     #####################################################################################################################
-    # Add logic here that maps a feature to a miniumum Integration module version, and produces a specific log message. #
+    # Add logic here that maps a feature to a minimum Integration module version, and produces a specific log message. #
     #####################################################################################################################
     if config["use_workbench_permissions"] is True:
-        integration_module_min_version = "1.2"
+        integration_module_min_version = "1.2.2"
         log_message = f'In order to use the "use_workbench_permissions" config setting, Drupal must be running version {integration_module_min_version} or higher of the Islandora Workbench Integration module ({config["host"]} is running version {version}).'
     #####################################################################################################################
 
@@ -893,7 +893,12 @@ def ping_media_bundle(config: dict, bundle_name: str) -> int:
     int
         The HTTP response code.
     """
-    url = config["host"] + "/entity/media_type/" + bundle_name + "?_format=json"
+    url = (
+        config["host"]
+        + f"/islandora_workbench_integration/media_actions/entity_type/{bundle_name}"
+        if config["use_workbench_permissions"]
+        else config["host"] + "/entity/media_type/" + bundle_name + "?_format=json"
+    )
     response = issue_request(config, "GET", url)
     return response.status_code
 
