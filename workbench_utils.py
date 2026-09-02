@@ -2378,7 +2378,7 @@ def check_input(config: dict, args: Namespace) -> None:
             and "file" not in csv_column_headers
             and (
                 config["paged_content_from_directories"] is False
-                or config["paged_content_from_directories_parents_exist"] is False
+                and config["paged_content_from_directories_parents_exist"] is False
             )
         ):
             message = 'For "create" tasks, your CSV file must contain a "file" column.'
@@ -3428,11 +3428,10 @@ def check_input(config: dict, args: Namespace) -> None:
         or config["task"] == "add_media"
         or config["task"] == "update_media"
         or config["task"] == "update_media_by_node"
-        and "file" in csv_column_headers
-    ):
+    ) and "file" in csv_column_headers:
         if config["nodes_only"] is False and (
             config["paged_content_from_directories"] is False
-            or config["paged_content_from_directories_parents_exist"] is False
+            and config["paged_content_from_directories_parents_exist"] is False
         ):
             # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
             if config["task"] == "add_media":
@@ -3634,7 +3633,7 @@ def check_input(config: dict, args: Namespace) -> None:
         and config["nodes_only"] is False
         and (
             config["paged_content_from_directories"] is False
-            or config["paged_content_from_directories_parents_exist"] is False
+            and config["paged_content_from_directories_parents_exist"] is False
         )
     ):
         if "additional_files" in config and len(config["additional_files"]) > 0:
@@ -12507,7 +12506,7 @@ def generate_contact_sheet_from_csv(config: dict) -> None:
         ] += f'\n<div class="field system"><span class="field-label">{config["id_field"]}</span>: {csv_id}</div>'
         if (
             config["paged_content_from_directories"] is False
-            or config["paged_content_from_directories_parents_exist"] is False
+            and config["paged_content_from_directories_parents_exist"] is False
         ) and len(row["file"]) > 0:
             contact_sheet_output_files[output_file][
                 "markup"
