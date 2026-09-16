@@ -3426,7 +3426,9 @@ else:
 ping_islandora(config, print_message=True)
 check_integration_module_version(config)
 
-validate_input_dir(config)
+tasks_that_dont_need_input_dir = ["get_data_from_view"]
+if config["task"] not in tasks_that_dont_need_input_dir:
+    validate_input_dir(config)
 
 # Unzip (and fetch if remote) input data zip archives.
 if len(config["input_data_zip_archives"]) > 0 and config["nodes_only"] is not True:
