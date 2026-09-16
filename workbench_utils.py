@@ -11281,7 +11281,7 @@ def download_file_from_drupal(
     if not file_url:
         return False
 
-    url_filename = os.path.basename(file_url)
+    url_filename = os.path.basename(urllib.parse.urlparse(file_url).path)
     downloaded_file_path = os.path.join(config["export_file_directory"], url_filename)
     if os.path.exists(downloaded_file_path):
         downloaded_file_path = get_deduped_file_path(downloaded_file_path)
