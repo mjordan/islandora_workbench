@@ -68,7 +68,7 @@ class TestWorkbenchConfig(unittest.TestCase):
 
         with (
             patch("sys.exit", side_effect=lambda x: None) as mock_exit,
-            patch("WorkbenchConfig.WorkbenchConfig.validate") as mocked_validate,
+            patch("WorkbenchConfig.WorkbenchConfig.path_check") as mocked_path_check,
             patch("WorkbenchConfig.logging") as mocked_logging,
         ):
 
@@ -89,7 +89,7 @@ class TestWorkbenchConfig(unittest.TestCase):
         args = self.parser.parse_args(["--config", test_file_name])
 
         with (
-            patch("WorkbenchConfig.WorkbenchConfig.validate") as mocked_validate,
+            patch("WorkbenchConfig.WorkbenchConfig.path_check") as mocked_path_check,
             patch("WorkbenchConfig.logging") as mocked_logging,
         ):
 
