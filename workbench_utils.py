@@ -821,7 +821,7 @@ def ping_view_endpoint(config: dict, view_url: str) -> int:
     int
         The HTTP response code.
     """
-    return issue_request(config, "HEAD", view_url).status_code
+    return issue_request(config, "GET", view_url).status_code
 
 
 def ping_entity_reference_view_endpoint(
