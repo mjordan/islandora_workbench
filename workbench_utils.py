@@ -2980,7 +2980,7 @@ def check_input(config: dict, args: Namespace) -> None:
             if _alt_text_required_options not in config_keys:
                 message = (
                     "Please check your config file for required values: "
-                    + joiner.join(delete_media_required_options)
+                    + joiner.join(_alt_text_required_options)
                     + "."
                 )
                 logging.error(message)
