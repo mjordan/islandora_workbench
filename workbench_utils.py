@@ -1208,7 +1208,8 @@ def get_field_definitions(
     field_definitions = {}
 
     if entity_type == "node":
-        bundle_type = config["content_type"]
+        if bundle_type is None:
+            bundle_type = config["content_type"]
         fields = get_entity_fields(config, entity_type, bundle_type)
         for fieldname in fields:
             field_definitions[fieldname] = {}
