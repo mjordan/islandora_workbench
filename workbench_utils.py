@@ -820,8 +820,16 @@ def ping_view_endpoint(config: dict, view_url: str) -> int:
     -------
     int
         The HTTP response code.
+
+    Note: This checks specifically for 401 (the confirmed failure code) rather
+    than any non-200 result, as a deliberately conservative first step — if another
+    failure mode surfaces later (e.g. a different status code from a different Drupal
+    configuration), this condition may need broadening to catch it too.
     """
-    return issue_request(config, "GET", view_url).status_code
+    status_code = issue_request(config, "HEAD", view_url).status_code
+    if status_code == 401:
+        status_code = issue_request(config, "GET", view_url).status_code
+    return status_code
 
 
 def ping_entity_reference_view_endpoint(
