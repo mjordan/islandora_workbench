@@ -10590,7 +10590,10 @@ def get_mimetype_from_extension(
         return None
 
     # A MIME type used in Islandora but not recognized by Python's mimetypes library.
-    mime_map = {"hocr": "text/vnd.hocr+html"}
+    mime_map = {
+        "hocr": "text/vnd.hocr+html",
+        "xml": "application/xml",
+    }
 
     # Modify the map as per config.
     if (
