@@ -150,7 +150,7 @@ class WorkbenchExportBase:
 
     def row_log_suffix(self, row):
         and_files = ""
-        if self.needs_file_column:
+        if self.needs_file_column():
             if self.config.get("export_file_url_instead_of_download", False):
                 and_files = " and file URL(s)"
             else:

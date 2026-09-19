@@ -820,8 +820,16 @@ def ping_view_endpoint(config: dict, view_url: str) -> int:
     -------
     int
         The HTTP response code.
+
+    Note: This checks specifically for 401 (the confirmed failure code) rather
+    than any non-200 result, as a deliberately conservative first step — if another
+    failure mode surfaces later (e.g. a different status code from a different Drupal
+    configuration), this condition may need broadening to catch it too.
     """
-    return issue_request(config, "HEAD", view_url).status_code
+    status_code = issue_request(config, "HEAD", view_url).status_code
+    if status_code == 401:
+        status_code = issue_request(config, "GET", view_url).status_code
+    return status_code
 
 
 def ping_entity_reference_view_endpoint(
@@ -1208,7 +1216,8 @@ def get_field_definitions(
     field_definitions = {}
 
     if entity_type == "node":
-        bundle_type = config["content_type"]
+        if bundle_type is None:
+            bundle_type = config["content_type"]
         fields = get_entity_fields(config, entity_type, bundle_type)
         for fieldname in fields:
             field_definitions[fieldname] = {}
@@ -2980,7 +2989,7 @@ def check_input(config: dict, args: Namespace) -> None:
             if _alt_text_required_options not in config_keys:
                 message = (
                     "Please check your config file for required values: "
-                    + joiner.join(delete_media_required_options)
+                    + joiner.join(_alt_text_required_options)
                     + "."
                 )
                 logging.error(message)
@@ -10600,7 +10609,10 @@ def get_mimetype_from_extension(
         return None
 
     # A MIME type used in Islandora but not recognized by Python's mimetypes library.
-    mime_map = {"hocr": "text/vnd.hocr+html"}
+    mime_map = {
+        "hocr": "text/vnd.hocr+html",
+        "xml": "application/xml",
+    }
 
     # Modify the map as per config.
     if (
@@ -11292,7 +11304,7 @@ def download_file_from_drupal(
     if not file_url:
         return False
 
-    url_filename = os.path.basename(file_url)
+    url_filename = os.path.basename(urllib.parse.urlparse(file_url).path)
     downloaded_file_path = os.path.join(config["export_file_directory"], url_filename)
     if os.path.exists(downloaded_file_path):
         downloaded_file_path = get_deduped_file_path(downloaded_file_path)
