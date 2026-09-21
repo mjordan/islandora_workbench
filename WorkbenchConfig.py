@@ -12,6 +12,7 @@ class WorkbenchConfig:
     def __init__(self, args):
         self.args = args
         self.args.config = os.path.expanduser(self.args.config)
+        self.path_check()
         self.user_mods = self.get_user_config()
         if "password" not in self.user_mods and "username" in self.user_mods:
             self.user_mods["password"] = self.get_credentials()
@@ -19,7 +20,6 @@ class WorkbenchConfig:
             credentials_from_file = self.get_credentials()
             self.user_mods["username"] = credentials_from_file[0]
             self.user_mods["password"] = credentials_from_file[1]
-        self.path_check()
         self.config = self.get_config()
         logging.basicConfig(
             filename=self.config["log_file_path"],
