@@ -1,0 +1,10 @@
+# Black linter configuration file. Exists to override configuration in pyproject.toml
+# where check = truecheck = true
+
+# Usage: black --config black.toml <source file>
+
+[tool.black]
+line-length = 88
+target-version = ["py311", "py312", "py313", "py314"]
+include = '(\.pyi?|\.ipynb|workbench)$'
+verbose = true

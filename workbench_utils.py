@@ -3431,13 +3431,13 @@ def check_input(config: dict, args: Namespace) -> None:
             )
             print("Warning: " + message + " See the log for details.")
 
-    # Check for existence of files listed in the 'file' column.
+    # Check for existence of files listed in the 'file' column, if present in the input CSV.
     if (
         config["task"] == "create"
         or config["task"] == "add_media"
         or config["task"] == "update_media"
         or config["task"] == "update_media_by_node"
-    ) and "file" in csv_column_headers:
+    ):
         if config["nodes_only"] is False and (
             config["paged_content_from_directories"] is False
             and config["paged_content_from_directories_parents_exist"] is False
@@ -3451,20 +3451,23 @@ def check_input(config: dict, args: Namespace) -> None:
                 config["id_field"] = "node_id"
 
             file_check_csv_data = get_csv_data(config)
+            file_check_csv_data_fieldnames = file_check_csv_data.fieldnames
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
-                file_check_row["file"] = file_check_row["file"].strip()
-                # Check for and log empty 'file' values.
-                if len(file_check_row["file"]) == 0:
-                    message = (
-                        "CSV row with ID "
-                        + file_check_row[config["id_field"]]
-                        + ' contains an empty "file" value.'
-                    )
-                    logging.warning(message)
+                if "file" in file_check_csv_data_fieldnames:
+                    file_check_row["file"] = file_check_row["file"].strip()
+                    # Check for and log empty 'file' values.
+                    if len(file_check_row["file"]) == 0:
+                        message = (
+                            "CSV row with ID "
+                            + file_check_row[config["id_field"]]
+                            + ' contains an empty "file" value.'
+                        )
+                        logging.warning(message)
 
                 # Check for files that cannot be found.
                 if (
-                    not file_check_row["file"].startswith("http")
+                    "file" in file_check_csv_data_fieldnames
+                    and not file_check_row["file"].startswith("http")
                     and len(file_check_row["file"].strip()) > 0
                 ):
                     file_check_row["file"] = os.path.expanduser(file_check_row["file"])
@@ -3507,7 +3510,10 @@ def check_input(config: dict, args: Namespace) -> None:
                                 )
                 # Remote files.
                 else:
-                    if len(file_check_row["file"].strip()) > 0:
+                    if (
+                        "file" in file_check_csv_data_fieldnames
+                        and len(file_check_row["file"].strip()) > 0
+                    ):
                         http_response_code = ping_remote_file(
                             config, file_check_row["file"]
                         )
@@ -3550,15 +3556,20 @@ def check_input(config: dict, args: Namespace) -> None:
 
             # @todo for issue 268: All accumulator variables like 'rows_with_missing_files' should be checked at end of
             # check_input() (to work with perform_soft_checks: True) in addition to at place of check (to work wit perform_soft_checks: False).
-            if len(rows_with_missing_files) > 0:
-                if config["allow_missing_files"] is True:
-                    message = '"allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing files were detected.'
-                    print("Warning: " + message + " See the log for more information.")
-                    logging.warning(message + " Details are logged above.")
-            else:
-                message = 'OK, files named in the CSV "file" column are all present.'
-                print(message)
-                logging.info(message)
+            if "file" in file_check_csv_data_fieldnames:
+                if len(rows_with_missing_files) > 0:
+                    if config["allow_missing_files"] is True:
+                        message = '"allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing files were detected.'
+                        print(
+                            "Warning: " + message + " See the log for more information."
+                        )
+                        logging.warning(message + " Details are logged above.")
+                else:
+                    message = (
+                        'OK, files named in the CSV "file" column are all present.'
+                    )
+                    print(message)
+                    logging.info(message)
 
             # Verify that all media bundles/types exist.
             if config["nodes_only"] is False:
