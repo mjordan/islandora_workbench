@@ -2191,7 +2191,7 @@ class TestGeneralTests(unittest.TestCase):
         config_object = WorkbenchConfig(args)
         config = config_object.get_config()
         self.assertEqual("islandora_object", config["paged_content_page_content_type"])
-        
+
     # --- New tests replacing the removed WorkbenchConfig-level tests
     # (test_init_validate_valid / test_init_validate_invalid_content_type),
     # which tested behavior that no longer lives in WorkbenchConfig.__init__().
@@ -2253,7 +2253,9 @@ class TestGeneralTests(unittest.TestCase):
         self.base_config["content_type"] = "invalid_content_type"
 
         with self.assertRaises(SystemExit) as exit_return:
-            workbench_utils.get_entity_fields(self.base_config, "node", "invalid_content_type")
+            workbench_utils.get_entity_fields(
+                self.base_config, "node", "invalid_content_type"
+            )
 
         expected_message = (
             "Error: Content type 'invalid_content_type' does not exist on "
