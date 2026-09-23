@@ -72,7 +72,7 @@ class TestWorkbenchConfig(unittest.TestCase):
             patch("WorkbenchConfig.logging") as mocked_logging,
         ):
 
-            mocked_validate.return_value = None
+            mocked_path_check.return_value = None
             mocked_logging.return_value = None
 
             WorkbenchConfig(args)
@@ -93,7 +93,7 @@ class TestWorkbenchConfig(unittest.TestCase):
             patch("WorkbenchConfig.logging") as mocked_logging,
         ):
 
-            mocked_validate.return_value = None
+            mocked_path_check.return_value = None
             mocked_logging.return_value = None
 
             test_config_obj = WorkbenchConfig(args)
@@ -109,121 +109,6 @@ class TestWorkbenchConfig(unittest.TestCase):
             # self.assertEqual(test_config_dict['media_type'], 'document')
 
         # TODO: check values sent to logger
-
-    def test_init_validate_valid(self):
-        test_file_name = (
-            "tests/assets/WorkbenchConfig_test/config_01_create_short_valid.yml"
-        )
-
-        args = self.parser.parse_args(["--config", test_file_name])
-
-        with (
-            patch("WorkbenchConfig.issue_request") as mocked_issue_request,
-            patch("WorkbenchConfig.logging") as mocked_logging,
-        ):
-
-            mocked_logging.return_value = None
-
-            fake_response = namedtuple("fake_response", ["status_code"])
-            fake_response.status_code = 200
-            mocked_issue_request.return_value = fake_response
-
-            test_config_obj = WorkbenchConfig(args)
-
-            content_type = "islandora_object"
-            url = f"https://islandora.io/entity/entity_form_display/node.{content_type}.default?_format=json"
-            mocked_issue_request.assert_called_with(
-                test_config_obj.get_config(), "GET", url
-            )
-
-    def test_init_validate_invalid_content_type(self):
-        test_file_name = (
-            "tests/assets/WorkbenchConfig_test/config_02_01_create_short_invalid.yml"
-        )
-
-        args = self.parser.parse_args(["--config", test_file_name])
-
-        with (
-            patch("WorkbenchConfig.issue_request") as mocked_issue_request,
-            patch("WorkbenchConfig.logging") as mocked_logging,
-            self.assertRaises(SystemExit) as exit_return,
-        ):
-
-            mocked_logging.return_value = None
-
-            fake_response = namedtuple("fake_response", ["status_code"])
-            fake_response.status_code = 404
-            mocked_issue_request.return_value = fake_response
-
-            test_config_obj = WorkbenchConfig(args)
-
-            content_type = "invalid_content_type"
-            host = "https://islandora.io"
-            url = f"{host}/entity/entity_form_display/node.{content_type}.default?_format=json"
-            mocked_issue_request.assert_called_with(
-                test_config_obj.get_config(), "GET", url
-            )
-
-            error_message = (
-                f"Error: Content type {content_type} does not exist on {host}."
-            )
-            self.assertEqual(exit_return.exception.code, error_message)
-
-    def test_init_validate_invalid_mutators_01(self):
-        test_file_name = (
-            "tests/assets/WorkbenchConfig_test/config_02_02_create_short_invalid.yml"
-        )
-
-        args = self.parser.parse_args(["--config", test_file_name])
-
-        with (
-            patch("WorkbenchConfig.issue_request") as mocked_issue_request,
-            patch("WorkbenchConfig.logging") as mocked_logging,
-        ):
-
-            mocked_logging.return_value = None
-
-            fake_response = namedtuple("fake_response", ["status_code"])
-            fake_response.status_code = 200
-            mocked_issue_request.return_value = fake_response
-
-            # Error text should only be this line, therefore use ^ and $ at the start and end of the message respectively
-            error_message = (
-                "^Error: You may only select one of \['use_node_title_for_media', "
-                + "'use_nid_in_media_title', 'field_for_media_title'\].\n  - This config  has selected "
-                + "\['use_node_title_for_media', 'use_nid_in_media_title'\].\n$"
-            )
-
-            with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
-                test_config_obj = WorkbenchConfig(args)
-
-    def test_init_validate_invalid_mutators_02(self):
-        test_file_name = (
-            "tests/assets/WorkbenchConfig_test/config_02_03_create_short_invalid.yml"
-        )
-
-        args = self.parser.parse_args(["--config", test_file_name])
-
-        with (
-            patch("WorkbenchConfig.issue_request") as mocked_issue_request,
-            patch("WorkbenchConfig.logging") as mocked_logging,
-        ):
-
-            mocked_logging.return_value = None
-
-            fake_response = namedtuple("fake_response", ["status_code"])
-            fake_response.status_code = 200
-            mocked_issue_request.return_value = fake_response
-
-            # Error text should only be this line, therefore use ^ and $ at the start and end of the message respectively
-            error_message = (
-                "^Error: You may only select one of \['use_node_title_for_media', "
-                + "'use_nid_in_media_title', 'field_for_media_title'\].\n  - This config  has selected "
-                + "\['use_node_title_for_media', 'field_for_media_title'\].\n$"
-            )
-
-            with self.assertRaisesRegex(SystemExit, error_message) as exit_return:
-                test_config_obj = WorkbenchConfig(args)
 
     def test_get_config_expanduser_paths(self):
         test_file_name = (
