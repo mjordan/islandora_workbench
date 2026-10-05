@@ -562,6 +562,7 @@ class WorkbenchConfig:
             "include_password_in_rollback_config_file": False,
             "remove_password_from_config_file": False,
             "recovery_mode_starting_from_node_id": False,
+            "exit_on_recovery_mode_parent_lookup_failure": True,
             "viewer_override_fieldname": "field_viewer_override",
             "check_for_workbench_updates": True,
             "use_workbench_permissions": False,
