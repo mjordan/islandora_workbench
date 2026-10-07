@@ -820,8 +820,16 @@ def ping_view_endpoint(config: dict, view_url: str) -> int:
     -------
     int
         The HTTP response code.
+
+    Note: This checks specifically for 401 (the confirmed failure code) rather
+    than any non-200 result, as a deliberately conservative first step — if another
+    failure mode surfaces later (e.g. a different status code from a different Drupal
+    configuration), this condition may need broadening to catch it too.
     """
-    return issue_request(config, "HEAD", view_url).status_code
+    status_code = issue_request(config, "HEAD", view_url).status_code
+    if status_code == 401:
+        status_code = issue_request(config, "GET", view_url).status_code
+    return status_code
 
 
 def ping_entity_reference_view_endpoint(
@@ -1208,7 +1216,8 @@ def get_field_definitions(
     field_definitions = {}
 
     if entity_type == "node":
-        bundle_type = config["content_type"]
+        if bundle_type is None:
+            bundle_type = config["content_type"]
         fields = get_entity_fields(config, entity_type, bundle_type)
         for fieldname in fields:
             field_definitions[fieldname] = {}
@@ -2447,7 +2456,7 @@ def check_input(config: dict, args: Namespace) -> None:
             and "file" not in csv_column_headers
             and (
                 config["paged_content_from_directories"] is False
-                or config["paged_content_from_directories_parents_exist"] is False
+                and config["paged_content_from_directories_parents_exist"] is False
             )
         ):
             message = 'For "create" tasks, your CSV file must contain a "file" column.'
@@ -3049,7 +3058,7 @@ def check_input(config: dict, args: Namespace) -> None:
             if _alt_text_required_options not in config_keys:
                 message = (
                     "Please check your config file for required values: "
-                    + joiner.join(delete_media_required_options)
+                    + joiner.join(_alt_text_required_options)
                     + "."
                 )
                 logging.error(message)
@@ -3491,17 +3500,16 @@ def check_input(config: dict, args: Namespace) -> None:
             )
             print("Warning: " + message + " See the log for details.")
 
-    # Check for existence of files listed in the 'file' column.
+    # Check for existence of files listed in the 'file' column, if present in the input CSV.
     if (
         config["task"] == "create"
         or config["task"] == "add_media"
         or config["task"] == "update_media"
         or config["task"] == "update_media_by_node"
-        and "file" in csv_column_headers
     ):
         if config["nodes_only"] is False and (
             config["paged_content_from_directories"] is False
-            or config["paged_content_from_directories_parents_exist"] is False
+            and config["paged_content_from_directories_parents_exist"] is False
         ):
             # Temporary fix for https://github.com/mjordan/islandora_workbench/issues/478.
             if config["task"] == "add_media":
@@ -3512,20 +3520,23 @@ def check_input(config: dict, args: Namespace) -> None:
                 config["id_field"] = "node_id"
 
             file_check_csv_data = get_csv_data(config)
+            file_check_csv_data_fieldnames = file_check_csv_data.fieldnames
             for count, file_check_row in enumerate(file_check_csv_data, start=1):
-                file_check_row["file"] = file_check_row["file"].strip()
-                # Check for and log empty 'file' values.
-                if len(file_check_row["file"]) == 0:
-                    message = (
-                        "CSV row with ID "
-                        + file_check_row[config["id_field"]]
-                        + ' contains an empty "file" value.'
-                    )
-                    logging.warning(message)
+                if "file" in file_check_csv_data_fieldnames:
+                    file_check_row["file"] = file_check_row["file"].strip()
+                    # Check for and log empty 'file' values.
+                    if len(file_check_row["file"]) == 0:
+                        message = (
+                            "CSV row with ID "
+                            + file_check_row[config["id_field"]]
+                            + ' contains an empty "file" value.'
+                        )
+                        logging.warning(message)
 
                 # Check for files that cannot be found.
                 if (
-                    not file_check_row["file"].startswith("http")
+                    "file" in file_check_csv_data_fieldnames
+                    and not file_check_row["file"].startswith("http")
                     and len(file_check_row["file"].strip()) > 0
                 ):
                     file_check_row["file"] = os.path.expanduser(file_check_row["file"])
@@ -3568,7 +3579,10 @@ def check_input(config: dict, args: Namespace) -> None:
                                 )
                 # Remote files.
                 else:
-                    if len(file_check_row["file"].strip()) > 0:
+                    if (
+                        "file" in file_check_csv_data_fieldnames
+                        and len(file_check_row["file"].strip()) > 0
+                    ):
                         http_response_code = ping_remote_file(
                             config, file_check_row["file"]
                         )
@@ -3611,15 +3625,20 @@ def check_input(config: dict, args: Namespace) -> None:
 
             # @todo for issue 268: All accumulator variables like 'rows_with_missing_files' should be checked at end of
             # check_input() (to work with perform_soft_checks: True) in addition to at place of check (to work wit perform_soft_checks: False).
-            if len(rows_with_missing_files) > 0:
-                if config["allow_missing_files"] is True:
-                    message = '"allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing files were detected.'
-                    print("Warning: " + message + " See the log for more information.")
-                    logging.warning(message + " Details are logged above.")
-            else:
-                message = 'OK, files named in the CSV "file" column are all present.'
-                print(message)
-                logging.info(message)
+            if "file" in file_check_csv_data_fieldnames:
+                if len(rows_with_missing_files) > 0:
+                    if config["allow_missing_files"] is True:
+                        message = '"allow_missing_files" configuration setting is set to "true", and CSV "file" column values containing missing files were detected.'
+                        print(
+                            "Warning: " + message + " See the log for more information."
+                        )
+                        logging.warning(message + " Details are logged above.")
+                else:
+                    message = (
+                        'OK, files named in the CSV "file" column are all present.'
+                    )
+                    print(message)
+                    logging.info(message)
 
             # Verify that all media bundles/types exist.
             if config["nodes_only"] is False:
@@ -3703,7 +3722,7 @@ def check_input(config: dict, args: Namespace) -> None:
         and config["nodes_only"] is False
         and (
             config["paged_content_from_directories"] is False
-            or config["paged_content_from_directories_parents_exist"] is False
+            and config["paged_content_from_directories_parents_exist"] is False
         )
     ):
         if "additional_files" in config and len(config["additional_files"]) > 0:
@@ -10659,7 +10678,10 @@ def get_mimetype_from_extension(
         return None
 
     # A MIME type used in Islandora but not recognized by Python's mimetypes library.
-    mime_map = {"hocr": "text/vnd.hocr+html"}
+    mime_map = {
+        "hocr": "text/vnd.hocr+html",
+        "xml": "application/xml",
+    }
 
     # Modify the map as per config.
     if (
@@ -12590,7 +12612,7 @@ def generate_contact_sheet_from_csv(config: dict) -> None:
         ] += f'\n<div class="field system"><span class="field-label">{config["id_field"]}</span>: {csv_id}</div>'
         if (
             config["paged_content_from_directories"] is False
-            or config["paged_content_from_directories_parents_exist"] is False
+            and config["paged_content_from_directories_parents_exist"] is False
         ) and len(row["file"]) > 0:
             contact_sheet_output_files[output_file][
                 "markup"

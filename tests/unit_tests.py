@@ -2192,6 +2192,77 @@ class TestGeneralTests(unittest.TestCase):
         config = config_object.get_config()
         self.assertEqual("islandora_object", config["paged_content_page_content_type"])
 
+    # --- New tests replacing the removed WorkbenchConfig-level tests
+    # (test_init_validate_valid / test_init_validate_invalid_content_type),
+    # which tested behavior that no longer lives in WorkbenchConfig.__init__().
+    # That behavior is actually two separate things, tested separately here:
+    # ping_content_type()'s own URL-construction/status-code behavior, and
+    # get_entity_fields()'s reaction (sys.exit) when ping_content_type()
+    # reports a 404. Split this way because get_entity_fields()'s error path
+    # short-circuits before ever building/fetching the actual field-config
+    # response, so testing that path doesn't require mocking a realistic
+    # field-JSON payload at all -- only the success path would, and that's
+    # not what the original two removed tests were actually checking (their
+    # own assertions matched ping_content_type()'s URL exactly, not
+    # get_entity_fields()'s separate field-fetching call).
+
+    @mock.patch("workbench_utils.issue_request")
+    def test_ping_content_type_valid(self, mock_issue_request):
+        """Tests that ping_content_type() returns 200 and requests the
+        correct URL for a content type that exists.
+        """
+        fake_response = mock.Mock()
+        fake_response.status_code = 200
+        mock_issue_request.return_value = fake_response
+
+        result = workbench_utils.ping_content_type(self.base_config)
+
+        self.assertEqual(result, 200)
+        expected_url = (
+            f"{self.base_config['host']}/entity/entity_form_display/"
+            f"node.{self.base_config['content_type']}.default?_format=json"
+        )
+        mock_issue_request.assert_called_with(self.base_config, "GET", expected_url)
+
+    @mock.patch("workbench_utils.issue_request")
+    def test_ping_content_type_invalid(self, mock_issue_request):
+        """Tests that ping_content_type() returns 404 for a content type
+        that doesn't exist. ping_content_type() itself does not raise
+        SystemExit -- that's get_entity_fields()'s responsibility, tested
+        separately below.
+        """
+        fake_response = mock.Mock()
+        fake_response.status_code = 404
+        mock_issue_request.return_value = fake_response
+
+        result = workbench_utils.ping_content_type(self.base_config)
+
+        self.assertEqual(result, 404)
+
+    @mock.patch("workbench_utils.ping_content_type")
+    def test_get_entity_fields_invalid_content_type(self, mock_ping_content_type):
+        """Tests that get_entity_fields() exits with the correct error
+        message when ping_content_type() reports the configured content
+        type doesn't exist (404). Mocks ping_content_type() directly
+        rather than issue_request, since that's the specific collaborator
+        get_entity_fields() reacts to -- this test is only about that
+        reaction, not about ping_content_type()'s own correctness (covered
+        by the two tests above).
+        """
+        mock_ping_content_type.return_value = 404
+        self.base_config["content_type"] = "invalid_content_type"
+
+        with self.assertRaises(SystemExit) as exit_return:
+            workbench_utils.get_entity_fields(
+                self.base_config, "node", "invalid_content_type"
+            )
+
+        expected_message = (
+            "Error: Content type 'invalid_content_type' does not exist on "
+            f"{self.base_config['host']}."
+        )
+        self.assertEqual(exit_return.exception.code, expected_message)
+
 
 class TestExpandUserInUtils(unittest.TestCase):
     def test_check_file_exists_expands_tilde(self):
