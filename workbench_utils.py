@@ -62,6 +62,8 @@ file_fields = [
     "field_media_video_file",
 ]
 commented_out_input_csv_rows_present = False
+# Hold the version number to avoid requesting it multiple times.
+workbench_integration_module_version = None
 
 
 def set_media_type(
@@ -529,17 +531,20 @@ def get_integration_module_version(config: dict) -> Union[str, bool]:
         The version number string (i.e., may contain -dev, etc.) from the
         Islandora Workbench Integration module.
     """
-    url = config["host"] + "/islandora_workbench_integration/version"
-    response = issue_request(config, "GET", url)
-    if response.status_code == 200:
-        version_body = response.json()
-        return version_body["integration_module_version"]
-    else:
-        logging.warning(
-            "Attempt to get the Islandora Workbench Integration module's version number returned a %s status code",
-            response.status_code,
-        )
-        return False
+    global workbench_integration_module_version
+    if workbench_integration_module_version is None:
+        url = config["host"] + "/islandora_workbench_integration/version"
+        response = issue_request(config, "GET", url)
+        if response.status_code == 200:
+            version_body = response.json()
+            workbench_integration_module_version = version_body["integration_module_version"]
+        else:
+            logging.warning(
+                "Attempt to get the Islandora Workbench Integration module's version number returned a %s status code",
+                response.status_code,
+            )
+            return False
+    return workbench_integration_module_version
 
 
 def ping_node(
@@ -800,8 +805,10 @@ def ping_content_type(config: dict) -> int:
     """
     url = (
         f"{config['host']}/islandora_workbench_integration/node_actions/entity_field_bundle/node/{config['content_type']}"
-        if config["use_workbench_permissions"]
-        else f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
+        if integration_supports_field_bundle(config) else
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/node/{config['content_type']}"
+        if config["use_workbench_permissions"] else
+        f"{config['host']}/entity/entity_form_display/node.{config['content_type']}.default?_format=json"
     )
 
     return issue_request(config, "GET", url).status_code
@@ -901,7 +908,11 @@ def ping_media_bundle(config: dict, bundle_name: str) -> int:
     int
         The HTTP response code.
     """
-    url = config["host"] + "/entity/media_type/" + bundle_name + "?_format=json"
+    url = (
+        config["host"] + f"/islandora_workbench_integration/media_actions/entity_type/{bundle_name}"
+        if integration_supports_field_bundle(config) else
+        config["host"] + "/entity/media_type/" + bundle_name + "?_format=json"
+    )
     response = issue_request(config, "GET", url)
     return response.status_code
 
@@ -1296,7 +1307,7 @@ def parse_field_definition(
     """
     field_definitions = {}
     for fieldname, field_info in fields.items():
-        if config["use_workbench_permissions"]:
+        if integration_supports_field_bundle(config):
             field_config = field_info["config"]
             field_storage_config = field_info["storage_config"]
         else:
@@ -1405,7 +1416,7 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> dict:
     Returns
     -------
     dict
-        If use_workbench_permissions is True, returns a dictionary with field names as keys, second level has keys 'config' and 'storage_config' with the Drupal data.
+        If use_workbench_permissions is True and workbench version is >= 1.3.0, returns a dictionary with field names as keys, second level has keys 'config' and 'storage_config' with the Drupal data.
         Otherwise returns a dict with field names as keys and field names as values, e.g. {'field_name1': 'field_name1', 'field_name2': 'field_name2'}.
 
     """
@@ -1420,8 +1431,10 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> dict:
         sys.exit("Error: " + message)
     fields_endpoint = (
         f"{config['host']}/islandora_workbench_integration/node_actions/entity_field_bundle/{entity_type}/{bundle_type}"
-        if config["use_workbench_permissions"]
-        else f"{config['host']}/entity/entity_form_display/{entity_type}.{bundle_type}.default?_format=json"
+        if integration_supports_field_bundle(config) else
+        f"{config['host']}/islandora_workbench_integration/node_actions/entity_display/{entity_type}/{bundle_type}"
+        if config["use_workbench_permissions"] else
+        f"{config['host']}/entity/entity_form_display/{entity_type}.{bundle_type}.default?_format=json"
     )
     bundle_type_response = issue_request(config, "GET", fields_endpoint)
     # If a vocabulary has no custom fields (like the default "Tags" vocab), this query will
@@ -1442,7 +1455,7 @@ def get_entity_fields(config: dict, entity_type: str, bundle_type: str) -> dict:
     fields = {}
     if bundle_type_response.status_code == 200:
         node_config_raw = bundle_type_response.json()
-        if config["use_workbench_permissions"]:
+        if integration_supports_field_bundle(config):
             fields = node_config_raw
         else:
             fieldname_prefix = "field.field." + entity_type + "." + bundle_type + "."
@@ -13089,3 +13102,13 @@ def is_running_in_docker() -> bool:
         return True
     else:
         return False
+
+def integration_supports_field_bundle(config: dict) -> bool:
+    """True if use_workbench_permissions is on and the Drupal-side Integration
+    module is new enough to provide the entity_field_bundle and media_actions endpoints."""
+    if not config["use_workbench_permissions"]:
+        return False
+    version = get_integration_module_version(config)
+    if version is False:
+        return False
+    return convert_semver_to_number(version) >= convert_semver_to_number("1.3.0")
