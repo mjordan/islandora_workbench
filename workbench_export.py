@@ -43,7 +43,9 @@ class RecursiveMembersMixin:
         page = 0
 
         while True:
-            url = f"{self.config['host']}{endpoint}/{parent_nid}?_format=json&page={page}"
+            url = (
+                f"{self.config['host']}{endpoint}/{parent_nid}?_format=json&page={page}"
+            )
             response = issue_request(self.config, "GET", url)
 
             if response.status_code != 200:
@@ -98,13 +100,14 @@ class RecursiveMembersMixin:
         for member in self.get_member_node_ids(node_id):
             nodes.update(
                 self.collect_node_and_members(
-                    member["nid"], weight=member["weight"],
-                    depth=depth + 1, max_depth=max_depth,
+                    member["nid"],
+                    weight=member["weight"],
+                    depth=depth + 1,
+                    max_depth=max_depth,
                 )
             )
 
         return nodes
-
 
 
 class WorkbenchExportBase:
@@ -725,7 +728,9 @@ class ViewExporter(WorkbenchExportBase, RecursiveMembersMixin):
         skipped exactly as any non-matching node already is today.
         """
         include_members = self.config.get("get_data_from_view_include_members", False)
-        max_depth = self.config.get("view_member_max_depth") if include_members else None
+        max_depth = (
+            self.config.get("view_member_max_depth") if include_members else None
+        )
         page = 0
 
         while True:
@@ -761,7 +766,9 @@ class ViewExporter(WorkbenchExportBase, RecursiveMembersMixin):
                     if row:
                         writer.writerow(row)
                         suffix = self.row_log_suffix(row)
-                        self.log_progress(f"Exported node{suffix} {starting_nid}: {row['title']}")
+                        self.log_progress(
+                            f"Exported node{suffix} {starting_nid}: {row['title']}"
+                        )
                         self.execute_post_export_script(response, json.dumps(node))
                     continue
 
@@ -776,15 +783,23 @@ class ViewExporter(WorkbenchExportBase, RecursiveMembersMixin):
                 )
 
                 for node_id in node_ids:
-                    node_json = node if node_id == starting_nid else self.fetch_node_json(node_id)
-                    if not node_json or not self.validate_content_type(node_json, node_id):
+                    node_json = (
+                        node
+                        if node_id == starting_nid
+                        else self.fetch_node_json(node_id)
+                    )
+                    if not node_json or not self.validate_content_type(
+                        node_json, node_id
+                    ):
                         continue
 
                     row = self.process_node_row(node_json, field_names)
                     if row:
                         writer.writerow(row)
                         suffix = self.row_log_suffix(row)
-                        self.log_progress(f"Exported node{suffix} {node_id}: {row['title']}")
+                        self.log_progress(
+                            f"Exported node{suffix} {node_id}: {row['title']}"
+                        )
                         self.execute_post_export_script(response, json.dumps(node_json))
 
             page += 1

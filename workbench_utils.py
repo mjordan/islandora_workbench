@@ -11421,6 +11421,7 @@ def download_file_from_drupal(
         logging.error(f"File download failed for node {node_id}: {str(e)}")
         return False
 
+
 def get_file_hash_from_drupal(
     config: dict, file_uuid: str, algorithm: str
 ) -> Union[bool, str]:

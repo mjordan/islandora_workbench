@@ -75,7 +75,9 @@ class TestGetMemberNodeIds(unittest.TestCase):
         mock_issue_request.return_value = response
 
         exporter = make_csv_exporter()
-        with patch.object(exporter, "parse_json_response", return_value=response.json.return_value):
+        with patch.object(
+            exporter, "parse_json_response", return_value=response.json.return_value
+        ):
             result = exporter.get_member_node_ids("1162")
 
         self.assertEqual(
@@ -95,7 +97,9 @@ class TestGetMemberNodeIds(unittest.TestCase):
         responses = [MagicMock(status_code=200) for _ in range(2)]
         mock_issue_request.side_effect = responses
 
-        with patch.object(exporter, "parse_json_response", side_effect=[full_page, short_page]):
+        with patch.object(
+            exporter, "parse_json_response", side_effect=[full_page, short_page]
+        ):
             result = exporter.get_member_node_ids("1162")
 
         self.assertEqual(len(result), 51)
@@ -108,8 +112,12 @@ class TestGetMemberNodeIds(unittest.TestCase):
         mock_issue_request.return_value = response
 
         with patch.object(
-            exporter, "parse_json_response",
-            return_value=[{"nid": "1332", "field_weight_value": "1"}, {"no_nid": "oops"}],
+            exporter,
+            "parse_json_response",
+            return_value=[
+                {"nid": "1332", "field_weight_value": "1"},
+                {"no_nid": "oops"},
+            ],
         ):
             result = exporter.get_member_node_ids("1162")
 
@@ -246,7 +254,11 @@ class TestCSVExporterProcessNodes(unittest.TestCase):
 
         with (
             patch.object(exporter, "validate_and_get_node_id", return_value="1162"),
-            patch.object(exporter, "fetch_node_json", return_value={"type": [{"target_id": "islandora_object"}]}) as mock_fetch,
+            patch.object(
+                exporter,
+                "fetch_node_json",
+                return_value={"type": [{"target_id": "islandora_object"}]},
+            ) as mock_fetch,
             patch.object(exporter, "validate_content_type", return_value=True),
             patch.object(exporter, "process_node_row", return_value={"title": "Test"}),
             patch.object(exporter, "row_log_suffix", return_value=""),
@@ -258,17 +270,24 @@ class TestCSVExporterProcessNodes(unittest.TestCase):
         writer.writerow.assert_called_once_with({"title": "Test"})
 
     def test_include_members_true_expands_and_processes_every_discovered_node(self):
-        exporter = make_csv_exporter(export_csv_include_members=True, csv_member_max_depth=5)
+        exporter = make_csv_exporter(
+            export_csv_include_members=True, csv_member_max_depth=5
+        )
         exporter.csv_data = [{"node_id": "1162"}]
         writer = MagicMock()
 
         with (
             patch.object(exporter, "validate_and_get_node_id", return_value="1162"),
             patch.object(
-                exporter, "collect_node_and_members",
+                exporter,
+                "collect_node_and_members",
                 return_value={"1162": "root", "1332": "1"},
             ) as mock_collect,
-            patch.object(exporter, "fetch_node_json", return_value={"type": [{"target_id": "islandora_object"}]}) as mock_fetch,
+            patch.object(
+                exporter,
+                "fetch_node_json",
+                return_value={"type": [{"target_id": "islandora_object"}]},
+            ) as mock_fetch,
             patch.object(exporter, "validate_content_type", return_value=True),
             patch.object(exporter, "process_node_row", return_value={"title": "Test"}),
             patch.object(exporter, "row_log_suffix", return_value=""),
@@ -291,10 +310,15 @@ class TestCSVExporterProcessNodes(unittest.TestCase):
         with (
             patch.object(exporter, "validate_and_get_node_id", return_value="1162"),
             patch.object(
-                exporter, "collect_node_and_members",
+                exporter,
+                "collect_node_and_members",
                 return_value={"1162": "root", "1332": "1"},
             ),
-            patch.object(exporter, "fetch_node_json", return_value={"type": [{"target_id": "page"}]}),
+            patch.object(
+                exporter,
+                "fetch_node_json",
+                return_value={"type": [{"target_id": "page"}]},
+            ),
             patch.object(exporter, "validate_content_type", side_effect=[True, False]),
             patch.object(exporter, "process_node_row", return_value={"title": "Test"}),
             patch.object(exporter, "row_log_suffix", return_value=""),
@@ -334,8 +358,14 @@ class TestViewExporterProcessViewPages(unittest.TestCase):
 
     def test_include_members_false_processes_view_results_directly(self):
         exporter = make_view_exporter(get_data_from_view_include_members=False)
-        exporter.view_config = {"base_url": "https://example.com/view", "parameters": ""}
-        starting_node = {"nid": [{"value": "1162"}], "type": [{"target_id": "islandora_object"}]}
+        exporter.view_config = {
+            "base_url": "https://example.com/view",
+            "parameters": "",
+        }
+        starting_node = {
+            "nid": [{"value": "1162"}],
+            "type": [{"target_id": "islandora_object"}],
+        }
 
         responses = [
             MagicMock(status_code=200),
@@ -344,7 +374,9 @@ class TestViewExporterProcessViewPages(unittest.TestCase):
 
         with (
             patch("workbench_export.issue_request", side_effect=responses),
-            patch.object(exporter, "parse_json_response", side_effect=[[starting_node], []]),
+            patch.object(
+                exporter, "parse_json_response", side_effect=[[starting_node], []]
+            ),
             patch.object(exporter, "extract_node_id", return_value="1162"),
             patch.object(exporter, "validate_content_type", return_value=True),
             patch.object(exporter, "process_node_row", return_value={"title": "Test"}),
@@ -363,21 +395,35 @@ class TestViewExporterProcessViewPages(unittest.TestCase):
         exporter = make_view_exporter(
             get_data_from_view_include_members=True, view_member_max_depth=5
         )
-        exporter.view_config = {"base_url": "https://example.com/view", "parameters": ""}
-        starting_node = {"nid": [{"value": "1162"}], "type": [{"target_id": "islandora_object"}]}
-        member_node = {"nid": [{"value": "1332"}], "type": [{"target_id": "islandora_object"}]}
+        exporter.view_config = {
+            "base_url": "https://example.com/view",
+            "parameters": "",
+        }
+        starting_node = {
+            "nid": [{"value": "1162"}],
+            "type": [{"target_id": "islandora_object"}],
+        }
+        member_node = {
+            "nid": [{"value": "1332"}],
+            "type": [{"target_id": "islandora_object"}],
+        }
 
         responses = [MagicMock(status_code=200), MagicMock(status_code=200)]
 
         with (
             patch("workbench_export.issue_request", side_effect=responses),
-            patch.object(exporter, "parse_json_response", side_effect=[[starting_node], []]),
+            patch.object(
+                exporter, "parse_json_response", side_effect=[[starting_node], []]
+            ),
             patch.object(exporter, "extract_node_id", return_value="1162"),
             patch.object(
-                exporter, "collect_node_and_members",
+                exporter,
+                "collect_node_and_members",
                 return_value={"1162": "root", "1332": "1"},
             ) as mock_collect,
-            patch.object(exporter, "fetch_node_json", return_value=member_node) as mock_fetch,
+            patch.object(
+                exporter, "fetch_node_json", return_value=member_node
+            ) as mock_fetch,
             patch.object(exporter, "validate_content_type", return_value=True),
             patch.object(exporter, "process_node_row", return_value={"title": "Test"}),
             patch.object(exporter, "row_log_suffix", return_value=""),
@@ -388,20 +434,27 @@ class TestViewExporterProcessViewPages(unittest.TestCase):
             exporter._process_view_pages(writer, ["title"])
 
         mock_collect.assert_called_once_with("1162", max_depth=5)
-        mock_fetch.assert_called_once_with("1332")  # only the member, not the starting node
+        mock_fetch.assert_called_once_with(
+            "1332"
+        )  # only the member, not the starting node
         self.assertEqual(writer.writerow.call_count, 2)
 
     def test_already_seen_starting_node_is_skipped(self):
         exporter = make_view_exporter()
         exporter.seen_nids = {"1162"}
-        exporter.view_config = {"base_url": "https://example.com/view", "parameters": ""}
+        exporter.view_config = {
+            "base_url": "https://example.com/view",
+            "parameters": "",
+        }
         starting_node = {"nid": [{"value": "1162"}]}
 
         responses = [MagicMock(status_code=200), MagicMock(status_code=200)]
 
         with (
             patch("workbench_export.issue_request", side_effect=responses),
-            patch.object(exporter, "parse_json_response", side_effect=[[starting_node], []]),
+            patch.object(
+                exporter, "parse_json_response", side_effect=[[starting_node], []]
+            ),
             patch.object(exporter, "extract_node_id", return_value="1162"),
             patch.object(exporter, "validate_content_type") as mock_validate,
             patch.object(exporter, "log_progress"),
