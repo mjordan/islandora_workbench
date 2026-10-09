@@ -1,12 +1,113 @@
 import os
 import sys
 import json
+import csv
 import logging
 import datetime
 import collections
 import requests_cache
 from workbench_utils import *
 from progress_bar import InitBar
+
+
+class RecursiveMembersMixin:
+    """
+    Standalone mixin providing recursive member discovery, used by
+    CSVExporter/ViewExporter's optional include_members mode. Does NOT
+    inherit from or call anything in WorkbenchExportBase -- zero
+    coupling to it. Traversal itself is content-type-agnostic (a
+    different-typed member can still have its own children worth
+    descending into), but WHETHER a discovered node gets written to
+    output is decided entirely by the existing, UNCHANGED
+    validate_content_type() check in the per-node pipeline that already
+    exists today -- a node of a different content type than configured
+    is skipped (with the existing ERROR-level message it already logs),
+    not specially handled here. Running once per content type, exactly
+    as already practiced today for any other multi-content-type need,
+    is the intended workflow -- this mixin only adds the ability to
+    reach descendants at all, which neither task can do currently.
+    """
+
+    def get_member_node_ids(self, parent_nid, members_view_endpoint=None):
+        """
+        Return the direct members of a node via the members-of-node REST
+        export View, regardless of each member's content type.
+
+        Returns a list of {"nid": str, "weight": str|None} dicts.
+        """
+        endpoint = members_view_endpoint or self.config.get(
+            "members_of_node_view_endpoint",
+            "/islandora_workbench_integration/members-of-node",
+        )
+        members = []
+        page = 0
+
+        while True:
+            url = (
+                f"{self.config['host']}{endpoint}/{parent_nid}?_format=json&page={page}"
+            )
+            response = issue_request(self.config, "GET", url)
+
+            if response.status_code != 200:
+                self.log_progress(
+                    f"Could not retrieve page {page} of members for node {parent_nid} "
+                    f"(HTTP {response.status_code}).",
+                    level=logging.WARNING,
+                )
+                break
+
+            rows = self.parse_json_response(response)
+            if not rows:
+                break
+
+            for row in rows:
+                nid = row.get("nid") if isinstance(row, dict) else None
+                if nid:
+                    members.append(
+                        {"nid": str(nid), "weight": row.get("field_weight_value")}
+                    )
+                else:
+                    self.log_progress(
+                        f"Skipping malformed member entry under parent {parent_nid}: {row}",
+                        level=logging.WARNING,
+                    )
+
+            if len(rows) < 50:
+                break
+            page += 1
+
+        return members
+
+    def collect_node_and_members(self, node_id, weight="root", depth=0, max_depth=None):
+        """
+        Return {node_id: weight, ...} for this node plus, recursively,
+        every member discovered via get_member_node_ids(), regardless of
+        content type. Cycle-protected via self.seen_nids (already
+        provided by WorkbenchExportBase).
+        """
+        if node_id in self.seen_nids:
+            self.log_progress(
+                f"Node {node_id} already processed; skipping duplicate.",
+                level=logging.WARNING,
+            )
+            return {}
+        self.seen_nids.add(node_id)
+
+        nodes = {node_id: weight}
+        if max_depth is not None and depth >= max_depth:
+            return nodes
+
+        for member in self.get_member_node_ids(node_id):
+            nodes.update(
+                self.collect_node_and_members(
+                    member["nid"],
+                    weight=member["weight"],
+                    depth=depth + 1,
+                    max_depth=max_depth,
+                )
+            )
+
+        return nodes
 
 
 class WorkbenchExportBase:
@@ -230,7 +331,7 @@ class WorkbenchExportBase:
                     logging.error("Post node export script " + command + " failed.")
 
 
-class CSVExporter(WorkbenchExportBase):
+class CSVExporter(WorkbenchExportBase, RecursiveMembersMixin):
     def __init__(self, config, args=None):
         super().__init__(config, args)
         self.csv_data = get_csv_data(config)
@@ -389,39 +490,66 @@ class CSVExporter(WorkbenchExportBase):
         return csv_file_path
 
     def _process_nodes(self, writer, field_names):
-        """Process all nodes for CSV export."""
+        """Process all nodes for CSV export.
+
+        If export_csv_include_members is enabled, each row's node_id is
+        first expanded to include all of its recursively-discovered
+        members (any content type) via RecursiveMembersMixin. Each
+        resulting node ID then goes through the EXACT SAME per-node
+        pipeline as before -- fetch_node_json(), validate_content_type(),
+        process_node_row(), writer.writerow() -- completely unchanged.
+        A member whose content type doesn't match config["content_type"]
+        is skipped by validate_content_type() exactly as it already is
+        today for any non-matching node; nothing new needed there. The
+        intended workflow for genuinely mixed-content-type hierarchies is
+        running this once per content type, same as already practiced
+        today for any other multi-content-type need.
+        """
         csv_data_list = list(self.csv_data)
         row_count = 0
+        include_members = self.config.get("export_csv_include_members", False)
+        max_depth = self.config.get("csv_member_max_depth") if include_members else None
 
         for row in csv_data_list:
             # Delete expired items from request_cache before processing a row.
             if self.config["enable_http_cache"]:
                 requests_cache.delete(expired=True)
 
-            node_id = self.validate_and_get_node_id(row)
-            if not node_id:
+            starting_node_id = self.validate_and_get_node_id(row)
+            if not starting_node_id:
                 continue
 
-            node_json = self.fetch_node_json(node_id)
-            if not node_json or not self.validate_content_type(node_json, node_id):
-                continue
+            if include_members:
+                node_ids = list(
+                    self.collect_node_and_members(starting_node_id, max_depth=max_depth)
+                )
+                self.log_progress(
+                    f"Node {starting_node_id}: {len(node_ids)} node(s) to process."
+                )
+            else:
+                node_ids = [starting_node_id]
 
-            output_row = self.process_node_row(node_json, field_names)
-            if not output_row:
-                continue
+            for node_id in node_ids:
+                node_json = self.fetch_node_json(node_id)
+                if not node_json or not self.validate_content_type(node_json, node_id):
+                    continue
 
-            writer.writerow(output_row)
-            suffix = self.row_log_suffix(row)
+                output_row = self.process_node_row(node_json, field_names)
+                if not output_row:
+                    continue
 
-            self.log_progress(
-                f'Exporting data{suffix} for node {node_id} "{output_row["title"]}."',
-                row_count,
-                len(csv_data_list),
-            )
-            row_count += 1
+                writer.writerow(output_row)
+                suffix = self.row_log_suffix(row)
+
+                self.log_progress(
+                    f'Exporting data{suffix} for node {node_id} "{output_row["title"]}."',
+                    row_count,
+                    len(csv_data_list),
+                )
+                row_count += 1
 
 
-class ViewExporter(WorkbenchExportBase):
+class ViewExporter(WorkbenchExportBase, RecursiveMembersMixin):
     def __init__(self, config, args):
         super().__init__(config, args)
         self.view_config = self.initialize_view_config()
@@ -570,8 +698,39 @@ class ViewExporter(WorkbenchExportBase):
 
         return csv_file_path
 
+    def fetch_node_json(self, node_id):
+        """
+        Fetch a single node's JSON by ID. Needed only for
+        include_members mode: the View's own response already contains
+        full node JSON for its own results, but a recursively-discovered
+        MEMBER isn't part of that response and needs its own fetch.
+        """
+        url = f"{self.config['host']}/node/{node_id}?_format=json"
+        response = issue_request(self.config, "GET", url)
+        if response.status_code != 200:
+            self.log_progress(
+                f"Error retrieving node {node_id}: HTTP {response.status_code}",
+                level=logging.WARNING,
+            )
+            return None
+        return json.loads(response.text)
+
     def _process_view_pages(self, writer, field_names):
-        """Process paginated View results."""
+        """Process paginated View results.
+
+        If get_data_from_view_include_members is enabled, each node the
+        View returns is treated as a STARTING node and expanded to
+        include its recursively-discovered members (any content type)
+        via RecursiveMembersMixin -- the View's own role in determining
+        starting nodes is unchanged. Each resulting node ID goes through
+        the same validate_content_type()/process_node_row()/writerow()
+        pipeline as before; a member of a different content type is
+        skipped exactly as any non-matching node already is today.
+        """
+        include_members = self.config.get("get_data_from_view_include_members", False)
+        max_depth = (
+            self.config.get("view_member_max_depth") if include_members else None
+        )
         page = 0
 
         while True:
@@ -594,20 +753,53 @@ class ViewExporter(WorkbenchExportBase):
                 if self.config.get("enable_http_cache", False):
                     requests_cache.delete(expired=True)
 
-                nid = self.extract_node_id(node)
-                if not nid or nid in self.seen_nids:
+                starting_nid = self.extract_node_id(node)
+                if not starting_nid or starting_nid in self.seen_nids:
                     continue
 
-                self.seen_nids.add(nid)
-                if not self.validate_content_type(node, nid):
+                if not include_members:
+                    self.seen_nids.add(starting_nid)
+                    if not self.validate_content_type(node, starting_nid):
+                        continue
+
+                    row = self.process_node_row(node, field_names)
+                    if row:
+                        writer.writerow(row)
+                        suffix = self.row_log_suffix(row)
+                        self.log_progress(
+                            f"Exported node{suffix} {starting_nid}: {row['title']}"
+                        )
+                        self.execute_post_export_script(response, json.dumps(node))
                     continue
 
-                row = self.process_node_row(node, field_names)
-                if row:
-                    writer.writerow(row)
+                # include_members mode: expand this View result into its
+                # full member set, then run each through the same
+                # per-node pipeline as above.
+                node_ids = list(
+                    self.collect_node_and_members(starting_nid, max_depth=max_depth)
+                )
+                self.log_progress(
+                    f"Node {starting_nid}: {len(node_ids)} node(s) to process."
+                )
 
-                    suffix = self.row_log_suffix(row)
-                    self.log_progress(f"Exported node{suffix} {nid}: {row['title']}")
-                    self.execute_post_export_script(response, json.dumps(node))
+                for node_id in node_ids:
+                    node_json = (
+                        node
+                        if node_id == starting_nid
+                        else self.fetch_node_json(node_id)
+                    )
+                    if not node_json or not self.validate_content_type(
+                        node_json, node_id
+                    ):
+                        continue
+
+                    row = self.process_node_row(node_json, field_names)
+                    if row:
+                        writer.writerow(row)
+                        suffix = self.row_log_suffix(row)
+                        self.log_progress(
+                            f"Exported node{suffix} {node_id}: {row['title']}"
+                        )
+                        self.execute_post_export_script(response, json.dumps(node_json))
 
             page += 1
