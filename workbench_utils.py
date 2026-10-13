@@ -3693,8 +3693,8 @@ def check_input(config: dict, args: Namespace) -> None:
                                     config, media_type, media_type_file_field
                                 )
                                 if (
-                                    registered_extensions != False and
-                                    extension
+                                    registered_extensions != False
+                                    and extension
                                     not in registered_extensions[media_type_file_field]
                                 ):
                                     message = (
