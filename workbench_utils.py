@@ -31,7 +31,6 @@ from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from unidecode import unidecode
 from progress_bar import InitBar
-from cryptography.fernet import Fernet
 import edtf_validate.valid_edtf
 import shutil
 import itertools
@@ -3480,6 +3479,7 @@ def check_input(config: dict, args: Namespace) -> None:
                             if (
                                 isinstance(extension, str)
                                 and isinstance(registered_extensions, dict)
+                                and registered_extensions != False
                                 and extension
                                 not in registered_extensions[media_type_file_field]
                             ):
@@ -3693,6 +3693,7 @@ def check_input(config: dict, args: Namespace) -> None:
                                     config, media_type, media_type_file_field
                                 )
                                 if (
+                                    registered_extensions != False and
                                     extension
                                     not in registered_extensions[media_type_file_field]
                                 ):
