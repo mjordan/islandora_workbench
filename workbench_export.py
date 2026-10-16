@@ -524,7 +524,7 @@ class CSVExporter(WorkbenchExportBase, RecursiveMembersMixin):
                     self.collect_node_and_members(starting_node_id, max_depth=max_depth)
                 )
                 self.log_progress(
-                    f"Node {starting_node_id}: {len(node_ids)} node(s) to process."
+                    f"Found {len(node_ids) - 1} member nodes starting at node ID {starting_node_id}."
                 )
             else:
                 node_ids = [starting_node_id]
@@ -728,9 +728,7 @@ class ViewExporter(WorkbenchExportBase, RecursiveMembersMixin):
         skipped exactly as any non-matching node already is today.
         """
         include_members = self.config.get("include_members", False)
-        max_depth = (
-            self.config.get("max_depth") if include_members else None
-        )
+        max_depth = self.config.get("max_depth") if include_members else None
         page = 0
 
         while True:
@@ -779,7 +777,7 @@ class ViewExporter(WorkbenchExportBase, RecursiveMembersMixin):
                     self.collect_node_and_members(starting_nid, max_depth=max_depth)
                 )
                 self.log_progress(
-                    f"Node {starting_nid}: {len(node_ids)} node(s) to process."
+                    f"Found {len(node_ids) - 1} member nodes starting at node ID {starting_nid}."
                 )
 
                 for node_id in node_ids:
