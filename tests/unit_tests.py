@@ -2275,5 +2275,50 @@ class TestExpandUserInUtils(unittest.TestCase):
         self.assertEqual(called_path, os.path.expanduser("~/test_file.txt"))
 
 
+class TestDownloadFileFromDrupal(unittest.TestCase):
+    def setUp(self):
+        self.export_dir = tempfile.mkdtemp()
+        self.config = {
+            "export_file_directory": self.export_dir,
+            "secure_ssl_only": True,
+            "user_agent": "Islandora Workbench",
+        }
+
+    @mock.patch("workbench_utils.requests.get")
+    @mock.patch(
+        "workbench_utils.find_file_url_in_media",
+        return_value="https://example.com/system/files/2026-10/file.jpg",
+    )
+    @mock.patch("workbench_utils.resolve_media_use_term_id", return_value="17")
+    @mock.patch("workbench_utils.get_media_list", return_value=[{}])
+    def test_download_sends_user_agent(
+        self,
+        mock_get_media_list,
+        mock_resolve_media_use_term_id,
+        mock_find_file_url_in_media,
+        mock_requests_get,
+    ):
+        """Sites that allow Workbench by its User-Agent must see the
+        configured user_agent on file downloads, as on every other request.
+        """
+        fake_response = mock.Mock()
+        fake_response.status_code = 200
+        fake_response.content = b"file content"
+        mock_requests_get.return_value = fake_response
+
+        result = workbench_utils.download_file_from_drupal(self.config, "1")
+
+        self.assertEqual(result, os.path.join(self.export_dir, "file.jpg"))
+        self.assertEqual(
+            mock_requests_get.call_args.kwargs["headers"],
+            {"User-Agent": "Islandora Workbench"},
+        )
+
+    def tearDown(self):
+        for filename in os.listdir(self.export_dir):
+            os.remove(os.path.join(self.export_dir, filename))
+        os.rmdir(self.export_dir)
+
+
 if __name__ == "__main__":
     unittest.main()

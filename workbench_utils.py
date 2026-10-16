@@ -11315,6 +11315,7 @@ def download_file_from_drupal(
                 file_url,
                 allow_redirects=True,
                 verify=config["secure_ssl_only"],
+                headers={"User-Agent": config["user_agent"]},
             )
             if file_download_response.status_code == 200:
                 # TODO: Stream the download to avoid loading the entire file into memory.
