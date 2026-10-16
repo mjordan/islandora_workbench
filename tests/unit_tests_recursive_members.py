@@ -268,9 +268,7 @@ class TestCSVExporterProcessNodes(unittest.TestCase):
         writer.writerow.assert_called_once_with({"title": "Test"})
 
     def test_include_members_true_expands_and_processes_every_discovered_node(self):
-        exporter = make_csv_exporter(
-            include_members=True, max_depth=5
-        )
+        exporter = make_csv_exporter(include_members=True, max_depth=5)
         exporter.csv_data = [{"node_id": "1162"}]
         writer = MagicMock()
 
@@ -390,9 +388,7 @@ class TestViewExporterProcessViewPages(unittest.TestCase):
         writer.writerow.assert_called_once_with({"title": "Test"})
 
     def test_include_members_true_expands_starting_node_and_fetches_members(self):
-        exporter = make_view_exporter(
-            include_members=True, max_depth=5
-        )
+        exporter = make_view_exporter(include_members=True, max_depth=5)
         exporter.view_config = {
             "base_url": "https://example.com/view",
             "parameters": "",
