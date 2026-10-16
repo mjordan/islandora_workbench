@@ -12,6 +12,8 @@ from unittest import mock
 import requests
 from ruamel.yaml import YAML
 import collections
+import json
+import logging
 import tempfile
 import unittest
 
@@ -2318,6 +2320,98 @@ class TestDownloadFileFromDrupal(unittest.TestCase):
         for filename in os.listdir(self.export_dir):
             os.remove(os.path.join(self.export_dir, filename))
         os.rmdir(self.export_dir)
+
+
+class TestViewExporterProcessViewPages(unittest.TestCase):
+    """_process_view_pages() must stop when the View ignores ?page."""
+
+    def setUp(self):
+        import workbench_export
+
+        self.workbench_export = workbench_export
+        self.exporter = workbench_export.ViewExporter.__new__(
+            workbench_export.ViewExporter
+        )
+        self.exporter.config = {"content_type": "islandora_object"}
+        self.exporter.view_config = {
+            "base_url": "https://example.com/node/1/members",
+            "parameters": "_format=json",
+        }
+        self.exporter.seen_nids = set()
+        self.exporter.pbar = None
+
+    def fake_response(self, nids):
+        response = mock.Mock()
+        response.status_code = 200
+        response.text = json.dumps(
+            [
+                {"nid": [{"value": nid}], "type": [{"target_id": "islandora_object"}]}
+                for nid in nids
+            ]
+        )
+        return response
+
+    def run_pages(self, pages):
+        """Serve one fake response per requested page, and stop the test
+        with an error if the exporter asks for more pages than are listed."""
+        requested = []
+
+        def issue_request(config, method, url):
+            requested.append(url)
+            if len(requested) > len(pages):
+                raise AssertionError(f"Requested more pages than expected: {url}")
+            return self.fake_response(pages[len(requested) - 1])
+
+        writer = mock.Mock()
+        with (
+            mock.patch.object(
+                self.workbench_export, "issue_request", side_effect=issue_request
+            ),
+            mock.patch.object(
+                self.exporter,
+                "process_node_row",
+                side_effect=lambda node, field_names: {
+                    "node_id": node["nid"][0]["value"],
+                    "title": "",
+                },
+            ),
+            mock.patch.object(self.exporter, "execute_post_export_script"),
+            mock.patch.object(self.exporter, "log_progress") as log_progress,
+        ):
+            self.exporter._process_view_pages(writer, ["node_id", "title"])
+        return requested, writer, log_progress
+
+    def test_stops_when_a_page_repeats_the_previous_page(self):
+        """A View display with no pager returns the same nodes for every page,
+        so no page is ever empty."""
+        requested, writer, log_progress = self.run_pages([[3, 4], [3, 4]])
+
+        self.assertEqual(len(requested), 2)
+        self.assertEqual(writer.writerow.call_count, 2)
+        warnings = [
+            call
+            for call in log_progress.call_args_list
+            if call.kwargs.get("level") == logging.WARNING
+        ]
+        self.assertEqual(len(warnings), 1)
+        self.assertIn(
+            "Stopped reading the View at page 1 because it returned the same 2 node(s) as the page before it",
+            warnings[0].args[0],
+        )
+
+    def test_stops_when_a_page_repeats_the_previous_page_in_another_order(self):
+        requested, writer, log_progress = self.run_pages([[3, 4], [4, 3]])
+
+        self.assertEqual(len(requested), 2)
+        self.assertEqual(writer.writerow.call_count, 2)
+
+    def test_reads_every_page_of_a_paged_view(self):
+        requested, writer, log_progress = self.run_pages([[3, 4], [5], []])
+
+        self.assertEqual(len(requested), 3)
+        self.assertEqual(writer.writerow.call_count, 3)
+        for call in log_progress.call_args_list:
+            self.assertNotEqual(call.kwargs.get("level"), logging.WARNING)
 
 
 if __name__ == "__main__":
