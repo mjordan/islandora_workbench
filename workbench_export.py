@@ -570,9 +570,21 @@ class ViewExporter(WorkbenchExportBase):
 
         return csv_file_path
 
+    @staticmethod
+    def page_node_ids(nodes):
+        """List the node IDs on one page of View results, in order, without logging."""
+        nids = []
+        for node in nodes:
+            try:
+                nids.append(node["nid"][0]["value"])
+            except (KeyError, IndexError, TypeError):
+                nids.append(None)
+        return nids
+
     def _process_view_pages(self, writer, field_names):
         """Process paginated View results."""
         page = 0
+        previous_page_nids = None
 
         while True:
             current_url = f"{self.view_config['base_url']}?page={page}&{self.view_config['parameters']}"
@@ -589,6 +601,23 @@ class ViewExporter(WorkbenchExportBase):
             nodes = self.parse_json_response(response)
             if not nodes:
                 break
+
+            # A View display without a pager, such as a REST export left at
+            # "Display a specified number of items", ignores ?page and returns
+            # the same nodes for every page, so no page is ever empty and the
+            # loop would never end. The same node IDs in any order count as a
+            # repeat: such a View whose sort has ties need not keep the order.
+            page_nids = collections.Counter(self.page_node_ids(nodes))
+            if page_nids == previous_page_nids:
+                self.log_progress(
+                    f"Stopped reading the View at page {page} because it returned the same "
+                    + f"{len(nodes)} node(s) as the page before it. The View display probably "
+                    + "has no pager, so it ignores ?page and only its first page of results "
+                    + "was exported.",
+                    level=logging.WARNING,
+                )
+                break
+            previous_page_nids = page_nids
 
             for node in nodes:
                 if self.config.get("enable_http_cache", False):
