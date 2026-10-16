@@ -507,8 +507,8 @@ class CSVExporter(WorkbenchExportBase, RecursiveMembersMixin):
         """
         csv_data_list = list(self.csv_data)
         row_count = 0
-        include_members = self.config.get("export_csv_include_members", False)
-        max_depth = self.config.get("csv_member_max_depth") if include_members else None
+        include_members = self.config.get("include_members", False)
+        max_depth = self.config.get("max_depth") if include_members else None
 
         for row in csv_data_list:
             # Delete expired items from request_cache before processing a row.
@@ -727,9 +727,9 @@ class ViewExporter(WorkbenchExportBase, RecursiveMembersMixin):
         pipeline as before; a member of a different content type is
         skipped exactly as any non-matching node already is today.
         """
-        include_members = self.config.get("get_data_from_view_include_members", False)
+        include_members = self.config.get("include_members", False)
         max_depth = (
-            self.config.get("view_member_max_depth") if include_members else None
+            self.config.get("max_depth") if include_members else None
         )
         page = 0
 

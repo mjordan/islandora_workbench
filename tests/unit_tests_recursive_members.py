@@ -25,10 +25,8 @@ def make_config(**overrides):
         "content_type": "islandora_object",
         "enable_http_cache": False,
         "progress_bar": False,
-        "export_csv_include_members": False,
-        "csv_member_max_depth": None,
-        "get_data_from_view_include_members": False,
-        "view_member_max_depth": None,
+        "include_members": False,
+        "max_depth": None,
     }
     config.update(overrides)
     return config
@@ -248,7 +246,7 @@ class TestCSVExporterProcessNodes(unittest.TestCase):
     """
 
     def test_include_members_false_processes_only_the_starting_node(self):
-        exporter = make_csv_exporter(export_csv_include_members=False)
+        exporter = make_csv_exporter(include_members=False)
         exporter.csv_data = [{"node_id": "1162"}]
         writer = MagicMock()
 
@@ -271,7 +269,7 @@ class TestCSVExporterProcessNodes(unittest.TestCase):
 
     def test_include_members_true_expands_and_processes_every_discovered_node(self):
         exporter = make_csv_exporter(
-            export_csv_include_members=True, csv_member_max_depth=5
+            include_members=True, max_depth=5
         )
         exporter.csv_data = [{"node_id": "1162"}]
         writer = MagicMock()
@@ -303,7 +301,7 @@ class TestCSVExporterProcessNodes(unittest.TestCase):
         # validate_content_type() -- completely unchanged, untouched code
         # -- returning False for one discovered member must not stop
         # processing of the rest, and must not write a row for that one.
-        exporter = make_csv_exporter(export_csv_include_members=True)
+        exporter = make_csv_exporter(include_members=True)
         exporter.csv_data = [{"node_id": "1162"}]
         writer = MagicMock()
 
@@ -357,7 +355,7 @@ class TestViewExporterProcessViewPages(unittest.TestCase):
     """
 
     def test_include_members_false_processes_view_results_directly(self):
-        exporter = make_view_exporter(get_data_from_view_include_members=False)
+        exporter = make_view_exporter(include_members=False)
         exporter.view_config = {
             "base_url": "https://example.com/view",
             "parameters": "",
@@ -393,7 +391,7 @@ class TestViewExporterProcessViewPages(unittest.TestCase):
 
     def test_include_members_true_expands_starting_node_and_fetches_members(self):
         exporter = make_view_exporter(
-            get_data_from_view_include_members=True, view_member_max_depth=5
+            include_members=True, max_depth=5
         )
         exporter.view_config = {
             "base_url": "https://example.com/view",

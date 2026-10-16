@@ -2102,7 +2102,7 @@ def check_input(config: dict, args: Namespace) -> None:
         if config["export_csv_term_mode"] == "name":
             message = 'The "export_csv_term_mode" configuration option is set to "name", which will slow down the export.'
             print(message)
-        if config.get("export_csv_include_members", False):
+        if config.get("include_members", False):
             members_view_path = config.get(
                 "members_of_node_view_endpoint",
                 "/islandora_workbench_integration/members-of-node",
@@ -2120,7 +2120,7 @@ def check_input(config: dict, args: Namespace) -> None:
                 message = (
                     f'Cannot access the "members of node" View at '
                     f'{config["host"]}{members_view_path}, required when '
-                    f'"export_csv_include_members" is enabled.'
+                    f'"include_members" is enabled.'
                 )
                 logging.error(message)
                 sys.exit("Error: " + message)
@@ -2132,9 +2132,9 @@ def check_input(config: dict, args: Namespace) -> None:
                 logging.info(message)
                 print("OK, " + message)
 
-            max_depth = config.get("csv_member_max_depth")
+            max_depth = config.get("max_depth")
             if max_depth is not None and value_is_numeric(max_depth) is False:
-                message = 'The "csv_member_max_depth" configuration setting must be a whole number if provided.'
+                message = 'The "max_depth" configuration setting must be a whole number if provided.'
                 logging.error(message)
                 sys.exit("Error: " + message)
     elif config["task"] == "create_terms":
@@ -2190,7 +2190,7 @@ def check_input(config: dict, args: Namespace) -> None:
             print("OK, " + message)
 
         if config["task"] == "get_data_from_view" and config.get(
-            "get_data_from_view_include_members", False
+            "include_members", False
         ):
             members_view_path = config.get(
                 "members_of_node_view_endpoint",
@@ -2204,7 +2204,7 @@ def check_input(config: dict, args: Namespace) -> None:
                 message = (
                     f'Cannot access the "members of node" View at '
                     f'{config["host"]}{members_view_path}, required when '
-                    f'"get_data_from_view_include_members" is enabled.'
+                    f'"include_members" is enabled.'
                 )
                 logging.error(message)
                 sys.exit("Error: " + message)
@@ -2216,9 +2216,9 @@ def check_input(config: dict, args: Namespace) -> None:
                 logging.info(message)
                 print("OK, " + message)
 
-            max_depth = config.get("view_member_max_depth")
+            max_depth = config.get("max_depth")
             if max_depth is not None and value_is_numeric(max_depth) is False:
-                message = 'The "view_member_max_depth" configuration setting must be a whole number if provided.'
+                message = 'The "max_depth" configuration setting must be a whole number if provided.'
                 logging.error(message)
                 sys.exit("Error: " + message)
 
