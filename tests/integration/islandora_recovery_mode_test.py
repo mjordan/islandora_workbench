@@ -6,13 +6,16 @@ This test file contains tests for creating content using "recovery mode".
 
 import os
 import subprocess
+import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 import requests
 import json
 import shutil
 
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent))
 from workbench_test_class import (
     WorkbenchTest,
     collect_nids_from_create_output,
@@ -27,8 +30,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
     def setup_test(self):
 
         empty_db_path = os.path.join(
-            self.current_dir,
-            "assets",
+            self.tests_dir, "assets",
             "recovery_mode_test",
             "recovery_mode_tests_csv_to_node_id_map.db.empty",
         )
@@ -167,19 +169,19 @@ class TestCreateRecoveryMode(WorkbenchTest):
 
             cleanup_paths(
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_part_single.yml",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_part_single.csv",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_full_single.yml",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_full_single.csv",
                 ),
                 create_stale_config_file_path,
@@ -336,19 +338,19 @@ class TestCreateRecoveryMode(WorkbenchTest):
 
             cleanup_paths(
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_part_single_id.yml",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_part_single_id.csv",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_full_single_id.csv",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_full_single_id.yml",
                 ),
                 create_stale_config_file_path,
@@ -398,8 +400,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
             # Delete these nodes and media. We need to use the rollback.yml here because
             # Drupal may return a node's path, not its node ID.
             rollback_stale_config_file_path = os.path.join(
-                self.current_dir,
-                "assets",
+                self.tests_dir, "assets",
                 "recovery_mode_test",
                 "rollback_paged_full.yml",
             )
@@ -448,8 +449,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
             # in the "part" ingest (the first line is 'node_id', then 2 lines of comments). We use this to
             # populate the "--recovery_mode_starting_from_node_id" argument.
             rollback_part_csv_file_path = os.path.join(
-                self.current_dir,
-                "assets",
+                self.tests_dir, "assets",
                 "recovery_mode_test",
                 "rollback_paged_part.csv",
             )
@@ -508,8 +508,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
             part_nodes_nids = rollback_part_csv_file_lines[3:]
 
             rollback_full_csv_file_path = os.path.join(
-                self.current_dir,
-                "assets",
+                self.tests_dir, "assets",
                 "recovery_mode_test",
                 "rollback_paged_full.csv",
             )
@@ -568,8 +567,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
         finally:
             # Delete the nodes and media created during the "part" ingest.
             rollback_part_config_file_path = os.path.join(
-                self.current_dir,
-                "assets",
+                self.tests_dir, "assets",
                 "recovery_mode_test",
                 "rollback_paged_part.yml",
             )
@@ -582,8 +580,7 @@ class TestCreateRecoveryMode(WorkbenchTest):
 
             # Delete the nodes and media created during the "full" ingest.
             rollback_full_config_file_path = os.path.join(
-                self.current_dir,
-                "assets",
+                self.tests_dir, "assets",
                 "recovery_mode_test",
                 "rollback_paged_full.yml",
             )
@@ -596,19 +593,19 @@ class TestCreateRecoveryMode(WorkbenchTest):
 
             cleanup_paths(
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_paged_part.yml",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_paged_part.csv",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_paged_full.yml",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets/recovery_mode_test/rollback_paged_full.csv",
                 ),
                 create_stale_config_file_path,

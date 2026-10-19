@@ -122,24 +122,13 @@ jobs:
           echo "mkcert CAROOT: $(mkcert -CAROOT)"
           ls -la "$(mkcert -CAROOT)"
 
-      - name: Run islandora_tests_check
-        run: pytest -v --no-header tests/islandora_tests_check.py
+      - name: Run unit tests
+        run: pytest -v --no-header tests/unit/
         background: true
 
-      - name: Run islandora_tests_paged_content
-        run: pytest -v --no-header tests/islandora_tests_paged_content.py
+      - name: Run integration tests
+        run: pytest -v --no-header tests/integration/
         background: true
-
-      - name: Run islandora_tests  
-        run: pytest -v --no-header tests/islandora_tests.py
-        background: true
-
-      - name: Run islandora_tests_recovery_mode
-        run: pytest -v --no-header tests/islandora_tests_recovery_mode.py 
-        background: true
-
-      - name: Run csv_id_to_node_id_map_tests  
-        run: python tests/csv_id_to_node_id_map_tests.py
 
       # DEBUG ARTIFACTS - Add these steps at the end
       - name: Collect debug artifacts on failure
