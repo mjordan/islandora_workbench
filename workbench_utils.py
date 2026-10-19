@@ -2109,14 +2109,13 @@ def check_input(config: dict, args: Namespace) -> None:
             )
             # Dummy node ID (0) is fine here since export_csv can source
             # its starting nodes several different ways (a CSV, or all
-            # nodes of a content type) -- unlike export_member_media,
-            # there's no single reliable place to pull a real node ID
-            # from for this check. GET, not HEAD (see the HEAD/GET
-            # mismatch already found and fixed for export_member_media's
-            # own check of this same View).
+            # nodes of a content type). Passing a dummy node ID is just
+            # to check that the members-of-node view is accessible. The
+            # view will return a 200 containing an empty array if the node
+            # ID doesn't exist, which is fine for this check.
             view_url = f'{config["host"]}{members_view_path}/0?page=0'
             view_path_status_code = issue_request(config, "GET", view_url).status_code
-            if view_path_status_code not in (200, 404):
+            if view_path_status_code != 200:
                 message = (
                     f'Cannot access the "members of node" View at '
                     f'{config["host"]}{members_view_path}, required when '
@@ -2200,7 +2199,7 @@ def check_input(config: dict, args: Namespace) -> None:
             members_view_status_code = issue_request(
                 config, "GET", members_view_url
             ).status_code
-            if members_view_status_code not in (200, 404):
+            if members_view_status_code != 200:
                 message = (
                     f'Cannot access the "members of node" View at '
                     f'{config["host"]}{members_view_path}, required when '
@@ -11379,15 +11378,7 @@ def download_file_from_drupal(
     # signed/tokenized storage) have a query string (e.g.
     # "?VersionId=..."), which os.path.basename(file_url) would
     # otherwise include as part of the "filename", corrupting the saved
-    # file's name (e.g. "1339.jpg?VersionId=..."). This function had
-    # this latent bug, just never triggered before, since the default
-    # Media Use type ("Original File") doesn't happen to be served from
-    # a tokenized URL in typical use. file_url itself (WITH its query
-    # string) is still
-    # what's used for the actual download request below -- signed URLs
-    # typically require that query string to authenticate at all, so it
-    # must never be stripped from file_url, only from what's used to
-    # derive a filename.
+    # file's name (e.g. "1339.jpg?VersionId=...").
     url_filename = os.path.basename(urllib.parse.urlparse(file_url).path)
     downloaded_file_path = os.path.join(config["export_file_directory"], url_filename)
     if os.path.exists(downloaded_file_path):

@@ -71,7 +71,9 @@ class RecursiveMembersMixin:
                         f"Skipping malformed member entry under parent {parent_nid}: {row}",
                         level=logging.WARNING,
                     )
-
+            # Note: The folowing assumes the associated Drupal View members-of-node
+            # is paginated with 50 results per page. If fewer than 50 results are
+            # returned, we've reached the last page.
             if len(rows) < 50:
                 break
             page += 1
@@ -492,7 +494,7 @@ class CSVExporter(WorkbenchExportBase, RecursiveMembersMixin):
     def _process_nodes(self, writer, field_names):
         """Process all nodes for CSV export.
 
-        If export_csv_include_members is enabled, each row's node_id is
+        If include_members is enabled, each row's node_id is
         first expanded to include all of its recursively-discovered
         members (any content type) via RecursiveMembersMixin. Each
         resulting node ID then goes through the EXACT SAME per-node
@@ -718,7 +720,7 @@ class ViewExporter(WorkbenchExportBase, RecursiveMembersMixin):
     def _process_view_pages(self, writer, field_names):
         """Process paginated View results.
 
-        If get_data_from_view_include_members is enabled, each node the
+        If include_members is enabled, each node the
         View returns is treated as a STARTING node and expanded to
         include its recursively-discovered members (any content type)
         via RecursiveMembersMixin -- the View's own role in determining
