@@ -1945,7 +1945,8 @@ def check_input(config: dict, args: Namespace) -> None:
     if config["task"] not in tasks:
         message = (
             '"task" in your configuration file must be one of "create", "update", "delete", "add_alt_text", "update_alt_text", '
-            + '"add_media", "update_media", "update_media_by_node", "delete_media", "delete_media_by_node", "create_from_files", "create_terms", "export_csv", "get_data_from_view", "update_terms", "create_redirects", or "run_scripts".'
+            + '"add_media", "update_media", "update_media_by_node", "delete_media", "delete_media_by_node", "create_from_files", '
+            + '"create_terms", "export_csv", "get_data_from_view", "update_terms", "create_redirects", or "run_scripts".'
         )
         logging.error(message)
         sys.exit("Error: " + message)
@@ -2101,6 +2102,40 @@ def check_input(config: dict, args: Namespace) -> None:
         if config["export_csv_term_mode"] == "name":
             message = 'The "export_csv_term_mode" configuration option is set to "name", which will slow down the export.'
             print(message)
+        if config.get("include_members", False):
+            members_view_path = config.get(
+                "members_of_node_view_endpoint",
+                "/islandora_workbench_integration/members-of-node",
+            )
+            # Dummy node ID (0) is fine here since export_csv can source
+            # its starting nodes several different ways (a CSV, or all
+            # nodes of a content type). Passing a dummy node ID is just
+            # to check that the members-of-node view is accessible. The
+            # view will return a 200 containing an empty array if the node
+            # ID doesn't exist, which is fine for this check.
+            view_url = f'{config["host"]}{members_view_path}/0?page=0'
+            view_path_status_code = issue_request(config, "GET", view_url).status_code
+            if view_path_status_code != 200:
+                message = (
+                    f'Cannot access the "members of node" View at '
+                    f'{config["host"]}{members_view_path}, required when '
+                    f'"include_members" is enabled.'
+                )
+                logging.error(message)
+                sys.exit("Error: " + message)
+            else:
+                message = (
+                    f'"Members of node" View at "{config["host"]}{members_view_path}" '
+                    f"is accessible."
+                )
+                logging.info(message)
+                print("OK, " + message)
+
+            max_depth = config.get("max_depth")
+            if max_depth is not None and value_is_numeric(max_depth) is False:
+                message = 'The "max_depth" configuration setting must be a whole number if provided.'
+                logging.error(message)
+                sys.exit("Error: " + message)
     elif config["task"] == "create_terms":
         check_for_required_config_keys(
             config_keys, ["task", "host", "username", "password", "vocab_id"]
@@ -2152,6 +2187,39 @@ def check_input(config: dict, args: Namespace) -> None:
             message = f'View REST export at "{view_url_for_message}" is accessible.'
             logging.info(message)
             print("OK, " + message)
+
+        if config["task"] == "get_data_from_view" and config.get(
+            "include_members", False
+        ):
+            members_view_path = config.get(
+                "members_of_node_view_endpoint",
+                "/islandora_workbench_integration/members-of-node",
+            )
+            members_view_url = f'{config["host"]}{members_view_path}/0?page=0'
+            members_view_status_code = issue_request(
+                config, "GET", members_view_url
+            ).status_code
+            if members_view_status_code != 200:
+                message = (
+                    f'Cannot access the "members of node" View at '
+                    f'{config["host"]}{members_view_path}, required when '
+                    f'"include_members" is enabled.'
+                )
+                logging.error(message)
+                sys.exit("Error: " + message)
+            else:
+                message = (
+                    f'"Members of node" View at "{config["host"]}{members_view_path}" '
+                    f"is accessible."
+                )
+                logging.info(message)
+                print("OK, " + message)
+
+            max_depth = config.get("max_depth")
+            if max_depth is not None and value_is_numeric(max_depth) is False:
+                message = 'The "max_depth" configuration setting must be a whole number if provided.'
+                logging.error(message)
+                sys.exit("Error: " + message)
 
         if config["export_file_directory"] is not None:
             if not os.path.exists(config["export_file_directory"]):
@@ -11304,6 +11372,13 @@ def download_file_from_drupal(
     if not file_url:
         return False
 
+    # Derive the filename from the URL's PATH component only, via
+    # urlparse -- NOT from the raw URL string. Some derivative media
+    # (e.g. Thumbnail Image, when served from S3 or similar
+    # signed/tokenized storage) have a query string (e.g.
+    # "?VersionId=..."), which os.path.basename(file_url) would
+    # otherwise include as part of the "filename", corrupting the saved
+    # file's name (e.g. "1339.jpg?VersionId=...").
     url_filename = os.path.basename(urllib.parse.urlparse(file_url).path)
     downloaded_file_path = os.path.join(config["export_file_directory"], url_filename)
     if os.path.exists(downloaded_file_path):
