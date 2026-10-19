@@ -1,11 +1,11 @@
 import os
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 import argparse
-from collections import namedtuple
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent.parent))
 from WorkbenchConfig import WorkbenchConfig
 
 

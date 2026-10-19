@@ -1,7 +1,7 @@
 """Classes for Drupal field operations.
 
 Support for additional field types should be added as new classes here,
-with accompanying tests in field_tests.py and field_tests_values.py.
+with accompanying tests in field_test.py and field_values_test.py.
 
 Note: If new field types are added to workbench_fields.py, you must also update the WorkbenchFieldFactory
 class at the bottom of this file to include the new field type and its corresponding class. This is used

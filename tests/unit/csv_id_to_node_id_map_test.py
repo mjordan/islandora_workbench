@@ -6,8 +6,9 @@ import tempfile
 import shutil
 import subprocess
 import unittest
+from pathlib import Path
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent.parent))
 import workbench_utils
 
 
@@ -17,7 +18,7 @@ class TestDumpCsv(unittest.TestCase):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.script_path = os.path.join("scripts", "manage_csv_to_node_id_map.py")
         self.asset_db_path = os.path.join(
-            current_dir, "assets", "csv_id_to_node_id_map", "csv_id_to_node_id_map.db"
+            current_dir, "../assets", "csv_id_to_node_id_map", "csv_id_to_node_id_map.db"
         )
         self.dump_db_path = os.path.join(
             tempfile.gettempdir(), "csv_id_to_node_id_map_dump.db"
@@ -53,8 +54,7 @@ class TestSelectQueriesWithHostFilters(unittest.TestCase):
     def setUp(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.asset_db_path = os.path.join(
-            current_dir,
-            "assets",
+            current_dir, "../assets",
             "csv_id_to_node_id_map",
             "csv_id_to_node_id_map_host_query_tests.db",
         )
