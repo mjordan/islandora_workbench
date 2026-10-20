@@ -3571,8 +3571,13 @@ def check_input(config: dict, args: Namespace) -> None:
                     print(message)
                     logging.info(message)
 
-            # Verify that all media bundles/types exist.
-            if config["nodes_only"] is False:
+            # Verify that all media bundles/types exist. Like the checks above, this
+            # reads the 'file' column, so it is skipped when the CSV has none (e.g. an
+            # update_media CSV that only changes media fields).
+            if (
+                config["nodes_only"] is False
+                and "file" in file_check_csv_data_fieldnames
+            ):
                 media_type_check_csv_data = get_csv_data(config)
                 for count, file_check_row in enumerate(
                     media_type_check_csv_data, start=1
