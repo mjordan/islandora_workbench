@@ -70,7 +70,8 @@ class TestCreate(WorkbenchTest):
             cleanup_paths(
                 create_config_file_path,
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "create_test",
                     "metadata.csv.preprocessed",
                 ),
@@ -133,7 +134,8 @@ class TestCreateFromFiles(WorkbenchTest):
             cleanup_paths(
                 create_config_file_path,
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "create_from_files_test",
                     "files",
                     "rollback.csv",
@@ -191,7 +193,8 @@ class TestCreateWithMaxNodeTitleLength(WorkbenchTest):
                     self.temp_dir, "create_max_node_title_length.csv.preprocessed"
                 ),
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "max_node_title_length_test",
                     "rollback.csv",
                 ),
@@ -262,7 +265,8 @@ class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
         cleanup_paths(
             update_csv_file_name,
             os.path.join(
-                self.tests_dir, "assets",
+                self.tests_dir,
+                "assets",
                 "max_node_title_length_test",
                 "rollback.csv",
             ),
@@ -598,7 +602,8 @@ class TestImageAltText(WorkbenchTest):
             create_config_file_path,
             update_csv_path,
             os.path.join(
-                self.tests_dir, "assets",
+                self.tests_dir,
+                "assets",
                 "alt_text_test",
                 "rollback.csv",
             ),
@@ -711,12 +716,14 @@ class TestCreateWithNonLatinText(WorkbenchTest):
                 nid_file,
                 nid_file + ".preprocessed",
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "non_latin_text_test",
                     "rollback.csv",
                 ),
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "non_latin_text_test",
                     "metadata.csv.preprocessed",
                 ),
@@ -808,18 +815,21 @@ class TestSecondaryTask(WorkbenchTest):
                 create_config_file_path,
                 secondary_config_file_path,
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "secondary_task_test",
                     "metadata.csv.preprocessed",
                 ),
                 os.path.join(self.temp_dir, "secondary.csv.preprocessed"),
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "secondary_task_test",
                     "id_to_node_map.tsv",
                 ),
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "secondary_task_test",
                     "rollback.csv",
                 ),
@@ -914,7 +924,8 @@ class TestSecondaryTaskWithGoogleSheets(WorkbenchTest):
                 secondary_config_file_path,
                 create_config_file_path,
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "secondary_task_with_google_sheets_and_excel_test",
                     "rollback.csv",
                 ),
@@ -1011,7 +1022,8 @@ class TestSecondaryTaskWithExcel(WorkbenchTest):
                 secondary_config_file_path,
                 create_config_file_path,
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "secondary_task_with_google_sheets_and_excel_test",
                     "rollback.csv",
                 ),
@@ -1175,7 +1187,8 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(WorkbenchTest):
         create_output = create_output.decode().strip()
 
         create_log_file_path = os.path.join(
-            self.tests_dir, "assets",
+            self.tests_dir,
+            "assets",
             "allow_missing_files_test",
             "additional_files_allow_missing_files_false.log",
         )
@@ -1211,7 +1224,8 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(WorkbenchTest):
             cleanup_paths(
                 create_config_file_path,
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "allow_missing_files_test",
                     "rollback.csv",
                 ),
@@ -1247,7 +1261,8 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(WorkbenchTest):
         nids = collect_nids_from_create_output(create_output)
 
         create_log_file_path = os.path.join(
-            self.tests_dir, "assets",
+            self.tests_dir,
+            "assets",
             "allow_missing_files_test",
             "additional_files_allow_missing_files_true.log",
         )
@@ -1285,7 +1300,8 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(WorkbenchTest):
             cleanup_paths(
                 create_config_file_path,
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "allow_missing_files_test",
                     "rollback.csv",
                 ),
@@ -1314,7 +1330,8 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
         configuration = workbench_user.alter_configuration(configuration)
         create_config_file_path = self.write_config_and_get_path(configuration)
         create_log_file_path = os.path.join(
-            self.tests_dir, "assets",
+            self.tests_dir,
+            "assets",
             "allow_missing_files_test",
             "add_media_create_nodes.log",
         )
@@ -1322,7 +1339,8 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
             self.tests_dir, "assets", "allow_missing_files_test", "rollback.csv"
         )
         add_media_csv_template_file_path = os.path.join(
-            self.tests_dir, "assets",
+            self.tests_dir,
+            "assets",
             "allow_missing_files_test",
             "add_media_additional_files.csv.template",
         )
@@ -1380,7 +1398,8 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
     def test_false(self, setup_nodes):
         """Test the addition of additional files with allow_missing_files set to False."""
         false_with_additional_files_log_file_path = os.path.join(
-            self.tests_dir, "assets",
+            self.tests_dir,
+            "assets",
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_false.log",
         )
@@ -1454,7 +1473,8 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
     def test_true(self, setup_nodes):
         """Test the addition of additional files with allow_missing_files set to True."""
         true_with_additional_files_log_file_path = os.path.join(
-            self.tests_dir, "assets",
+            self.tests_dir,
+            "assets",
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_true.log",
         )
