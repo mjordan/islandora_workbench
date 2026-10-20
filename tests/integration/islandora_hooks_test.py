@@ -29,10 +29,10 @@ class TestExecuteBootstrapScript(WorkbenchTest):
     @pytest.fixture
     def setup_nodes(self, workbench_user):
         configuration = {
-            'task': 'create',
-            'host': WB_INTEGRATION_TEST_HOST,
-            'media_type': 'document',
-            'secure_ssl_only': False
+            "task": "create",
+            "host": WB_INTEGRATION_TEST_HOST,
+            "media_type": "document",
+            "secure_ssl_only": False,
         }
 
         configuration = workbench_user.alter_configuration(configuration)
@@ -40,10 +40,7 @@ class TestExecuteBootstrapScript(WorkbenchTest):
         script_path = os.path.join(
             self.tests_dir, "assets", "execute_bootstrap_script_test", "script.py"
         )
-        yield {
-            'config_file_path': config_file_path,
-            'script_path': script_path
-        }
+        yield {"config_file_path": config_file_path, "script_path": script_path}
 
         cleanup_paths(
             config_file_path,
@@ -53,7 +50,7 @@ class TestExecuteBootstrapScript(WorkbenchTest):
 
         config = {"show_bootstrap_script_output": False}
         output, return_code = workbench_utils.execute_bootstrap_script(
-            config, setup_nodes['script_path'], setup_nodes['config_file_path']
+            config, setup_nodes["script_path"], setup_nodes["config_file_path"]
         )
         assert output.strip() == "Hello"
 
@@ -65,7 +62,7 @@ class TestExecuteBootstrapScript(WorkbenchTest):
         # 3 tokens: interpreter + flag + script.
         command = f"{sys.executable} -u {setup_nodes['script_path']}"
         output, return_code = workbench_utils.execute_bootstrap_script(
-            config, command, setup_nodes['config_file_path']
+            config, command, setup_nodes["config_file_path"]
         )
         assert output.strip() == "Hello"
 
@@ -155,7 +152,8 @@ class TestExecutePostActionEntityScript(WorkbenchTest):
                 config_file_path,
                 output_file_path,
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "execute_post_action_entity_script_test",
                     "rollback.csv",
                 ),

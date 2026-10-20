@@ -19,8 +19,5 @@ jobs:
           python -m pip install --upgrade pip  
           python -m pip install .
       - name: Run unittests  
-        run: |  
-          python tests/unit_tests.py
-          python tests/field_tests.py
-          python tests/csv_id_to_node_id_map_tests.py
-          python tests/unit_tests_workbench_config.py
+        run: pytest -v --no-header tests/unit/
+

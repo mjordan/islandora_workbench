@@ -82,7 +82,8 @@ class TestCreatePagedContent(WorkbenchTest):
                 create_config_file_path,
                 os.path.join(self.temp_dir, "metadata.csv.preprocessed"),
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "create_paged_content_test",
                     "rollback.csv",
                 ),
@@ -162,7 +163,8 @@ class TestCreatePagedContentFromDirectories(WorkbenchTest):
                 create_config_file_path,
                 os.path.join(self.temp_dir, "metadata.csv.preprocessed"),
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "create_paged_content_from_directories_test",
                     "samplebooks",
                     "rollback.csv",
@@ -248,7 +250,8 @@ class TestCreatePagedContentFromDirectoriesPageFilesSourceDirField(WorkbenchTest
                     "metadata_page_files_source_dir_field.csv.preprocessed",
                 ),
                 os.path.join(
-                    self.tests_dir, "assets",
+                    self.tests_dir,
+                    "assets",
                     "create_paged_content_from_directories_test",
                     "samplebooks",
                     "rollback.csv",

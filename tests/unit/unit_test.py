@@ -673,7 +673,8 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
 
         # Overrides by extension.
         extensions_config_file_path = os.path.join(
-            dir_path, "../assets",
+            dir_path,
+            "../assets",
             "get_field_viewer_override_from_condition_test",
             "field_viewer_override_extensions.yml",
         )
@@ -683,7 +684,8 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
 
         # Overrides by model.
         models_config_file_path = os.path.join(
-            dir_path, "../assets",
+            dir_path,
+            "../assets",
             "get_field_viewer_override_from_condition_test",
             "field_viewer_override_models.yml",
         )
@@ -693,7 +695,8 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
 
         # Overrides when both are present in config.
         both_config_file_path = os.path.join(
-            dir_path, "../assets",
+            dir_path,
+            "../assets",
             "get_field_viewer_override_from_condition_test",
             "field_viewer_override_both.yml",
         )
@@ -2121,7 +2124,8 @@ class TestGeneralTests(unittest.TestCase):
             "sha512": False,
         }
         test_file_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "../assets",
+            os.path.dirname(os.path.abspath(__file__)),
+            "../assets",
             "user-role-permissions.txt",
         )
         for hash_type, expected_hash in expected_hashes.items():
@@ -2133,7 +2137,8 @@ class TestGeneralTests(unittest.TestCase):
     def test_get_config(self):
         """Tests that the override loop in get_config works for things previously checked individually."""
         config_file_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "../assets",
+            os.path.dirname(os.path.abspath(__file__)),
+            "../assets",
             "config_test",
             "test_complex_override.yml",
         )
@@ -2173,7 +2178,8 @@ class TestGeneralTests(unittest.TestCase):
     def test_get_config_no_paged_content_type(self):
         """Tests that the paged_content_page_content_type defaults to 'islandora_object' if not set in config."""
         config_file_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "../assets",
+            os.path.dirname(os.path.abspath(__file__)),
+            "../assets",
             "config_test",
             "test_minimal_config.yml",
         )
