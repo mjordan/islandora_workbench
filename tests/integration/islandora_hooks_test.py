@@ -1,7 +1,7 @@
 """unittest tests that require a live Drupal at https://islandora.io. In most cases, the host URL,
 credentials, etc. are in a configuration file referenced in the test.
 
-This test file contains tests for Workbench's hooks. Files islandora_tests.py, islandora_tests_paged_content.py,
+This test file contains tests for Workbench's hooks. Files islandora_test.py, islandora_paged_content_test.py,
 and islandora_tests_checks.py also contain tests that interact with an Islandora instance.
 """
 
@@ -9,53 +9,60 @@ import sys
 import os
 import subprocess
 import tempfile
+from pathlib import Path
 
+import pytest
+
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent.parent))
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent))
 from workbench_test_class import (
     WorkbenchTest,
     collect_nids_from_create_output,
     cleanup_paths,
     WB_INTEGRATION_TEST_HOST,
 )
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import workbench_utils
 
 
-class TestExecuteBootstrapScript:
+class TestExecuteBootstrapScript(WorkbenchTest):
 
-    def test_execute_python_script(self):
-        dir_path = os.path.dirname(os.path.realpath(__file__))
+    @pytest.fixture
+    def setup_nodes(self, workbench_user):
+        configuration = {
+            "task": "create",
+            "host": WB_INTEGRATION_TEST_HOST,
+            "media_type": "document",
+            "secure_ssl_only": False,
+        }
 
+        configuration = workbench_user.alter_configuration(configuration)
+        config_file_path = self.write_config_and_get_path(configuration)
         script_path = os.path.join(
-            dir_path, "assets", "execute_bootstrap_script_test", "script.py"
+            self.tests_dir, "assets", "execute_bootstrap_script_test", "script.py"
         )
-        config_file_path = os.path.join(
-            dir_path, "assets", "execute_bootstrap_script_test", "config.yml"
+        yield {"config_file_path": config_file_path, "script_path": script_path}
+
+        cleanup_paths(
+            config_file_path,
         )
+
+    def test_execute_python_script(self, setup_nodes):
 
         config = {"show_bootstrap_script_output": False}
         output, return_code = workbench_utils.execute_bootstrap_script(
-            config, script_path, config_file_path
+            config, setup_nodes["script_path"], setup_nodes["config_file_path"]
         )
         assert output.strip() == "Hello"
 
-    def test_execute_python_script_multi_token_interpreter(self):
+    def test_execute_python_script_multi_token_interpreter(self, setup_nodes):
         """A script registered with a multi-token interpreter prefix (e.g. "uv run python
         script.py") must not raise ValueError: too many values to unpack."""
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-
-        script_path = os.path.join(
-            dir_path, "assets", "execute_bootstrap_script_test", "script.py"
-        )
-        config_file_path = os.path.join(
-            dir_path, "assets", "execute_bootstrap_script_test", "config.yml"
-        )
 
         config = {"show_bootstrap_script_output": False}
         # 3 tokens: interpreter + flag + script.
-        command = f"{sys.executable} -u {script_path}"
+        command = f"{sys.executable} -u {setup_nodes['script_path']}"
         output, return_code = workbench_utils.execute_bootstrap_script(
-            config, command, config_file_path
+            config, command, setup_nodes["config_file_path"]
         )
         assert output.strip() == "Hello"
 
@@ -65,7 +72,7 @@ class TestExecutePreprocessorScript:
     def test_preprocessor_script_single_field_value(self):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         script_path = os.path.join(
-            dir_path, "assets", "preprocess_field_data", "script.py"
+            dir_path, "..", "assets", "preprocess_field_data", "script.py"
         )
         config = {"subdelimiter": "|", "config_file_path": ""}
         output, return_code = workbench_utils.preprocess_field_data(
@@ -78,7 +85,7 @@ class TestExecutePreprocessorScript:
         script intact rather than dropping the leading tokens."""
         dir_path = os.path.dirname(os.path.realpath(__file__))
         script_path = os.path.join(
-            dir_path, "assets", "preprocess_field_data", "script.py"
+            dir_path, "..", "assets", "preprocess_field_data", "script.py"
         )
         config = {"subdelimiter": "|", "config_file_path": ""}
         command = f"{sys.executable} -u {script_path}"
@@ -90,7 +97,7 @@ class TestExecutePreprocessorScript:
     def test_preprocessor_script_multiple_field_value(self):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         script_path = os.path.join(
-            dir_path, "assets", "preprocess_field_data", "script.py"
+            dir_path, "..", "assets", "preprocess_field_data", "script.py"
         )
         config = {"subdelimiter": "|", "config_file_path": ""}
         output, return_code = workbench_utils.preprocess_field_data(
@@ -145,7 +152,7 @@ class TestExecutePostActionEntityScript(WorkbenchTest):
                 config_file_path,
                 output_file_path,
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "execute_post_action_entity_script_test",
                     "rollback.csv",

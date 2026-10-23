@@ -1,15 +1,19 @@
 """unittest tests that require a live Drupal at https://islandora.io. In most cases, the host URL,
 credentials, etc. are in a configuration file referenced in the test.
 
-This test file contains tests for paged content. Files islandora_tests.py, islandora_tests_paged_check.py,
-and islandora_tests_hooks.py also contain tests that interact with an Islandora instance.
+This test file contains tests for paged content. Files islandora_test.py, islandora_tests_paged_check.py,
+and islandora_hooks_test.py also contain tests that interact with an Islandora instance.
 """
 
 import os
 import subprocess
+import sys
+from pathlib import Path
+
 import requests
 import json
 
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent))
 from workbench_test_class import (
     WorkbenchTest,
     collect_nids_from_create_output,
@@ -78,7 +82,7 @@ class TestCreatePagedContent(WorkbenchTest):
                 create_config_file_path,
                 os.path.join(self.temp_dir, "metadata.csv.preprocessed"),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "create_paged_content_test",
                     "rollback.csv",
@@ -159,7 +163,7 @@ class TestCreatePagedContentFromDirectories(WorkbenchTest):
                 create_config_file_path,
                 os.path.join(self.temp_dir, "metadata.csv.preprocessed"),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "create_paged_content_from_directories_test",
                     "samplebooks",
@@ -246,7 +250,7 @@ class TestCreatePagedContentFromDirectoriesPageFilesSourceDirField(WorkbenchTest
                     "metadata_page_files_source_dir_field.csv.preprocessed",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "create_paged_content_from_directories_test",
                     "samplebooks",

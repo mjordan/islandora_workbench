@@ -31,7 +31,6 @@ from pathlib import Path
 from ruamel.yaml import YAML, YAMLError
 from unidecode import unidecode
 from progress_bar import InitBar
-from cryptography.fernet import Fernet
 import edtf_validate.valid_edtf
 import shutil
 import itertools

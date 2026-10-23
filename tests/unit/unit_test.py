@@ -15,7 +15,7 @@ import collections
 import tempfile
 import unittest
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent.parent))
 import workbench_utils
 from WorkbenchConfig import WorkbenchConfig
 
@@ -537,7 +537,7 @@ class TestSetMediaType(unittest.TestCase):
 
         # Media types are mapped from extensions.
         types_config_file_path = os.path.join(
-            dir_path, "assets", "set_media_type_test", "multi_types_config.yml"
+            dir_path, "../assets", "set_media_type_test", "multi_types_config.yml"
         )
         with open(types_config_file_path, "r") as f:
             multi_types_config_file_contents = f.read()
@@ -545,7 +545,7 @@ class TestSetMediaType(unittest.TestCase):
 
         # Media type is set for all media.
         type_config_file_path = os.path.join(
-            dir_path, "assets", "set_media_type_test", "single_type_config.yml"
+            dir_path, "../assets", "set_media_type_test", "single_type_config.yml"
         )
         with open(type_config_file_path, "r") as f:
             single_type_config_file_contents = f.read()
@@ -674,7 +674,7 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
         # Overrides by extension.
         extensions_config_file_path = os.path.join(
             dir_path,
-            "assets",
+            "../assets",
             "get_field_viewer_override_from_condition_test",
             "field_viewer_override_extensions.yml",
         )
@@ -685,7 +685,7 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
         # Overrides by model.
         models_config_file_path = os.path.join(
             dir_path,
-            "assets",
+            "../assets",
             "get_field_viewer_override_from_condition_test",
             "field_viewer_override_models.yml",
         )
@@ -696,7 +696,7 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
         # Overrides when both are present in config.
         both_config_file_path = os.path.join(
             dir_path,
-            "assets",
+            "../assets",
             "get_field_viewer_override_from_condition_test",
             "field_viewer_override_both.yml",
         )
@@ -785,7 +785,7 @@ class TestGetFieldViewerOverrideFromConditio(unittest.TestCase):
 class TestGetCsvFromExcel(unittest.TestCase):
     """Note: this tests the extraction of CSV data from Excel only,
     not using an Excel file as an input CSV file. That is tested
-    in TestCommentedCsvs in islandora_tests.py.
+    in TestCommentedCsvs in islandora_test.py.
     """
 
     def setUp(self):
@@ -1798,7 +1798,7 @@ class TestMimeTypeFunctions(unittest.TestCase):
 class TestFileIsUtf8(unittest.TestCase):
     def test_file_is_utf8(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        input_files_dir = os.path.join(current_dir, "assets", "file_is_utf8_test")
+        input_files_dir = os.path.join(current_dir, "../assets", "file_is_utf8_test")
         with os.scandir(input_files_dir) as files_to_test:
             for file_to_test in files_to_test:
                 if file_to_test.name.startswith("true_"):
@@ -1809,7 +1809,7 @@ class TestFileIsUtf8(unittest.TestCase):
 
     def test_file_is_not_utf8(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        input_files_dir = os.path.join(current_dir, "assets", "file_is_utf8_test")
+        input_files_dir = os.path.join(current_dir, "../assets", "file_is_utf8_test")
         with os.scandir(input_files_dir) as files_to_test:
             for file_to_test in files_to_test:
                 if file_to_test.name.startswith("false_"):
@@ -2125,7 +2125,7 @@ class TestGeneralTests(unittest.TestCase):
         }
         test_file_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "assets",
+            "../assets",
             "user-role-permissions.txt",
         )
         for hash_type, expected_hash in expected_hashes.items():
@@ -2138,7 +2138,7 @@ class TestGeneralTests(unittest.TestCase):
         """Tests that the override loop in get_config works for things previously checked individually."""
         config_file_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "assets",
+            "../assets",
             "config_test",
             "test_complex_override.yml",
         )
@@ -2179,7 +2179,7 @@ class TestGeneralTests(unittest.TestCase):
         """Tests that the paged_content_page_content_type defaults to 'islandora_object' if not set in config."""
         config_file_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "assets",
+            "../assets",
             "config_test",
             "test_minimal_config.yml",
         )

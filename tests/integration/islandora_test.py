@@ -1,7 +1,7 @@
 """unittest tests that require a live Drupal at https://islandora.io. In most cases, the host URL,
 credentials, etc. are in a configuration file referenced in the test.
 
-Files islandora_tests_check.py, islandora_tests_paged_content.py, and islandora_tests_hooks.py also
+Files islandora_check_test.py, islandora_paged_content_test.py, and islandora_hooks_test.py also
 contain tests that interact with an Islandora instance.
 """
 
@@ -10,6 +10,7 @@ import os
 import csv
 import glob
 import tempfile
+from pathlib import Path
 
 import pytest
 import subprocess
@@ -22,7 +23,8 @@ import copy
 import re
 import shutil
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent.parent))
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent))
 import workbench_utils
 from WorkbenchConfig import WorkbenchConfig
 from workbench_test_class import (
@@ -68,12 +70,12 @@ class TestCreate(WorkbenchTest):
             cleanup_paths(
                 create_config_file_path,
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "create_test",
                     "metadata.csv.preprocessed",
                 ),
-                os.path.join(self.current_dir, "assets", "create_test", "rollback.csv"),
+                os.path.join(self.tests_dir, "assets", "create_test", "rollback.csv"),
             )
 
 
@@ -132,7 +134,7 @@ class TestCreateFromFiles(WorkbenchTest):
             cleanup_paths(
                 create_config_file_path,
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "create_from_files_test",
                     "files",
@@ -191,7 +193,7 @@ class TestCreateWithMaxNodeTitleLength(WorkbenchTest):
                     self.temp_dir, "create_max_node_title_length.csv.preprocessed"
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "max_node_title_length_test",
                     "rollback.csv",
@@ -263,7 +265,7 @@ class TestUpdateWithMaxNodeTitleLength(WorkbenchTest):
         cleanup_paths(
             update_csv_file_name,
             os.path.join(
-                self.current_dir,
+                self.tests_dir,
                 "assets",
                 "max_node_title_length_test",
                 "rollback.csv",
@@ -510,7 +512,7 @@ class TestUpdate(WorkbenchTest):
                 os.path.basename(update_metadata_file_path) + ".preprocessed",
             ),
             os.path.join(self.temp_dir, "create.csv.preprocessed"),
-            os.path.join(self.current_dir, "assets", "update_test", "rollback.csv"),
+            os.path.join(self.tests_dir, "assets", "update_test", "rollback.csv"),
             create_config_file_path,
             delete_config_file_path,
         )
@@ -600,7 +602,7 @@ class TestImageAltText(WorkbenchTest):
             create_config_file_path,
             update_csv_path,
             os.path.join(
-                TestImageAltText.current_dir,
+                self.tests_dir,
                 "assets",
                 "alt_text_test",
                 "rollback.csv",
@@ -714,13 +716,13 @@ class TestCreateWithNonLatinText(WorkbenchTest):
                 nid_file,
                 nid_file + ".preprocessed",
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "non_latin_text_test",
                     "rollback.csv",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "non_latin_text_test",
                     "metadata.csv.preprocessed",
@@ -813,20 +815,20 @@ class TestSecondaryTask(WorkbenchTest):
                 create_config_file_path,
                 secondary_config_file_path,
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "secondary_task_test",
                     "metadata.csv.preprocessed",
                 ),
                 os.path.join(self.temp_dir, "secondary.csv.preprocessed"),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "secondary_task_test",
                     "id_to_node_map.tsv",
                 ),
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "secondary_task_test",
                     "rollback.csv",
@@ -922,7 +924,7 @@ class TestSecondaryTaskWithGoogleSheets(WorkbenchTest):
                 secondary_config_file_path,
                 create_config_file_path,
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "secondary_task_with_google_sheets_and_excel_test",
                     "rollback.csv",
@@ -1020,7 +1022,7 @@ class TestSecondaryTaskWithExcel(WorkbenchTest):
                 secondary_config_file_path,
                 create_config_file_path,
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "secondary_task_with_google_sheets_and_excel_test",
                     "rollback.csv",
@@ -1061,7 +1063,7 @@ class TestAdditionalFilesCreate(WorkbenchTest):
         subprocess.check_output(create_cmd, cwd=self.workbench_dir)
 
         rollback_file_path = os.path.join(
-            self.current_dir, "assets", "additional_files_test", "rollback.csv"
+            self.tests_dir, "assets", "additional_files_test", "rollback.csv"
         )
         # There will only be one nid in the rollback.csv file.
         with open(rollback_file_path, "r") as rbf:
@@ -1120,7 +1122,7 @@ class TestAdditionalFilesCreate(WorkbenchTest):
             delete_config_file_path,
             os.path.join(self.temp_dir, "create.csv.preprocessed"),
             os.path.join(
-                self.current_dir, "assets", "additional_files_test", "rollback.csv"
+                self.tests_dir, "assets", "additional_files_test", "rollback.csv"
             ),
             os.path.join(self.temp_dir, "rollback.csv.preprocessed"),
         )
@@ -1185,7 +1187,7 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(WorkbenchTest):
         create_output = create_output.decode().strip()
 
         create_log_file_path = os.path.join(
-            self.current_dir,
+            self.tests_dir,
             "assets",
             "allow_missing_files_test",
             "additional_files_allow_missing_files_false.log",
@@ -1222,7 +1224,7 @@ class TestAdditionalFilesCreateAllowMissingFilesFalse(WorkbenchTest):
             cleanup_paths(
                 create_config_file_path,
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "allow_missing_files_test",
                     "rollback.csv",
@@ -1259,7 +1261,7 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(WorkbenchTest):
         nids = collect_nids_from_create_output(create_output)
 
         create_log_file_path = os.path.join(
-            self.current_dir,
+            self.tests_dir,
             "assets",
             "allow_missing_files_test",
             "additional_files_allow_missing_files_true.log",
@@ -1298,7 +1300,7 @@ class TestAdditionalFilesCreateAllowMissingFilesTrue(WorkbenchTest):
             cleanup_paths(
                 create_config_file_path,
                 os.path.join(
-                    self.current_dir,
+                    self.tests_dir,
                     "assets",
                     "allow_missing_files_test",
                     "rollback.csv",
@@ -1328,16 +1330,16 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
         configuration = workbench_user.alter_configuration(configuration)
         create_config_file_path = self.write_config_and_get_path(configuration)
         create_log_file_path = os.path.join(
-            self.current_dir,
+            self.tests_dir,
             "assets",
             "allow_missing_files_test",
             "add_media_create_nodes.log",
         )
         rollback_file_path = os.path.join(
-            self.current_dir, "assets", "allow_missing_files_test", "rollback.csv"
+            self.tests_dir, "assets", "allow_missing_files_test", "rollback.csv"
         )
         add_media_csv_template_file_path = os.path.join(
-            self.current_dir,
+            self.tests_dir,
             "assets",
             "allow_missing_files_test",
             "add_media_additional_files.csv.template",
@@ -1396,7 +1398,7 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
     def test_false(self, setup_nodes):
         """Test the addition of additional files with allow_missing_files set to False."""
         false_with_additional_files_log_file_path = os.path.join(
-            self.current_dir,
+            self.tests_dir,
             "assets",
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_false.log",
@@ -1471,7 +1473,7 @@ class TestAdditionalFilesAddMediaAllowMissingFiles(WorkbenchTest):
     def test_true(self, setup_nodes):
         """Test the addition of additional files with allow_missing_files set to True."""
         true_with_additional_files_log_file_path = os.path.join(
-            self.current_dir,
+            self.tests_dir,
             "assets",
             "allow_missing_files_test",
             "add_media_additional_files_allow_missing_files_true.log",
@@ -1545,7 +1547,7 @@ class TestExportCSVWithAdditionalFiles(WorkbenchTest):
     def setup_nodes(self, workbench_user):
         """Create nodes with additional files for testing export."""
         test_assets_dir = os.path.join(
-            self.current_dir, "assets", "additional_files_test"
+            self.tests_dir, "assets", "additional_files_test"
         )
 
         # Create nodes using the existing additional files test infrastructure
