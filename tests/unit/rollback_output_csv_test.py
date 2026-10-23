@@ -562,12 +562,12 @@ class TestWriteToOutputCsv(TempDirTestCase):
         workbench_utils.write_to_output_csv(
             config,
             "a",
-            make_node_json( status=[{"value": True}], promote=[{"value": False}]),
+            make_node_json(status=[{"value": True}], promote=[{"value": False}]),
         )
         workbench_utils.write_to_output_csv(
             config,
             "b",
-            make_node_json( status=[{"value": False}], promote=[{"value": True}]),
+            make_node_json(status=[{"value": False}], promote=[{"value": True}]),
         )
         a, b = self.rows(config)
         self.assertEqual((a["published"], a["promote"]), ("1", "0"))
