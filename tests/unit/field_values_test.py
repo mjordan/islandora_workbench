@@ -7,10 +7,11 @@ Incomplete. Tracking issue is https://github.com/mjordan/islandora_workbench/iss
 import sys
 import os
 import unittest
+from pathlib import Path
 
 from unittest import mock
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent.parent))
 import workbench_fields
 
 

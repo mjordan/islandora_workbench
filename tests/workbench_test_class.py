@@ -132,8 +132,8 @@ class WorkbenchTest(ABC):
     # Class variable to hold the directory of the workbench executable
     workbench_dir = None
 
-    # Class variable to hold the current directory of the test file
-    current_dir = None
+    # Class variable to hold the directory of this test class file.
+    tests_dir = None
 
     # Class variable to hold the temporary directory path
     temp_dir = None
@@ -158,6 +158,6 @@ class WorkbenchTest(ABC):
 
     @classmethod
     def setup_class(cls):
-        cls.current_dir = os.path.dirname(os.path.abspath(__file__))
-        cls.workbench_dir = get_workbench_dir(cls.current_dir)
+        cls.tests_dir = os.path.dirname(os.path.abspath(__file__))
+        cls.workbench_dir = get_workbench_dir(cls.tests_dir)
         cls.temp_dir = tempfile.gettempdir()

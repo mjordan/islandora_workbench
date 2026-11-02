@@ -4,8 +4,9 @@ import sys
 import os
 import unittest
 import collections
+from pathlib import Path
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(os.path.abspath(__file__)).parent.parent.parent))
 import workbench_fields
 
 
