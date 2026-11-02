@@ -2007,8 +2007,8 @@ class EntityReferenceRevisionsField(WorkbenchField):
         # Cache paragraph field definitions
         paragraph_type = paragraph_configs.get("type")
         if not paragraph_type:
-            logging.warn(
-                f'Could not determine target paragraph type for field "field_name". Returning data from Drupal.'
+            logging.warning(
+                f"Could not determine target paragraph type for field [{field_name}] {field_data}. Returning data from Drupal."
             )
             return json.dumps(field_data)
         if not self.paragraph_field_definitions.get(paragraph_type):
