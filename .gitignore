@@ -3,3 +3,5 @@ __pycache__
 Islandora_Workbench.egg-info/
 dist/
 tests_local/
+.venv/
+venv/
