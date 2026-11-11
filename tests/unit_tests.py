@@ -2414,5 +2414,70 @@ class TestViewExporterProcessViewPages(unittest.TestCase):
             self.assertNotEqual(call.kwargs.get("level"), logging.WARNING)
 
 
+class TestCheckInputMediaTypeCheck(unittest.TestCase):
+    """check_input() verifies the media type of each row's 'file' value, so it
+    must skip that check when the CSV has no 'file' column (#1147), as it skips
+    the file existence checks before it.
+    """
+
+    def setUp(self):
+        self.input_dir = tempfile.mkdtemp()
+        self.config_file_name = os.path.join(self.input_dir, "update_media.yml")
+        with open(self.config_file_name, "w") as config_file:
+            config_file.write(
+                "task: update_media\nhost: https://example.com\nusername: user\n"
+                + f"password: secret\ninput_dir: {self.input_dir}\n"
+                + "input_csv: input.csv\nmedia_type: image\n"
+                + f"log_file_path: {os.path.join(self.input_dir, 'workbench.log')}\n"
+            )
+        self.args = argparse.Namespace(
+            config=self.config_file_name,
+            check=True,
+            get_csv_template=False,
+            contactsheet=False,
+        )
+
+    def run_check_input(self, csv_data):
+        with open(os.path.join(self.input_dir, "input.csv"), "w") as csv_file:
+            csv_file.write(csv_data)
+        response = mock.Mock(status_code=200, headers={}, text="{}")
+        response.json.return_value = {}
+        with mock.patch(
+            "WorkbenchConfig.requests.sessions.Session.request",
+            side_effect=mocked_requests_get,
+        ):
+            config = WorkbenchConfig(self.args).get_config()
+        with (
+            mock.patch("workbench_utils.issue_request", return_value=response),
+            mock.patch("workbench_utils.check_integration_module_version"),
+            mock.patch("workbench_utils.get_entity_fields", return_value=[]),
+            mock.patch("workbench_utils.get_field_definitions", return_value={}),
+            mock.patch(
+                "workbench_utils.ping_media_bundle", return_value=200
+            ) as mock_ping_media_bundle,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            with self.assertRaises(SystemExit) as exit_context:
+                workbench_utils.check_input(config, self.args)
+        # check_input() ends a successful --check with sys.exit(0).
+        self.assertEqual(exit_context.exception.code, 0)
+        return mock_ping_media_bundle
+
+    def test_csv_without_file_column(self):
+        mock_ping_media_bundle = self.run_check_input("media_id,status\n123,1\n")
+        mock_ping_media_bundle.assert_not_called()
+
+    def test_csv_with_file_column(self):
+        with open(os.path.join(self.input_dir, "image.jpg"), "w") as image_file:
+            image_file.write("")
+        mock_ping_media_bundle = self.run_check_input("media_id,file\n123,image.jpg\n")
+        mock_ping_media_bundle.assert_called_once()
+
+    def tearDown(self):
+        for filename in os.listdir(self.input_dir):
+            os.remove(os.path.join(self.input_dir, filename))
+        os.rmdir(self.input_dir)
+
+
 if __name__ == "__main__":
     unittest.main()
