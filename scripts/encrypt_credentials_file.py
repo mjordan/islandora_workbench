@@ -24,6 +24,8 @@ try:
     fk = open(key_file, "wb")
     fk.write(key)
 
-    print(f"'{credentials_file}' can be decrypted using the key {key_string}, which has been saved to the file '{key_file}'.")
+    print(
+        f"'{credentials_file}' can be decrypted using the key {key_string}, which has been saved to the file '{key_file}'."
+    )
 except Exception as e:
     print("Unable to encrypt credentials: ", e)
