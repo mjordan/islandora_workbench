@@ -1,16 +1,29 @@
 import sys
+from pathlib import Path
 from cryptography.fernet import Fernet
 
 credentials_file = sys.argv[1]
-key = Fernet.generate_key()
-fernet = Fernet(key)
 
-with open(credentials_file, "rb") as f:
-    plain_text = f.read()
+try:
+    key = Fernet.generate_key()
+    fernet = Fernet(key)
 
-encrypted = fernet.encrypt(plain_text)
+    fc = open(credentials_file, "rb")
+    plain_text = fc.read()
 
-with open(credentials_file, "wb") as f:
-    f.write(encrypted)
+    encrypted = fernet.encrypt(plain_text)
 
-print(f"'{credentials_file}' can be decrypted using the key {key.decode()}")
+    fe = open(credentials_file, "wb")
+    fe.write(encrypted)
+
+    key_file = Path(credentials_file).stem
+    key_file = f"{key_file}_key.txt"
+
+    key_string = key.decode()
+
+    fk = open(key_file, "wb")
+    fk.write(key)
+
+    print(f"'{credentials_file}' can be decrypted using the key {key_string}, which has been saved to the file '{key_file}'.")
+except Exception as e:
+    print("Unable to encrypt credentials: ", e)
