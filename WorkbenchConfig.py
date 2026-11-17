@@ -2,6 +2,7 @@
 
 import shlex
 import tempfile
+from cryptography.fernet import Fernet
 from getpass import getpass
 from workbench_utils import *
 from rich.console import Console
