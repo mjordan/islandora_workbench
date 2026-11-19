@@ -10995,7 +10995,7 @@ def get_csv_id_to_node_id_map_allowed_hosts_sql(config: dict) -> str:
         else:
             empty_host_query_string = ""
         hosts_in_parameter = ",".join(f'"{h}"' for h in allowed_hosts)
-        sql_snippet = f" {empty_host_query_string} host in ({hosts_in_parameter}) and "
+        sql_snippet = f"({empty_host_query_string} host in ({hosts_in_parameter})) and "
     else:
         sql_snippet = ""
 

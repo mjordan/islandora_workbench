@@ -145,7 +145,7 @@ def create():
                 parent_node_id_query = (
                     "select node_id from csv_id_to_node_id_map where "
                     + csv_id_to_node_id_map_allowed_hosts_sql
-                    + " csv_id = ? and node_id >= ? order by timestamp desc limit 1"
+                    + " csv_id = ? and node_id + 0 >= ? order by timestamp desc limit 1"
                 )
                 parent_in_id_map_result = sqlite_manager(
                     config,
