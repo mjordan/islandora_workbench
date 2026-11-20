@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import csv
 import io
 import sys
 import os
@@ -2477,6 +2478,119 @@ class TestCheckInputMediaTypeCheck(unittest.TestCase):
         for filename in os.listdir(self.input_dir):
             os.remove(os.path.join(self.input_dir, filename))
         os.rmdir(self.input_dir)
+
+
+class TestValidateParentIdsExist(unittest.TestCase):
+    def setUp(self):
+        self.config = {
+            "id_field": "id",
+            "perform_soft_checks": False,
+            "query_csv_id_to_node_id_map_for_parents": False,
+            "csv_id_to_node_id_map_path": False,
+        }
+        self.csv_path = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ).name
+        os.environ.pop("ISLANDORA_WORKBENCH_PRIMARY_TASK_CSV_IDS", None)
+
+    def tearDown(self):
+        os.remove(self.csv_path)
+        os.environ.pop("ISLANDORA_WORKBENCH_PRIMARY_TASK_CSV_IDS", None)
+
+    def _run(self, rows, header="id,parent_id,title"):
+        with open(self.csv_path, "w") as f:
+            f.write(header + "\n")
+            for row in rows:
+                f.write(",".join(row) + "\n")
+        with open(self.csv_path) as f:
+            reader = csv.DictReader(f)
+            return workbench_utils.validate_parent_ids_exist(self.config, reader)
+
+    def test_parent_in_same_csv(self):
+        self.assertIsNone(self._run([("a", "", "A"), ("b", "a", "B")]))
+
+    def test_no_parents(self):
+        self.assertIsNone(self._run([("a", "", "A"), ("b", "", "B")]))
+
+    def test_self_parent_is_error(self):
+        with self.assertRaises(SystemExit) as cm:
+            self._run([("a", "a", "A")])
+        self.assertIn("itself as its parent", str(cm.exception))
+
+    def test_missing_parent_is_error(self):
+        with self.assertRaises(SystemExit) as cm:
+            self._run([("a", "", "A"), ("b", "nope", "B")])
+        self.assertIn('"nope"', str(cm.exception))
+
+    def test_missing_parent_is_warning_with_soft_checks(self):
+        self.config["perform_soft_checks"] = True
+        self.assertIsNone(self._run([("b", "nope", "B")]))
+
+    def test_parent_in_primary_task_csv(self):
+        os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_CSV_IDS"] = json.dumps(["book-1"])
+        self.assertIsNone(self._run([("p1", "book-1", "P1")]))
+
+    def test_typo_with_primary_task_csv_is_error(self):
+        os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_CSV_IDS"] = json.dumps(["book-1"])
+        with self.assertRaises(SystemExit):
+            self._run([("p1", "bok-1", "P1")])
+
+    def _enable_id_map(self):
+        self.config["query_csv_id_to_node_id_map_for_parents"] = True
+        self.config["csv_id_to_node_id_map_path"] = self.csv_path
+        self.config["csv_id_to_node_id_map_allowed_hosts"] = []
+
+    def test_parent_in_id_map_and_node_exists(self):
+        self._enable_id_map()
+        with (
+            mock.patch(
+                "workbench_utils.sqlite_manager", return_value=[{"node_id": "42"}]
+            ),
+            mock.patch("workbench_utils.ping_node", return_value=True),
+        ):
+            self.assertIsNone(self._run([("b", "old-parent", "B")]))
+
+    def test_parent_in_id_map_but_node_deleted(self):
+        self._enable_id_map()
+        with (
+            mock.patch(
+                "workbench_utils.sqlite_manager", return_value=[{"node_id": "42"}]
+            ),
+            mock.patch("workbench_utils.ping_node", return_value=False),
+        ):
+            with self.assertRaises(SystemExit):
+                self._run([("b", "old-parent", "B")])
+
+    def test_parent_not_in_id_map(self):
+        self._enable_id_map()
+        with mock.patch("workbench_utils.sqlite_manager", return_value=[]):
+            with self.assertRaises(SystemExit):
+                self._run([("b", "old-parent", "B")])
+
+    def test_both_parent_id_and_field_member_of_is_error(self):
+        with self.assertRaises(SystemExit) as cm:
+            self._run(
+                [("a", "", "", "A"), ("b", "a", "7", "B")],
+                header="id,parent_id,field_member_of,title",
+            )
+        self.assertIn("both", str(cm.exception))
+
+    def test_empty_field_member_of_column_is_fine(self):
+        self.assertIsNone(
+            self._run(
+                [("a", "", "", "A"), ("b", "a", "", "B"), ("c", "", "7", "C")],
+                header="id,parent_id,field_member_of,title",
+            )
+        )
+
+    def test_no_parent_id_column(self):
+        with open(self.csv_path, "w") as f:
+            f.write("id,title\na,A\n")
+        with open(self.csv_path) as f:
+            reader = csv.DictReader(f)
+            self.assertFalse(
+                workbench_utils.validate_parent_ids_exist(self.config, reader)
+            )
 
 
 if __name__ == "__main__":

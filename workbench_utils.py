@@ -2340,11 +2340,22 @@ def check_input(config: dict, args: Namespace) -> None:
             os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_EXECUTION_START_TIME"] = (
                 workbench_execution_start_time
             )
+            # Stash the primary task csv's item ids, so that the secondary tasks can check for parent_id.
+            # It's possible the csv in a secondary task may use a parent_id described in the primary csv.
+            # So let the secondary csv see all possible parent_ids.  Then "--check" can give good error messages.
+            primary_task_csv_ids = [
+                row[config["id_field"]] for row in get_csv_data(config)
+            ]
+            os.environ["ISLANDORA_WORKBENCH_PRIMARY_TASK_CSV_IDS"] = json.dumps(
+                primary_task_csv_ids
+            )
         if "parent_id" in csv_column_headers:
             validate_parent_ids_precede_children_csv_data = get_csv_data(config)
             validate_parent_ids_precede_children(
                 config, validate_parent_ids_precede_children_csv_data
             )
+            validate_parent_ids_exist_csv_data = get_csv_data(config)
+            validate_parent_ids_exist(config, validate_parent_ids_exist_csv_data)
             prepare_csv_id_to_node_id_map(config)
             if config["query_csv_id_to_node_id_map_for_parents"] is True:
                 validate_parent_ids_in_csv_id_to_node_id_map_csv_data = get_csv_data(
@@ -8596,6 +8607,112 @@ def validate_parent_ids_precede_children(
                 logging.error(message)
                 if config["perform_soft_checks"] is False:
                     sys.exit("Error: " + message)
+
+
+def validate_parent_ids_exist(config: dict, csv_data: DictReader) -> Union[bool, None]:
+    """Check that every "parent_id" value in the CSV refers to a parent that exists or will exist.
+    A "parent_id" is valid if it is one of:
+      - the "id" of a row in this CSV,
+      - the "id" of a row in the primary task's CSV, when this is a secondary task checked via the primary
+        task (the primary task passes its IDs in the ISLANDORA_WORKBENCH_PRIMARY_TASK_CSV_IDS environment variable),
+      - a CSV ID in the CSV ID to node ID map (only if "query_csv_id_to_node_id_map_for_parents" is true)
+        whose node still exists in Drupal.
+    A "parent_id" that is the same as its own row's ID is never valid, and a row may not have values in
+    both "parent_id" and "field_member_of".
+    Parameters
+    :param config: dict - The configuration settings defined by WorkbenchConfig.get_config().
+    :param csv_data: DictReader - The CSV data.
+    :return: Union[bool, None] - Returns False if there is no "parent_id" field in the CSV; otherwise returns nothing.
+    """
+    if "parent_id" not in csv_data.fieldnames:
+        return False
+
+    id_field = config["id_field"]
+    has_member_of = "field_member_of" in csv_data.fieldnames
+    rows = [
+        (
+            row[id_field],
+            row["parent_id"],
+            row["field_member_of"].strip() if has_member_of else "",
+        )
+        for row in csv_data
+    ]
+    csv_ids = {row_id for row_id, parent_id, member_of in rows}
+
+    primary_task_csv_ids = set(
+        json.loads(os.environ.get("ISLANDORA_WORKBENCH_PRIMARY_TASK_CSV_IDS", "[]"))
+    )
+
+    use_id_map = (
+        config["query_csv_id_to_node_id_map_for_parents"] is True
+        and config["csv_id_to_node_id_map_path"] is not False
+        and os.path.exists(config["csv_id_to_node_id_map_path"])
+    )
+
+    # Cache of parent IDs we have already looked up in the map and the site, since many rows share a parent.
+    id_map_results = dict()
+    problems = []
+    for row_id, parent_id, member_of in rows:
+        if parent_id == "":
+            continue
+        if member_of != "":
+            # Import would silently replace "field_member_of" with the node ID resolved from "parent_id".
+            problems.append(
+                f'Item with CSV ID "{row_id}" has values in both "parent_id" ("{parent_id}") and "field_member_of" ("{member_of}"). Use only one of them.'
+            )
+            continue
+        if parent_id == row_id:
+            problems.append(
+                f'Item with CSV ID "{row_id}" has itself as its parent ("parent_id" is "{parent_id}").'
+            )
+            continue
+        if parent_id in csv_ids or parent_id in primary_task_csv_ids:
+            continue
+        if use_id_map:
+            if parent_id not in id_map_results:
+                query = (
+                    "select node_id from csv_id_to_node_id_map where "
+                    + get_csv_id_to_node_id_map_allowed_hosts_sql(config)
+                    + " csv_id = ?"
+                )
+                map_rows = sqlite_manager(
+                    config,
+                    operation="select",
+                    query=query,
+                    values=(parent_id,),
+                    db_file_path=config["csv_id_to_node_id_map_path"],
+                )
+                id_map_results[parent_id] = any(
+                    ping_node(config, map_row["node_id"], warn=False) is True
+                    for map_row in map_rows
+                )
+            if id_map_results[parent_id] is True:
+                continue
+        problems.append(
+            f'Item with CSV ID "{row_id}" has a "parent_id" ("{parent_id}") that is not the ID of any row in the CSV'
+            + (" or the primary task's CSV" if len(primary_task_csv_ids) > 0 else "")
+            + (
+                ", and has no matching existing node in the CSV ID to node ID map."
+                if use_id_map
+                else ' (and "query_csv_id_to_node_id_map_for_parents" is not enabled, so parents from earlier Workbench runs are not looked up).'
+            )
+        )
+
+    if len(problems) == 0:
+        return
+
+    for problem in problems:
+        logging.error(problem)
+    if config["perform_soft_checks"] is False:
+        extra = (
+            f" ({len(problems) - 1} more such problems, see the Workbench log.)"
+            if len(problems) > 1
+            else ""
+        )
+        sys.exit("Error: " + problems[0] + extra)
+    else:
+        for problem in problems:
+            print("Warning: " + problem)
 
 
 def validate_parent_ids_in_csv_id_to_node_id_map(config: dict, csv_data: DictReader):
