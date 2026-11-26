@@ -11245,15 +11245,21 @@ def download_file_from_drupal(
 
     try:
         with open(downloaded_file_path, "wb+") as f:
-            file_download_response = requests.get(
-                file_url,
-                allow_redirects=True,
-                verify=config["secure_ssl_only"],
-                headers={"User-Agent": config["user_agent"]},
-            )
+            # Do not cache the responses for downloaded files in requests_cache
+            with requests_cache.disabled():
+                file_download_response = requests.get(
+                    file_url,
+                    allow_redirects=True,
+                    stream=True,
+                    verify=config["secure_ssl_only"],
+                    headers={"User-Agent": config["user_agent"]},
+                )
             if file_download_response.status_code == 200:
-                # TODO: Stream the download to avoid loading the entire file into memory.
-                f.write(file_download_response.content)
+                # Stream the body to disk so a large file is never held in memory whole.
+                for chunk in file_download_response.iter_content(
+                    chunk_size=1024 * 1024
+                ):
+                    f.write(chunk)
                 filename_for_logging = os.path.basename(downloaded_file_path)
                 logging.info(
                     f'File "{filename_for_logging}" downloaded for node {node_id}.'

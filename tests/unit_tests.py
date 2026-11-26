@@ -2305,7 +2305,7 @@ class TestDownloadFileFromDrupal(unittest.TestCase):
         """
         fake_response = mock.Mock()
         fake_response.status_code = 200
-        fake_response.content = b"file content"
+        fake_response.iter_content.return_value = [b"file content"]
         mock_requests_get.return_value = fake_response
 
         result = workbench_utils.download_file_from_drupal(self.config, "1")
@@ -2315,6 +2315,78 @@ class TestDownloadFileFromDrupal(unittest.TestCase):
             mock_requests_get.call_args.kwargs["headers"],
             {"User-Agent": "Islandora Workbench"},
         )
+
+    @mock.patch("workbench_utils.requests.get")
+    @mock.patch(
+        "workbench_utils.find_file_url_in_media",
+        return_value="https://example.com/system/files/2026-10/video.mp4",
+    )
+    @mock.patch("workbench_utils.resolve_media_use_term_id", return_value="17")
+    @mock.patch("workbench_utils.get_media_list", return_value=[{}])
+    def test_download_streams_body_to_disk(
+        self,
+        mock_get_media_list,
+        mock_resolve_media_use_term_id,
+        mock_find_file_url_in_media,
+        mock_requests_get,
+    ):
+        """A large file must reach disk in chunks, never as one in-memory
+        .content, which needs about twice the file's size in memory.
+        """
+        fake_response = mock.Mock()
+        fake_response.status_code = 200
+        fake_response.iter_content.return_value = [b"first chunk, ", b"second chunk"]
+        type(fake_response).content = mock.PropertyMock(
+            side_effect=AssertionError("the body must not be read whole")
+        )
+        mock_requests_get.return_value = fake_response
+
+        result = workbench_utils.download_file_from_drupal(self.config, "1")
+
+        self.assertEqual(result, os.path.join(self.export_dir, "video.mp4"))
+        self.assertTrue(mock_requests_get.call_args.kwargs["stream"])
+        with open(result, "rb") as f:
+            self.assertEqual(f.read(), b"first chunk, second chunk")
+
+    @mock.patch("workbench_utils.requests_cache.disabled")
+    @mock.patch("workbench_utils.requests.get")
+    @mock.patch(
+        "workbench_utils.find_file_url_in_media",
+        return_value="https://example.com/system/files/2026-10/video.mp4",
+    )
+    @mock.patch("workbench_utils.resolve_media_use_term_id", return_value="17")
+    @mock.patch("workbench_utils.get_media_list", return_value=[{}])
+    def test_download_bypasses_http_cache(
+        self,
+        mock_get_media_list,
+        mock_resolve_media_use_term_id,
+        mock_find_file_url_in_media,
+        mock_requests_get,
+        mock_cache_disabled,
+    ):
+        """With enable_http_cache on, a cached response would hold the whole
+        body, so the download runs with requests_cache disabled, as
+        download_remote_file() does.
+        """
+        events = []
+        cache_context = mock.MagicMock()
+        cache_context.__enter__.side_effect = lambda: events.append("cache off")
+        cache_context.__exit__.side_effect = lambda *args: events.append("cache on")
+        mock_cache_disabled.return_value = cache_context
+
+        fake_response = mock.Mock()
+        fake_response.status_code = 200
+        fake_response.iter_content.return_value = [b"file content"]
+
+        def fake_get(*args, **kwargs):
+            events.append("get")
+            return fake_response
+
+        mock_requests_get.side_effect = fake_get
+
+        workbench_utils.download_file_from_drupal(self.config, "1")
+
+        self.assertEqual(events, ["cache off", "get", "cache on"])
 
     def tearDown(self):
         for filename in os.listdir(self.export_dir):
